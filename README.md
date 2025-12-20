@@ -1,6 +1,6 @@
 # Podcast Ad Remover (AGPAR)
 This is an app that downloads podcasts, uses AI to remove ads, and then creates a new feed that you can consume them from. 
- I mainly vibe-coded for my own personal use and it seems to be working pretty well so I thought I would share it. I'm sure there are heaps of things wrong with it, but for running on my own homelab it has worked OK. 
+I mainly vibe-coded for my own personal use and it seems to be working pretty well so I thought I would share it. I've been using it fora bout a month and had a couple of friends also using it and we're pretty hapopy with how it's going. For the most part it just works. I'm sure there are heaps of things that aren't up to a professional standard, but for running on my own homelab it has worked great. 
 
 The Audio transcription happens locally using Whisper which can be fairly processing ehavy, but I run it on the CPU on a little N100 machine and it stil manages to work at something like 3x real speed. I do reccomend pinning it to some subset of your CPU cores because othwerwise you may well freeze the PC.
 
