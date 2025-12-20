@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if config_warning %}
+<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                fill="currentColor">
+                <path fill-rule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm text-yellow-700">
+                <span class="font-bold">No AI Provider Configured!</span>
+                Processing will fail until you configure an API key (Gemini, OpenAI, etc) in
+                <a href="/admin/ai" class="font-medium underline text-yellow-700 hover:text-yellow-600">Settings > AI
+                    Models</a>.
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+<div class="bg-white p-6 rounded-lg shadow-md mb-6">
+    <h2 class="text-xl font-semibold mb-4">Add Subscription</h2>
+
+    <!-- Search -->
+    <div class="mb-4">
+        <div class="flex gap-4">
+            <input type="text" id="search-input" placeholder="Search Podcasts..." aria-label="Search Podcasts"
+                class="flex-1 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button onclick="searchPodcasts()"
+                class="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700 transition">
+                Search
+            </button>
+        </div>
+        <div id="search-results" class="mb-6 grid gap-4"></div>
+    </div>
+
+    <!-- Stats Panel -->
+    <div class="border-t mt-6 pt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+        <div class="bg-gray-50 p-3 rounded">
+            <div class="text-2xl font-bold text-blue-600">{{ stats.podcasts }}</div>
+            <div class="text-xs text-gray-500 uppercase">Podcasts</div>
+        </div>
+        <div class="bg-gray-50 p-3 rounded">
+            <div class="text-2xl font-bold text-blue-600">{{ stats.episodes }}</div>
+            <div class="text-xs text-gray-500 uppercase">Episodes</div>
+        </div>
+        <div class="bg-gray-50 p-3 rounded">
+            <div class="text-2xl font-bold text-blue-600">{{ stats.hours }}</div>
+            <div class="text-xs text-gray-500 uppercase">Hours</div>
+        </div>
+        <div class="bg-gray-50 p-3 rounded">
+            <div class="text-2xl font-bold text-blue-600">{{ stats.size_gb }}</div>
+            <div class="text-xs text-gray-500 uppercase">GB Saved</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for item in subscriptions %}
+    <div class="bg-white p-6 rounded-lg shadow-md flex flex-col h-full">
+        <div class="flex items-start gap-4 mb-4">
+            {% if item.sub.image_url %}
+            <img src="{{ item.sub.image_url }}" alt="{{ item.sub.title }}"
+                class="w-16 h-16 object-cover rounded shadow-sm">
+            {% endif %}
+            <div class="flex-1 min-w-0">
+                <h3 class="text-lg font-bold truncate" title="{{ item.sub.title }}">
+                    <a href="/subscriptions/{{ item.sub.id }}" class="hover:underline">{{ item.sub.title }}</a>
+                </h3>
+                <p class="text-gray-500 text-xs truncate">{{ item.sub.feed_url }}</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-4 flex-1 content-start">
+            <a href="{{ item.links.rss }}"
+                class="text-xs bg-orange-500 text-white px-2 py-1 rounded hover:bg-orange-600" target="_blank">RSS</a>
+            <a href="{{ item.links.pocket_casts }}"
+                class="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Pocket Casts</a>
+            <a href="{{ item.links.apple }}"
+                class="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-700">Apple</a>
+            <a href="{{ item.links.overcast }}"
+                class="text-xs bg-orange-600 text-white px-2 py-1 rounded hover:bg-orange-700">Overcast</a>
+            <a href="{{ item.links.castbox }}"
+                class="text-xs bg-orange-400 text-white px-2 py-1 rounded hover:bg-orange-500">Castbox</a>
+            <a href="{{ item.links.podcast_addict }}"
+                class="text-xs bg-teal-600 text-white px-2 py-1 rounded hover:bg-teal-700">Addict</a>
+        </div>
+
+        <div class="flex justify-between items-center border-t pt-3 mt-auto">
+            <a href="/feeds/{{ item.sub.slug }}.xml" target="_blank"
+                class="text-blue-600 hover:underline text-sm flex items-center gap-1">
+                <span>Direct RSS</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+            </a>
+            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-span-full text-center py-10 text-gray-500">
+        No subscriptions yet. Add one above!
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    async function searchPodcasts() {
+        const query = document.getElementById('search-input').value;
+        const resultsDiv = document.getElementById('search-results');
+
+        if (!query) return;
+
+        resultsDiv.innerHTML = '<div class="text-center p-4">Searching...</div>';
+
+        try {
+            const res = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
+            });
+            const data = await res.json();
+
+            resultsDiv.innerHTML = '';
+            if (data.length === 0) {
+                resultsDiv.innerHTML = '<div class="text-center p-4">No results found.</div>';
+                return;
+            }
+
+            data.forEach(pod => {
+                const el = document.createElement('div');
+                el.className = 'flex items-center gap-4 p-3 border rounded hover:bg-gray-50';
+                el.innerHTML = `
+                <img src="${pod.image}" class="w-12 h-12 rounded bg-gray-200">
+                <div class="flex-1 min-w-0">
+                    <h4 class="font-bold truncate">${pod.title}</h4>
+                    <p class="text-xs text-gray-500 truncate">${pod.description}</p>
+                </div>
+                <form action="/add" method="post" class="flex items-center gap-2">
+                    <input type="hidden" name="feed_url" value="${pod.feed_url}">
+                    <select name="initial_count" class="text-sm p-1 border rounded" aria-label="Episodes to download">
+                        <option value="1">1 ep</option>
+                        <option value="3">3 eps</option>
+                        <option value="5">5 eps</option>
+                    </select>
+                    <button type="submit" class="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+                        Add
+                    </button>
+                </form>
+            `;
+                resultsDiv.appendChild(el);
+            });
+        } catch (e) {
+            resultsDiv.innerHTML = '<div class="text-red-500 p-4">Search failed.</div>';
+        }
+    }
+</script>
+{% endblock %}

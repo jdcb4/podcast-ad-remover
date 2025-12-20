@@ -1,0 +1,400 @@
+{% extends "admin/layout.html" %}
+
+{% block admin_content %}
+{% macro shuttle_ui(provider, label, input_name, initial_value) %}
+<div class="bg-blue-50 p-4 rounded border border-blue-100 mt-2">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700">{{ label }}</label>
+            <span class="text-xs text-gray-500">Drag to reorder. Max 5 models.</span>
+        </div>
+        <div class="space-x-2">
+            <button type="button" onclick="shuttleManager.refresh('{{ provider }}')"
+                class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Refresh</button>
+            <button type="button" onclick="shuttleManager.reset('{{ provider }}')"
+                class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200">Reset</button>
+        </div>
+    </div>
+    <div class="grid grid-cols-[1fr,auto,1fr] gap-2 items-center h-96">
+        <div class="flex flex-col h-full overflow-hidden">
+            <h5 class="text-xs font-semibold text-gray-500 mb-1">Available Models</h5>
+            <input type="text" placeholder="Filter..."
+                onkeyup="shuttleManager.filterAvailable('{{ provider }}', this.value)"
+                class="mb-1 text-xs p-1 border rounded w-full">
+            <div class="flex-1 bg-white border rounded overflow-y-auto p-2 space-y-1 shadow-inner"
+                id="{{ provider }}_available"></div>
+        </div>
+        <div class="flex flex-col gap-2">
+            <span class="text-gray-400">&rarr;</span>
+        </div>
+        <div class="flex flex-col h-full overflow-hidden">
+            <h5 class="text-xs font-semibold text-gray-500 mb-1">Selected Cascade</h5>
+            <div class="flex-1 bg-white border rounded overflow-y-auto p-2 space-y-1 shadow-inner"
+                id="{{ provider }}_selected"></div>
+        </div>
+    </div>
+    <input type="hidden" name="{{ input_name }}" id="{{ provider }}_input" value="{{ initial_value }}">
+</div>
+{% endmacro %}
+<h3 class="text-xl font-bold text-gray-800 mb-6">AI Configuration</h3>
+
+<form action="/admin/ai/update" method="POST" id="aiForm">
+    <div class="space-y-8">
+        <!-- Models -->
+        <div>
+            <h4 class="text-lg font-medium text-gray-700 border-b pb-2 mb-4">Core Models</h4>
+            <div class="grid grid-cols-1 gap-6">
+                <!-- Whisper -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Whisper Model (Transcription)</label>
+                    <select name="whisper_model"
+                        class="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500 bg-white">
+                        {% for model in ['tiny', 'base', 'small', 'medium', 'large'] %}
+                        <option value="{{ model }}" {% if settings.whisper_model==model %}selected{% endif %}>
+                            {{ model|title }} {% if model == 'base' %}(Default){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Piper -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Piper Voice (TTS)</label>
+                    <select name="piper_model" class="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
+                        readonly>
+                        <option value="en_GB-cori-high.onnx" selected>Cori (High Quality) - UK English</option>
+                    </select>
+                    <input type="hidden" name="piper_model" value="en_GB-cori-high.onnx">
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Provider Selection -->
+        <div>
+            <h4 class="text-lg font-medium text-gray-700 border-b pb-2 mb-4">AI Provider</h4>
+            <select name="active_ai_provider" id="providerSelect" class="w-full p-2 border rounded mb-4"
+                onchange="toggleProviderSettings()">
+                <option value="gemini" {% if settings.active_ai_provider=='gemini' %}selected{% endif %}>Google Gemini
+                    (Default)</option>
+                <option value="openai" {% if settings.active_ai_provider=='openai' %}selected{% endif %}>OpenAI</option>
+                <option value="anthropic" {% if settings.active_ai_provider=='anthropic' %}selected{% endif %}>Anthropic
+                    (Claude)</option>
+                <option value="openrouter" {% if settings.active_ai_provider=='openrouter' %}selected{% endif %}>
+                    OpenRouter</option>
+            </select>
+
+            <!-- Gemini Shuttle -->
+            <div id="geminiSettings" class="provider-section">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Gemini API Key</label>
+                    <input type="password" name="gemini_api_key" id="gemini_key"
+                        value="{{ settings.gemini_api_key or '' }}"
+                        placeholder="{% if env_keys.GEMINI_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
+                        class="w-full p-2 border rounded mb-2">
+                    {% if env_keys.GEMINI_API_KEY %}
+                    <p class="text-xs text-green-600 mb-2">✓ Environment Variable Detected (will be used if this field
+                        is empty)</p>
+                    {% endif %}
+                </div>
+                {{ shuttle_ui('gemini', 'Gemini Model Cascade', 'ai_model_cascade', settings.ai_model_cascade | tojson)
+                }}
+            </div>
+
+            <!-- OpenAI Shuttle -->
+            <div id="openaiSettings" class="provider-section hidden space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">OpenAI API Key</label>
+                    <input type="password" name="openai_api_key" id="openai_key"
+                        value="{{ settings.openai_api_key or '' }}"
+                        placeholder="{% if env_keys.OPENAI_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
+                        class="w-full p-2 border rounded">
+                    {% if env_keys.OPENAI_API_KEY %}
+                    <p class="text-xs text-green-600">✓ Environment Variable Detected</p>
+                    {% endif %}
+                </div>
+                {{ shuttle_ui('openai', 'OpenAI Model Cascade', 'openai_model', settings.openai_model | tojson) }}
+            </div>
+
+            <!-- Anthropic Shuttle -->
+            <div id="anthropicSettings" class="provider-section hidden space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Anthropic API Key</label>
+                    <input type="password" name="anthropic_api_key" id="anthropic_key"
+                        value="{{ settings.anthropic_api_key or '' }}"
+                        placeholder="{% if env_keys.ANTHROPIC_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
+                        class="w-full p-2 border rounded">
+                    {% if env_keys.ANTHROPIC_API_KEY %}
+                    <p class="text-xs text-green-600">✓ Environment Variable Detected</p>
+                    {% endif %}
+                </div>
+                {{ shuttle_ui('anthropic', 'Anthropic Model Cascade', 'anthropic_model', settings.anthropic_model |
+                tojson) }}
+            </div>
+
+            <!-- OpenRouter Shuttle -->
+            <div id="openrouterSettings" class="provider-section hidden space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">OpenRouter API Key</label>
+                    <input type="password" name="openrouter_api_key" id="openrouter_key"
+                        value="{{ settings.openrouter_api_key or '' }}"
+                        placeholder="{% if env_keys.OPENROUTER_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
+                        class="w-full p-2 border rounded">
+                    {% if env_keys.OPENROUTER_API_KEY %}
+                    <p class="text-xs text-green-600">✓ Environment Variable Detected</p>
+                    {% endif %}
+                </div>
+                {{ shuttle_ui('openrouter', 'OpenRouter Model Cascade', 'openrouter_model', settings.openrouter_model |
+                tojson) }}
+            </div>
+
+            <!-- Test Connection Area -->
+            <div class="mt-6 p-4 bg-gray-50 rounded border border-gray-200">
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-medium text-gray-700">Test Configuration</h4>
+                    <button type="button" onclick="testConnection()"
+                        class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium shadow-sm">
+                        Test Connection
+                    </button>
+                </div>
+                <div id="testOutput"
+                    class="hidden mt-2 p-2 text-xs font-mono bg-white border rounded h-20 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <div class="flex justify-end pt-4 border-t">
+            <button type="submit"
+                class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm font-medium">
+                Save Configuration
+            </button>
+        </div>
+    </div>
+</form>
+
+<!-- SortableJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+<script>
+    // --- Data ---
+    const DEFAULTS = {
+        'gemini': ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
+        'openai': ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+        'anthropic': ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
+        'openrouter': ['google/gemini-2.0-flash-001', 'meta-llama/llama-3-70b-instruct', 'anthropic/claude-3-opus']
+    };
+
+    // --- Shuttle Manager ---
+    class ShuttleManager {
+        constructor() {
+            this.states = {}; // { provider: { available: [], selected: [], allKnown: [] } }
+        }
+
+        init(provider, initialSelectedJson) {
+            let selected = [];
+            try {
+                // Handle various inputs (JSON string, single string, or array)
+                if (Array.isArray(initialSelectedJson)) {
+                    selected = initialSelectedJson;
+                } else if (typeof initialSelectedJson === 'string') {
+                    if (initialSelectedJson.startsWith('[')) {
+                        selected = JSON.parse(initialSelectedJson);
+                        if (!Array.isArray(selected)) selected = [String(selected)];
+                    } else if (initialSelectedJson.trim() !== "") {
+                        selected = [initialSelectedJson];
+                    }
+                }
+            } catch (e) {
+                console.error("Parse error", e);
+                selected = [];
+            }
+
+            // Ensure defaults are known
+            const defaults = DEFAULTS[provider] || [];
+
+            // Initial pool = Defaults + Selected (uniqued)
+            const allKnown = [...new Set([...defaults, ...selected])];
+
+            this.states[provider] = {
+                selected: selected,
+                allKnown: allKnown,
+                available: [], // will be computed
+                filter: ''
+            };
+
+            this.sync(provider);
+            this.initSortable(provider);
+        }
+
+        sync(provider) {
+            const state = this.states[provider];
+            // Available = AllKnown - Selected
+            state.available = state.allKnown.filter(m => !state.selected.includes(m));
+
+            // Filter
+            let displayAvailable = state.available;
+            if (state.filter) {
+                displayAvailable = displayAvailable.filter(m => m.toLowerCase().includes(state.filter.toLowerCase()));
+            }
+
+            this.render(provider, displayAvailable, state.selected);
+            this.updateInput(provider);
+        }
+
+        filterAvailable(provider, text) {
+            this.states[provider].filter = text;
+            this.sync(provider);
+        }
+
+        render(provider, availableList, selectedList) {
+            const availEl = document.getElementById(`${provider}_available`);
+            const selEl = document.getElementById(`${provider}_selected`);
+
+            // Render Available
+            availEl.innerHTML = '';
+            availableList.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'text-xs p-2 rounded cursor-pointer hover:bg-blue-50 bg-gray-50 border border-gray-100 flex justify-between items-center group';
+                div.onclick = () => this.add(provider, m);
+                div.innerHTML = `<span>${m}</span><span class="text-blue-500 font-bold opacity-0 group-hover:opacity-100">+</span>`;
+                availEl.appendChild(div);
+            });
+
+            // Render Selected
+            selEl.innerHTML = '';
+            selectedList.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'text-xs p-2 rounded cursor-move bg-blue-50 border border-blue-200 flex justify-between items-center';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2"><span class="text-gray-400">⋮⋮</span><span>${m}</span></div>
+                    <button type="button" onclick="shuttleManager.remove('${provider}', '${m}')" class="text-red-300 hover:text-red-500 font-bold">×</button>
+                `;
+                selEl.appendChild(div);
+            });
+        }
+
+        add(provider, model) {
+            const state = this.states[provider];
+            if (state.selected.length >= 5) {
+                alert("Max 5 models.");
+                return;
+            }
+            state.selected.push(model);
+            this.sync(provider);
+        }
+
+        remove(provider, model) {
+            const state = this.states[provider];
+            state.selected = state.selected.filter(m => m !== model);
+            this.sync(provider);
+        }
+
+        updateInput(provider) {
+            const val = JSON.stringify(this.states[provider].selected);
+            document.getElementById(`${provider}_input`).value = val;
+        }
+
+        initSortable(provider) {
+            const el = document.getElementById(`${provider}_selected`);
+            new Sortable(el, {
+                animation: 150,
+                ghostClass: 'bg-blue-100',
+                onEnd: (evt) => {
+                    const state = this.states[provider];
+                    const item = state.selected.splice(evt.oldIndex, 1)[0];
+                    state.selected.splice(evt.newIndex, 0, item);
+                    this.updateInput(provider);
+                }
+            });
+        }
+
+        async refresh(provider) {
+            try {
+                const res = await fetch(`/admin/ai/refresh/${provider}`);
+                const data = await res.json();
+                if (data.models) {
+                    const state = this.states[provider];
+                    // Add new models to allKnown
+                    data.models.forEach(m => {
+                        if (!state.allKnown.includes(m)) state.allKnown.push(m);
+                    });
+                    this.sync(provider);
+                    alert(`Refreshed ${provider}. Found ${data.models.length} models.`);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (e) { alert(e); }
+        }
+
+        reset(provider) {
+            const defs = DEFAULTS[provider];
+            console.log("Resetting", provider, "to", defs);
+            if (defs) {
+                // Confirm with user? No, just do it.
+                if (!confirm(`Reset ${provider} model list to system defaults?\n\nDefaults: ${defs.join(', ')}`)) return;
+
+                this.states[provider].selected = [...defs];
+
+                // Ensure defaults are in 'allKnown'
+                defs.forEach(m => {
+                    if (!this.states[provider].allKnown.includes(m)) this.states[provider].allKnown.push(m);
+                });
+
+                this.sync(provider);
+            } else {
+                alert(`No defaults found for ${provider}`);
+            }
+        }
+    }
+
+    const shuttleManager = new ShuttleManager();
+
+    // --- Init logic ---
+    function toggleProviderSettings() {
+        const val = document.getElementById('providerSelect').value;
+        document.querySelectorAll('.provider-section').forEach(el => el.classList.add('hidden'));
+        const active = document.getElementById(val + 'Settings');
+        if (active) active.classList.remove('hidden');
+    }
+    toggleProviderSettings();
+
+    // --- Init Shuttles ---
+    // Inject initial data from template
+    shuttleManager.init('gemini', {{ settings.ai_model_cascade | tojson }});
+    shuttleManager.init('openai', {{ settings.openai_model | tojson }});
+    shuttleManager.init('anthropic', {{ settings.anthropic_model | tojson }});
+    shuttleManager.init('openrouter', {{ settings.openrouter_model | tojson }});
+
+    // --- Test Connection ---
+    async function testConnection() {
+        const provider = document.getElementById('providerSelect').value;
+        const out = document.getElementById('testOutput');
+        out.classList.remove('hidden');
+        out.textContent = "Testing...";
+
+        const formData = new FormData();
+        formData.append('provider', provider);
+
+        // For keys, we still grab from input if visible (for OpenAI/Anthropic/OpenRouter)
+        // Gemini key is hidden/server-side
+        const keyEl = document.getElementById(provider + '_key');
+        if (keyEl) formData.append('api_key', keyEl.value);
+
+        // For model, we now use the Shuttle Input (which is a JSON list string)
+        const modelEl = document.getElementById(provider + '_input');
+        if (modelEl) formData.append('model', modelEl.value); // Backend factory now handles JSON list format
+
+        try {
+            const res = await fetch('/admin/ai/test', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                out.className = "mt-2 p-2 text-xs font-mono bg-green-50 border border-green-200 rounded h-20 overflow-y-auto text-green-700";
+                out.textContent = `SUCCESS: ${data.response}`;
+            } else {
+                out.className = "mt-2 p-2 text-xs font-mono bg-red-50 border border-red-200 rounded h-20 overflow-y-auto text-red-700";
+                out.textContent = `ERROR: ${data.error}`;
+            }
+        } catch (e) {
+            out.textContent = "Fail: " + e;
+        }
+    }
+</script>
+{% endblock %}

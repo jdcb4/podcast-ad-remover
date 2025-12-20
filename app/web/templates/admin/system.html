@@ -1,0 +1,39 @@
+{% extends "admin/layout.html" %}
+
+{% block admin_content %}
+<h3 class="text-xl font-bold text-gray-800 mb-6">System Settings</h3>
+
+<form action="/admin/system/update" method="POST">
+    <div class="space-y-6">
+        <!-- Processing -->
+        <div>
+            <h4 class="text-lg font-medium text-gray-700 border-b pb-2 mb-4">Processing</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Concurrent Downloads</label>
+                    <input type="number" name="concurrent_downloads" value="{{ settings.concurrent_downloads }}" min="1"
+                        max="10" class="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
+                    <p class="text-xs text-gray-500 mt-1">Number of episodes to process in parallel.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Retention Policy</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" name="retention_days" value="{{ settings.retention_days }}" min="0"
+                            class="flex-1 p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
+                        <span class="text-gray-600">days</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Auto-delete files older than X days (0 = Keep Forever).</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end pt-4 border-t">
+            <button type="submit"
+                class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm font-medium">
+                Save Changes
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "admin/layout.html" %}
+
+{% block admin_content %}
+<h3 class="text-xl font-bold text-gray-800 mb-6">AI Prompt Rules</h3>
+<p class="text-sm text-gray-500 mb-6 bg-yellow-50 p-3 rounded border border-yellow-200">
+    These prompts control how the AI detects ads and generates summaries.
+    Currently in <strong>Read-Only</strong> mode.
+</p>
+
+<div class="space-y-6">
+    <!-- Base Prompt -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Ad Detection Base Prompt</label>
+        <textarea readonly
+            class="w-full p-2 border rounded bg-gray-50 text-gray-600 text-sm font-mono h-32">{{ settings.ad_prompt_base or 'Using System Default' }}</textarea>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Targets -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Target: Sponsors/Ads</label>
+            <textarea readonly
+                class="w-full p-2 border rounded bg-gray-50 text-gray-600 text-sm font-mono h-24">{{ settings.ad_target_sponsor or 'Using System Default' }}</textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Target: Promos</label>
+            <textarea readonly
+                class="w-full p-2 border rounded bg-gray-50 text-gray-600 text-sm font-mono h-24">{{ settings.ad_target_promo or 'Using System Default' }}</textarea>
+        </div>
+    </div>
+
+    <!-- Summary Prompt -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Summary Generation Template</label>
+        <textarea readonly
+            class="w-full p-2 border rounded bg-gray-50 text-gray-600 text-sm font-mono h-32">{{ settings.summary_prompt_template or 'Using System Default' }}</textarea>
+    </div>
+</div>
+{% endblock %}

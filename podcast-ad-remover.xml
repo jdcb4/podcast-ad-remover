@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>podcast-ad-remover</Name>
+  <Repository>jdcb4/podcast-ad-remover:latest</Repository>
+  <Registry>https://hub.docker.com/r/jdcb4/podcast-ad-remover</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/jdcb4/podcast-ad-remover/issues</Support>
+  <Project>https://github.com/jdcb4/podcast-ad-remover</Project>
+  <Overview>Podcast Ad Remover (AGPAR) - An AI-powered tool that automatically downloads podcasts, transcribes them, detects ads using LLMs (Gemini/OpenAI/Anthropic), and removes them to create a seamless listening experience.&#xD;
+&#xD;
+Features:&#xD;
+- Automatic ad detection and removal.&#xD;
+- Supports Gemini, OpenAI, Anthropic, and OpenRouter.&#xD;
+- Generates clean RSS feeds for your podcast player.&#xD;
+- Modern Web UI for management and playback.&#xD;
+  </Overview>
+  <Category>MediaApp:Video</Category>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/jdcb4/podcast-ad-remover/main/app/web/static/img/favicon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Description>Podcast Ad Remover (AGPAR) - Automatically removes ads from podcasts using AI.</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>8000</HostPort>
+        <ContainerPort>8000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/podcast-ad-remover</HostDir>
+      <ContainerDir>/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+    <Variable>
+      <Value/>
+      <Name>GEMINI_API_KEY</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OPENAI_API_KEY</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>ANTHROPIC_API_KEY</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>http://[IP]:[PORT:8000]</Value>
+      <Name>BASE_URL</Name>
+      <Mode/>
+    </Variable>
+  </Environment>
+  <Config Name="Web UI Port" Target="8000" Default="8000" Mode="tcp" Description="Port for the Web UI" Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="Internal Data" Target="/data" Default="/mnt/user/appdata/podcast-ad-remover" Mode="rw" Description="Database, downloads, and processed files" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/podcast-ad-remover</Config>
+  
+  <Config Name="Gemini API Key" Target="GEMINI_API_KEY" Default="" Mode="" Description="Google Gemini API Key (Optional if setting in Admin UI)" Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="OpenAI API Key" Target="OPENAI_API_KEY" Default="" Mode="" Description="OpenAI API Key (Optional)" Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Anthropic API Key" Target="ANTHROPIC_API_KEY" Default="" Mode="" Description="Anthropic API Key (Optional)" Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Base URL" Target="BASE_URL" Default="http://[IP]:[PORT:8000]" Mode="" Description="Public URL for RSS feeds" Type="Variable" Display="advanced" Required="false" Mask="false">http://[IP]:[PORT:8000]</Config>
+</Container>

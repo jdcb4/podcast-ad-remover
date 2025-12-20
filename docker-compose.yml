@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    image: podcast-ad-remover
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - LOG_LEVEL=INFO

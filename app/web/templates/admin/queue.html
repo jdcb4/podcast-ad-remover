@@ -1,0 +1,109 @@
+{% extends "admin/layout.html" %}
+
+{% block admin_content %}
+<div class="mb-6 flex justify-between items-center">
+    <h3 class="text-lg font-medium text-gray-900">Processing Queue</h3>
+    <a href="/admin/queue" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+            </path>
+        </svg>
+        Refresh
+    </a>
+</div>
+
+{% if queue %}
+<div class="bg-white shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Podcast
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Episode
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Progress
+                </th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                </th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for item in queue %}
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    {% if item.status == 'processing' %}
+                    <span
+                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                        Processing
+                    </span>
+                    {% elif item.status == 'pending' %}
+                    <span
+                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                        Pending
+                    </span>
+                    {% elif item.status == 'failed' %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800"
+                        title="Retry scheduled: {{ item.next_retry_at }}">
+                        Retry Pending
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {{ item.podcast_title }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                    <div class="line-clamp-1" title="{{ item.title }}">{{ item.title }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {% if item.status == 'processing' %}
+                    <div class="flex flex-col">
+                        <span class="text-xs text-gray-400 mb-1">{{ item.processing_step }}</span>
+                        <div class="w-24 bg-gray-200 rounded-full h-1.5">
+                            <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
+                                style="width: {{ item.progress }}%"></div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <span class="text-xs text-gray-400">-</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    {% if item.status == 'processing' %}
+                    <form action="/admin/queue/cancel/{{ item.id }}" method="post" class="inline">
+                        <button type="submit" class="text-red-600 hover:text-red-900"
+                            onclick="return confirm('Stop processing this episode? Partial files will be deleted.')">
+                            Cancel
+                        </button>
+                    </form>
+                    {% else %}
+                    <form action="/admin/queue/retry/{{ item.id }}" method="post" class="inline">
+                        <button type="submit" class="text-blue-600 hover:text-blue-900">
+                            {% if item.status == 'failed' %}Retry Now{% else %}Process Now{% endif %}
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">Queue is empty</h3>
+    <p class="mt-1 text-sm text-gray-500">No episodes are currently processing or pending.</p>
+</div>
+{% endif %}
+{% endblock %}

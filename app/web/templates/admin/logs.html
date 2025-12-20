@@ -1,0 +1,22 @@
+{% extends "admin/layout.html" %}
+
+{% block admin_content %}
+<div class="flex justify-between items-center mb-6">
+    <h3 class="text-xl font-bold text-gray-800">System Logs</h3>
+    <button onclick="window.location.reload()"
+        class="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
+        Refresh
+    </button>
+</div>
+
+<div class="bg-gray-900 text-green-400 p-4 rounded font-mono text-xs overflow-x-auto h-[600px] overflow-y-scroll whitespace-pre"
+    id="logContainer">
+    {{ logs }}
+</div>
+
+<script>
+    // Scroll to bottom
+    const c = document.getElementById('logContainer');
+    c.scrollTop = c.scrollHeight;
+</script>
+{% endblock %}
