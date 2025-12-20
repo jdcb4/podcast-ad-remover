@@ -6,6 +6,12 @@ The Audio transcription happens locally using Whisper which can be fairly proces
 
 The ad detection uses LLMs. I use Gemini because the free tier is very generous and enough to very easuily manage the API calls this app makes. I only built in support for other models out of curiosity and I haven't tested them rigorously at all.
 
+Screenshot: Landing page
+<img width="794" height="602" alt="podcast-ad-remover-landing-page" src="https://github.com/user-attachments/assets/32c76c19-600b-4bc7-8bba-1a3983a82085" />
+
+Screenshot: Ad Report
+<img width="795" height="758" alt="podcast-ad-remover-ad-report" src="https://github.com/user-attachments/assets/82620fc0-d756-4c01-99f2-cbbb8e47a7c7" />
+
 ![Podcast Ad Remover UI](app/web/static/img/favicon.png)
 
 ## Features
