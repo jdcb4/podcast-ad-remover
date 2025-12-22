@@ -7,6 +7,7 @@ import os
 import sys
 from typing import List, Dict
 from app.core.config import settings
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -602,6 +603,9 @@ class AdDetector:
                         piper_model_file = row['piper_model']
             except: pass
             
+            # Ensure model exists
+            await self._ensure_piper_model(piper_model_file)
+            
             script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "tts_worker.py"))
             
             proc = await asyncio.create_subprocess_exec(
@@ -651,6 +655,9 @@ class AdDetector:
             except Exception as e:
                 logger.warning(f"Failed to fetch piper setting, using default: {e}")
             
+            # Ensure model exists
+            await self._ensure_piper_model(piper_model_file)
+            
             # Resolve absolute path to the worker script
             script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "tts_worker.py"))
             
@@ -675,4 +682,61 @@ class AdDetector:
         except Exception as e:
             logger.error(f"TTS failed: {e}")
             raise e
+
+    async def _ensure_piper_model(self, model_filename: str):
+        """Ensures the piper model and its config exist locally."""
+        model_dir = os.path.join(settings.MODELS_DIR, "piper")
+        os.makedirs(model_dir, exist_ok=True)
+        
+        model_path = os.path.join(model_dir, model_filename)
+        config_path = model_path + ".json"
+        
+        if os.path.exists(model_path) and os.path.exists(config_path):
+            return model_path
+            
+        logger.info(f"Piper model {model_filename} not found locally. Attempting download from HuggingFace...")
+        
+        # Base URLs for Piper models on HuggingFace
+        # We try to infer the path: lang/lang_REGION/voice/quality/filename
+        # Example: en/en_US/amy/medium/en_US-amy-medium.onnx
+        
+        parts = model_filename.replace('.onnx', '').split('-')
+        if len(parts) >= 3:
+            lang_region = parts[0]
+            lang = lang_region.split('_')[0]
+            voice = parts[1]
+            quality = parts[2]
+            
+            remote_base = f"https://huggingface.co/rhasspy/piper-voices/resolve/main/{lang}/{lang_region}/{voice}/{quality}/{model_filename}"
+        else:
+            # Fallback for non-standard names? 
+            # Most common ones are like en_GB-cori-high
+            logger.warning(f"Could not infer path for {model_filename}, trying direct link fallback")
+            # We don't really have a direct link without voices.json, but let's try a common ones
+            # For now, let's just fail if we can't infer it, or better, download voices.json
+            raise Exception(f"Piper model {model_filename} not found and cannot infer download URL. Please download it manually to {model_dir}")
+
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            # Download ONNX
+            logger.info(f"Downloading {model_filename} from {remote_base}...")
+            async with client.stream("GET", remote_base) as response:
+                if response.status_code != 200:
+                    raise Exception(f"Failed to download Piper model: HTTP {response.status_code}")
+                with open(model_path, "wb") as f:
+                    async for chunk in response.aiter_bytes():
+                        f.write(chunk)
+            
+            # Download JSON
+            logger.info(f"Downloading {model_filename}.json...")
+            async with client.stream("GET", remote_base + ".json") as response:
+                if response.status_code != 200:
+                    # Clean up partial ONNX if config fails? 
+                    if os.path.exists(model_path): os.remove(model_path)
+                    raise Exception(f"Failed to download Piper config: HTTP {response.status_code}")
+                with open(config_path, "wb") as f:
+                    async for chunk in response.aiter_bytes():
+                        f.write(chunk)
+                        
+        logger.info(f"Piper model {model_filename} downloaded successfully.")
+        return model_path
 

@@ -430,28 +430,27 @@ class Processor:
 
                         # A. Title Intro
                         if sub.append_title_intro:
-                            logger.info("Generating Title Intro...")
-                            date_str = ep.pub_date.strftime('%B %d, %Y') if ep.pub_date else "recently"
-                            # Ensure we handle potential None values gracefully
-                            p_title = sub.title or "Podcast"
-                            e_title = ep.title or "Episode"
-                            
-                            intro_text = f"You're listening to {p_title} from {date_str}, {e_title}"
-                            
-                            intro_path = os.path.join(episode_dir, "title_intro.mp3")
-                            
-                            await self.ad_detector.generate_audio(intro_text, intro_path)
-                            intro_files.append(intro_path)
+                            try:
+                                logger.info("Generating Title Intro...")
+                                date_str = ep.pub_date.strftime('%B %d, %Y') if ep.pub_date else "recently"
+                                p_title = sub.title or "Podcast"
+                                e_title = ep.title or "Episode"
+                                intro_text = f"You're listening to {p_title} from {date_str}, {e_title}"
+                                intro_path = os.path.join(episode_dir, "title_intro.mp3")
+                                
+                                await self.ad_detector.generate_audio(intro_text, intro_path)
+                                intro_files.append(intro_path)
+                            except Exception as e:
+                                logger.error(f"Failed to generate Title Intro: {e}")
 
                         # B. AI Summary Features
-                        # Check legacy flag or new flags
                         do_text = sub.ai_rewrite_description or sub.append_summary
                         do_audio = sub.ai_audio_summary or sub.append_summary
                         
                         if do_text or do_audio:
-                            logger.info(f"Generating episode summary for {ep.title} (do_text={do_text}, do_audio={do_audio})...")
-                            
+                            summary_text = None
                             try:
+                                logger.info(f"Generating episode summary for {ep.title}...")
                                 summary_text = await asyncio.to_thread(
                                     self.ad_detector.generate_summary,
                                     transcript, 
@@ -459,31 +458,25 @@ class Processor:
                                     ep.title, 
                                     str(ep.pub_date) if ep.pub_date else "recently"
                                 )
-                            except Exception as e:
-                                logger.error(f"Failed to generate summary: {e}")
-                                summary_text = f"Welcome to {sub.title}. Today's episode is {ep.title}."
-                            
-                            # Save to AI Summary Column (always)
-                            self.ep_repo.update_ai_summary(ep.id, summary_text)
-                            
-                            try:
-                                logger.info(f"Writing summary to {summary_txt_path}...")
+                                # Save to DB and file immediately
+                                self.ep_repo.update_ai_summary(ep.id, summary_text)
                                 async with aiofiles.open(summary_txt_path, "w") as f:
                                     await f.write(summary_text)
                             except Exception as e:
-                                logger.error(f"Failed to write summary.txt: {e}")
-                            
-                            summary_path = os.path.join(episode_dir, "summary.mp3")
+                                logger.error(f"Failed to generate/save text summary: {e}")
+                                if not summary_text:
+                                    summary_text = f"Welcome to {sub.title}. Today's episode is {ep.title}."
 
-                            # Feature B: Audio Intro Injection
-                            if do_audio:
-                                logger.info("Generating AI Audio Summary (TTS)...")
-                                
-                                # Validate TTS service first
-                                await self.ad_detector.validate_tts()
-                                
-                                await self.ad_detector.generate_audio(summary_text, summary_path)
-                                intro_files.append(summary_path)
+                            # Audio Summary (TTS)
+                            if do_audio and summary_text:
+                                try:
+                                    logger.info("Generating AI Audio Summary (TTS)...")
+                                    summary_path = os.path.join(episode_dir, "summary.mp3")
+                                    await self.ad_detector.validate_tts()
+                                    await self.ad_detector.generate_audio(summary_text, summary_path)
+                                    intro_files.append(summary_path)
+                                except Exception as e:
+                                    logger.error(f"Failed to generate Audio Summary: {e}")
                         
                         # C. Prepend Intros to Episode
                         if intro_files:
@@ -725,24 +718,35 @@ class Processor:
         # 1. Initial Feed Sync/Regen on startup to clear stale URLs
         await self.regenerate_all_feeds()
         
+        # Track last feed check
+        from datetime import datetime
+        last_feed_check = datetime.min
+        
         while True:
             # Get latest interval from DB
             from app.web.router import get_global_settings
             db_settings = get_global_settings()
-            interval = db_settings.get('check_interval_minutes', settings.CHECK_INTERVAL_MINUTES)
+            interval_minutes = db_settings.get('check_interval_minutes', settings.CHECK_INTERVAL_MINUTES)
+            interval_seconds = interval_minutes * 60
             
             try:
-                await self.cleanup_old_logs()  # Clean up old logs
-                await self.cleanup_old_episodes() # Clean up old episodes
-                await self.check_feeds()
+                # 1. Always process queue (high frequency)
                 await self.process_queue()
-                logger.info(f"Sleeping for {interval} minutes...")
+                
+                # 2. Check Feeds (low frequency)
+                now = datetime.now()
+                if (now - last_feed_check).total_seconds() > interval_seconds:
+                    logger.info("Interval reached. Checking feeds/maintenance...")
+                    await self.cleanup_old_logs()
+                    await self.cleanup_old_episodes()
+                    await self.check_feeds()
+                    last_feed_check = datetime.now()
+                
             except Exception as e:
                 logger.error(f"Error in background processor loop: {e}")
-                # Brief sleep before retry to prevent tight loop on persistent error
-                await asyncio.sleep(60)
-            
-            await asyncio.sleep(interval * 60)
+                
+            # Short sleep to be responsive to new queue items (e.g. Manual Download/Reprocess)
+            await asyncio.sleep(10)
 
 def setup_background_logging():
     """Configure logging for the background process."""

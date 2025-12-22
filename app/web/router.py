@@ -654,44 +654,25 @@ async def cancel_episode(episode_id: int):
     return RedirectResponse(url="/admin/queue", status_code=303)
 
 @router.post("/admin/queue/retry/{episode_id}")
-async def retry_episode(episode_id: int, background_tasks: BackgroundTasks):
-    from app.core.processor import Processor
-    processor = Processor()
-    
+async def retry_episode(episode_id: int):
     # Check if already processing?
     status = ep_repo.get_status(episode_id)
     if status == 'processing':
          return RedirectResponse(url="/admin/queue", status_code=303)
          
-    # Force to pending
-    background_tasks.add_task(processor.process_episode, episode_id)
+    # Force to pending (Background processor will pick it up)
+    ep_repo.update_status(episode_id, "pending")
     return RedirectResponse(url="/admin/queue", status_code=303)
 
 @router.post("/episodes/{episode_id}/download")
-async def manual_download_episode(episode_id: int, request: Request, background_tasks: BackgroundTasks):
-    from app.core.processor import Processor
-    from app.infra.repository import EpisodeRepository
-    
-    # Update DB
+async def manual_download_episode(episode_id: int, request: Request):
+    # Update DB to pending
     from app.infra.database import get_db_connection
     with get_db_connection() as conn:
         conn.execute("UPDATE episodes SET is_manual_download=1, status='pending' WHERE id=?", (episode_id,))
         conn.commit()
     
-    processor = Processor()
-    background_tasks.add_task(processor.process_episode, episode_id)
-    
-    # Regenerate feeds immediately
-    # We need to find the subscription_id for this episode
-    with get_db_connection() as conn:
-        ep = conn.execute("SELECT subscription_id FROM episodes WHERE id=?", (episode_id,)).fetchone()
-        if ep:
-            sub_id = ep['subscription_id']
-            # We use background tasks for regeneration too to not block the redirect
-            from app.core.rss_gen import RSSGenerator
-            rss_gen = RSSGenerator()
-            background_tasks.add_task(rss_gen.generate_feed, sub_id)
-            background_tasks.add_task(rss_gen.generate_unified_feed)
+    # Background processor will see 'pending' and pick it up (polls every 10s)
     
     return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
 

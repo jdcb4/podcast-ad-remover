@@ -39,10 +39,7 @@ async def create_subscription(sub: SubscriptionCreate, initial_count: int = 5):
         proc = get_processor()
         await proc.check_feeds(subscription_id=new_sub.id, limit=initial_count)
         
-        # Trigger processing in background
-        # In a simple app, we might just let the loop handle it, or trigger it explicitly
-        # For now, let's just trigger the queue processing
-        await proc.process_queue()
+        # Processor loop will pick up 'pending' items automatically
         
 
         
@@ -101,13 +98,14 @@ async def delete_episode(id: int):
 @router.post("/subscriptions/{id}/check")
 async def check_subscription_updates(id: int, background_tasks: BackgroundTasks):
     """Trigger a check for new episodes."""
+    # We allow running check_feeds in background task because it's I/O bound (network)
+    # and doesn't use heavy CPU. The background loop will then pick up any new pending episodes.
     proc = get_processor()
     background_tasks.add_task(proc.check_feeds, subscription_id=id)
-    background_tasks.add_task(proc.process_queue)
     return {"status": "check_triggered"}
 
 @router.post("/episodes/{id}/process")
-async def process_episode(id: int, background_tasks: BackgroundTasks, skip_transcription: bool = False):
+async def process_episode(id: int, skip_transcription: bool = False):
     """Manually trigger processing for an episode."""
     ep_repo = EpisodeRepository()
     
@@ -119,8 +117,7 @@ async def process_episode(id: int, background_tasks: BackgroundTasks, skip_trans
     ep_repo.reset_status(id, processing_flags=flags_json)
     ep_repo.update_status(id, "pending")
     
-    proc = get_processor()
-    background_tasks.add_task(proc.process_queue)
+    # Background processor (polling) will pick this up
     return {"status": "processing_triggered"}
 
 @router.post("/episodes/{id}/cancel")
