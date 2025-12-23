@@ -61,6 +61,8 @@ class AudioProcessor:
         # [0:a]atrim=start=20:end=30,asetpts=PTS-STARTPTS[a1];
         # [a0][a1]concat=n=2:v=0:a=1[out]
         
+        # [a0][a1]concat=n=2:v=0:a=1[out_concat];[out_concat]aformat=...[out]
+        
         filter_parts = []
         concat_inputs = []
         
@@ -70,14 +72,18 @@ class AudioProcessor:
             concat_inputs.append(f"[a{i}]")
             
         filter_str = ";".join(filter_parts)
-        concat_str = "".join(concat_inputs) + f"concat=n={len(keep_segments)}:v=0:a=1[out]"
-        full_filter = f"{filter_str};{concat_str}"
+        # Output to intermediate [out_concat], then force format again before encoder
+        concat_str = "".join(concat_inputs) + f"concat=n={len(keep_segments)}:v=0:a=1[out_concat]"
+        format_str = f"[out_concat]aformat=sample_rates=44100:channel_layouts=stereo[out]"
+        full_filter = f"{filter_str};{concat_str};{format_str}"
         
         cmd = [
             "ffmpeg", "-y",
             "-i", input_path,
             "-filter_complex", full_filter,
             "-map", "[out]",
+            "-c:a", "libmp3lame",
+            "-q:a", "2",
             output_path
         ]
         
