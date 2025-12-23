@@ -173,9 +173,6 @@
         <div class="flex flex-nowrap gap-2 overflow-x-auto scrollbar-hide">
             <a href="{{ unified_links.direct }}"
                 class="text-xs bg-orange-600 text-white px-3 py-1.5 rounded hover:bg-orange-700 whitespace-nowrap min-h-[32px] flex items-center">Direct</a>
-            <a href="{{ unified_links.rss }}"
-                class="text-xs bg-orange-500 text-white px-3 py-1.5 rounded hover:bg-orange-600 whitespace-nowrap min-h-[32px] flex items-center"
-                target="_blank">RSS</a>
             <a href="{{ unified_links.pocket_casts }}"
                 class="text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 whitespace-nowrap min-h-[32px] flex items-center">Pocket</a>
             <a href="/subscribe/apple?url={{ unified_links.apple | urlencode }}"
@@ -219,9 +216,6 @@
         </div>
 
         <div class="flex flex-nowrap gap-1 mb-4 content-start overflow-x-auto scrollbar-hide">
-            <a href="{{ item.links.rss }}"
-                class="text-[10px] bg-orange-500 text-white px-1 py-0.5 rounded hover:bg-orange-600 whitespace-nowrap"
-                target="_blank">RSS</a>
             <a href="{{ item.links.pocket_casts }}"
                 class="text-[10px] bg-red-500 text-white px-1 py-0.5 rounded hover:bg-red-600 whitespace-nowrap">Pocket</a>
             <a href="/subscribe/apple?url={{ item.links.apple | urlencode }}"
