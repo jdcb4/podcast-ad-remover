@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-8 px-4">
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="bg-purple-600 px-6 py-4">
+            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+                </svg>
+                Subscribe on Apple Podcasts
+            </h2>
+        </div>
+
+        <div class="p-6">
+            <p class="text-gray-600 mb-6">
+                Apple Podcasts requires adding private feeds manually. Follow these steps:
+            </p>
+
+            <!-- Step 1: Copy URL -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">1. Copy your Feed URL</h3>
+                <div class="flex gap-2">
+                    <input type="text" value="{{ feed_url }}" readonly
+                        class="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-md font-mono text-sm text-gray-600 select-all"
+                        onclick="this.select()">
+                    <button onclick="copyUrl()" id="copyBtn"
+                        class="bg-purple-600 text-white px-6 py-2 rounded-md font-medium hover:bg-purple-700 transition-colors flex items-center gap-2">
+                        <span id="btnText">Copy</span>
+                    </button>
+                </div>
+                <p id="copyFeedback" class="text-green-600 text-sm mt-2 hidden font-medium">✓ Copied to clipboard!</p>
+            </div>
+
+            <!-- Step 2: Instructions -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">2. Add to Apple Podcasts</h3>
+                <ol class="list-decimal pl-5 space-y-3 text-gray-700">
+                    <li>Open the <a href="podcasts://open"
+                            class="text-purple-600 font-semibold hover:underline">Podcasts app</a>.</li>
+                    <li>Go to the <strong>Library</strong> tab.</li>
+                    <li>Tap the <strong>... (More)</strong> button in the top-right corner.</li>
+                    <li>Select <strong>Follow a Show by URL...</strong></li>
+                    <li><strong>Paste</strong> the URL you copied above and tap <strong>Follow</strong>.</li>
+                </ol>
+            </div>
+
+            <div class="border-t pt-6 flex justify-between items-center">
+                <a href="/" class="text-gray-600 hover:text-gray-900 font-medium text-sm flex items-center gap-1">
+                    ← <span class="hidden xs:inline">Back to Dashboard</span><span class="xs:hidden">Back</span>
+                </a>
+                <a href="podcasts://open"
+                    class="text-purple-600 hover:text-purple-700 font-medium text-sm flex items-center gap-1">
+                    Open App →
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function copyUrl() {
+        const urlField = document.querySelector('input[type="text"]');
+        urlField.select();
+        urlField.setSelectionRange(0, 99999); // For mobile devices
+
+        navigator.clipboard.writeText(urlField.value).then(function () {
+            showFeedback();
+        }, function (err) {
+            console.error('Async: Could not copy text: ', err);
+            // Fallback for some browsers
+            document.execCommand("copy");
+            showFeedback();
+        });
+    }
+
+    function showFeedback() {
+        const btnText = document.getElementById('btnText');
+        const originalText = btnText.innerText;
+        const feedback = document.getElementById('copyFeedback');
+
+        btnText.innerText = 'Copied!';
+        feedback.classList.remove('hidden');
+
+        setTimeout(() => {
+            btnText.innerText = originalText;
+            feedback.classList.add('hidden');
+        }, 2000);
+    }
+
+    // Auto-copy on load if possible (optional, maybe annoying)
+    // window.onload = copyUrl;
+</script>
+{% endblock %}

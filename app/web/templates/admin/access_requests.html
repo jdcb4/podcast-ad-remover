@@ -239,12 +239,15 @@
                 <code id="example_feed_url" class="text-xs bg-white px-2 py-1 rounded border">
                     {% set display_url = app_base_url %}
                     {% if not settings.app_external_url %}
-                        {% set display_url = "http://your-public-url.com" %}
+                        {% set display_url = "https://your-public-url.com" %}
                     {% endif %}
-                    {{ display_url | replace('://', '://' + user.username + ':PASSWORD@') }}/feeds/SLUG.xml
+                    {{ display_url }}/feeds/SLUG.xml?auth=BASE64_TOKEN
                 </code>
+                <p class="text-xs text-gray-500 mt-2">The token is automatically generated when you copy feed links from
+                    the dashboard.</p>
             </div>
             {% endif %}
+
 
             <p class="text-xs text-gray-500 mt-4">
                 Compatible with most podcast apps (Apple Podcasts, Overcast, Pocket Casts, etc).
@@ -301,14 +304,14 @@
             const exampleCode = document.getElementById('example_feed_url');
             if (exampleCode) {
                 const baseUrl = "{{ app_base_url }}";
-                const user = "{{ user.username }}";
                 if (feedAuthCheckbox.checked) {
-                    exampleCode.textContent = baseUrl.replace('://', `://${user}:PASSWORD@`) + "/feeds/SLUG.xml";
+                    exampleCode.textContent = baseUrl + "/feeds/SLUG.xml?auth=BASE64_TOKEN";
                 } else {
                     exampleCode.textContent = baseUrl + "/feeds/SLUG.xml";
                 }
             }
         }
+
 
         function validateFeedAuth(form) {
             const isFeedAuthEnabled = document.getElementById('enable_feed_auth').checked;

@@ -174,11 +174,11 @@ class EpisodeRepository:
             """, (retry_count, next_retry_at, error, id))
             conn.commit()
 
-    def update_status(self, id: int, status: str, error: str = None, filename: str = None):
+    def update_status(self, id: int, status: str, error: str = None, filename: str = None, file_size: int = None):
         with get_db_connection() as conn:
             conn.execute(
-                "UPDATE episodes SET status = ?, error_message = ?, local_filename = ?, processed_at = ? WHERE id = ?",
-                (status, error, filename, datetime.now() if status == 'completed' else None, id)
+                "UPDATE episodes SET status = ?, error_message = ?, local_filename = ?, file_size = ?, processed_at = ? WHERE id = ?",
+                (status, error, filename, file_size, datetime.now() if status == 'completed' else None, id)
             )
             conn.commit()
 

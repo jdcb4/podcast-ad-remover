@@ -30,8 +30,15 @@ async def feed_auth_middleware(request: Request, call_next):
     
     # Check for Authorization header
     auth_header = request.headers.get('Authorization')
+    encoded_credentials = None
     
-    if not auth_header or not auth_header.startswith('Basic '):
+    if auth_header and auth_header.startswith('Basic '):
+        encoded_credentials = auth_header.split(' ')[1]
+    else:
+        # Fallback: Check for ?auth= query parameter
+        encoded_credentials = request.query_params.get('auth')
+    
+    if not encoded_credentials:
         return Response(
             status_code=status.HTTP_401_UNAUTHORIZED,
             headers={'WWW-Authenticate': 'Basic realm="Podcast Feeds"'}
@@ -39,7 +46,6 @@ async def feed_auth_middleware(request: Request, call_next):
     
     # Decode credentials
     try:
-        encoded_credentials = auth_header.split(' ')[1]
         decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
         username, password = decoded_credentials.split(':', 1)
     except Exception:

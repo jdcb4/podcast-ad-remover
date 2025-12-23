@@ -514,7 +514,8 @@ class Processor:
                     if os.path.exists(input_path):
                         os.remove(input_path)
                     
-                    self.ep_repo.update_status(ep.id, "completed", filename=output_path)
+                    file_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+                    self.ep_repo.update_status(ep.id, "completed", filename=output_path, file_size=file_size)
                     self.ep_repo.update_progress(ep.id, "completed", 100)
                     
                     # 6. Regenerate Feed

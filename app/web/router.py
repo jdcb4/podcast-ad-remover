@@ -81,18 +81,6 @@ templates.env.filters['simple_markdown'] = simple_markdown
 sub_repo = SubscriptionRepository()
 ep_repo = EpisodeRepository()
 
-def get_lan_ip():
-    import socket
-    try:
-        # Use a dummy connection to a public IP to find the preferred interface
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "localhost"
-
 # Helper to get settings
 def get_global_settings():
     from app.infra.database import get_db_connection
@@ -102,28 +90,13 @@ def get_global_settings():
             return dict(row)
     return {}
 
-def get_app_base_url(request: Request, global_settings: dict) -> str:
-    """Consolidated logic for getting the application base URL."""
-    external_url = global_settings.get("app_external_url")
-    
-    if external_url and external_url.strip():
-        return external_url.rstrip("/")
-    
-    # If no external URL is configured, PREFER the LAN IP address.
-    # This prevents the app from mirroring the browser's domain (e.g. pods.akeslo.com)
-    # when the user wants to use direct IP links for RSS feeds.
-    lan_ip = get_lan_ip()
-    
-    if lan_ip and lan_ip != "localhost":
-        from app.core.config import settings
-        return f"http://{lan_ip}:{settings.PORT}"
+from app.core.utils import get_app_base_url
 
-    # Fallback to request URL only if we can't determine a valid LAN IP
-    return str(request.base_url).rstrip("/")
+
 
 def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=None):
     """Consolidated logic for generating RSS links with optional auth injection."""
-    base_url = get_app_base_url(request, global_settings)
+    base_url = get_app_base_url(global_settings, request)
     
     rss_url = f"{base_url}/feeds/{sub.slug}.xml"
     
@@ -135,23 +108,24 @@ def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=No
         if global_settings.get('auth_enabled'):
             # Integrated Auth: Use same credentials as dashboard
             auth_user = user_obj.username if user_obj else "admin"
-            auth_pass = request.session.get("user_pass", "PASSWORD")
+            auth_pass = request.session.get("user_pass", "")
         else:
             # Standalone Auth: Use manually provided feed credentials
             auth_user = global_settings.get('feed_auth_username')
             auth_pass = global_settings.get('feed_auth_password')
             
         if auth_user and auth_pass:
-            if "https://" in rss_url:
-                rss_url = rss_url.replace("https://", f"https://{auth_user}:{auth_pass}@")
-            elif "http://" in rss_url:
-                rss_url = rss_url.replace("http://", f"http://{auth_user}:{auth_pass}@")
+            import base64
+            token = base64.b64encode(f"{auth_user}:{auth_pass}".encode()).decode()
+            separator = "&" if "?" in rss_url else "?"
+            rss_url = f"{rss_url}{separator}auth={token}"
+
 
     clean_url = rss_url.replace('https://', '').replace('http://', '')
     return {
         "rss": rss_url,
-        "apple": f"podcast://{clean_url}",
-        "pocket_casts": f"pktc://subscribe/{clean_url}",
+        "apple": rss_url,  # Method 1: Direct HTTPS URL for manual "Follow a Show by URL"
+        "pocket_casts": f"pktc://subscribe/{rss_url}",
         "overcast": f"overcast://x-callback-url/add?url={rss_url}",
         "castbox": f"castbox://subscribe?url={rss_url}",
         "podcast_addict": f"podcastaddict://subscribe/{rss_url}"
@@ -726,7 +700,16 @@ async def admin_logs(request: Request, lines: int = 1000, level: str = "ALL"):
     })
 
 # --- Admin: Access ---
-@router.get("/admin/access", response_class=HTMLResponse)
+
+@router.get("/subscribe/apple", response_class=HTMLResponse)
+async def apple_subscribe_page(request: Request, url: str):
+    """Render the Apple Podcasts subscription instruction page."""
+    return templates.TemplateResponse("apple_subscribe.html", {
+        "request": request,
+        "feed_url": url
+    })
+
+@router.get("/admin/access-requests", response_class=HTMLResponse)
 async def admin_access(request: Request):
     from app.infra.database import get_db_connection
     from datetime import datetime, timedelta
@@ -973,7 +956,7 @@ def _render_index(request: Request, error: str = None):
     unified_links = None
     if subs:
         # Determine Base URL using consolidated logic
-        base_url = get_app_base_url(request, global_settings)
+        base_url = get_app_base_url(global_settings, request)
         
         rss_url = f"{base_url}/feed/unified.xml"
         
@@ -985,23 +968,24 @@ def _render_index(request: Request, error: str = None):
             # Determine credentials
             if global_settings.get('auth_enabled'):
                 auth_user = user.username if user else "admin"
-                auth_pass = request.session.get("user_pass", "PASSWORD")
+                auth_pass = request.session.get("user_pass", "")
             else:
                 auth_user = global_settings.get('feed_auth_username')
                 auth_pass = global_settings.get('feed_auth_password')
                 
             if auth_user and auth_pass:
-                if "https://" in rss_url:
-                    rss_url = rss_url.replace("https://", f"https://{auth_user}:{auth_pass}@")
-                elif "http://" in rss_url:
-                    rss_url = rss_url.replace("http://", f"http://{auth_user}:{auth_pass}@")
+                import base64
+                token = base64.b64encode(f"{auth_user}:{auth_pass}".encode()).decode()
+                separator = "&" if "?" in rss_url else "?"
+                rss_url = f"{rss_url}{separator}auth={token}"
+
 
         clean_url = rss_url.replace('https://', '').replace('http://', '')
         unified_links = {
             "rss": rss_url,
             "direct": rss_url,
-            "apple": f"podcast://{clean_url}",
-            "pocket_casts": f"pktc://subscribe/{clean_url}",
+            "apple": rss_url,  # Method 1: Direct HTTPS URL
+            "pocket_casts": f"pktc://subscribe/{rss_url}",
             "overcast": f"overcast://x-callback-url/add?url={rss_url}",
             "castbox": f"castbox://subscribe?url={rss_url}",
             "podcast_addict": f"podcastaddict://subscribe/{rss_url}"
@@ -1315,11 +1299,14 @@ async def get_report(id: int):
     raise HTTPException(status_code=404, detail="Report not found")
 
 @router.get("/feeds/{slug}.xml")
-async def get_individual_feed(slug: str):
-    """Serve individual podcast RSS feed, generating if missing."""
+async def get_individual_feed(slug: str, request: Request):
+    """Serve individual podcast RSS feed with optional token injection for audio URLs."""
     from app.infra.repository import SubscriptionRepository
     from app.core.rss_gen import RSSGenerator
     from app.core.config import settings as app_settings
+    from fastapi.responses import FileResponse, Response
+    import base64
+    import re
     
     sub_repo = SubscriptionRepository()
     sub = sub_repo.get_by_slug(slug)
@@ -1334,9 +1321,53 @@ async def get_individual_feed(slug: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Feed generation failed")
     
-    # Use application/xml for browser tree view compatibility
-    from fastapi.responses import FileResponse
+    # Check if we should inject auth tokens
+    settings = get_global_settings()
+    auth_enabled_val = settings.get('enable_feed_auth')
+    is_auth_enabled = str(auth_enabled_val).lower() in ('1', 'true', 'yes', 'on') if auth_enabled_val is not None else False
+    
+    # Extract credentials from request (header or query param)
+    username = None
+    password = None
+    
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Basic '):
+        try:
+            encoded = auth_header.split(' ')[1]
+            decoded = base64.b64decode(encoded).decode('utf-8')
+            username, password = decoded.split(':', 1)
+        except:
+            pass
+    else:
+        auth_param = request.query_params.get('auth')
+        if auth_param:
+            try:
+                decoded = base64.b64decode(auth_param).decode('utf-8')
+                username, password = decoded.split(':', 1)
+            except:
+                pass
+    
+    # If auth is enabled and we have credentials, inject token into audio URLs
+    if is_auth_enabled and username and password:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                xml_content = f.read()
+            
+            token = base64.b64encode(f"{username}:{password}".encode()).decode()
+            
+            def inject_auth(match):
+                url = match.group(2)
+                separator = "&" if "?" in url else "?"
+                return f'{match.group(1)}{url}{separator}auth={token}'
+
+            xml_content = re.sub(r'(enclosure\s+url=")(https?://[^"]+)', inject_auth, xml_content)
+            
+            return Response(content=xml_content, media_type="application/xml")
+        except Exception as e:
+            logger.error(f"Error injecting auth into feed {slug}: {e}")
+    
     return FileResponse(file_path, media_type="application/xml")
+
 @router.get("/feed/unified")
 @router.get("/feed/unified.xml")
 async def get_unified_feed(request: Request):
@@ -1379,7 +1410,7 @@ async def get_unified_feed(request: Request):
             headers = {"WWW-Authenticate": 'Basic realm="Podcast Ad Remover"'}
             raise HTTPException(status_code=401, detail="Unauthorized", headers=headers)
 
-    from fastapi.responses import FileResponse
+    from fastapi.responses import FileResponse, Response
     from app.core.config import settings as app_settings
     
     file_path = os.path.join(app_settings.FEEDS_DIR, "unified.xml")
@@ -1388,5 +1419,32 @@ async def get_unified_feed(request: Request):
         from app.core.rss_gen import RSSGenerator
         gen = RSSGenerator()
         gen.generate_unified_feed()
-        
+    
+    # If auth is enabled, inject credentials into the XML on the fly
+    if is_auth_enabled and authorized:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                xml_content = f.read()
+            
+            # Inject credentials into enclosure URLs
+            # username and password are available from the Basic Auth block
+            if username and password:
+                # Use token auth: append ?auth=base64(user:pass) to audio URLs
+                import re
+                token = base64.b64encode(f"{username}:{password}".encode()).decode()
+                
+                def inject_auth(match):
+                    url = match.group(2)
+                    separator = "&" if "?" in url else "?"
+                    return f'{match.group(1)}{url}{separator}auth={token}'
+
+                # Find enclosure url="...", capture the prefix and the URL
+                xml_content = re.sub(r'(enclosure\s+url=")(https?://[^"]+)', inject_auth, xml_content)
+
+                
+            return Response(content=xml_content, media_type="application/xml")
+        except Exception as e:
+            logger.error(f"Error injecting credentials into unified feed: {e}")
+            # Fallback to static file if injection fails
+    
     return FileResponse(file_path, media_type="application/xml")
