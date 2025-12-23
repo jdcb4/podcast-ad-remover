@@ -224,20 +224,106 @@
             class="filter-btn badge-soft">Not Downloaded</button>
         <button onclick="filterEpisodes('ignored')" data-filter="ignored" class="filter-btn badge-soft">Deleted</button>
     </div>
+</div>
+
+<div class="flex items-center gap-3">
+    <!-- View Toggles -->
+    <div class="flex items-center bg-surface-base rounded-lg p-1 border border-white/[0.1]">
+        <button type="button" id="view-grid"
+            class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
+            title="Grid View">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                </path>
+            </svg>
+        </button>
+        <button type="button" id="view-list"
+            class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
+            title="List View">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                </path>
+            </svg>
+        </button>
+    </div>
     <div class="text-xs text-text-muted font-medium" id="episode-count">
         Showing all episodes
     </div>
 </div>
+</div>
+
+<style>
+    /* List View Styles */
+    #episodes-grid[data-view="list"] {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card {
+        flex-direction: row;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        min-height: auto;
+    }
+
+    #episodes-grid[data-view="list"] .episode-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 0;
+        min-width: 0;
+    }
+
+    #episodes-grid[data-view="list"] .episode-header {
+        flex: 1;
+        min-width: 0;
+        margin-bottom: 0 !important;
+    }
+
+    #episodes-grid[data-view="list"] .episode-title {
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #episodes-grid[data-view="list"] .episode-meta {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0 !important;
+    }
+
+    #episodes-grid[data-view="list"] .episode-footer {
+        padding: 0;
+        margin: 0;
+        border: none;
+        background: transparent;
+        width: auto;
+        flex-shrink: 0;
+        margin-left: 1rem;
+    }
+
+    /* AI Summary in List View */
+    #episodes-grid[data-view="list"] .ai-summary-block {
+        display: none;
+    }
+</style>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" id="episodes-grid">
     {% for ep in episodes %}
     <div class="episode-card card-interactive flex flex-col" data-status="{{ ep.status }}"
         data-manual="{{ 'true' if ep.is_manual_download else 'false' }}">
-        <div class="p-2 flex-1">
-            <span class="text-xs text-text-muted whitespace-nowrap block mb-1">{{ ep.pub_date }}</span>
-            <h3 class="font-bold text-lg mb-2 leading-tight" title="{{ ep.title }}">{{ ep.title }}</h3>
+        <div class="p-2 flex-1 episode-content">
+            <div class="episode-header mb-2">
+                <span class="text-xs text-text-muted whitespace-nowrap block mb-1">{{ ep.pub_date }}</span>
+                <h3 class="font-bold text-lg leading-tight episode-title" title="{{ ep.title }}">{{ ep.title }}</h3>
+            </div>
 
-            <div class="flex justify-between items-center mb-4">
+            <div class="episode-meta flex justify-between items-center mb-4">
                 <div class="flex flex-wrap gap-2 items-center">
                     <span class="badge-neutral">{{ format_duration(ep.duration) }}</span>
                     {% if ep.listen_count and ep.listen_count > 0 %}
@@ -340,7 +426,7 @@
         </div>
 
         <div
-            class="bg-surface-base px-2 py-1.5 border-t border-white/[0.06] flex justify-between gap-2 items-center rounded-b-2xl">
+            class="episode-footer bg-surface-base px-2 py-1.5 border-t border-white/[0.06] flex justify-between gap-2 items-center rounded-b-2xl">
             {% if ep.status in ['completed', 'failed'] %}
             <button onclick="deleteEpisode({{ ep.id }})" id="btn-delete-{{ ep.id }}"
                 class="text-red-400 hover:text-red-300 text-xs font-semibold px-2 py-1 rounded hover:bg-red-500/10 transition-colors">
@@ -604,5 +690,48 @@
         startTimer();
     })();
     {% endif %}
+    // View Toggle Logic for Episodes
+    document.addEventListener('DOMContentLoaded', () => {
+        function setEpisodeView(mode) {
+            const grid = document.getElementById('episodes-grid');
+            if (!grid) return;
+
+            // Set attribute
+            grid.setAttribute('data-view', mode);
+
+            // Save preference
+            try {
+                localStorage.setItem('episodes-view-mode', mode);
+            } catch (e) {
+                console.warn('Could not save view preference', e);
+            }
+
+            // Update buttons
+            ['grid', 'list'].forEach(m => {
+                const btn = document.getElementById(`view-${m}`);
+                if (btn) {
+                    if (m === mode) {
+                        btn.classList.add('bg-primary-500', 'text-white');
+                        btn.classList.remove('text-text-muted', 'hover:bg-white/[0.1]');
+                    } else {
+                        btn.classList.remove('bg-primary-500', 'text-white');
+                        btn.classList.add('text-text-muted', 'hover:bg-white/[0.1]');
+                    }
+                }
+            });
+        }
+
+        // Init view
+        const savedView = localStorage.getItem('episodes-view-mode') || 'grid';
+        setEpisodeView(savedView);
+
+        // Attach listeners
+        ['grid', 'list'].forEach(m => {
+            const btn = document.getElementById(`view-${m}`);
+            if (btn) {
+                btn.addEventListener('click', () => setEpisodeView(m));
+            }
+        });
+    });
 </script>
 {% endblock %}
