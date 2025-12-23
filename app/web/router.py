@@ -1378,14 +1378,22 @@ async def get_unified_feed(request: Request):
     is_auth_enabled = str(auth_enabled_val).lower() in ('1', 'true', 'yes', 'on') if auth_enabled_val is not None else False
 
     if is_auth_enabled:
-        # Check Basic Auth header
+        # Check Basic Auth header OR query param
         import base64
         auth_header = request.headers.get('Authorization')
+        auth_token = request.query_params.get('auth')
         authorized = False
+        username = None
+        password = None
         
+        encoded_creds = None
         if auth_header and auth_header.startswith('Basic '):
+            encoded_creds = auth_header.split(' ')[1]
+        elif auth_token:
+            encoded_creds = auth_token
+            
+        if encoded_creds:
             try:
-                encoded_creds = auth_header.split(' ')[1]
                 decoded_creds = base64.b64decode(encoded_creds).decode('utf-8')
                 username, password = decoded_creds.split(':', 1)
                 

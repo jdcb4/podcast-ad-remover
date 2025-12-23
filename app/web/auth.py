@@ -90,6 +90,7 @@ async def auth_middleware(request: Request, call_next):
     if path in ["/login", "/request-access", "/submit-access-request"] or \
        path.startswith("/static/") or \
        path.startswith("/feeds/") or \
+       path.startswith("/feed/") or \
        path.startswith("/audio/"):
         return await call_next(request)
     
