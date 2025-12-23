@@ -9,13 +9,13 @@
 
 @layer base {
     :root {
-        --bg-base: #0a0a0f;
-        --bg-surface: #12121a;
-        --bg-elevated: #1a1a25;
-        --bg-hover: #22222f;
-        --text-primary: #fafafa;
+        --bg-base: #141416;
+        --bg-surface: #1d1d20;
+        --bg-elevated: #26262a;
+        --bg-hover: #303036;
+        --text-primary: #ededef;
         --text-secondary: #a1a1aa;
-        --text-muted: #52525b;
+        --text-muted: #71717a;
     }
 
     html {
@@ -100,8 +100,9 @@
     /* Cards */
     .card {
         @apply rounded-2xl p-6;
-        background: #1a1a25;
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: linear-gradient(145deg, var(--bg-surface) 0%, var(--bg-elevated) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 
     @screen sm {
