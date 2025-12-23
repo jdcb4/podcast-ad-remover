@@ -76,7 +76,43 @@ def simple_markdown(text):
         
     return '\n'.join(result)
 
+    return '\n'.join(result)
+
+def clean_description(text):
+    """Clean episode description: remove URLs, sponsors, promotional text."""
+    if not text:
+        return ""
+    import re
+    
+    # 1. Remove URLs
+    text = re.sub(r'https?://\S+|www\.\S+', '', text)
+    
+    # 2. Remove common promo codes/sponsor patterns
+    # (Simple heuristic: if line starts with 'Sponsor' or 'Promo', cut off rest or remove line)
+    # For now, let's just remove specific keywords/lines
+    lines = text.split('\n')
+    cleaned_lines = []
+    
+    cutoff_keywords = ["Sponsors:", "Support the show:", "Brought to you by:", "Advertise with us:", "See omnystudio.com/listener"]
+    
+    for line in lines:
+        stripped = line.strip()
+        # Check cutoff
+        if any(keyword in stripped for keyword in cutoff_keywords):
+           break # Stop processing description here (assuming footer junk follows)
+           
+        if stripped:
+            cleaned_lines.append(stripped)
+            
+    result = " ".join(cleaned_lines)
+    
+    # 3. Limit length (optional, but UI handles line-clamp)
+    # But user wants "Extract only synopsis", so taking top paragraph is often best.
+    
+    return result
+
 templates.env.filters['simple_markdown'] = simple_markdown
+templates.env.filters['clean_description'] = clean_description
 
 sub_repo = SubscriptionRepository()
 ep_repo = EpisodeRepository()
