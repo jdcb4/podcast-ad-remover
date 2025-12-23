@@ -150,7 +150,6 @@ def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=No
     clean_url = rss_url.replace('https://', '').replace('http://', '')
     return {
         "rss": rss_url,
-        "spotify": f"spotify:show:{rss_url}", 
         "apple": f"podcast://{clean_url}",
         "pocket_casts": f"pktc://subscribe/{clean_url}",
         "overcast": f"overcast://x-callback-url/add?url={rss_url}",
@@ -1001,7 +1000,6 @@ def _render_index(request: Request, error: str = None):
         unified_links = {
             "rss": rss_url,
             "direct": rss_url,
-            "spotify": f"spotify:show:{rss_url}", 
             "apple": f"podcast://{clean_url}",
             "pocket_casts": f"pktc://subscribe/{clean_url}",
             "overcast": f"overcast://x-callback-url/add?url={rss_url}",
