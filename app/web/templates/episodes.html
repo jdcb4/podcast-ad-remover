@@ -326,7 +326,7 @@
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" id="episodes-grid">
     {% for ep in episodes %}
-    <div class="episode-card card flex flex-col relative overflow-hidden group hover:border-white/[0.15] transition-all duration-300"
+    <div class="episode-card card flex flex-col relative overflow-hidden group hover:border-white/[0.15] transition-all duration-300 h-full"
         data-status="{{ ep.status }}" data-manual="{{ 'true' if ep.is_manual_download else 'false' }}"
         data-title="{{ ep.title|lower }}" data-date="{{ ep.pub_date }}">
 
@@ -339,45 +339,76 @@
         </div>
         {% endif %}
 
-        <div class="flex-1 p-1 pl-3">
+        <div class="flex-1 p-1 pl-3 flex flex-col">
             <!-- Header -->
             <div class="episode-header mb-3">
                 <div class="flex justify-between items-start gap-4">
-                    <span class="text-[11px] font-medium tracking-wide text-text-muted uppercase">{{ ep.pub_date
-                        }}</span>
+                    <!-- AI Badge (Top Left Integration) -->
+                    {% if ep.ai_summary %}
+                    <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-[10px] font-bold text-primary-300 uppercase tracking-wide cursor-pointer hover:bg-primary-500/20 transition-colors"
+                        onclick="toggleAiSummary('{{ ep.id }}'); event.stopPropagation();">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        AI Summary
+                    </div>
+                    {% else %}
+                    <div></div> <!-- Spacer -->
+                    {% endif %}
+
+                    <!-- Status Badges (Top Right) -->
                     <div class="flex items-center gap-2 shrink-0">
                         {% if ep.status == 'completed' %}
                         <span
-                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-success-soft text-success"
+                            title="Completed">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M5 13l4 4L19 7"></path>
                             </svg>
-                            Done
                         </span>
                         {% elif ep.status == 'processing' %}
                         <span
-                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 animate-pulse">
-                            Processing
+                            class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-warning-soft text-warning animate-pulse"
+                            title="Processing">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
                         </span>
                         {% elif ep.status == 'ignored' %}
                         <span
-                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/5 text-text-muted border border-white/10">Deleted</span>
+                            class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/5 text-text-muted"
+                            title="Deleted">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                </path>
+                            </svg>
+                        </span>
                         {% elif ep.status == 'failed' %}
                         <span
-                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">Error</span>
+                            class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-error-soft text-error"
+                            title="Failed">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </span>
                         {% endif %}
                     </div>
                 </div>
 
-                <h3 class="font-display text-xl font-bold leading-tight mt-1 mb-2 text-text-primary group-hover:text-primary-400 transition-colors episode-title"
+                <h3 class="font-display text-xl font-bold leading-tight mt-2 mb-1 text-text-primary group-hover:text-primary-400 transition-colors episode-title line-clamp-2"
                     title="{{ ep.title }}">
                     {{ ep.title }}
                 </h3>
 
-                <div class="flex items-center gap-3 text-xs text-text-secondary episode-meta">
-                    <span
-                        class="flex items-center gap-1 bg-surface-base border border-white/[0.06] rounded px-1.5 py-0.5">
+                <div class="flex items-center gap-3 text-xs text-text-muted episode-meta mt-2">
+                    <span class="font-medium date-formatted">{{ ep.pub_date }}</span>
+                    <span class="w-1 h-1 rounded-full bg-white/20"></span>
+                    <span class="flex items-center gap-1">
                         <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -385,7 +416,8 @@
                         {{ format_duration(ep.duration) }}
                     </span>
                     {% if ep.listen_count > 0 %}
-                    <span class="flex items-center gap-1 text-primary-400/80">
+                    <span class="w-1 h-1 rounded-full bg-white/20"></span>
+                    <span class="flex items-center gap-1 text-primary-400">
                         <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                             <circle cx="12" cy="12" r="2"></circle>
                             <path
@@ -400,64 +432,47 @@
 
             <!-- Description & AI -->
             <div class="mb-4">
-                {% if ep.ai_summary %}
-                <div class="mb-2">
-                    <button onclick="toggleAiSummary('{{ ep.id }}'); event.stopPropagation();"
-                        id="btn-ai-toggle-{{ ep.id }}"
-                        class="ai-summary-block w-full text-left px-3 py-2 rounded-lg bg-surface-base border border-primary-500/20 hover:border-primary-500/40 group/ai transition-all">
-                        <div
-                            class="flex items-center justify-between text-xs font-bold text-primary-300 uppercase tracking-wide mb-1">
-                            <span class="flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                        stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
-                                AI Summary Available
-                            </span>
-                            <span class="text-[10px] opacity-60 group-hover/ai:opacity-100 transition-opacity">Click to
-                                Toggle</span>
-                        </div>
-                        <p class="text-sm text-text-secondary line-clamp-2">{{ ep.ai_summary | striptags }}</p>
+                <div id="desc-content-ai-{{ ep.id }}"
+                    class="hidden mb-3 p-4 bg-surface-elevated rounded-xl border border-primary-500/20 shadow-lg text-sm text-text-body-bright markdown-content relative">
+                    <button onclick="toggleAiSummary('{{ ep.id }}');"
+                        class="absolute top-2 right-2 text-text-muted hover:text-white">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
                     </button>
-                    <!-- Actual AI Content (Hidden) -->
-                    <div id="desc-content-ai-{{ ep.id }}"
-                        class="hidden mt-2 p-3 bg-surface-base rounded-lg border border-white/[0.08] text-sm text-text-secondary markdown-content">
-                        {{ ep.ai_summary|simple_markdown|safe }}
-                    </div>
+                    {{ ep.ai_summary|simple_markdown|safe }}
                 </div>
-                {% endif %}
 
                 {% if ep.description %}
-                <details class="group/desc">
-                    <summary
-                        class="text-xs font-medium text-text-muted cursor-pointer hover:text-text-secondary w-full text-left list-none flex items-center gap-1">
-                        <svg class="w-4 h-4 transition-transform group-open/desc:rotate-90" fill="none"
+                <div class="relative group/desc">
+                    <div id="desc-orig-{{ ep.id }}"
+                        class="text-sm text-text-secondary leading-relaxed line-clamp-3 transition-all duration-300">
+                        {{ ep.description|striptags }}
+                    </div>
+                    <button onclick="toggleDescription('{{ ep.id }}')"
+                        class="mt-1 flex items-center gap-1 text-[11px] font-bold text-text-muted uppercase tracking-wider hover:text-primary-400 transition-colors">
+                        <span id="desc-btn-text-{{ ep.id }}">Read More</span>
+                        <svg id="desc-icon-{{ ep.id }}" class="w-3 h-3 transition-transform" fill="none"
                             stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
                             </path>
                         </svg>
-                        Show Description
-                    </summary>
-                    <div
-                        class="mt-2 text-sm text-text-secondary leading-relaxed p-3 bg-surface-base/50 rounded-lg border border-white/[0.04]">
-                        <div id="desc-content-orig-{{ ep.id }}">
-                            {{ ep.description|striptags }}
-                        </div>
-                    </div>
-                </details>
+                    </button>
+                </div>
                 {% endif %}
             </div>
 
             <!-- Progress -->
             {% if ep.status == 'processing' %}
-            <div class="mb-4 bg-surface-base rounded-lg p-2 border border-white/[0.06]">
+            <div class="mt-auto mb-4 bg-surface-base rounded-lg p-2 border border-white/[0.06]">
                 <div class="flex justify-between text-[10px] uppercase font-bold text-text-muted mb-1.5">
                     <span>{{ ep.processing_step }}</span>
                     <span>{{ ep.progress }}%</span>
                 </div>
                 <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div class="h-full bg-primary-500 transition-all duration-500" style="width: {{ ep.progress }}%">
-                    </div>
+                    <div class="h-full bg-warning-soft border border-warning transition-all duration-500"
+                        style="width: {{ ep.progress }}%; background-color: #fbbf24;"></div>
                 </div>
             </div>
             {% endif %}
@@ -525,10 +540,6 @@
                         </div>
                     </div>
                 </div>
-                {% endif %}
-
-                {% if ep.status == 'completed' or ep.status == 'failed' %}
-                <!-- Delete Button Direct -->
                 {% endif %}
             </div>
         </div>
@@ -606,21 +617,44 @@
         }
     }
 
-    function toggleAiSummary(id) {
-        const originalContent = document.getElementById(`desc-content-orig-${id}`);
-        const aiContent = document.getElementById(`desc-content-ai-${id}`);
-        const btn = document.getElementById(`btn-ai-toggle-${id}`);
+    function toggleDescription(id) {
+        const descDiv = document.getElementById(`desc-orig-${id}`);
+        const btnText = document.getElementById(`desc-btn-text-${id}`);
+        const icon = document.getElementById(`desc-icon-${id}`);
 
-        if (aiContent.classList.contains('hidden')) {
-            aiContent.classList.remove('hidden');
-            originalContent.classList.add('hidden');
-            btn.textContent = 'Show Original';
+        if (descDiv.classList.contains('line-clamp-3')) {
+            descDiv.classList.remove('line-clamp-3');
+            btnText.textContent = "Show Less";
+            icon.style.transform = "rotate(180deg)";
         } else {
-            aiContent.classList.add('hidden');
-            originalContent.classList.remove('hidden');
-            btn.textContent = 'Show AI Summary';
+            descDiv.classList.add('line-clamp-3');
+            btnText.textContent = "Read More";
+            icon.style.transform = "rotate(0deg)";
         }
     }
+
+    function toggleAiSummary(id) {
+        const aiContent = document.getElementById(`desc-content-ai-${id}`);
+        if (aiContent.classList.contains('hidden')) {
+            aiContent.classList.remove('hidden');
+        } else {
+            aiContent.classList.add('hidden');
+        }
+    }
+
+    // Format Dates on Load
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.date-formatted').forEach(el => {
+            try {
+                const dateStr = el.textContent.trim();
+                const date = new Date(dateStr);
+                if (!isNaN(date)) {
+                    // Use simple format: "Dec 23, 2023"
+                    el.textContent = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                }
+            } catch (e) { }
+        });
+    });
 
     async function deleteEpisode(id) {
         if (!confirm('Are you sure you want to permanently delete this episode and all its files?')) return;

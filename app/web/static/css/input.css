@@ -99,10 +99,48 @@
 
     /* Cards */
     .card {
-        @apply rounded-2xl p-6;
+        @apply rounded-2xl p-6 transition-all duration-300;
         background: linear-gradient(145deg, var(--bg-surface) 0%, var(--bg-elevated) 100%);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    /* Semantic Utilities */
+    .text-success {
+        color: #4ade80;
+    }
+
+    .bg-success-soft {
+        background-color: rgba(74, 222, 128, 0.1);
+        border: 1px solid rgba(74, 222, 128, 0.2);
+    }
+
+    .text-warning {
+        color: #fbbf24;
+    }
+
+    .bg-warning-soft {
+        background-color: rgba(251, 191, 36, 0.1);
+        border: 1px solid rgba(251, 191, 36, 0.2);
+    }
+
+    .text-error {
+        color: #f87171;
+    }
+
+    .bg-error-soft {
+        background-color: rgba(248, 113, 113, 0.1);
+        border: 1px solid rgba(248, 113, 113, 0.2);
+    }
+
+    .text-body-bright {
+        color: rgba(255, 255, 255, 0.85);
     }
 
     @screen sm {
