@@ -155,7 +155,7 @@ class RSSGenerator:
                     # Use \g<1> to avoid ambiguity when lan_ip starts with digits (e.g. "192" would be interpreted as \1192)
                     base_url = re.sub(r"(https?://)(localhost|127\.0\.0\.1)", rf"\g<1>{lan_ip}", base_url)
         
-        logger.info(f"[DEBUG] Unified feed base_url: '{base_url}' (len={len(base_url)})")
+
 
         # Query all completed episodes with subscription info
         from app.infra.database import get_db_connection
