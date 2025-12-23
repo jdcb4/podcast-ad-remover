@@ -1077,18 +1077,9 @@ async def add_subscription(request: Request, background_tasks: BackgroundTasks, 
         with get_db_connection() as conn:
             app_settings = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
             
-        retention_limit = app_settings['default_retention_limit'] if app_settings['default_retention_limit'] is not None else initial_count
-        
-        # Override initial_count if user didn't explicitly change it? 
-        # Actually user input 'initial_count' (which is technically retention limit in UI) should take precedence if exposed in UI,
-        # but the request asks "when a user first hits a podcast, this would be what it defaults to".
-        # The UI 'initial_count' field might be "Keep Latest 1". 
-        # If the user selects something specific in the add form, that should prob win. 
-        # If default is 1, and user sends 1, effectively it's the same.
-        # But wait, usually 'Add Subscription' form is simple URL input. The 'initial_count' is likely hidden or default '1'.
-        # Let's use the global default for retention if provided, or fallback to the form default.
-        if 'default_retention_limit' in app_settings.keys() and app_settings['default_retention_limit'] is not None:
-             retention_limit = app_settings['default_retention_limit']
+        # Use user-provided initial_count (from UI dropdown) as retention limit
+        # The UI defaults this dropdown to the global default setting already.
+        retention_limit = initial_count
         
         sub_create = SubscriptionCreate(feed_url=feed_url)
         new_sub = sub_repo.create(sub_create, "Loading...", f"loading-{int(__import__('time').time())}", None, "Fetching feed information...", retention_limit=retention_limit)
