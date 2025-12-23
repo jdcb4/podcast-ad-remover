@@ -2,95 +2,86 @@
 
 {% block content %}
 <div class="mb-6">
-    <a href="/" class="text-blue-600 hover:underline">&larr; Back to Subscriptions</a>
+    <a href="/" class="text-primary-400 hover:text-primary-300 transition-colors">&larr; Back to Subscriptions</a>
 </div>
 
-<div class="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-6">
+<div class="card mb-6">
     <div class="flex gap-4 sm:gap-6 items-start flex-col md:flex-row">
         {% if subscription.image_url %}
         <img src="{{ subscription.image_url }}" alt="{{ subscription.title }}"
-            class="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-lg shadow-sm">
+            class="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-xl shadow-lg">
         {% endif %}
         <div class="flex-1 w-full">
             <div class="flex flex-col gap-3 mb-4">
-                <h2 class="text-xl sm:text-2xl font-bold">{{ subscription.title }}</h2>
+                <h2 class="font-display text-xl sm:text-2xl font-bold">{{ subscription.title }}</h2>
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="checkNow({{ subscription.id }})"
-                        class="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 min-h-[44px]">
-                        Check Updates
-                    </button>
+                    <button onclick="checkNow({{ subscription.id }})" class="btn-primary btn-sm">Check Updates</button>
                     <button onclick="deleteSubscription({{ subscription.id }})"
-                        class="inline-flex items-center px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-md hover:bg-red-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 min-h-[44px]">
-                        Delete
-                    </button>
+                        class="btn-danger btn-sm">Delete</button>
                 </div>
             </div>
-            <p class="text-gray-600 break-all text-sm">{{ subscription.feed_url }}</p>
+            <p class="text-text-muted break-all text-sm">{{ subscription.feed_url }}</p>
 
             <div class="mt-4 flex flex-wrap gap-2 overflow-x-auto scrollbar-hide">
-                <a href="{{ links.direct }}"
-                    class="text-xs bg-orange-600 text-white px-3 py-2 rounded hover:bg-orange-700 whitespace-nowrap min-h-[36px] flex items-center">Direct</a>
-                <a href="{{ links.pocket_casts }}"
-                    class="text-xs bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600 whitespace-nowrap min-h-[36px] flex items-center">Pocket
-                    Casts</a>
-                <a href="/subscribe/apple?url={{ links.apple | urlencode }}"
-                    class="text-xs bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 whitespace-nowrap min-h-[36px] flex items-center">Apple</a>
-                <a href="{{ links.overcast }}"
-                    class="text-xs bg-orange-600 text-white px-3 py-2 rounded hover:bg-orange-700 whitespace-nowrap min-h-[36px] flex items-center">Overcast</a>
-                <a href="{{ links.castbox }}"
-                    class="text-xs bg-orange-400 text-white px-3 py-2 rounded hover:bg-orange-500 whitespace-nowrap min-h-[36px] flex items-center">Castbox</a>
-                <a href="{{ links.podcast_addict }}"
-                    class="text-xs bg-teal-600 text-white px-3 py-2 rounded hover:bg-teal-700 whitespace-nowrap min-h-[36px] flex items-center">Addict</a>
+                <a href="{{ links.direct }}" class="badge-soft">Direct</a>
+                <a href="{{ links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
+                <a href="/subscribe/apple?url={{ links.apple | urlencode }}" class="badge-soft">Apple</a>
+                <a href="{{ links.overcast }}" class="badge-soft">Overcast</a>
+                <a href="{{ links.castbox }}" class="badge-soft">Castbox</a>
+                <a href="{{ links.podcast_addict }}" class="badge-soft">Addict</a>
             </div>
         </div>
     </div>
 </div>
-</div>
 
-<div class="bg-white p-6 rounded-lg shadow-md mb-6">
+<div class="card mb-6">
     <div class="flex justify-between items-center mb-4 cursor-pointer"
         onclick="document.getElementById('settings-form').classList.toggle('hidden')">
-        <h3 class="text-xl font-bold">Processing Settings</h3>
-        <span class="text-gray-500 text-sm hover:text-gray-700">Toggle</span>
+        <h3 class="font-display text-xl font-bold">Processing Settings</h3>
+        <span class="text-text-muted text-sm hover:text-text-secondary transition-colors">Toggle</span>
     </div>
 
     <form id="settings-form" action="/subscriptions/{{ subscription.id }}/settings" method="POST" class="hidden">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div class="space-y-4">
-                <h4 class="font-semibold text-gray-700">Content Removal</h4>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_ads" name="remove_ads" value="true" {% if subscription.remove_ads
-                        %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_ads" class="ml-2 text-gray-700">Remove Ads</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_promos" name="remove_promos" value="true" {% if
-                        subscription.remove_promos %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_promos" class="ml-2 text-gray-700">Remove Promos</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_intros" name="remove_intros" value="true" {% if
-                        subscription.remove_intros %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_intros" class="ml-2 text-gray-700">Remove Intros</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_outros" name="remove_outros" value="true" {% if
-                        subscription.remove_outros %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_outros" class="ml-2 text-gray-700">Remove Outros</label>
-                </div>
+                <h4 class="font-semibold border-b border-white/[0.08] pb-2">Content Removal</h4>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="remove_ads" value="true" {% if subscription.remove_ads %}checked{%
+                        endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Ads</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="remove_promos" value="true" {% if subscription.remove_promos
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Promos</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="remove_intros" value="true" {% if subscription.remove_intros
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Intros</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="remove_outros" value="true" {% if subscription.remove_outros
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Outros</span>
+                </label>
 
-                <div class="pt-4 border-t border-gray-100">
-                    <h4 class="font-semibold text-gray-700 mb-2">Retention Policy</h4>
-                    <div class="space-y-3">
+                <div class="pt-4 border-t border-white/[0.08]">
+                    <h4 class="font-semibold mb-3">Retention Policy</h4>
+                    <div class="space-y-4">
                         <div>
-                            <label class="block text-sm text-gray-600">Auto-Downloads (Episodes to Keep)</label>
-                            <select name="retention_limit"
-                                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <label class="block text-sm text-text-secondary mb-2">Auto-Downloads (Episodes to
+                                Keep)</label>
+                            <select name="retention_limit" class="select">
                                 <option value="0" {% if subscription.retention_limit==0 %}selected{% endif %}>None
                                     (Manual Only)</option>
                                 <option value="1" {% if (subscription.retention_limit is none or
-                                    subscription.retention_limit==1) %}selected{% endif %}>
-                                    Keep Latest 1 (Default)</option>
+                                    subscription.retention_limit==1) %}selected{% endif %}>Keep Latest 1 (Default)
+                                </option>
                                 <option value="2" {% if subscription.retention_limit==2 %}selected{% endif %}>Keep
                                     Latest 2</option>
                                 <option value="3" {% if subscription.retention_limit==3 %}selected{% endif %}>Keep
@@ -106,9 +97,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm text-gray-600">Manual Downloads</label>
-                            <select name="manual_retention_days"
-                                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <label class="block text-sm text-text-secondary mb-2">Manual Downloads</label>
+                            <select name="manual_retention_days" class="select">
                                 <option value="7" {% if subscription.manual_retention_days==7 %}selected{% endif %}>Keep
                                     7 Days</option>
                                 <option value="14" {% if (subscription.manual_retention_days or 14)==14 %}selected{%
@@ -126,37 +116,37 @@
             </div>
 
             <div class="space-y-4">
-                <h4 class="font-semibold text-gray-700">Features</h4>
-                <div class="flex items-center">
-                    <input type="checkbox" id="ai_rewrite_description" name="ai_rewrite_description" value="true" {% if
-                        subscription.ai_rewrite_description %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="ai_rewrite_description" class="ml-2 text-gray-700">Rewrite Description (AI Text)</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="ai_audio_summary" name="ai_audio_summary" value="true" {% if
-                        subscription.ai_audio_summary %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="ai_audio_summary" class="ml-2 text-gray-700">Append Audio Summary (AI TTS)</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="append_title_intro" name="append_title_intro" value="true" {% if
-                        subscription.append_title_intro %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="append_title_intro" class="ml-2 text-gray-700">Append Audio Title as Intro (TTS)</label>
-                </div>
+                <h4 class="font-semibold border-b border-white/[0.08] pb-2">Features</h4>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="ai_rewrite_description" value="true" {% if
+                        subscription.ai_rewrite_description %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Rewrite Description (AI Text)</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="ai_audio_summary" value="true" {% if subscription.ai_audio_summary
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Append Audio Summary (AI TTS)</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="append_title_intro" value="true" {% if subscription.append_title_intro
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Append Audio Title as Intro (TTS)</span>
+                </label>
 
                 <div class="mt-4">
-                    <label for="custom_instructions" class="block text-sm font-medium text-gray-700">Custom Ad Detection
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Custom Ad Detection
                         Instructions</label>
-                    <textarea id="custom_instructions" name="custom_instructions" rows="3"
-                        placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border">{{ subscription.custom_instructions or '' }}</textarea>
+                    <textarea name="custom_instructions" rows="3" class="input font-mono text-sm"
+                        placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'">{{ subscription.custom_instructions or '' }}</textarea>
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 flex justify-end">
-            <button type="submit" class="bg-gray-900 text-white px-4 py-2 rounded hover:bg-gray-800">
-                Save Settings
-            </button>
+        <div class="mt-6 flex justify-end pt-4 border-t border-white/[0.08]">
+            <button type="submit" class="btn-primary">Save Settings</button>
         </div>
     </form>
 </div>
@@ -169,31 +159,33 @@
 {% endfor %}
 
 {% if has_processing.value %}
-<div class="bg-white p-4 rounded-lg shadow-md mb-6">
+<div class="card mb-6">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h3 class="text-lg font-semibold text-gray-900">Actively processing</h3>
+        <div class="flex items-center gap-3">
+            <div class="w-3 h-3 bg-primary-500 rounded-full animate-pulse"></div>
+            <h3 class="font-display text-lg font-semibold">Actively processing</h3>
+        </div>
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             <div
-                class="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-md border shadow-sm w-full sm:w-auto justify-between sm:justify-start">
+                class="flex items-center text-sm bg-surface-base px-3 py-2 rounded-xl border border-white/[0.08] w-full sm:w-auto justify-between sm:justify-start">
                 <label class="flex items-center cursor-pointer mr-3">
                     <input type="checkbox" id="auto-refresh-toggle" checked
-                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2 transition cursor-pointer w-5 h-5">
-                    <span class="font-medium">Auto</span>
+                        class="rounded border-white/20 bg-surface-base text-primary-500 focus:ring-primary-500 mr-2 w-4 h-4">
+                    <span class="font-medium text-text-secondary">Auto</span>
                 </label>
                 <div class="flex items-center">
                     <input type="number" id="refresh-interval" value="30" min="5" max="300"
-                        class="w-10 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-blue-600 appearance-none"
+                        class="w-10 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-primary-400 appearance-none"
                         style="-moz-appearance: textfield;">
-                    <span class="mr-2 text-gray-400">s</span>
+                    <span class="mr-2 text-text-muted">s</span>
                     <span
-                        class="text-xs font-mono font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full min-w-[3rem] text-center"
+                        class="text-xs font-mono font-bold bg-primary-500/20 text-primary-400 px-2.5 py-1 rounded-full min-w-[3rem] text-center"
                         id="refresh-countdown">30s</span>
                 </div>
             </div>
 
-            <a href="/subscriptions/{{ subscription.slug }}"
-                class="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center font-medium bg-white px-3 py-2 rounded-md border hover:bg-gray-50 transition shadow-sm min-h-[44px]">
-                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="/subscriptions/{{ subscription.slug }}" class="btn-secondary btn-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
                     </path>
@@ -208,55 +200,41 @@
 <!-- Episode Filters -->
 <div class="mb-6 flex flex-wrap gap-2 items-center justify-between">
     <div class="flex flex-wrap gap-2" id="episode-filters">
-        <button onclick="filterEpisodes('all')" data-filter="all"
-            class="filter-btn active px-3 py-1.5 rounded-full text-xs font-medium border bg-blue-600 text-white border-blue-600 transition-colors">
-            All Episodes
-        </button>
+        <button onclick="filterEpisodes('all')" data-filter="all" class="filter-btn active badge-info">All
+            Episodes</button>
         <button onclick="filterEpisodes('completed')" data-filter="completed"
-            class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:border-blue-500 transition-colors">
-            Downloaded
-        </button>
+            class="filter-btn badge-soft">Downloaded</button>
         <button onclick="filterEpisodes('not-downloaded')" data-filter="not-downloaded"
-            class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:border-blue-500 transition-colors">
-            Not Downloaded
-        </button>
-        <button onclick="filterEpisodes('ignored')" data-filter="ignored"
-            class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:border-blue-500 transition-colors">
-            Deleted
-        </button>
+            class="filter-btn badge-soft">Not Downloaded</button>
+        <button onclick="filterEpisodes('ignored')" data-filter="ignored" class="filter-btn badge-soft">Deleted</button>
     </div>
-    <div class="text-xs text-gray-400 font-medium" id="episode-count">
+    <div class="text-xs text-text-muted font-medium" id="episode-count">
         Showing all episodes
     </div>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="episodes-grid">
     {% for ep in episodes %}
-    <div class="episode-card bg-white rounded-lg shadow-md flex flex-col" data-status="{{ ep.status }}">
+    <div class="episode-card card-interactive flex flex-col" data-status="{{ ep.status }}">
         <div class="p-4 flex-1">
             <div class="flex justify-between items-start mb-2">
-                <h3 class="font-bold text-lg text-gray-900 line-clamp-2" title="{{ ep.title }}">{{ ep.title }}</h3>
-                <span class="text-xs text-gray-500 whitespace-nowrap ml-2">{{ ep.pub_date }}</span>
+                <h3 class="font-bold text-lg line-clamp-2" title="{{ ep.title }}">{{ ep.title }}</h3>
+                <span class="text-xs text-text-muted whitespace-nowrap ml-2">{{ ep.pub_date }}</span>
             </div>
-            <p class="text-xs text-gray-400 mb-3 truncate">{{ ep.guid }}</p>
+            <p class="text-xs text-text-muted mb-3 truncate">{{ ep.guid }}</p>
 
             <div class="flex justify-between items-center mb-3">
                 <div class="flex flex-wrap gap-2">
-                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                        {{ format_duration(ep.duration) }}
-                    </span>
+                    <span class="badge-neutral">{{ format_duration(ep.duration) }}</span>
 
                     {% if ep.status == 'completed' %}
-                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">Completed</span>
+                    <span class="badge-success">Completed</span>
                     {% elif ep.status == 'processing' %}
-                    <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-semibold">Actively
-                        Processing</span>
+                    <span class="badge-warning animate-pulse">Processing</span>
                     {% elif ep.status == 'failed' %}
-                    <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded font-semibold"
-                        title="{{ ep.error_message }}">Failed</span>
+                    <span class="badge-error" title="{{ ep.error_message }}">Failed</span>
                     {% elif ep.status == 'ignored' %}
-                    <span
-                        class="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded font-semibold flex items-center gap-1">
+                    <span class="badge-neutral flex items-center gap-1">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
@@ -265,15 +243,14 @@
                         Deleted
                     </span>
                     {% else %}
-                    <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded font-semibold">{{ ep.status
-                        }}</span>
+                    <span class="badge-neutral">{{ ep.status }}</span>
                     {% endif %}
                 </div>
 
                 {% if ep.ai_summary %}
                 <button onclick="toggleAiSummary('{{ ep.id }}'); event.stopPropagation();"
                     id="btn-ai-toggle-{{ ep.id }}"
-                    class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium transition-colors whitespace-nowrap ml-2 z-10">
+                    class="text-xs px-2 py-1 rounded bg-surface-base text-text-secondary hover:bg-surface-hover font-medium transition-colors whitespace-nowrap ml-2 z-10">
                     Show Original
                 </button>
                 {% endif %}
@@ -281,24 +258,22 @@
 
             {% if ep.description or ep.ai_summary %}
             <div class="relative">
-
                 <div class="relative group cursor-pointer" onclick="toggleDescription('{{ ep.id }}')">
                     <div id="desc-{{ ep.id }}"
-                        class="text-sm text-gray-600 mb-2 overflow-hidden transition-all duration-300 relative"
+                        class="text-sm text-text-secondary mb-2 overflow-hidden transition-all duration-300 relative"
                         style="max-height: 6rem;">
-                        <!-- Original Content (Hidden by default if AI summary exists) -->
                         <div id="desc-content-orig-{{ ep.id }}" {% if ep.ai_summary %}class="hidden" {% endif %}>
                             {{ ep.description|striptags }}
                         </div>
 
-                        <!-- AI Content (Shown by default if it exists) -->
                         {% if ep.ai_summary %}
-                        <div id="desc-content-ai-{{ ep.id }}" class="bg-gray-50 p-2 rounded-md border border-gray-100">
+                        <div id="desc-content-ai-{{ ep.id }}"
+                            class="bg-surface-base p-2 rounded-lg border border-white/[0.06]">
                             <div
-                                class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 tracking-wide mb-1.5 uppercase shadow-sm">
+                                class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-primary-500/20 text-primary-400 tracking-wide mb-1.5 uppercase">
                                 ✨ AI Summary
                             </div>
-                            <div class="text-gray-800 text-sm leading-relaxed">
+                            <div class="text-text-primary text-sm leading-relaxed">
                                 {{ ep.ai_summary|simple_markdown|safe }}
                             </div>
                         </div>
@@ -310,21 +285,20 @@
 
             {% if ep.status == 'processing' %}
             <div class="mb-4">
-                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                <div class="flex justify-between text-xs text-text-muted mb-1">
                     <span>{{ ep.processing_step }}</span>
                     <span>{{ ep.progress }}%</span>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div class="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                        style="width: {{ ep.progress }}%"></div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: {{ ep.progress }}%"></div>
                 </div>
             </div>
             {% endif %}
 
-            <div class="flex flex-wrap gap-3 text-sm text-blue-600">
+            <div class="flex flex-wrap gap-3 text-sm text-primary-400">
                 {% if ep.transcript_path %}
                 <a href="../artifacts/transcript/{{ ep.id }}" target="_blank"
-                    class="hover:underline flex items-center gap-1">
+                    class="hover:text-primary-300 flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
@@ -335,7 +309,7 @@
                 {% endif %}
                 {% if ep.ad_report_path %}
                 <a href="../artifacts/report/{{ ep.id }}" target="_blank"
-                    class="hover:underline flex items-center gap-1">
+                    class="hover:text-primary-300 flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
@@ -347,21 +321,22 @@
             </div>
         </div>
 
-        <div class="bg-gray-50 px-4 py-3 border-t border-gray-100 flex justify-between gap-2 items-center">
-            <!-- Delete Button -->
+        <div
+            class="bg-surface-base px-4 py-3 border-t border-white/[0.06] flex justify-between gap-2 items-center rounded-b-2xl">
             {% if ep.status in ['completed', 'failed'] %}
             <button onclick="deleteEpisode({{ ep.id }})" id="btn-delete-{{ ep.id }}"
-                class="text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 rounded hover:bg-red-50 transition-colors">
+                class="text-red-400 hover:text-red-300 text-xs font-semibold px-2 py-1 rounded hover:bg-red-500/10 transition-colors">
                 Delete
             </button>
+            {% else %}
+            <div></div>
             {% endif %}
 
             <div class="flex gap-2">
                 {% if ep.status == 'completed' %}
                 <a href="/audio/{{ subscription.slug }}/{{ ep.guid | replace('/', '_') | replace(' ', '_') }}/{{ basename(ep.local_filename) }}"
-                    target="_blank"
-                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    target="_blank" class="btn-primary btn-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
                         </path>
@@ -373,43 +348,35 @@
                 {% endif %}
 
                 {% if ep.status in ['processing', 'pending'] %}
-                <button onclick="cancelEpisode({{ ep.id }})"
-                    class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Cancel
-                </button>
+                <button onclick="cancelEpisode({{ ep.id }})" class="btn-secondary btn-sm">Cancel</button>
                 {% elif ep.status == 'unprocessed' or ep.status == 'ignored' %}
-                <button onclick="downloadEpisode({{ ep.id }})"
-                    class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button onclick="downloadEpisode({{ ep.id }})" class="btn-primary btn-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                     </svg>
                     {{ 'Re-download' if ep.status == 'ignored' else 'Download' }}
                 </button>
-                {% else %}
-                <!-- Unified Reprocess Dropdown for Completed and Failed/Others -->
+                {% elif ep.status != 'processing' %}
                 <div class="relative inline-block text-left">
-                    <button type="button" onclick="toggleDropdown('menu-{{ ep.id }}')"
-                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <button type="button" onclick="toggleDropdown('menu-{{ ep.id }}')" class="btn-secondary btn-sm">
                         Reprocess
-                        <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                            fill="currentColor" aria-hidden="true">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd"
                                 d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                                 clip-rule="evenodd" />
                         </svg>
                     </button>
                     <div id="menu-{{ ep.id }}"
-                        class="origin-top-right absolute right-0 bottom-full mb-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50">
-                        <div class="py-1" role="menu">
+                        class="origin-top-right absolute right-0 bottom-full mb-2 w-56 rounded-xl shadow-lg bg-surface-elevated border border-white/[0.08] hidden z-50">
+                        <div class="py-1">
                             <a href="#"
                                 onclick="processEpisode({{ ep.id }}, false); toggleDropdown('menu-{{ ep.id }}'); return false;"
-                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Full
+                                class="block px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover hover:text-text-primary">Full
                                 Reprocess</a>
                             <a href="#"
                                 onclick="processEpisode({{ ep.id }}, true); toggleDropdown('menu-{{ ep.id }}'); return false;"
-                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                role="menuitem">Reprocess
+                                class="block px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover hover:text-text-primary">Reprocess
                                 (Skip Transcription)</a>
                         </div>
                     </div>
@@ -419,27 +386,25 @@
         </div>
     </div>
     {% else %}
-    <div class="col-span-full text-center py-12 bg-white rounded-lg shadow text-gray-500">
+    <div class="col-span-full text-center py-12 card text-text-muted">
         No episodes found.
     </div>
     {% endfor %}
 </div>
 
 <script>
-
     function filterEpisodes(filter) {
         const cards = document.querySelectorAll('.episode-card');
         const buttons = document.querySelectorAll('#episode-filters .filter-btn');
         let visibleCount = 0;
 
-        // Update active button state
         buttons.forEach(btn => {
             if (btn.getAttribute('data-filter') === filter) {
-                btn.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-600');
-                btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
+                btn.classList.remove('badge-soft');
+                btn.classList.add('badge-info');
             } else {
-                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-600');
-                btn.classList.add('bg-white', 'text-gray-700', 'border-gray-300');
+                btn.classList.remove('badge-info');
+                btn.classList.add('badge-soft');
             }
         });
 
@@ -447,39 +412,23 @@
             const status = card.getAttribute('data-status');
             let show = false;
 
-            if (filter === 'all') {
-                show = true; // Show everything including recently deleted
-            } else if (filter === 'completed') {
-                show = status === 'completed';
-            } else if (filter === 'not-downloaded') {
-                show = (status === 'unprocessed' || status === 'failed' || status === 'pending');
-            } else if (filter === 'ignored') {
-                show = status === 'ignored';
-            }
+            if (filter === 'all') show = true;
+            else if (filter === 'completed') show = status === 'completed';
+            else if (filter === 'not-downloaded') show = (status === 'unprocessed' || status === 'failed' || status === 'pending');
+            else if (filter === 'ignored') show = status === 'ignored';
 
-            if (show) {
-                card.classList.remove('hidden');
-                visibleCount++;
-            } else {
-                card.classList.add('hidden');
-            }
+            if (show) { card.classList.remove('hidden'); visibleCount++; }
+            else { card.classList.add('hidden'); }
         });
 
-        // Update count text
         const countText = document.getElementById('episode-count');
-        if (filter === 'all') {
-            countText.textContent = `Showing all active episodes (${visibleCount})`;
-        } else if (filter === 'ignored') {
-            countText.textContent = `Showing recently deleted (${visibleCount})`;
-        } else {
-            countText.textContent = `Filtered: ${visibleCount} episodes`;
-        }
+        if (filter === 'all') countText.textContent = `Showing all active episodes (${visibleCount})`;
+        else if (filter === 'ignored') countText.textContent = `Showing recently deleted (${visibleCount})`;
+        else countText.textContent = `Filtered: ${visibleCount} episodes`;
 
-        // Save filter preference
         localStorage.setItem('episode-filter-preference', filter);
     }
 
-    // Initialize filter from preference or default to 'all'
     document.addEventListener('DOMContentLoaded', () => {
         const savedFilter = localStorage.getItem('episode-filter-preference') || 'all';
         filterEpisodes(savedFilter);
@@ -487,7 +436,6 @@
 
     function toggleDescription(id) {
         const desc = document.getElementById(`desc-${id}`);
-        // Handle max-height toggle logic
         if (desc.style.maxHeight === 'none' || desc.classList.contains('max-h-full')) {
             desc.style.maxHeight = '6rem';
             desc.classList.remove('max-h-full');
@@ -503,82 +451,47 @@
         const btn = document.getElementById(`btn-ai-toggle-${id}`);
 
         if (aiContent.classList.contains('hidden')) {
-            // Show AI
             aiContent.classList.remove('hidden');
             originalContent.classList.add('hidden');
             btn.textContent = 'Show Original';
-            btn.classList.remove('bg-purple-100', 'text-purple-700');
-            btn.classList.add('bg-gray-100', 'text-gray-700');
         } else {
-            // Show Original
             aiContent.classList.add('hidden');
             originalContent.classList.remove('hidden');
             btn.textContent = 'Show AI Summary';
-            btn.classList.add('bg-purple-100', 'text-purple-700');
-            btn.classList.remove('bg-gray-100', 'text-gray-700');
         }
     }
 
     async function deleteEpisode(id) {
-        if (!confirm('Are you sure you want to permanently delete this episode and all its files? This cannot be undone.')) return;
-
+        if (!confirm('Are you sure you want to permanently delete this episode and all its files?')) return;
         const btn = document.getElementById(`btn-delete-${id}`);
         const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = 'Deleting...';
-
+        btn.disabled = true; btn.innerHTML = 'Deleting...';
         try {
             const response = await fetch(`/api/episodes/${id}`, { method: 'DELETE' });
-            if (response.ok) {
-                // Determine if we should reload or remove element. Reload is safest for list state.
-                window.location.reload();
-            } else {
-                alert('Failed to delete episode.');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Error deleting episode.');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
+            if (response.ok) window.location.reload();
+            else { alert('Failed to delete episode.'); btn.disabled = false; btn.innerHTML = originalText; }
+        } catch (e) { alert('Error deleting episode.'); btn.disabled = false; btn.innerHTML = originalText; }
     }
 
     async function downloadEpisode(id) {
-        if (!confirm('Download this episode manually? It will be retained for 14 days.')) return;
+        if (!confirm('Download this episode manually?')) return;
         try {
             const resp = await fetch(`/episodes/${id}/download`, { method: 'POST' });
-            if (resp.ok) {
-                alert('Download queued! Refreshing...');
-                location.reload();
-            } else {
-                alert('Failed to queue download.');
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Error starting download.');
-        }
+            if (resp.ok) { alert('Download queued!'); location.reload(); }
+            else alert('Failed to queue download.');
+        } catch (e) { alert('Error starting download.'); }
     }
 
     function toggleDropdown(id) {
         const el = document.getElementById(id);
         if (el.classList.contains('hidden')) {
-            // Hide all others
             document.querySelectorAll('[id^=menu-]').forEach(x => x.classList.add('hidden'));
             el.classList.remove('hidden');
-        } else {
-            el.classList.add('hidden');
-        }
+        } else { el.classList.add('hidden'); }
     }
 
-    // Close on click outside
     window.onclick = function (event) {
-        // Check if the click target or any of its parents is a dropdown button or inside a dropdown menu
-        let isDropdownButton = event.target.closest('.relative.inline-block.text-left > button');
-        let isDropdownMenu = event.target.closest('[id^=menu-]');
-
-        if (!isDropdownButton && !isDropdownMenu) {
+        if (!event.target.closest('.relative.inline-block.text-left > button') && !event.target.closest('[id^=menu-]')) {
             document.querySelectorAll('[id^=menu-]').forEach(x => x.classList.add('hidden'));
         }
     }
@@ -586,61 +499,41 @@
     async function checkNow(id) {
         if (!confirm('Check for new episodes now?')) return;
         await fetch(`/api/subscriptions/${id}/check`, { method: 'POST' });
-        alert('Check triggered! Refresh in a moment.');
-        location.reload();
+        alert('Check triggered!'); location.reload();
     }
 
     async function processEpisode(id, skipTranscription) {
-        const action = skipTranscription ? "Reprocess (Keep Transcript)" : "Process/Reprocess FULLY";
+        const action = skipTranscription ? "Reprocess (Keep Transcript)" : "Full Reprocess";
         if (!confirm(`${action}: Are you sure?`)) return;
-
         const url = `/api/episodes/${id}/process` + (skipTranscription ? "?skip_transcription=true" : "");
         try {
-            console.log(`Triggering reprocess for episode ${id}...`);
             const response = await fetch(url, { method: 'POST' });
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Reprocess response:', data);
-                // No alert, just reload to show status change
-                location.reload();
-            } else {
-                const errorText = await response.text();
-                console.error('Reprocess failed:', errorText);
-                alert(`Failed to trigger processing: ${response.status} ${response.statusText}`);
-            }
-        } catch (e) {
-            console.error('Error triggering reprocess:', e);
-            alert('Error starting processing. Check console for details.');
-        }
+            if (response.ok) location.reload();
+            else alert(`Failed to trigger processing: ${response.status}`);
+        } catch (e) { alert('Error starting processing.'); }
     }
 
     async function cancelEpisode(id) {
-        if (!confirm('Cancel processing for this episode?')) return;
+        if (!confirm('Cancel processing?')) return;
         await fetch(`/api/episodes/${id}/cancel`, { method: 'POST' });
         location.reload();
     }
 
     async function deleteSubscription(id) {
-        if (!confirm('Are you sure you want to delete this subscription? All episodes and files will be removed.')) return;
+        if (!confirm('Delete this subscription? All episodes and files will be removed.')) return;
         const res = await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            window.location.href = '/';
-        } else {
-            alert('Failed to delete subscription');
-        }
+        if (res.ok) window.location.href = '/';
+        else alert('Failed to delete subscription');
     }
 
-    // Auto-refresh logic for processing episodes
     {% if has_processing.value %}
     (function () {
         const toggle = document.getElementById('auto-refresh-toggle');
         const intervalInput = document.getElementById('refresh-interval');
         const countdownDisplay = document.getElementById('refresh-countdown');
 
-        // Load settings from localStorage if available
         const savedInterval = localStorage.getItem('episodes-refresh-interval');
         const savedToggle = localStorage.getItem('episodes-refresh-enabled');
-
         if (savedInterval) intervalInput.value = savedInterval;
         if (savedToggle !== null) toggle.checked = savedToggle === 'true';
 
@@ -649,56 +542,38 @@
 
         function updateCountdown() {
             if (!toggle.checked) return;
-
             timeLeft--;
             if (timeLeft <= 0) {
-                // Save state before reload
                 localStorage.setItem('episodes-refresh-enabled', toggle.checked);
                 localStorage.setItem('episodes-refresh-interval', intervalInput.value);
                 window.location.reload();
-            } else {
-                countdownDisplay.textContent = timeLeft + 's';
-            }
+            } else { countdownDisplay.textContent = timeLeft + 's'; }
         }
 
         function startTimer() {
             if (intervalId) clearInterval(intervalId);
             timeLeft = parseInt(intervalInput.value);
             if (isNaN(timeLeft) || timeLeft < 5) timeLeft = 5;
-
             countdownDisplay.textContent = timeLeft + 's';
-
             if (toggle.checked) {
                 intervalId = setInterval(updateCountdown, 1000);
-                countdownDisplay.classList.remove('bg-gray-100', 'text-gray-400');
-                countdownDisplay.classList.add('bg-blue-100', 'text-blue-700');
+                countdownDisplay.classList.remove('bg-white/5', 'text-text-muted');
+                countdownDisplay.classList.add('bg-primary-500/20', 'text-primary-400');
             } else {
                 countdownDisplay.textContent = 'Off';
-                countdownDisplay.classList.remove('bg-blue-100', 'text-blue-700');
-                countdownDisplay.classList.add('bg-gray-100', 'text-gray-400');
+                countdownDisplay.classList.remove('bg-primary-500/20', 'text-primary-400');
+                countdownDisplay.classList.add('bg-white/5', 'text-text-muted');
             }
         }
 
-        toggle.onchange = function () {
-            localStorage.setItem('episodes-refresh-enabled', toggle.checked);
-            startTimer();
-        };
-
+        toggle.onchange = function () { localStorage.setItem('episodes-refresh-enabled', toggle.checked); startTimer(); };
         intervalInput.onchange = function () {
             let val = parseInt(this.value);
-            if (isNaN(val) || val < 5) {
-                val = 5;
-                this.value = 5;
-            }
-            if (val > 300) {
-                val = 300;
-                this.value = 300;
-            }
+            if (isNaN(val) || val < 5) { val = 5; this.value = 5; }
+            if (val > 300) { val = 300; this.value = 300; }
             localStorage.setItem('episodes-refresh-interval', val);
             startTimer();
         };
-
-        // Initialize
         startTimer();
     })();
     {% endif %}
