@@ -50,7 +50,7 @@ def init_db():
         whisper_model TEXT DEFAULT 'base',
         ai_model_cascade TEXT DEFAULT '["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash-lite"]',
         piper_model TEXT DEFAULT 'en_GB-cori-high.onnx',
-        concurrent_downloads INTEGER DEFAULT 3,
+        concurrent_downloads INTEGER DEFAULT 2,
         retention_days INTEGER DEFAULT 30,
         check_interval_minutes INTEGER DEFAULT 60,
         daily_download_limit INTEGER DEFAULT 0,

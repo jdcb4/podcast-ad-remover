@@ -296,7 +296,7 @@ async def admin_system(request: Request):
 @router.post("/admin/system/update")
 async def update_system_settings(
     request: Request,
-    concurrent_downloads: int = Form(3),
+    concurrent_downloads: int = Form(2),
     retention_days: int = Form(30),
     check_interval_minutes: int = Form(60),
     app_external_url: str = Form(None),

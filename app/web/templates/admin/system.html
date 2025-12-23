@@ -13,7 +13,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Concurrent Downloads</label>
-                    <input type="number" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 3 }}"
+                    <input type="number" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 2 }}"
                         min="1" max="10" class="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
                     <p class="text-xs text-gray-500 mt-1">Number of episodes to process in parallel.</p>
                 </div>
