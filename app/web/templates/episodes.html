@@ -12,32 +12,40 @@
             class="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-xl shadow-lg">
         {% endif %}
         <div class="flex-1 w-full">
-            <div class="flex flex-col gap-4 mb-5">
-                <h2 class="font-display text-xl sm:text-2xl font-bold">{{ subscription.title }}</h2>
-                <div class="flex flex-wrap gap-2">
+            <div class="flex flex-col gap-2 mb-3">
+                <h1 class="font-display text-3xl sm:text-4xl font-bold tracking-tight text-white leading-[1.1]">
+                    {{ subscription.title }}
+                </h1>
+                {% if subscription.description %}
+                <div class="text-sm text-text-secondary leading-relaxed max-w-3xl line-clamp-2">
+                    {{ subscription.description | striptags }}
+                </div>
+                {% endif %}
+                <div class="flex flex-wrap gap-2 mt-1">
                     <button onclick="checkNow({{ subscription.id }})" class="btn-primary btn-sm">Check Updates</button>
                     <button onclick="deleteSubscription({{ subscription.id }})"
                         class="btn-danger btn-sm">Delete</button>
                 </div>
             </div>
-            <p class="text-text-muted break-all text-sm">{{ subscription.feed_url }}</p>
-            {% if total_listens and total_listens > 0 %}
-            <p class="text-sm text-text-secondary mt-2">
-                <span class="font-semibold">Total Listens:</span> <span class="text-primary-400">{{ total_listens
-                    }}</span>
-            </p>
-            {% endif %}
+        </div>
+        <p class="text-text-muted break-all text-sm">{{ subscription.feed_url }}</p>
+        {% if total_listens and total_listens > 0 %}
+        <p class="text-sm text-text-secondary mt-2">
+            <span class="font-semibold">Total Listens:</span> <span class="text-primary-400">{{ total_listens
+                }}</span>
+        </p>
+        {% endif %}
 
-            <div class="mt-6 flex flex-wrap gap-2">
-                <a href="{{ links.direct }}" class="badge-soft">Direct</a>
-                <a href="{{ links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
-                <a href="/subscribe/apple?url={{ links.apple | urlencode }}" class="badge-soft">Apple</a>
-                <a href="{{ links.overcast }}" class="badge-soft">Overcast</a>
-                <a href="{{ links.castbox }}" class="badge-soft">Castbox</a>
-                <a href="{{ links.podcast_addict }}" class="badge-soft">Podcast Addict</a>
-            </div>
+        <div class="mt-6 flex flex-wrap gap-2">
+            <a href="{{ links.direct }}" class="badge-soft">Direct</a>
+            <a href="{{ links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
+            <a href="/subscribe/apple?url={{ links.apple | urlencode }}" class="badge-soft">Apple</a>
+            <a href="{{ links.overcast }}" class="badge-soft">Overcast</a>
+            <a href="{{ links.castbox }}" class="badge-soft">Castbox</a>
+            <a href="{{ links.podcast_addict }}" class="badge-soft">Podcast Addict</a>
         </div>
     </div>
+</div>
 </div>
 
 <div class="card mb-6">
@@ -226,11 +234,11 @@
     <div class="episode-card card-interactive flex flex-col" data-status="{{ ep.status }}"
         data-manual="{{ 'true' if ep.is_manual_download else 'false' }}">
         <div class="p-2 flex-1">
+            <span class="text-xs text-text-muted whitespace-nowrap block mb-1">{{ ep.pub_date }}</span>
             <h3 class="font-bold text-lg mb-2 leading-tight" title="{{ ep.title }}">{{ ep.title }}</h3>
 
             <div class="flex justify-between items-center mb-4">
                 <div class="flex flex-wrap gap-2 items-center">
-                    <span class="text-xs text-text-muted whitespace-nowrap mr-1">{{ ep.pub_date }}</span>
                     <span class="badge-neutral">{{ format_duration(ep.duration) }}</span>
                     {% if ep.listen_count and ep.listen_count > 0 %}
                     <span class="badge-soft">👂 {{ ep.listen_count }} listen{{ 's' if ep.listen_count != 1 else ''

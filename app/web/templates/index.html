@@ -203,7 +203,7 @@
 
     <!-- View Toggles -->
     <div class="flex items-center bg-surface-base rounded-lg p-1 border border-white/[0.1]">
-        <button onclick="setView('grid')" id="view-grid"
+        <button type="button" id="view-grid"
             class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
             title="Grid View">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,7 +212,7 @@
                 </path>
             </svg>
         </button>
-        <button onclick="setView('list')" id="view-list"
+        <button type="button" id="view-list"
             class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
             title="List View">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,7 +220,7 @@
                 </path>
             </svg>
         </button>
-        <button onclick="setView('art')" id="view-art"
+        <button type="button" id="view-art"
             class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
             title="Art View">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -460,34 +460,48 @@
     {% endif %}
 
     // View Toggle Logic
-    window.setView = function (mode) {
-        const grid = document.getElementById('podcast-grid');
-        if (!grid) return;
+    document.addEventListener('DOMContentLoaded', () => {
+        function setView(mode) {
+            const grid = document.getElementById('podcast-grid');
+            if (!grid) return;
 
-        // Set attribute
-        grid.setAttribute('data-view', mode);
+            // Set attribute
+            grid.setAttribute('data-view', mode);
 
-        // Save preference
-        localStorage.setItem('dashboard-view-mode', mode);
+            // Save preference
+            try {
+                localStorage.setItem('dashboard-view-mode', mode);
+            } catch (e) {
+                console.warn('Could not save view preference', e);
+            }
 
-        // Update buttons
+            // Update buttons
+            ['grid', 'list', 'art'].forEach(m => {
+                const btn = document.getElementById(`view-${m}`);
+                if (btn) {
+                    if (m === mode) {
+                        btn.classList.add('bg-primary-500', 'text-white');
+                        btn.classList.remove('text-text-muted', 'hover:bg-white/[0.1]');
+                    } else {
+                        btn.classList.remove('bg-primary-500', 'text-white');
+                        btn.classList.add('text-text-muted', 'hover:bg-white/[0.1]');
+                    }
+                }
+            });
+        }
+
+        // Init view
+        const savedView = localStorage.getItem('dashboard-view-mode') || 'grid';
+        setView(savedView);
+
+        // Attach listeners
         ['grid', 'list', 'art'].forEach(m => {
             const btn = document.getElementById(`view-${m}`);
             if (btn) {
-                if (m === mode) {
-                    btn.classList.add('bg-primary-500', 'text-white');
-                    btn.classList.remove('text-text-muted', 'hover:bg-white/[0.1]');
-                } else {
-                    btn.classList.remove('bg-primary-500', 'text-white');
-                    btn.classList.add('text-text-muted', 'hover:bg-white/[0.1]');
-                }
+                btn.addEventListener('click', () => setView(m));
             }
         });
-    };
-
-    // Initialize view
-    const savedView = localStorage.getItem('dashboard-view-mode') || 'grid';
-    setView(savedView);
+    });
 
     // Podcast Filter/Sort
     (function () {
