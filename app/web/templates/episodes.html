@@ -225,14 +225,12 @@
     {% for ep in episodes %}
     <div class="episode-card card-interactive flex flex-col" data-status="{{ ep.status }}"
         data-manual="{{ 'true' if ep.is_manual_download else 'false' }}">
-        <div class="p-3 flex-1">
-            <div class="flex justify-between items-start mb-2">
-                <h3 class="font-bold text-lg" title="{{ ep.title }}">{{ ep.title }}</h3>
-                <span class="text-xs text-text-muted whitespace-nowrap ml-2 shrink-0">{{ ep.pub_date }}</span>
-            </div>
+        <div class="p-2 flex-1">
+            <h3 class="font-bold text-lg mb-2 leading-tight" title="{{ ep.title }}">{{ ep.title }}</h3>
 
             <div class="flex justify-between items-center mb-4">
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-wrap gap-2 items-center">
+                    <span class="text-xs text-text-muted whitespace-nowrap mr-1">{{ ep.pub_date }}</span>
                     <span class="badge-neutral">{{ format_duration(ep.duration) }}</span>
                     {% if ep.listen_count and ep.listen_count > 0 %}
                     <span class="badge-soft">👂 {{ ep.listen_count }} listen{{ 's' if ep.listen_count != 1 else ''
@@ -334,7 +332,7 @@
         </div>
 
         <div
-            class="bg-surface-base px-3 py-2 border-t border-white/[0.06] flex justify-between gap-2 items-center rounded-b-2xl">
+            class="bg-surface-base px-2 py-1.5 border-t border-white/[0.06] flex justify-between gap-2 items-center rounded-b-2xl">
             {% if ep.status in ['completed', 'failed'] %}
             <button onclick="deleteEpisode({{ ep.id }})" id="btn-delete-{{ ep.id }}"
                 class="text-red-400 hover:text-red-300 text-xs font-semibold px-2 py-1 rounded hover:bg-red-500/10 transition-colors">
