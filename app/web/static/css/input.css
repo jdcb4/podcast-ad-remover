@@ -312,7 +312,7 @@
 
     #podcast-grid[data-view="list"] .podcast-card {
         @apply flex flex-row items-stretch;
-        height: 180px;
+        min-height: 180px;
     }
 
     #podcast-grid[data-view="list"] .podcast-artwork {
