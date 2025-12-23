@@ -21,7 +21,8 @@ class RSSGenerator:
             return
             
         # Get base URL from settings
-        from app.web.router import get_global_settings, get_lan_ip
+        from app.web.router import get_global_settings
+        from app.core.utils import get_lan_ip
         global_settings = get_global_settings()
         external_url = global_settings.get("app_external_url")
         
@@ -136,7 +137,8 @@ class RSSGenerator:
         """Generate a single RSS feed containing all episodes from all subscriptions."""
         
         # Get base URL from settings (reuse logic from generate_feed)
-        from app.web.router import get_global_settings, get_lan_ip
+        from app.web.router import get_global_settings
+        from app.core.utils import get_lan_ip
         global_settings = get_global_settings()
         external_url = global_settings.get("app_external_url")
         
