@@ -123,7 +123,8 @@ def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=No
 
     clean_url = rss_url.replace('https://', '').replace('http://', '')
     return {
-        "rss": rss_url,
+        "rss": f"rss://{clean_url}",
+        "direct": rss_url,
         "apple": rss_url,  # Method 1: Direct HTTPS URL for manual "Follow a Show by URL"
         "pocket_casts": f"pktc://subscribe/{rss_url}",
         "overcast": f"overcast://x-callback-url/add?url={rss_url}",
@@ -484,7 +485,7 @@ async def test_ai_connection(
         
         prov_instance = detector.create_provider(provider, api_key=api_key, model=model)
         result = prov_instance.test_connection()
-        return result
+        return {"status": "success", "message": result}
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
@@ -982,7 +983,7 @@ def _render_index(request: Request, error: str = None):
 
         clean_url = rss_url.replace('https://', '').replace('http://', '')
         unified_links = {
-            "rss": rss_url,
+            "rss": f"rss://{clean_url}",
             "direct": rss_url,
             "apple": rss_url,  # Method 1: Direct HTTPS URL
             "pocket_casts": f"pktc://subscribe/{rss_url}",
