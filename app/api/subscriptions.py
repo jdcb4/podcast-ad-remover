@@ -135,3 +135,14 @@ class SearchQuery(BaseModel):
 @router.post("/search")
 async def search_podcasts(q: SearchQuery):
     return await PodcastSearcher.search(q.query)
+
+@router.post("/episodes/{id}/track-listen")
+async def track_listen(id: int):
+    """Increment listen count for an episode."""
+    ep_repo = EpisodeRepository()
+    ep = ep_repo.get_by_id(id)
+    if not ep:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    
+    ep_repo.increment_listen_count(id)
+    return {"status": "tracked", "episode_id": id}

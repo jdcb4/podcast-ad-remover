@@ -431,6 +431,12 @@ class Processor:
                     h2 {{ font-size: 1.5rem; margin-bottom: 1rem; color: #fafafa; }}
                     h3 {{ font-size: 1.125rem; margin: 1.5rem 0 1rem 0; color: #a1a1aa; }}
                     .meta {{ color: #52525b; font-size: 0.85em; margin-bottom: 1.5rem; font-family: monospace; }}
+                    /* Scrollbar */
+                    ::-webkit-scrollbar {{ width: 8px; }}
+                    ::-webkit-scrollbar-track {{ background: #0a0a0f; }}
+                    ::-webkit-scrollbar-thumb {{ background: #22222f; border-radius: 4px; }}
+                    ::-webkit-scrollbar-thumb:hover {{ background: #3f3f46; }}
+
                     .segment {{ 
                         background: #1a1a25;
                         padding: 1.25rem; 
@@ -438,7 +444,6 @@ class Processor:
                         border-left: 4px solid #8b5cf6; 
                         border-radius: 0.75rem;
                         border: 1px solid rgba(255,255,255,0.08);
-                        border-left: 4px solid #8b5cf6;
                     }}
                     .badge {{ 
                         background: rgba(139,92,246,0.15); 
@@ -478,6 +483,12 @@ class Processor:
                 </style>
             </head>
             <body>
+                <div style="margin-bottom: 2rem;">
+                    <a href="/" style="font-weight: 700; font-size: 1.25rem; color: #fafafa; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;"><path d="M4 11v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M4 11l8-8 8 8"></path><path d="M12 19v-6"></path></svg>
+                         Back to Dashboard
+                    </a>
+                </div>
                 <h1>Ad Report</h1>
                 <h2>{ep.title}</h2>
                 <p class="meta">GUID: {ep.guid}</p>
@@ -488,7 +499,7 @@ class Processor:
                 {rows_html}
                 
                 <h3>Transcript</h3>
-                <p><a href="file://{transcript_path}">View Full Transcript</a></p>
+                <p><a href="/artifacts/transcript/{ep.id}" class="btn">View Full Transcript (JSON)</a></p>
             </body>
             </html>
             """

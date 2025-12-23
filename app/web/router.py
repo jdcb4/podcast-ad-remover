@@ -1165,6 +1165,9 @@ async def view_subscription(request: Request, id: int):
     user = get_current_user(request)
 
     links = generate_rss_links(request, sub, global_settings, user)
+    
+    # Get total listen count for this subscription
+    total_listens = ep_repo.get_subscription_listen_count(sub.id)
 
     return templates.TemplateResponse("episodes.html", {
         "request": request, 
@@ -1173,7 +1176,8 @@ async def view_subscription(request: Request, id: int):
         "episodes": episodes,
         "links": links,
         "basename": lambda p: p.split('/')[-1] if p else '',
-        "format_duration": format_duration
+        "format_duration": format_duration,
+        "total_listens": total_listens
     })
 
 @router.post("/subscriptions/{id}/settings")

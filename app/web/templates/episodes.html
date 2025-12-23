@@ -6,13 +6,13 @@
 </div>
 
 <div class="card mb-6">
-    <div class="flex gap-4 sm:gap-6 items-start flex-col md:flex-row">
+    <div class="flex gap-6 sm:gap-8 items-start flex-col md:flex-row">
         {% if subscription.image_url %}
         <img src="{{ subscription.image_url }}" alt="{{ subscription.title }}"
             class="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-xl shadow-lg">
         {% endif %}
         <div class="flex-1 w-full">
-            <div class="flex flex-col gap-3 mb-4">
+            <div class="flex flex-col gap-4 mb-5">
                 <h2 class="font-display text-xl sm:text-2xl font-bold">{{ subscription.title }}</h2>
                 <div class="flex flex-wrap gap-2">
                     <button onclick="checkNow({{ subscription.id }})" class="btn-primary btn-sm">Check Updates</button>
@@ -21,14 +21,20 @@
                 </div>
             </div>
             <p class="text-text-muted break-all text-sm">{{ subscription.feed_url }}</p>
+            {% if total_listens and total_listens > 0 %}
+            <p class="text-sm text-text-secondary mt-2">
+                <span class="font-semibold">Total Listens:</span> <span class="text-primary-400">{{ total_listens
+                    }}</span>
+            </p>
+            {% endif %}
 
-            <div class="mt-4 flex flex-wrap gap-2 overflow-x-auto scrollbar-hide">
+            <div class="mt-6 flex flex-wrap gap-2">
                 <a href="{{ links.direct }}" class="badge-soft">Direct</a>
                 <a href="{{ links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
                 <a href="/subscribe/apple?url={{ links.apple | urlencode }}" class="badge-soft">Apple</a>
                 <a href="{{ links.overcast }}" class="badge-soft">Overcast</a>
                 <a href="{{ links.castbox }}" class="badge-soft">Castbox</a>
-                <a href="{{ links.podcast_addict }}" class="badge-soft">Addict</a>
+                <a href="{{ links.podcast_addict }}" class="badge-soft">Podcast Addict</a>
             </div>
         </div>
     </div>
@@ -42,8 +48,8 @@
     </div>
 
     <form id="settings-form" action="/subscriptions/{{ subscription.id }}/settings" method="POST" class="hidden">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+            <div class="space-y-6">
                 <h4 class="font-semibold border-b border-white/[0.08] pb-2">Content Removal</h4>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="remove_ads" value="true" {% if subscription.remove_ads %}checked{%
@@ -198,12 +204,14 @@
 {% endif %}
 
 <!-- Episode Filters -->
-<div class="mb-6 flex flex-wrap gap-2 items-center justify-between">
+<div class="mb-8 flex flex-wrap gap-2 items-center justify-between">
     <div class="flex flex-wrap gap-2" id="episode-filters">
         <button onclick="filterEpisodes('all')" data-filter="all" class="filter-btn active badge-info">All
             Episodes</button>
         <button onclick="filterEpisodes('completed')" data-filter="completed"
             class="filter-btn badge-soft">Downloaded</button>
+        <button onclick="filterEpisodes('manual')" data-filter="manual" class="filter-btn badge-soft">Manually
+            Downloaded</button>
         <button onclick="filterEpisodes('not-downloaded')" data-filter="not-downloaded"
             class="filter-btn badge-soft">Not Downloaded</button>
         <button onclick="filterEpisodes('ignored')" data-filter="ignored" class="filter-btn badge-soft">Deleted</button>
@@ -213,19 +221,23 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="episodes-grid">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" id="episodes-grid">
     {% for ep in episodes %}
-    <div class="episode-card card-interactive flex flex-col" data-status="{{ ep.status }}">
+    <div class="episode-card card-interactive flex flex-col" data-status="{{ ep.status }}"
+        data-manual="{{ 'true' if ep.is_manual_download else 'false' }}">
         <div class="p-4 flex-1">
             <div class="flex justify-between items-start mb-2">
-                <h3 class="font-bold text-lg line-clamp-2" title="{{ ep.title }}">{{ ep.title }}</h3>
-                <span class="text-xs text-text-muted whitespace-nowrap ml-2">{{ ep.pub_date }}</span>
+                <h3 class="font-bold text-lg" title="{{ ep.title }}">{{ ep.title }}</h3>
+                <span class="text-xs text-text-muted whitespace-nowrap ml-2 shrink-0">{{ ep.pub_date }}</span>
             </div>
-            <p class="text-xs text-text-muted mb-3 truncate">{{ ep.guid }}</p>
 
-            <div class="flex justify-between items-center mb-3">
+            <div class="flex justify-between items-center mb-4">
                 <div class="flex flex-wrap gap-2">
                     <span class="badge-neutral">{{ format_duration(ep.duration) }}</span>
+                    {% if ep.listen_count and ep.listen_count > 0 %}
+                    <span class="badge-soft">👂 {{ ep.listen_count }} listen{{ 's' if ep.listen_count != 1 else ''
+                        }}</span>
+                    {% endif %}
 
                     {% if ep.status == 'completed' %}
                     <span class="badge-success">Completed</span>
@@ -250,14 +262,14 @@
                 {% if ep.ai_summary %}
                 <button onclick="toggleAiSummary('{{ ep.id }}'); event.stopPropagation();"
                     id="btn-ai-toggle-{{ ep.id }}"
-                    class="text-xs px-2 py-1 rounded bg-surface-base text-text-secondary hover:bg-surface-hover font-medium transition-colors whitespace-nowrap ml-2 z-10">
+                    class="text-xs px-2 py-1 rounded bg-surface-base text-text-secondary hover:bg-surface-hover font-medium transition-colors whitespace-nowrap ml-2 z-10 border border-white/[0.1]">
                     Show Original
                 </button>
                 {% endif %}
             </div>
 
             {% if ep.description or ep.ai_summary %}
-            <div class="relative">
+            <div class="relative mb-4">
                 <div class="relative group cursor-pointer" onclick="toggleDescription('{{ ep.id }}')">
                     <div id="desc-{{ ep.id }}"
                         class="text-sm text-text-secondary mb-2 overflow-hidden transition-all duration-300 relative"
@@ -268,13 +280,12 @@
 
                         {% if ep.ai_summary %}
                         <div id="desc-content-ai-{{ ep.id }}"
-                            class="bg-surface-elevated p-3 rounded-lg border border-primary-500/20">
+                            class="bg-surface-elevated p-5 rounded-xl border border-white/[0.1] shadow-inner mt-3">
                             <div
-                                class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-primary-500/20 text-primary-400 tracking-wide mb-2 uppercase">
-                                ✨ AI Summary
+                                class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-primary-500/20 text-primary-300 tracking-wide mb-3 uppercase border border-primary-500/10">
+                                <span>✨</span> AI Summary
                             </div>
-                            <div
-                                class="text-white text-sm leading-relaxed [&>ul]:list-disc [&>ul]:pl-4 [&>ul]:space-y-1 [&>li]:text-gray-200 [&>p]:text-gray-200">
+                            <div class="markdown-content">
                                 {{ ep.ai_summary|simple_markdown|safe }}
                             </div>
                         </div>
@@ -336,7 +347,7 @@
             <div class="flex gap-2">
                 {% if ep.status == 'completed' %}
                 <a href="/audio/{{ subscription.slug }}/{{ ep.guid | replace('/', '_') | replace(' ', '_') }}/{{ basename(ep.local_filename) }}"
-                    target="_blank" class="btn-primary btn-sm">
+                    target="_blank" class="btn-primary btn-sm" onclick="trackListen({{ ep.id }}); return true;">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
@@ -415,6 +426,7 @@
 
             if (filter === 'all') show = true;
             else if (filter === 'completed') show = status === 'completed';
+            else if (filter === 'manual') show = card.getAttribute('data-manual') === 'true';
             else if (filter === 'not-downloaded') show = (status === 'unprocessed' || status === 'failed' || status === 'pending');
             else if (filter === 'ignored') show = status === 'ignored';
 
@@ -518,6 +530,14 @@
         if (!confirm('Cancel processing?')) return;
         await fetch(`/api/episodes/${id}/cancel`, { method: 'POST' });
         location.reload();
+    }
+
+    async function trackListen(id) {
+        try {
+            await fetch(`/api/episodes/${id}/track-listen`, { method: 'POST' });
+        } catch (e) {
+            console.error('Failed to track listen:', e);
+        }
     }
 
     async function deleteSubscription(id) {

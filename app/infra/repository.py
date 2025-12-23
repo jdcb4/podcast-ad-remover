@@ -236,6 +236,21 @@ class EpisodeRepository:
         with get_db_connection() as conn:
             conn.execute("DELETE FROM episodes WHERE id = ?", (id,))
             conn.commit()
+    
+    def increment_listen_count(self, id: int):
+        """Increment the listen count for an episode."""
+        with get_db_connection() as conn:
+            conn.execute("UPDATE episodes SET listen_count = listen_count + 1 WHERE id = ?", (id,))
+            conn.commit()
+    
+    def get_subscription_listen_count(self, subscription_id: int) -> int:
+        """Get total listen count for all episodes in a subscription."""
+        with get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT SUM(listen_count) as total FROM episodes WHERE subscription_id = ? AND status = 'completed'",
+                (subscription_id,)
+            ).fetchone()
+            return row['total'] if row and row['total'] else 0
 
     def soft_delete(self, id: int):
         """Mark episode as ignored and clear paths to free space."""
