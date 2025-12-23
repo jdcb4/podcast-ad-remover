@@ -2,4 +2,4 @@
 trigger: always_on
 ---
 
-After a change is commited run the workflow /prod-container
+After a change is commited run the global workflow /prod-container 

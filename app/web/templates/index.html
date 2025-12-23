@@ -187,6 +187,7 @@
     <select id="podcast-filter"
         class="px-3 py-1.5 rounded-lg bg-surface-base border border-white/[0.1] text-white text-sm cursor-pointer">
         <option value="all">All Podcasts</option>
+        <option value="downloaded">Episodes Downloaded</option>
         <option value="processing">Processing</option>
         <option value="recent">Recently Updated</option>
     </select>
@@ -483,6 +484,7 @@
 
                 // Status filter
                 if (filterVal === 'processing' && processing === 0) return false;
+                if (filterVal === 'downloaded' && (parseInt(card.dataset.episodes) || 0) === 0) return false;
 
                 return true;
             });
