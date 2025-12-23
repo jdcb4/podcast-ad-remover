@@ -710,7 +710,7 @@ async def apple_subscribe_page(request: Request, url: str):
         "feed_url": url
     })
 
-@router.get("/admin/access-requests", response_class=HTMLResponse)
+@router.get("/admin/access", response_class=HTMLResponse)
 async def admin_access(request: Request):
     from app.infra.database import get_db_connection
     from datetime import datetime, timedelta
