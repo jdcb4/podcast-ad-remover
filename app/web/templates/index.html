@@ -190,7 +190,6 @@
         <option value="downloaded">Episodes Downloaded</option>
         <option value="processing">Processing</option>
         <option value="recent">Recently Updated</option>
-        <option value="played">Most Played</option>
     </select>
 
     <select id="podcast-sort"
@@ -198,6 +197,7 @@
         <option value="alpha">A-Z</option>
         <option value="recent">Most Recent</option>
         <option value="episodes">Most Episodes</option>
+        <option value="plays">Most Plays</option>
     </select>
 
     <div class="h-6 w-px bg-white/[0.1] mx-1 hidden sm:block"></div>
@@ -537,7 +537,6 @@
                 // Status filter
                 if (filterVal === 'processing' && processing === 0) return false;
                 if (filterVal === 'downloaded' && (parseInt(card.dataset.episodes) || 0) === 0) return false;
-                if (filterVal === 'played' && listens === 0) return false;
 
                 return true;
             });
@@ -548,6 +547,8 @@
                     return (a.dataset.title || '').localeCompare(b.dataset.title || '');
                 } else if (sortVal === 'episodes') {
                     return (parseInt(b.dataset.episodes) || 0) - (parseInt(a.dataset.episodes) || 0);
+                } else if (sortVal === 'plays') {
+                    return (parseInt(b.dataset.listens) || 0) - (parseInt(a.dataset.listens) || 0);
                 }
                 return 0;
             });
