@@ -594,6 +594,11 @@
                     <span class="date-relative" data-date="{{ ep.pub_date }}">{{ ep.pub_date }}</span>
                     <span class="text-white/10 dot-separator">•</span>
                     <span>{{ format_duration(ep.duration) }}</span>
+                    {% if ep.listen_count and ep.listen_count > 0 %}
+                    <span class="text-white/10 dot-separator">•</span>
+                    <span class="text-primary-400">{{ ep.listen_count }} play{% if ep.listen_count != 1 %}s{% endif
+                        %}</span>
+                    {% endif %}
                 </div>
 
 
