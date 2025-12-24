@@ -1337,12 +1337,12 @@ async def view_transcript(id: int, request: Request):
             return f"{h}:{m:02d}:{s:02d}"
         return f"{m}:{s:02d}"
 
-        return templates.TemplateResponse("transcript.html", {
-            "request": request,
-            "episode": row,
-            "transcript_data": data,
-            "format_duration": format_duration
-        })
+    return templates.TemplateResponse("transcript.html", {
+        "request": request,
+        "episode": row,
+        "transcript_data": data,
+        "format_duration": format_duration
+    })
 
 @router.get("/artifacts/transcript/{id}")
 async def get_transcript_json(id: int):
