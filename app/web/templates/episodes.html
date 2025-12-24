@@ -498,37 +498,28 @@
                     <span>{{ format_duration(ep.duration) }}</span>
                 </div>
 
-                <!-- Status Icons (Semantic) -->
+                <!-- Status Labels -->
                 <div class="flex items-center gap-3">
                     {% if ep.status == 'completed' %}
-                    <div class="text-success" data-tooltip="Downloaded">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-success border border-success/30 px-2 py-0.5 rounded-md bg-success/5">
+                        DOWNLOADED
+                    </span>
                     {% elif ep.status == 'processing' %}
-                    <div class="text-warning animate-pulse" data-tooltip="Processing">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-warning border border-warning/30 px-2 py-0.5 rounded-md bg-warning/5 animate-pulse">
+                        PROCESSING
+                    </span>
                     {% elif ep.status == 'ignored' %}
-                    <div class="text-text-muted/40" data-tooltip="Archived">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4">
-                            </path>
-                        </svg>
-                    </div>
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-text-muted/60 border border-white/10 px-2 py-0.5 rounded-md bg-white/5">
+                        DELETED
+                    </span>
                     {% elif ep.status == 'failed' %}
-                    <div class="text-error" data-tooltip="Failed">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
+                    <span
+                        class="text-[10px] font-bold tracking-widest text-error border border-error/30 px-2 py-0.5 rounded-md bg-error/5">
+                        FAILED
+                    </span>
                     {% endif %}
                 </div>
             </div>
