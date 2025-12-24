@@ -79,10 +79,17 @@ def simple_markdown(text):
     return '\n'.join(result)
 
 def clean_description(text):
-    """Clean episode description: remove URLs, sponsors, promotional text."""
+    """Clean episode description: remove URLs, sponsors, promotional text, and HTML tags."""
     if not text:
         return ""
     import re
+    import html
+    
+    # 0. Strip HTML tags first
+    text = re.sub(r'<[^>]+>', ' ', text)
+    
+    # 0.5. Decode HTML entities
+    text = html.unescape(text)
     
     # 1. Remove URLs
     text = re.sub(r'https?://\S+|www\.\S+', '', text)
@@ -106,8 +113,8 @@ def clean_description(text):
             
     result = " ".join(cleaned_lines)
     
-    # 3. Limit length (optional, but UI handles line-clamp)
-    # But user wants "Extract only synopsis", so taking top paragraph is often best.
+    # 3. Clean up extra whitespace
+    result = re.sub(r'\s+', ' ', result).strip()
     
     return result
 

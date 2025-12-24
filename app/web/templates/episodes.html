@@ -521,7 +521,7 @@
             </div>
 
             <!-- Title -->
-            <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors line-clamp-2 flex items-center gap-3"
+            <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors"
                 title="{{ ep.title }}">
                 {% if ep.status == 'completed' %}
                 <span
@@ -548,7 +548,7 @@
                     FAILED
                 </span>
                 {% endif %}
-                <span class="truncate">{{ ep.title }}</span>
+                <span class="block mt-1.5">{{ ep.title }}</span>
             </h3>
 
             <!-- Description & AI (Click to Expand Entire Block) -->
@@ -675,7 +675,8 @@
                     </button>
                     <!-- Dropdown Menu -->
                     <div id="menu-{{ ep.id }}"
-                        class="origin-top-right absolute right-0 top-full mt-2 w-52 rounded-xl shadow-2xl bg-surface-elevated border border-white/10 hidden z-[100]">
+                        class="fixed w-52 rounded-xl shadow-2xl bg-surface-elevated border border-white/10 hidden z-[9999]"
+                        style="top: 0; right: 0;">
                         <div class="p-1">
                             {% if ep.transcript_path %}
                             <a href="/episodes/{{ ep.id }}/transcript"
@@ -854,10 +855,24 @@
 
     function toggleDropdown(id) {
         const el = document.getElementById(id);
+        const btn = event.currentTarget;
+
         if (el.classList.contains('hidden')) {
+            // Close all other dropdowns first
             document.querySelectorAll('[id^=menu-]').forEach(x => x.classList.add('hidden'));
+
+            // Calculate position based on button location
+            const rect = btn.getBoundingClientRect();
+            const menuWidth = 208; // w-52 = 13rem = 208px
+
+            // Position below button, aligned to right edge
+            el.style.top = (rect.bottom + 8) + 'px';
+            el.style.left = Math.max(8, rect.right - menuWidth) + 'px';
+
             el.classList.remove('hidden');
-        } else { el.classList.add('hidden'); }
+        } else {
+            el.classList.add('hidden');
+        }
     }
 
     window.onclick = function (event) {
