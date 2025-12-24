@@ -530,8 +530,10 @@ class AdDetector:
         
         custom = f"Custom: {options.get('custom_instructions')}" if options.get('custom_instructions') else ""
         
+        # Use manual replacement instead of .format() to avoid breaking on JSON examples
         try:
-            return base.format(targets="\n".join(targets), custom_instr=custom) + "\n\nTranscript:\n" + transcript_text
+            prompt = base.replace("{targets}", "\n".join(targets)).replace("{custom_instr}", custom)
+            return prompt + "\n\nTranscript:\n" + transcript_text
         except Exception as e:
              logger.warning(f"Prompt formatting failed: {e}")
              return base + "\n\nTranscript:\n" + transcript_text
