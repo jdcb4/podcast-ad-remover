@@ -167,12 +167,15 @@
             <p class="text-text-secondary text-sm mt-1">Subscribe to all podcasts in one feed</p>
         </div>
         <div class="flex flex-wrap gap-3 justify-center md:justify-start">
-            <a href="{{ unified_links.direct }}" class="badge-soft hover:glow-primary px-4 py-0">Direct</a>
-            <a href="{{ unified_links.pocket_casts }}" class="badge-soft px-4 py-0">Pocket Casts</a>
-            <a href="/subscribe/apple?url={{ unified_links.apple | urlencode }}" class="badge-soft px-4 py-0">Apple</a>
-            <a href="{{ unified_links.overcast }}" class="badge-soft px-4 py-0">Overcast</a>
-            <a href="{{ unified_links.castbox }}" class="badge-soft px-4 py-0">Castbox</a>
-            <a href="{{ unified_links.podcast_addict }}" class="badge-soft px-4 py-0">Podcast Addict</a>
+            <a href="{{ unified_links.direct }}" class="badge-soft hover:glow-primary"
+                style="padding: 2px 16px;">Direct</a>
+            <a href="{{ unified_links.pocket_casts }}" class="badge-soft" style="padding: 2px 16px;">Pocket Casts</a>
+            <a href="/subscribe/apple?url={{ unified_links.apple | urlencode }}" class="badge-soft"
+                style="padding: 2px 16px;">Apple</a>
+            <a href="{{ unified_links.overcast }}" class="badge-soft" style="padding: 2px 16px;">Overcast</a>
+            <a href="{{ unified_links.castbox }}" class="badge-soft" style="padding: 2px 16px;">Castbox</a>
+            <a href="{{ unified_links.podcast_addict }}" class="badge-soft" style="padding: 2px 16px;">Podcast
+                Addict</a>
         </div>
     </div>
 </div>
