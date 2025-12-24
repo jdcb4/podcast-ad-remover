@@ -322,9 +322,11 @@
         grid-template-areas: "check date dur title actions"
             "desc desc desc desc desc";
         align-items: center;
-        padding: 0.25rem 0.75rem;
+        padding: 0;
         min-height: 52px;
         gap: 0;
+        overflow: visible !important;
+        /* Allow menus to overflow */
     }
 
     /* Column 1: Checkbox */
@@ -334,6 +336,8 @@
         opacity: 1 !important;
         display: flex;
         justify-content: center;
+        align-items: center;
+        height: 52px;
         padding: 0;
         z-index: 10;
     }
@@ -357,6 +361,9 @@
         white-space: nowrap;
         font-size: 0.75rem;
         text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        height: 52px;
     }
 
     /* Column 3: Duration */
@@ -366,6 +373,9 @@
         text-align: left;
         font-size: 0.75rem;
         font-family: ui-monospace, monospace;
+        display: flex;
+        align-items: center;
+        height: 52px;
     }
 
     /* Column 4: Title */
@@ -373,12 +383,15 @@
         grid-area: title;
         margin: 0 !important;
         padding: 0 1.5rem;
-        font-size: 0.95rem;
+        font-size: 0.92rem;
         font-weight: 600;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        height: 52px;
     }
 
     /* Column 5: Actions */
@@ -388,14 +401,18 @@
         align-items: center;
         justify-content: flex-end;
         gap: 0.25rem;
+        padding-right: 1rem;
+        height: 52px;
+        z-index: 30;
+        /* Above expansion row */
     }
 
     /* Standardization for all Action Buttons */
     #episodes-grid[data-view="list"] .episode-card .list-actions a,
     #episodes-grid[data-view="list"] .episode-card .list-actions button {
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
         padding: 0 !important;
         display: flex !important;
         align-items: center !important;
@@ -418,20 +435,30 @@
         color: white !important;
     }
 
-    /* Hide redundant elements */
+    /* Dropdown alignment fix for list view */
+    #episodes-grid[data-view="list"] .episode-card .list-actions .origin-bottom-right {
+        bottom: 100% !important;
+        margin-bottom: 0.5rem;
+        z-index: 100 !important;
+    }
+
+    /* Hide elements not needed in list view */
     #episodes-grid[data-view="list"] .episode-card .text-white\/10,
-    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3:not(.row-actions) {
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3:not(.flex.justify-between.items-start.mb-3 div) {
         display: none;
     }
 
-    /* Expansion Row */
+    /* Expansion Row Styling - Improved Alignment */
     #episodes-grid[data-view="list"] .group\/ep-desc {
+        grid-area: desc;
         display: none;
-        grid-column: 1 / -1;
-        padding: 1.25rem 2rem 1.5rem 240px;
-        /* Align with title start approx */
-        background: rgba(255, 255, 255, 0.01);
+        padding: 1.5rem 2.5rem 2rem 158px;
+        /* Balanced left padding */
+        background: rgba(0, 0, 0, 0.15);
         border-top: 1px solid rgba(255, 255, 255, 0.03);
+        font-size: 0.9rem;
+        line-height: 1.6;
+        color: var(--text-secondary);
     }
 
     #episodes-grid[data-view="list"] .episode-card.expanded .group\/ep-desc {
