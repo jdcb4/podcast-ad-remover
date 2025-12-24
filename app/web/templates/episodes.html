@@ -330,7 +330,7 @@
 
 <!-- Batch Actions Toolbar (hidden by default) -->
 <div id="batch-actions"
-    class="hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-surface-elevated border border-white/10 rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-4 animate-slide-up">
+    class="hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-[#151515] border border-white/10 rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-4 animate-slide-up">
     <span id="batch-count" class="text-sm font-bold text-white">0 selected</span>
     <div class="h-6 w-px bg-white/10"></div>
     <button onclick="selectAllEpisodes()" class="btn-secondary btn-sm">Select All</button>
@@ -391,6 +391,13 @@
         gap: 0;
         overflow: visible !important;
         border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    /* Global Checkbox Visibility Rule - High Specificity */
+    .checkbox-wrapper:has(input:checked),
+    .episode-card:hover .checkbox-wrapper {
+        opacity: 1 !important;
+        display: block !important;
     }
 
     /* Mobile: Clean compact cards */
