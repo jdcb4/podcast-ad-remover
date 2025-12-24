@@ -882,14 +882,18 @@
 
         if (checkboxes.length > 0) {
             if (toolbar) {
-                toolbar.classList.remove('opacity-0', 'pointer-events-none');
-                toolbar.classList.add('opacity-100', 'pointer-events-auto');
+                toolbar.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+                toolbar.style.display = 'flex';
+                toolbar.style.opacity = '1';
+                toolbar.style.pointerEvents = 'auto';
+                toolbar.style.zIndex = '2147483647';
             }
             if (countEl) countEl.textContent = checkboxes.length + ' selected';
         } else {
             if (toolbar) {
-                toolbar.classList.add('opacity-0', 'pointer-events-none');
-                toolbar.classList.remove('opacity-100', 'pointer-events-auto');
+                toolbar.style.display = 'none';
+                toolbar.style.opacity = '0';
+                toolbar.classList.add('hidden');
             }
         }
     }
@@ -1246,10 +1250,10 @@
         }
     });
 </script>
-<!-- Batch Actions Toolbar Wrapper (Centered via Flex) -->
-<div id="batch-actions-wrapper" class="fixed inset-x-0 bottom-6 z-[99999] flex justify-center pointer-events-none">
+<!-- Batch Actions Toolbar Wrapper -->
+<div id="batch-actions-wrapper" class="fixed inset-x-0 bottom-6 z-[999999] flex justify-center pointer-events-none">
     <div id="batch-actions"
-        class="bg-[#151515] border border-white/10 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 w-[90%] max-w-lg transition-opacity duration-300 opacity-0 pointer-events-none">
+        class="hidden bg-[#151515] border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] px-4 py-3 flex items-center gap-3 w-[90%] max-w-lg transition-all duration-300 opacity-0 pointer-events-none">
 
         <span id="batch-count" class="text-sm font-bold text-white whitespace-nowrap">0 selected</span>
         <div class="h-6 w-px bg-white/10 shrink-0"></div>
