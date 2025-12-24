@@ -53,7 +53,7 @@
                         Refresh Show
                     </button>
                     <div class="h-10 w-px bg-white/10 hidden md:block"></div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap">
                         <a href="{{ links.direct }}"
                             class="btn-secondary h-12 w-12 p-0 flex items-center justify-center rounded-2xl group/btn"
                             title="Direct RSS Feed" target="_blank">
@@ -72,6 +72,33 @@
                                 <path
                                     d="M11.996 11.53c0-.39.123-.746.368-1.066.241-.322.569-.481.986-.481.365 0 .66.126.885.378s.338.563.338.932h1.693c0-.858-.291-1.574-.874-2.147-.582-.573-1.267-.859-2.053-.859-1.033 0-1.872.378-2.518 1.133s-.969 1.666-.969 2.731c0 1.056.332 1.956.996 2.702.664.746 1.494 1.119 2.491 1.119.866 0 1.579-.312 2.138-.938s.839-1.428.839-2.408h-1.693c0 .546-.145.986-.434 1.32s-.657.501-1.104.501c-.514 0-.91-.186-1.189-.559-.278-.372-.418-.934-.418-1.684v-.194z">
                                 </path>
+                            </svg>
+                        </a>
+                        <a href="https://open.spotify.com/show/{{ links.direct }}"
+                            class="btn-secondary h-12 w-12 p-0 flex items-center justify-center rounded-2xl group/btn"
+                            title="Subscribe on Spotify" target="_blank">
+                            <svg class="w-5 h-5 group-hover/btn:text-primary-400 transition-colors" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                            </svg>
+                        </a>
+                        <a href="overcast://x-callback-url/add?url={{ links.direct | urlencode }}"
+                            class="btn-secondary h-12 w-12 p-0 flex items-center justify-center rounded-2xl group/btn"
+                            title="Subscribe on Overcast" target="_blank">
+                            <svg class="w-5 h-5 group-hover/btn:text-primary-400 transition-colors" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M12 24C5.372 24 0 18.627 0 12S5.372 0 12 0s12 5.373 12 12-5.372 12-12 12zm0-3.791c4.558 0 8.209-3.65 8.209-8.209S16.558 3.791 12 3.791 3.791 7.442 3.791 12 7.442 20.209 12 20.209zm-.633-9.675c-.07.256-.256.488-.559.697a2.436 2.436 0 01-1.023.326c-.372 0-.697-.093-.976-.28a1.838 1.838 0 01-.651-.745 2.257 2.257 0 01-.232-.93c0-.372.093-.721.279-1.046.186-.325.441-.582.767-.768.325-.186.697-.279 1.116-.279.372 0 .697.093.976.279.279.186.488.418.628.697.047.093.047.186.047.279v1.395c0 .186 0 .279-.093.372-.093.093-.186.093-.279.093zm2.325 0c-.07.256-.256.488-.559.697a2.436 2.436 0 01-1.023.326c-.372 0-.697-.093-.976-.28a1.838 1.838 0 01-.651-.745 2.257 2.257 0 01-.232-.93c0-.372.093-.721.279-1.046.186-.325.441-.582.767-.768.325-.186.697-.279 1.116-.279.372 0 .697.093.976.279.279.186.488.418.628.697.047.093.047.186.047.279v1.395c0 .186 0 .279-.093.372-.093.093-.186.093-.279.093z" />
+                            </svg>
+                        </a>
+                        <a href="pktc://subscribe/{{ links.direct | urlencode }}"
+                            class="btn-secondary h-12 w-12 p-0 flex items-center justify-center rounded-2xl group/btn"
+                            title="Subscribe on Pocket Casts" target="_blank">
+                            <svg class="w-5 h-5 group-hover/btn:text-primary-400 transition-colors" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zm0 2.182c5.423 0 9.818 4.395 9.818 9.818 0 5.423-4.395 9.818-9.818 9.818-5.423 0-9.818-4.395-9.818-9.818 0-5.423 4.395-9.818 9.818-9.818zM12 5.727a6.273 6.273 0 00-6.273 6.273h2.182A4.091 4.091 0 0112 7.909 4.091 4.091 0 0116.091 12h2.182A6.273 6.273 0 0012 5.727zm0 3.637A2.636 2.636 0 009.364 12h2.182a.455.455 0 01.909 0h2.182A2.636 2.636 0 0012 9.364z" />
                             </svg>
                         </a>
                     </div>
@@ -467,17 +494,29 @@
     }
 
     /* Dropdown alignment */
-    #episodes-grid[data-view="list"] .episode-card .origin-bottom-right {
-        bottom: 100% !important;
-        top: auto !important;
-        margin-bottom: 0.5rem;
+    #episodes-grid[data-view="list"] .episode-card .origin-top-right {
+        top: 100% !important;
+        bottom: auto !important;
+        margin-top: 0.5rem;
         z-index: 100 !important;
     }
 
     /* Hide elements not needed in list view row */
     #episodes-grid[data-view="list"] .episode-card .flex.flex-wrap.gap-2.mt-2,
-    #episodes-grid[data-view="list"] .episode-card .mt-4.bg-surface-base {
+    #episodes-grid[data-view="list"] .episode-card .mt-4.bg-surface-base,
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3 {
         display: none;
+    }
+
+    /* Show dropdown links only in list view */
+    .dropdown-transcript,
+    .dropdown-report {
+        display: none;
+    }
+
+    #episodes-grid[data-view="list"] .dropdown-transcript,
+    #episodes-grid[data-view="list"] .dropdown-report {
+        display: flex;
     }
 </style>
 
@@ -513,25 +552,25 @@
                 title="{{ ep.title }}">
                 {% if ep.status == 'completed' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/30 text-emerald-400 text-[6px] font-black tracking-widest leading-none hover:bg-emerald-500/40 transition-colors">
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/30 text-emerald-400 text-[8px] font-black tracking-widest leading-none hover:bg-emerald-500/40 transition-colors">
                     <span class="w-1 h-1 rounded-full bg-emerald-400"></span>
                     DOWNLOADED
                 </span>
                 {% elif ep.status == 'processing' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[6px] font-black tracking-widest leading-none animate-pulse">
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none animate-pulse">
                     <span class="w-1 h-1 rounded-full bg-amber-400"></span>
                     PROCESSING
                 </span>
                 {% elif ep.status == 'ignored' or ep.status == 'deleted' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[6px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors">
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[8px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors">
                     <span class="w-1 h-1 rounded-full bg-slate-400"></span>
                     DELETED
                 </span>
                 {% elif ep.status == 'failed' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[6px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors">
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[8px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors">
                     <span class="w-1 h-1 rounded-full bg-red-400"></span>
                     FAILED
                 </span>
@@ -691,6 +730,28 @@
                     <div id="menu-{{ ep.id }}"
                         class="origin-top-right absolute right-0 top-full mt-2 w-48 rounded-xl shadow-2xl bg-surface-elevated border border-white/10 hidden z-[100] overflow-hidden">
                         <div class="p-1">
+                            {% if ep.transcript_path %}
+                            <a href="/episodes/{{ ep.id }}/transcript"
+                                class="dropdown-transcript w-full text-left px-4 py-2.5 text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                    </path>
+                                </svg>
+                                View Transcript
+                            </a>
+                            {% endif %}
+                            {% if ep.report_path or ep.ad_report_path %}
+                            <a href="/artifacts/report/{{ ep.id }}" target="_blank"
+                                class="dropdown-report w-full text-left px-4 py-2.5 text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                    </path>
+                                </svg>
+                                View Report
+                            </a>
+                            {% endif %}
                             <button onclick="processEpisode({{ ep.id }})"
                                 class="w-full text-left px-4 py-2.5 text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
