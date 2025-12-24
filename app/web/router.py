@@ -682,12 +682,21 @@ async def retry_episode(episode_id: int):
     return RedirectResponse(url="/admin/queue", status_code=303)
 
 @router.post("/api/episodes/{episode_id}/reprocess")
-async def api_reprocess_episode(episode_id: int):
+async def api_reprocess_episode(episode_id: int, skip_transcription: bool = False):
+    import json
+    logger.info(f"Reprocess request for {episode_id} with skip_transcription={skip_transcription}")
+    
     # API version of retry - force status to pending
-    status = ep_repo.get_status(episode_id)
-    if status == 'processing':
+    current_status = ep_repo.get_status(episode_id)
+    if current_status == 'processing':
          return {"status": "ignored", "reason": "already_processing"}
-         
+    
+    # Set processing flags (like subscriptions.py does)
+    flags = {'skip_transcription': skip_transcription}
+    flags_json = json.dumps(flags)
+    
+    # Reset status with flags so processor respects skip_transcription
+    ep_repo.reset_status(episode_id, processing_flags=flags_json)
     ep_repo.update_status(episode_id, "pending")
     return {"status": "ok"}
 
