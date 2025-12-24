@@ -461,10 +461,30 @@
         #episodes-grid[data-view="list"] .episode-card>div:last-child {
             display: flex !important;
             justify-content: flex-end !important;
-            gap: 0.25rem !important;
+            gap: 0.5rem !important;
             padding: 0 !important;
-            position: static !important;
+            position: absolute !important;
+            right: 1rem !important;
+            bottom: 1rem !important;
             height: auto !important;
+            background: transparent !important;
+        }
+
+        /* Checkbox mobile fix */
+        #episodes-grid[data-view="list"] .checkbox-wrapper {
+            position: absolute !important;
+            top: 1rem !important;
+            left: 1rem !important;
+            margin: 0 !important;
+            display: block !important;
+            opacity: 1 !important;
+            z-index: 30 !important;
+        }
+
+        /* Title area spacing for checkbox */
+        #episodes-grid[data-view="list"] .episode-card h3 {
+            padding-left: 2.5rem !important;
+            padding-right: 1rem !important;
         }
     }
 
@@ -651,38 +671,46 @@
 
             </div>
 
-            <!-- Title -->
-            <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors"
-                title="{{ ep.title }}">
+            <!-- Title and Status -->
+            <div class="mb-3">
                 {% if ep.status == 'completed' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/30 text-emerald-400 text-[8px] font-black tracking-widest leading-none hover:bg-emerald-500/40 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[9px] font-black tracking-widest leading-none mb-2 border border-emerald-500/20">
                     <span class="w-1 h-1 rounded-full bg-emerald-400"></span>
                     DOWNLOADED
                 </span>
                 {% elif ep.status == 'processing' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none animate-pulse">
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-[9px] font-black tracking-widest leading-none mb-2 border border-amber-500/20 animate-pulse">
                     <span class="w-1 h-1 rounded-full bg-amber-400"></span>
                     PROCESSING
                 </span>
                 {% elif ep.status == 'ignored' or ep.status == 'deleted' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[8px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-400 text-[9px] font-black tracking-widest leading-none mb-2 border border-slate-500/20">
                     <span class="w-1 h-1 rounded-full bg-slate-400"></span>
                     DELETED
                 </span>
                 {% elif ep.status == 'failed' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[8px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors">
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 text-[9px] font-black tracking-widest leading-none mb-2 border border-red-500/20">
                     <span class="w-1 h-1 rounded-full bg-red-400"></span>
                     FAILED
                 </span>
                 {% endif %}
-                <span class="block mt-1.5">{{ ep.title }}{% if ep.listen_count and ep.listen_count > 0 %} <span
-                        class="ml-3 text-primary-400 text-[11px] font-bold tracking-wider uppercase">{{ ep.listen_count
-                        }} play{% if ep.listen_count != 1 %}s{% endif %}</span>{% endif %}</span>
-            </h3>
+
+                <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                    <h3 class="font-display text-base md:text-lg font-bold text-text-primary leading-snug group-hover:text-primary-300 transition-colors line-clamp-2 md:line-clamp-none"
+                        title="{{ ep.title }}">
+                        {{ ep.title }}
+                    </h3>
+                    {% if ep.listen_count and ep.listen_count > 0 %}
+                    <span class="shrink-0 text-primary-400 text-[10px] font-bold tracking-wider uppercase">
+                        {{ ep.listen_count }} play{% if ep.listen_count != 1 %}s{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
 
             <!-- Description & AI (Click to Expand Entire Block) -->
             <div class="mb-4 text-sm leading-relaxed text-text-secondary cursor-pointer group/ep-desc relative"
