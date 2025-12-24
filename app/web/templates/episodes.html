@@ -24,18 +24,6 @@
                 <img src="{{ subscription.image_url }}" alt="{{ subscription.title }}"
                     class="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform duration-500">
                 <div class="absolute inset-0 rounded-2xl ring-inset ring-1 ring-white/20 pointer-events-none"></div>
-
-                <!-- Delete button below image on mobile -->
-                <button onclick="deleteSubscription({{ subscription.id }})"
-                    class="md:hidden px-4 py-2.5 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all flex items-center gap-2 text-sm font-medium border border-red-500/20"
-                    title="Delete Show">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                        </path>
-                    </svg>
-                    Delete Show
-                </button>
             </div>
             {% endif %}
 
@@ -121,6 +109,20 @@
             </button>
         </div>
     </div>
+</div>
+
+<!-- Mobile Delete Button (Outside Border) -->
+<div class="md:hidden flex justify-center mb-8 px-4">
+    <button onclick="deleteSubscription({{ subscription.id }})"
+        class="w-full max-w-sm px-6 py-4 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-base font-bold border border-red-500/20 shadow-lg"
+        title="Delete Show">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+            </path>
+        </svg>
+        Delete Show
+    </button>
 </div>
 </div>
 
