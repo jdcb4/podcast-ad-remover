@@ -880,10 +880,16 @@
         console.log('Batch update:', checkboxes.length, 'selected. Toolbar:', toolbar);
 
         if (checkboxes.length > 0) {
-            if (toolbar) toolbar.classList.remove('hidden');
+            if (toolbar) {
+                // Show
+                toolbar.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }
             if (countEl) countEl.textContent = checkboxes.length + ' selected';
         } else {
-            if (toolbar) toolbar.classList.add('hidden');
+            if (toolbar) {
+                // Hide
+                toolbar.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }
         }
     }
 
@@ -1241,7 +1247,7 @@
 </script>
 <!-- Batch Actions Toolbar -->
 <div id="batch-actions"
-    class="hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[99999] bg-[#151515] border border-white/10 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 w-[90%] max-w-lg animate-slide-up">
+    class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[99999] bg-[#151515] border border-white/10 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 w-[90%] max-w-lg transition-all duration-300 ease-out translate-y-20 opacity-0 pointer-events-none">
 
     <span id="batch-count" class="text-sm font-bold text-white whitespace-nowrap">0 selected</span>
     <div class="h-6 w-px bg-white/10 shrink-0"></div>
