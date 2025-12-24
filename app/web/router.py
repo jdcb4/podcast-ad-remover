@@ -1331,6 +1331,7 @@ async def view_transcript(id: int, request: Request):
     def format_duration(seconds: int) -> str:
         if not seconds:
             return "-"
+        seconds = int(seconds)  # Convert to int to handle floats
         m, s = divmod(seconds, 60)
         h, m = divmod(m, 60)
         if h > 0:
