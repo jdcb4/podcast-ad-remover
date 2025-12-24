@@ -394,7 +394,14 @@
         color: var(--text-primary);
         display: flex;
         align-items: center;
+        gap: 0.75rem;
         height: 52px;
+    }
+
+    /* Target the inner title span to ensure it truncates */
+    #episodes-grid[data-view="list"] .episode-card h3 .truncate {
+        flex: 1;
+        min-width: 0;
     }
 
     /* Column 5: Actions */
@@ -494,40 +501,38 @@
             <div class="flex justify-between items-start mb-3">
                 <div class="flex items-center gap-2 text-[11px] font-bold tracking-wider text-text-muted uppercase">
                     <span class="date-relative" data-date="{{ ep.pub_date }}">{{ ep.pub_date }}</span>
-                    <span class="text-white/10">•</span>
+                    <span class="text-white/10 dot-separator">•</span>
                     <span>{{ format_duration(ep.duration) }}</span>
                 </div>
 
-                <!-- Status Labels -->
-                <div class="flex items-center gap-3">
-                    {% if ep.status == 'completed' %}
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-success border border-success/30 px-2 py-0.5 rounded-md bg-success/5">
-                        DOWNLOADED
-                    </span>
-                    {% elif ep.status == 'processing' %}
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-warning border border-warning/30 px-2 py-0.5 rounded-md bg-warning/5 animate-pulse">
-                        PROCESSING
-                    </span>
-                    {% elif ep.status == 'ignored' %}
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-text-muted/60 border border-white/10 px-2 py-0.5 rounded-md bg-white/5">
-                        DELETED
-                    </span>
-                    {% elif ep.status == 'failed' %}
-                    <span
-                        class="text-[10px] font-bold tracking-widest text-error border border-error/30 px-2 py-0.5 rounded-md bg-error/5">
-                        FAILED
-                    </span>
-                    {% endif %}
-                </div>
+
             </div>
 
             <!-- Title -->
-            <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors line-clamp-2"
+            <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors line-clamp-2 flex items-center gap-3"
                 title="{{ ep.title }}">
-                {{ ep.title }}
+                {% if ep.status == 'completed' %}
+                <span
+                    class="inline-flex shrink-0 text-[9px] font-black tracking-[0.15em] text-success border border-success/30 px-1.5 py-0.5 rounded-md bg-success/5 leading-none h-[18px] items-center">
+                    DOWNLOADED
+                </span>
+                {% elif ep.status == 'processing' %}
+                <span
+                    class="inline-flex shrink-0 text-[9px] font-black tracking-[0.15em] text-warning border border-warning/30 px-1.5 py-0.5 rounded-md bg-warning/5 animate-pulse leading-none h-[18px] items-center">
+                    PROCESSING
+                </span>
+                {% elif ep.status == 'ignored' %}
+                <span
+                    class="inline-flex shrink-0 text-[9px] font-black tracking-[0.15em] text-text-muted/60 border border-white/10 px-1.5 py-0.5 rounded-md bg-white/5 leading-none h-[18px] items-center">
+                    DELETED
+                </span>
+                {% elif ep.status == 'failed' %}
+                <span
+                    class="inline-flex shrink-0 text-[9px] font-black tracking-[0.15em] text-error border border-error/30 px-1.5 py-0.5 rounded-md bg-error/5 leading-none h-[18px] items-center">
+                    FAILED
+                </span>
+                {% endif %}
+                <span class="truncate">{{ ep.title }}</span>
             </h3>
 
             <!-- Description & AI (Click to Expand Entire Block) -->
