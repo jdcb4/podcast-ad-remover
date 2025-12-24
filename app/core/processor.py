@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class Processor:
     _active_task_ids = set()
+    _queue_lock = asyncio.Lock()  # Prevent race conditions in process_queue
 
     def __init__(self):
         self.ep_repo = EpisodeRepository()
@@ -131,37 +132,39 @@ class Processor:
 
     async def process_queue(self):
         """Process pending episodes concurrently up to the configured limit."""
-        # 1. Fetch limit from settings
-        from app.web.router import get_global_settings
-        db_settings = get_global_settings()
-        limit = db_settings.get('concurrent_downloads', 2)
-        if not limit or limit < 1: limit = 2
+        # Use lock to prevent race conditions from multiple callers
+        async with Processor._queue_lock:
+            # 1. Fetch limit from settings
+            from app.web.router import get_global_settings
+            db_settings = get_global_settings()
+            limit = db_settings.get('concurrent_downloads', 2)
+            if not limit or limit < 1: limit = 2
 
-        # 2. Check if we have room
-        if len(Processor._active_task_ids) >= limit:
-            return
+            # 2. Check if we have room
+            if len(Processor._active_task_ids) >= limit:
+                return
 
-        # 3. Get pending episodes
-        pending = self.ep_repo.get_pending()
-        if not pending:
-            return
+            # 3. Get pending episodes
+            pending = self.ep_repo.get_pending()
+            if not pending:
+                return
 
-        # 4. Launch new tasks up to limit
-        capacity = limit - len(Processor._active_task_ids)
-        for ep_dict in pending:
-            if capacity <= 0:
-                break
+            # 4. Launch new tasks up to limit
+            capacity = limit - len(Processor._active_task_ids)
+            for ep_dict in pending:
+                if capacity <= 0:
+                    break
+                    
+                ep_id = ep_dict['id']
+                if ep_id in Processor._active_task_ids:
+                    continue
+                    
+                # Reserve it
+                Processor._active_task_ids.add(ep_id)
+                capacity -= 1
                 
-            ep_id = ep_dict['id']
-            if ep_id in Processor._active_task_ids:
-                continue
-                
-            # Reserve it
-            Processor._active_task_ids.add(ep_id)
-            capacity -= 1
-            
-            # Start background task
-            asyncio.create_task(self._process_single_episode_task(ep_dict))
+                # Start background task
+                asyncio.create_task(self._process_single_episode_task(ep_dict))
 
     async def _process_single_episode_task(self, ep_dict: dict):
         """Wrapper to manage active task state and call the actual processor."""
