@@ -996,6 +996,14 @@ def _render_index(request: Request, error: str = None):
                    ORDER BY pub_date DESC LIMIT 1""",
                 (sub.id,)
             ).fetchone()
+            
+            # Count processing/pending episodes for this subscription
+            processing_row = conn.execute(
+                """SELECT COUNT(*) as count FROM episodes 
+                   WHERE subscription_id = ? AND status IN ('processing', 'pending')""",
+                (sub.id,)
+            ).fetchone()
+            processing_count = processing_row['count'] if processing_row else 0
         
         latest_summary = None
         latest_description = None
@@ -1011,6 +1019,7 @@ def _render_index(request: Request, error: str = None):
             "links": generate_rss_links(request, sub, global_settings, user),
             "episodes": [dict(ep) for ep in episodes],
             "episode_count": len(episodes),
+            "processing_count": processing_count,
             "total_listens": ep_repo.get_subscription_listen_count(sub.id),
             "latest_ai_summary": latest_summary,
             "latest_description": latest_description,
