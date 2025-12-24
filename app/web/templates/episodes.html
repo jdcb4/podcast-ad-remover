@@ -421,24 +421,22 @@
     #episodes-grid[data-view="list"] .episode-card h3 {
         grid-area: title;
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
-        height: auto;
-        min-height: 52px;
+        height: 52px;
         margin: 0 !important;
-        padding: 0.5rem 1.5rem;
+        padding: 0 1.5rem;
         font-size: 0.92rem;
         font-weight: 600;
         color: var(--text-primary);
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* Badge above title with spacing in list view */
+    /* Small gap between badge and title in list view */
     #episodes-grid[data-view="list"] .episode-card h3 span.block {
-        display: block;
-        width: 100%;
-        margin-top: 0.5rem;
+        display: inline;
+        margin-left: 0.75rem;
     }
 
     #episodes-grid[data-view="list"] .episode-card>div:last-child {
@@ -717,7 +715,7 @@
         </div>
 
         <!-- Footer / Actions -->
-        <div class="px-4 py-3 border-t border-white/[0.06] flex justify-between items-center bg-surface-base/30 backdrop-blur-sm"
+        <div class="px-4 py-3 flex justify-between items-center bg-surface-base/30 backdrop-blur-sm"
             onclick="event.stopPropagation();">
 
             <!-- Actions moved to dropdown menu -->
