@@ -878,13 +878,14 @@
             console.log('Button rect:', rect);
             const menuWidth = 208; // w-52 = 13rem = 208px
 
-            // Position below button, aligned to right edge
+            // Position below button, use right positioning
             const top = rect.bottom + 8;
-            const left = Math.max(8, rect.right - menuWidth);
-            console.log('Setting position - top:', top, 'left:', left);
+            const rightFromEdge = window.innerWidth - rect.right;
+            console.log('Setting position - top:', top, 'right:', rightFromEdge);
 
             el.style.top = top + 'px';
-            el.style.left = left + 'px';
+            el.style.left = 'auto';
+            el.style.right = rightFromEdge + 'px';
 
             el.classList.remove('hidden');
             console.log('Menu opened, classes:', el.className);
