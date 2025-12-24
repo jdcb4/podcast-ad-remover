@@ -316,149 +316,149 @@
         gap: 0.5rem;
     }
 
+    /* Standard Card Row */
     #episodes-grid[data-view="list"] .episode-card {
-        display: grid;
-        grid-template-columns: 48px 110px 80px 1fr 200px;
-        grid-template-areas: "check date dur title actions"
-            "desc desc desc desc desc";
+        display: flex;
+        flex-direction: row;
         align-items: center;
-        padding: 0;
+        padding: 0 1.25rem;
         min-height: 52px;
         gap: 0;
+        flex-wrap: wrap;
+        /* Expansion area wraps */
         overflow: visible !important;
-        /* Allow menus to overflow */
     }
 
     /* Column 1: Checkbox */
     #episodes-grid[data-view="list"] .episode-card>div:first-child {
-        grid-area: check;
         position: static !important;
         opacity: 1 !important;
+        width: 44px;
+        flex-shrink: 0;
         display: flex;
-        justify-content: center;
         align-items: center;
-        height: 52px;
+        margin: 0;
         padding: 0;
-        z-index: 10;
+        height: 52px;
     }
 
-    /* Wrap all middle content */
+    /* Column 2: Clickable Content */
     #episodes-grid[data-view="list"] .episode-card>div:nth-child(2) {
-        display: contents;
+        flex: 1;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding: 0 !important;
+        margin: 0;
+        min-width: 0;
+        height: 52px;
     }
 
-    /* Metadata & Sub-divs contents */
-    #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3,
-    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\] {
-        display: contents;
+    #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3 {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        margin-bottom: 0 !important;
+        gap: 1.5rem;
+        flex-shrink: 0;
     }
 
-    /* Column 2: Date */
     #episodes-grid[data-view="list"] .episode-card .date-relative {
-        grid-area: date;
+        width: 100px;
         font-weight: 700;
         color: var(--text-primary);
-        white-space: nowrap;
         font-size: 0.75rem;
         text-transform: uppercase;
-        display: flex;
-        align-items: center;
-        height: 52px;
+        flex-shrink: 0;
     }
 
-    /* Column 3: Duration */
     #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\]>span:last-child {
-        grid-area: dur;
+        width: 80px;
         color: var(--text-muted);
-        text-align: left;
-        font-size: 0.75rem;
         font-family: ui-monospace, monospace;
-        display: flex;
-        align-items: center;
-        height: 52px;
+        font-size: 0.75rem;
+        flex-shrink: 0;
     }
 
-    /* Column 4: Title */
     #episodes-grid[data-view="list"] .episode-card h3 {
-        grid-area: title;
         margin: 0 !important;
         padding: 0 1.5rem;
         font-size: 0.92rem;
         font-weight: 600;
+        color: var(--text-primary);
+        flex: 1;
+        min-width: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: var(--text-primary);
-        display: flex;
-        align-items: center;
         height: 52px;
+        line-height: 52px;
     }
 
-    /* Column 5: Actions */
-    #episodes-grid[data-view="list"] .episode-card .list-actions {
-        grid-area: actions;
+    /* Column 3: Actions (the Footer) */
+    #episodes-grid[data-view="list"] .episode-card>div:last-child {
+        width: 180px;
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        gap: 0.25rem;
-        padding-right: 1rem;
-        height: 52px;
-        z-index: 30;
-        /* Above expansion row */
-    }
-
-    /* Standardization for all Action Buttons */
-    #episodes-grid[data-view="list"] .episode-card .list-actions a,
-    #episodes-grid[data-view="list"] .episode-card .list-actions button {
-        width: 32px !important;
-        height: 32px !important;
-        min-width: 32px !important;
-        padding: 0 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border-radius: 9999px !important;
+        gap: 0.5rem;
+        flex-shrink: 0;
         background: transparent !important;
         border: none !important;
-        color: var(--text-muted) !important;
-        transition: all 0.2s;
+        padding: 0 !important;
+        margin: 0 !important;
+        height: 52px;
     }
 
-    #episodes-grid[data-view="list"] .episode-card .list-actions .bg-primary-500 {
-        background-color: var(--primary-500) !important;
-        color: white !important;
+    /* Action Buttons Styles */
+    #episodes-grid[data-view="list"] .episode-card>div:last-child a,
+    #episodes-grid[data-view="list"] .episode-card>div:last-child button {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 !important;
+        background: transparent !important;
+        color: var(--text-muted);
     }
 
-    #episodes-grid[data-view="list"] .episode-card .list-actions a:hover,
-    #episodes-grid[data-view="list"] .episode-card .list-actions button:hover {
+    #episodes-grid[data-view="list"] .episode-card>div:last-child a:hover,
+    #episodes-grid[data-view="list"] .episode-card>div:last-child button:hover {
         background-color: rgba(255, 255, 255, 0.08) !important;
         color: white !important;
     }
 
-    /* Dropdown alignment fix for list view */
-    #episodes-grid[data-view="list"] .episode-card .list-actions .origin-bottom-right {
+    #episodes-grid[data-view="list"] .episode-card>div:last-child .bg-primary-500 {
+        background-color: var(--primary-500) !important;
+        color: white !important;
+    }
+
+    /* Move dropdown above to avoid overflow issues */
+    #episodes-grid[data-view="list"] .episode-card .origin-top-right,
+    #episodes-grid[data-view="list"] .episode-card .origin-bottom-right {
         bottom: 100% !important;
+        top: auto !important;
         margin-bottom: 0.5rem;
-        z-index: 100 !important;
     }
 
-    /* Hide elements not needed in list view */
+    /* Hide elements not needed in row */
     #episodes-grid[data-view="list"] .episode-card .text-white\/10,
-    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3:not(.flex.justify-between.items-start.mb-3 div) {
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3:not(.flex.justify-between.items-start div),
+    #episodes-grid[data-view="list"] .episode-card>div:nth-child(2)>div:not(.mb-3):not(h3):not(.group\/ep-desc) {
         display: none;
     }
 
-    /* Expansion Row Styling - Improved Alignment */
+    /* Expansion Detail Area - Full Width */
     #episodes-grid[data-view="list"] .group\/ep-desc {
-        grid-area: desc;
         display: none;
-        padding: 1.5rem 2.5rem 2rem 158px;
-        /* Balanced left padding */
-        background: rgba(0, 0, 0, 0.15);
+        width: 100%;
+        order: 99;
+        padding: 1.5rem 3rem 2rem 176px;
+        background: rgba(0, 0, 0, 0.2);
         border-top: 1px solid rgba(255, 255, 255, 0.03);
-        font-size: 0.9rem;
-        line-height: 1.6;
-        color: var(--text-secondary);
     }
 
     #episodes-grid[data-view="list"] .episode-card.expanded .group\/ep-desc {
@@ -557,7 +557,7 @@
                         {{ ep.ai_summary|simple_markdown|safe }}
                     </div>
                     <div
-                        class="mt-4 text-[10px] font-bold text-primary-400/60 uppercase tracking-widest group-[.expanded]/ep-desc:hidden flex items-center gap-1">
+                        class="mt-4 text-[10px] font-bold text-primary-400/60 group-[.expanded]/ep-desc:hidden flex items-center gap-1">
                         Full Summary <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7">
                             </path>
