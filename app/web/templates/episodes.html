@@ -665,7 +665,7 @@
 
                 <!-- Options Menu (Always show if not ignored or failed?) -->
                 <div class="relative inline-block text-left">
-                    <button onclick="toggleDropdown('menu-{{ ep.id }}')"
+                    <button onclick="toggleDropdown(event, this, 'menu-{{ ep.id }}')"
                         class="p-2 text-text-muted hover:text-white transition-colors rounded-full hover:bg-white/10"
                         title="More">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -853,9 +853,9 @@
         } catch (e) { alert('Error starting download.'); }
     }
 
-    function toggleDropdown(id) {
+    function toggleDropdown(e, btn, id) {
+        e.stopPropagation();
         const el = document.getElementById(id);
-        const btn = event.currentTarget;
 
         if (el.classList.contains('hidden')) {
             // Close all other dropdowns first
