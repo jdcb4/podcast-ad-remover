@@ -18,12 +18,24 @@
         </div>
 
         <div class="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
-            <!-- Artwork -->
+            <!-- Artwork and Delete Button (mobile) -->
             {% if subscription.image_url %}
-            <div class="shrink-0 relative">
+            <div class="shrink-0 relative flex flex-col items-center gap-4">
                 <img src="{{ subscription.image_url }}" alt="{{ subscription.title }}"
                     class="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform duration-500">
-                <div class="absolute inset-0 rounded-2xl ring-inset ring-1 ring-white/20"></div>
+                <div class="absolute inset-0 rounded-2xl ring-inset ring-1 ring-white/20 pointer-events-none"></div>
+
+                <!-- Delete button below image on mobile -->
+                <button onclick="deleteSubscription({{ subscription.id }})"
+                    class="md:hidden px-4 py-2.5 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-all flex items-center gap-2 text-sm font-medium border border-red-500/20"
+                    title="Delete Show">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                        </path>
+                    </svg>
+                    Delete Show
+                </button>
             </div>
             {% endif %}
 
@@ -97,8 +109,9 @@
                 </div>
             </div>
 
+            <!-- Delete button (desktop only - top right) -->
             <button onclick="deleteSubscription({{ subscription.id }})"
-                class="absolute top-6 right-6 p-3 text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all"
+                class="hidden md:block absolute top-6 right-6 p-3 text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all"
                 title="Delete Show">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -287,8 +300,8 @@
                 class="text-[10px] font-mono font-bold bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full min-w-[2.5rem] text-center"
                 id="refresh-countdown">30s</span>
         </div>
-        <button onclick="location.reload()"
-            class="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors" title="Refresh Now">
+        <button onclick="location.reload()" class="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+            title="Refresh Now">
             <svg class="w-3.5 h-3.5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
@@ -1130,7 +1143,10 @@
         const url = `/api/episodes/${id}/reprocess` + (skipTranscription ? "?skip_transcription=true" : "");
         try {
             const response = await fetch(url, { method: 'POST' });
-            if (response.ok) location.reload();
+            if (response.ok) {
+                // Wait 20 seconds for system to queue the episode before refreshing
+                setTimeout(() => location.reload(), 20000);
+            }
             else alert(`Failed to trigger processing: ${response.status}`);
         } catch (e) { alert('Error starting processing.'); }
     }
