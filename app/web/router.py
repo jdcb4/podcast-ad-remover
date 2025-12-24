@@ -681,6 +681,24 @@ async def retry_episode(episode_id: int):
     ep_repo.update_status(episode_id, "pending")
     return RedirectResponse(url="/admin/queue", status_code=303)
 
+@router.post("/api/episodes/{episode_id}/reprocess")
+async def api_reprocess_episode(episode_id: int):
+    # API version of retry - force status to pending
+    status = ep_repo.get_status(episode_id)
+    if status == 'processing':
+         return {"status": "ignored", "reason": "already_processing"}
+         
+    ep_repo.update_status(episode_id, "pending")
+    return {"status": "ok"}
+
+@router.post("/api/episodes/{episode_id}/ignore")
+async def api_ignore_episode(episode_id: int):
+    # API version of cancel/delete - soft delete
+    from app.core.processor import Processor
+    proc = Processor()
+    await proc.delete_episode(episode_id)
+    return {"status": "ok"}
+
 @router.post("/episodes/{episode_id}/download")
 async def manual_download_episode(episode_id: int, request: Request):
     # Update DB to pending

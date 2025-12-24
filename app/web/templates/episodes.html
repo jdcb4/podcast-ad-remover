@@ -328,6 +328,49 @@
 </div>
 </div>
 
+<!-- Batch Actions Toolbar (hidden by default) -->
+<div id="batch-actions"
+    class="hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-surface-elevated border border-white/10 rounded-2xl shadow-2xl px-6 py-3 flex items-center gap-4 animate-slide-up">
+    <span id="batch-count" class="text-sm font-bold text-white">0 selected</span>
+    <div class="h-6 w-px bg-white/10"></div>
+    <button onclick="selectAllEpisodes()" class="btn-secondary btn-sm">Select All</button>
+    <button onclick="clearSelection()" class="btn-secondary btn-sm">Clear</button>
+    <div class="h-6 w-px bg-white/10"></div>
+    <button onclick="batchReprocess()" class="btn-primary btn-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Reprocess
+    </button>
+    <button onclick="batchDelete()"
+        class="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
+        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+        Delete
+    </button>
+</div>
+
+<style>
+    @keyframes slide-up {
+        from {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    }
+
+    .animate-slide-up {
+        animation: slide-up 0.2s ease-out;
+    }
+</style>
+
 <style>
     /* List View Styles */
     #episodes-grid[data-view="list"] {
@@ -369,9 +412,18 @@
             border-radius: 0 !important;
         }
 
-        /* Hide checkbox */
-        #episodes-grid[data-view="list"] .episode-card>div:first-child {
-            display: none !important;
+        /* Keep checked checkboxes visible */
+        .checkbox-wrapper:has(input:checked) {
+            opacity: 1 !important;
+        }
+
+        /* Show checkbox in list view when checked or on hover */
+        #episodes-grid[data-view="list"] .checkbox-wrapper {
+            display: block !important;
+            position: absolute;
+            left: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
         }
 
         /* Reset grid areas */
@@ -581,10 +633,11 @@
         id="card-{{ ep.id }}">
 
         <!-- Batch Selection Checkbox -->
-        <div class="absolute top-4 left-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+        <div class="checkbox-wrapper absolute top-4 left-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
             onclick="event.stopPropagation();">
             <input type="checkbox" name="episode_ids" value="{{ ep.id }}"
-                class="h-5 w-5 rounded border-white/20 bg-surface-elevated text-primary-500 focus:ring-primary-500 cursor-pointer shadow-lg episode-checkbox">
+                class="h-5 w-5 rounded border-white/20 bg-surface-elevated text-primary-500 focus:ring-primary-500 cursor-pointer shadow-lg episode-checkbox"
+                onchange="updateBatchActions()">
         </div>
 
         <!-- Main Clickable Area -->
@@ -833,6 +886,68 @@
 </div>
 
 <script>
+    // Batch Actions Functions
+    function updateBatchActions() {
+        const checkboxes = document.querySelectorAll('.episode-checkbox:checked');
+        const toolbar = document.getElementById('batch-actions');
+        const countEl = document.getElementById('batch-count');
+
+        if (checkboxes.length > 0) {
+            toolbar.classList.remove('hidden');
+            countEl.textContent = checkboxes.length + ' selected';
+        } else {
+            toolbar.classList.add('hidden');
+        }
+    }
+
+    function selectAllEpisodes() {
+        const visibleCards = document.querySelectorAll('.episode-card:not(.hidden)');
+        visibleCards.forEach(card => {
+            const cb = card.querySelector('.episode-checkbox');
+            if (cb) cb.checked = true;
+        });
+        updateBatchActions();
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.episode-checkbox:checked').forEach(cb => cb.checked = false);
+        updateBatchActions();
+    }
+
+    async function batchReprocess() {
+        const ids = Array.from(document.querySelectorAll('.episode-checkbox:checked')).map(cb => cb.value);
+        if (ids.length === 0) return;
+
+        if (!confirm(`Reprocess ${ids.length} episode(s)?`)) return;
+
+        for (const id of ids) {
+            try {
+                await fetch(`/api/episodes/${id}/reprocess`, { method: 'POST' });
+            } catch (e) {
+                console.error('Failed to reprocess', id, e);
+            }
+        }
+        clearSelection();
+        window.location.reload();
+    }
+
+    async function batchDelete() {
+        const ids = Array.from(document.querySelectorAll('.episode-checkbox:checked')).map(cb => cb.value);
+        if (ids.length === 0) return;
+
+        if (!confirm(`Delete ${ids.length} episode(s)? This will mark them as ignored.`)) return;
+
+        for (const id of ids) {
+            try {
+                await fetch(`/api/episodes/${id}/ignore`, { method: 'POST' });
+            } catch (e) {
+                console.error('Failed to delete', id, e);
+            }
+        }
+        clearSelection();
+        window.location.reload();
+    }
+
     function filterEpisodes(filter) {
         const cards = document.querySelectorAll('.episode-card');
         const searchTerm = document.getElementById('episode-search').value.toLowerCase();
