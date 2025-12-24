@@ -854,23 +854,42 @@
     }
 
     function toggleDropdown(e, btn, id) {
+        console.log('toggleDropdown called');
+        console.log('Event:', e);
+        console.log('Button:', btn);
+        console.log('ID:', id);
+
         e.stopPropagation();
         const el = document.getElementById(id);
+        console.log('Found element:', el);
+
+        if (!el) {
+            console.error('Menu element not found:', id);
+            return;
+        }
 
         if (el.classList.contains('hidden')) {
+            console.log('Menu is hidden, opening...');
             // Close all other dropdowns first
             document.querySelectorAll('[id^=menu-]').forEach(x => x.classList.add('hidden'));
 
             // Calculate position based on button location
             const rect = btn.getBoundingClientRect();
+            console.log('Button rect:', rect);
             const menuWidth = 208; // w-52 = 13rem = 208px
 
             // Position below button, aligned to right edge
-            el.style.top = (rect.bottom + 8) + 'px';
-            el.style.left = Math.max(8, rect.right - menuWidth) + 'px';
+            const top = rect.bottom + 8;
+            const left = Math.max(8, rect.right - menuWidth);
+            console.log('Setting position - top:', top, 'left:', left);
+
+            el.style.top = top + 'px';
+            el.style.left = left + 'px';
 
             el.classList.remove('hidden');
+            console.log('Menu opened, classes:', el.className);
         } else {
+            console.log('Menu is visible, closing...');
             el.classList.add('hidden');
         }
     }
