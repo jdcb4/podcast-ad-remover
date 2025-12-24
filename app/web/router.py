@@ -41,7 +41,7 @@ def simple_markdown(text):
         nonlocal in_list, list_items, result
         if in_list and list_items:
             # Inline styles as baseline, tailwind classes for styling
-            list_html = '<ul class="list-disc ml-8 space-y-2 mb-4 text-gray-800" style="list-style-type: disc; margin-left: 2rem; margin-bottom: 1rem;">\n' + \
+            list_html = '<ul class="list-disc ml-8 space-y-2 mb-4 text-white/90" style="list-style-type: disc; margin-left: 2rem; margin-bottom: 1rem;">\n' + \
                         '\n'.join(list_items) + '\n</ul>'
             result.append(list_html)
             list_items = []
@@ -69,7 +69,7 @@ def simple_markdown(text):
                 flush_list()
             # Apply bolding to the paragraph text
             processed_line = apply_bold(stripped_line)
-            result.append(f'<p class="mb-2 text-gray-800 leading-relaxed">{processed_line}</p>')
+            result.append(f'<p class="mb-2 text-white/90 leading-relaxed">{processed_line}</p>')
             
     if in_list:
         flush_list()
