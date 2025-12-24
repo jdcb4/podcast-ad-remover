@@ -877,11 +877,13 @@
         const toolbar = document.getElementById('batch-actions');
         const countEl = document.getElementById('batch-count');
 
+        console.log('Batch update:', checkboxes.length, 'selected. Toolbar:', toolbar);
+
         if (checkboxes.length > 0) {
-            toolbar.classList.remove('hidden');
-            countEl.textContent = checkboxes.length + ' selected';
+            if (toolbar) toolbar.classList.remove('hidden');
+            if (countEl) countEl.textContent = checkboxes.length + ' selected';
         } else {
-            toolbar.classList.add('hidden');
+            if (toolbar) toolbar.classList.add('hidden');
         }
     }
 
@@ -1228,6 +1230,13 @@
                 btn.addEventListener('click', () => setEpisodeView(m));
             }
         });
+
+        // Hoist toolbar to body to avoid stacking context/transform issues
+        const toolbar = document.getElementById('batch-actions');
+        if (toolbar) {
+            document.body.appendChild(toolbar);
+            console.log('Hoisted toolbar to body');
+        }
     });
 </script>
 <!-- Batch Actions Toolbar -->
