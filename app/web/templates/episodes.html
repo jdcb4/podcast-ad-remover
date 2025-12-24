@@ -506,6 +506,9 @@
             min-height: 60px !important;
             gap: 0 !important;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            border-left: none !important;
+            border-right: none !important;
+            border-top: none !important;
         }
 
         #episodes-grid[data-view="list"] .episode-card>div:first-child {
@@ -615,7 +618,7 @@
                     FAILED
                 </span>
                 {% endif %}
-                <span class="block mt-3">{{ ep.title }}{% if ep.listen_count and ep.listen_count > 0 %} <span
+                <span class="block mt-5">{{ ep.title }}{% if ep.listen_count and ep.listen_count > 0 %} <span
                         class="ml-3 text-primary-400 text-[11px] font-bold tracking-wider uppercase">{{ ep.listen_count
                         }} play{% if ep.listen_count != 1 %}s{% endif %}</span>{% endif %}</span>
             </h3>
