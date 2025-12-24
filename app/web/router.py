@@ -983,17 +983,28 @@ def _render_index(request: Request, error: str = None):
             
             # Get latest episode with AI summary
             latest_ep = conn.execute(
-                """SELECT id, title, description, ai_summary FROM episodes 
+                """SELECT id, title, description, ai_summary, pub_date FROM episodes 
                    WHERE subscription_id = ? AND status = 'completed'
+                   ORDER BY pub_date DESC LIMIT 1""",
+                (sub.id,)
+            ).fetchone()
+            
+            # Get the latest episode date (any status) for filtering/sorting
+            latest_any_ep = conn.execute(
+                """SELECT pub_date FROM episodes 
+                   WHERE subscription_id = ?
                    ORDER BY pub_date DESC LIMIT 1""",
                 (sub.id,)
             ).fetchone()
         
         latest_summary = None
         latest_description = None
+        latest_episode_date = None
         if latest_ep:
             latest_summary = latest_ep['ai_summary']
             latest_description = latest_ep['description']
+        if latest_any_ep and latest_any_ep['pub_date']:
+            latest_episode_date = latest_any_ep['pub_date']
         
         subs_with_links.append({
             "sub": sub,
@@ -1002,7 +1013,8 @@ def _render_index(request: Request, error: str = None):
             "episode_count": len(episodes),
             "total_listens": ep_repo.get_subscription_listen_count(sub.id),
             "latest_ai_summary": latest_summary,
-            "latest_description": latest_description
+            "latest_description": latest_description,
+            "latest_episode_date": latest_episode_date
         })
 
     # Get queue data for dashboard display

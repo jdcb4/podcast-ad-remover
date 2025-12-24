@@ -247,7 +247,8 @@
 <div id="podcast-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
     {% for item in subscriptions %}
     <article class="podcast-card" data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}"
-        data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}">
+        data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}"
+        data-recent="{{ item.latest_episode_date|default('') }}">
         <!-- Artwork -->
         {% if item.sub.image_url %}
         <div class="podcast-artwork">
@@ -544,10 +545,14 @@
             const filterVal = filterSelect ? filterSelect.value : 'all';
             const sortVal = sortSelect ? sortSelect.value : 'alpha';
 
+            // Calculate 7 days ago for "recently updated" filter
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
             let visibleCards = cards.filter(card => {
                 const title = card.dataset.title || '';
                 const processing = parseInt(card.dataset.processing) || 0;
-                const listens = parseInt(card.dataset.listens) || 0;
+                const recentDate = card.dataset.recent ? new Date(card.dataset.recent) : null;
 
                 // Search filter
                 if (searchTerm && !title.includes(searchTerm)) return false;
@@ -555,6 +560,10 @@
                 // Status filter
                 if (filterVal === 'processing' && processing === 0) return false;
                 if (filterVal === 'downloaded' && (parseInt(card.dataset.episodes) || 0) === 0) return false;
+                if (filterVal === 'recent') {
+                    // Show only podcasts with an episode published in last 7 days
+                    if (!recentDate || recentDate < sevenDaysAgo) return false;
+                }
 
                 return true;
             });
@@ -567,6 +576,11 @@
                     return (parseInt(b.dataset.episodes) || 0) - (parseInt(a.dataset.episodes) || 0);
                 } else if (sortVal === 'plays') {
                     return (parseInt(b.dataset.listens) || 0) - (parseInt(a.dataset.listens) || 0);
+                } else if (sortVal === 'recent') {
+                    // Sort by newest episode first
+                    const dateA = a.dataset.recent ? new Date(a.dataset.recent) : new Date(0);
+                    const dateB = b.dataset.recent ? new Date(b.dataset.recent) : new Date(0);
+                    return dateB - dateA;
                 }
                 return 0;
             });

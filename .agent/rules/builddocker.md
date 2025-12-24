@@ -2,7 +2,7 @@
 trigger: always_on
 ---
 
-After a change is commited and pushed to the AK_DEV branch, build the docker container as follows:
+After a change is commited and pushed to the "mobile-redesign" branch, build the docker container as follows:
 
 docker buildx build --platform linux/amd64 -t ghcr.io/akeslo/podcast-ad-remover:mobile-redesign --push .
 
