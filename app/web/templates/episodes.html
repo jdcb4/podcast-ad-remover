@@ -317,59 +317,89 @@
     }
 
     #episodes-grid[data-view="list"] .episode-card {
-        flex-direction: row;
-        align-items: center;
+        flex-direction: column;
         padding: 0;
         min-height: auto;
     }
 
-    #episodes-grid[data-view="list"] .episode-card>div:first-child {
-        flex: 1;
-        display: flex;
-        flex-direction: row;
+    /* Column Row Container */
+    #episodes-grid[data-view="list"] .episode-card>div:nth-child(2) {
+        display: grid;
+        grid-template-columns: 120px 80px 1fr;
         align-items: center;
+        gap: 1.5rem;
         padding: 0.75rem 1.25rem;
-        gap: 2rem;
+        width: 100%;
+        padding-right: 200px;
+        /* Space for absolute actions */
     }
 
-    /* Column 1: Date & Metadata */
+    /* Grid Mapping */
     #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3 {
-        margin-bottom: 0 !important;
-        flex-shrink: 0;
-        width: 140px;
+        display: contents;
+        /* Drop children into the card's grid */
     }
 
-    /* Hide redundant status icons in list view or reposition them */
-    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3 {
-        display: none;
+    #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3>div:first-child {
+        display: contents;
     }
 
-    /* Column 2: Title */
+    #episodes-grid[data-view="list"] .episode-card .date-relative {
+        grid-column: 1;
+        font-weight: 700;
+        color: var(--text-primary);
+        white-space: nowrap;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3>div:first-child>span:last-child {
+        grid-column: 2;
+        color: var(--text-muted);
+    }
+
     #episodes-grid[data-view="list"] .episode-card h3 {
+        grid-column: 3;
         margin-bottom: 0 !important;
         font-size: 0.95rem;
-        flex: 1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* Hide AI Summaries and Descriptions in List View unless expanded? */
-    /* For a compact list view, we hide the main description block */
-    #episodes-grid[data-view="list"] .group\/ep-desc {
+    /* Hide redundant dot and status icons in top bar */
+    #episodes-grid[data-view="list"] .episode-card .text-white\/10,
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3 {
         display: none;
     }
 
-    /* Column 3: Actions */
+    /* Expandable Description */
+    #episodes-grid[data-view="list"] .group\/ep-desc {
+        display: none;
+        grid-column: 1 / -1;
+        padding: 0.5rem 1.25rem 1.25rem 220px;
+        /* Aligned under title */
+        margin-top: -0.5rem;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card.expanded .group\/ep-desc {
+        display: block;
+    }
+
+    /* Actions on the right */
     #episodes-grid[data-view="list"] .episode-card>div:last-child {
-        padding: 0.5rem 1.25rem;
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 52px;
+        /* Match top row height */
+        padding: 0 1.25rem;
         border-top: none;
         border-left: 1px solid rgba(255, 255, 255, 0.05);
         background: transparent;
-        backdrop-filter: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 
-    /* Progress bar in list view */
     #episodes-grid[data-view="list"] .episode-card .mt-4.bg-surface-base {
         display: none;
     }
