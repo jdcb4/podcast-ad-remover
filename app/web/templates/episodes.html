@@ -430,9 +430,15 @@
         font-size: 0.92rem;
         font-weight: 600;
         color: var(--text-primary);
-        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    /* Badge above title with spacing in list view */
+    #episodes-grid[data-view="list"] .episode-card h3 span.block {
+        display: block;
+        width: 100%;
+        margin-top: 0.5rem;
     }
 
     #episodes-grid[data-view="list"] .episode-card>div:last-child {
