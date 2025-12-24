@@ -311,59 +311,66 @@
 <style>
     /* List View Styles */
     #episodes-grid[data-view="list"] {
-        grid-template-columns: 1fr !important;
-        gap: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
     }
 
     #episodes-grid[data-view="list"] .episode-card {
         flex-direction: row;
         align-items: center;
-        padding: 0.75rem 1rem;
+        padding: 0;
         min-height: auto;
     }
 
-    #episodes-grid[data-view="list"] .episode-content {
+    #episodes-grid[data-view="list"] .episode-card>div:first-child {
         flex: 1;
         display: flex;
+        flex-direction: row;
         align-items: center;
-        gap: 1.5rem;
-        padding: 0;
-        min-width: 0;
+        padding: 0.75rem 1.25rem;
+        gap: 2rem;
     }
 
-    #episodes-grid[data-view="list"] .episode-header {
-        flex: 1;
-        min-width: 0;
+    /* Column 1: Date & Metadata */
+    #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3 {
         margin-bottom: 0 !important;
+        flex-shrink: 0;
+        width: 140px;
     }
 
-    #episodes-grid[data-view="list"] .episode-title {
-        font-size: 1rem;
-        margin-bottom: 0.25rem;
+    /* Hide redundant status icons in list view or reposition them */
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3 {
+        display: none;
+    }
+
+    /* Column 2: Title */
+    #episodes-grid[data-view="list"] .episode-card h3 {
+        margin-bottom: 0 !important;
+        font-size: 0.95rem;
+        flex: 1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    #episodes-grid[data-view="list"] .episode-meta {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 0 !important;
+    /* Hide AI Summaries and Descriptions in List View unless expanded? */
+    /* For a compact list view, we hide the main description block */
+    #episodes-grid[data-view="list"] .group\/ep-desc {
+        display: none;
     }
 
-    #episodes-grid[data-view="list"] .episode-footer {
-        padding: 0;
-        margin: 0;
-        border: none;
+    /* Column 3: Actions */
+    #episodes-grid[data-view="list"] .episode-card>div:last-child {
+        padding: 0.5rem 1.25rem;
+        border-top: none;
+        border-left: 1px solid rgba(255, 255, 255, 0.05);
         background: transparent;
-        width: auto;
-        flex-shrink: 0;
-        margin-left: 1rem;
+        backdrop-filter: none;
     }
 
-    /* AI Summary in List View */
-    #episodes-grid[data-view="list"] .ai-summary-block {
+    /* Progress bar in list view */
+    #episodes-grid[data-view="list"] .episode-card .mt-4.bg-surface-base {
         display: none;
     }
 </style>
