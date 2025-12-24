@@ -1237,43 +1237,47 @@
             }
         });
 
-        // Hoist toolbar to body to avoid stacking context/transform issues
-        const toolbar = document.getElementById('batch-actions');
-        if (toolbar) {
-            document.body.appendChild(toolbar);
-            console.log('Hoisted toolbar to body');
+        // Hoist toolbar wrapper to body to avoid stacking context/transform issues
+        const wrapper = document.getElementById('batch-actions-wrapper');
+        if (wrapper) {
+            document.body.appendChild(wrapper);
+            console.log('Hoisted toolbar wrapper');
         }
     });
 </script>
-<!-- Batch Actions Toolbar -->
-<div id="batch-actions"
-    class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[99999] bg-[#151515] border border-white/10 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 w-[90%] max-w-lg transition-all duration-300 ease-out translate-y-20 opacity-0 pointer-events-none">
+<!-- Batch Actions Toolbar Wrapper (Centered via Flex) -->
+<div id="batch-actions-wrapper" class="fixed inset-x-0 bottom-6 z-[99999] flex justify-center pointer-events-none">
+    <div id="batch-actions"
+        class="bg-[#151515] border border-white/10 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 w-[90%] max-w-lg transition-opacity duration-300 opacity-0 pointer-events-none">
 
-    <span id="batch-count" class="text-sm font-bold text-white whitespace-nowrap">0 selected</span>
-    <div class="h-6 w-px bg-white/10 shrink-0"></div>
+        <span id="batch-count" class="text-sm font-bold text-white whitespace-nowrap">0 selected</span>
+        <div class="h-6 w-px bg-white/10 shrink-0"></div>
 
-    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
-        <button onclick="selectAllEpisodes()" class="btn-secondary btn-sm whitespace-nowrap px-2">Select All</button>
-        <button onclick="clearSelection()" class="btn-secondary btn-sm whitespace-nowrap px-2">Clear</button>
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pointer-events-auto">
+            <button onclick="selectAllEpisodes()" class="btn-secondary btn-sm whitespace-nowrap px-2">Select
+                All</button>
+            <button onclick="clearSelection()" class="btn-secondary btn-sm whitespace-nowrap px-2">Clear</button>
 
-        <div class="h-6 w-px bg-white/10 shrink-0 mx-1"></div>
+            <div class="h-6 w-px bg-white/10 shrink-0 mx-1"></div>
 
-        <button onclick="batchReprocess()" class="btn-primary btn-sm whitespace-nowrap flex items-center gap-1.5 px-3">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Reprocess
-        </button>
+            <button onclick="batchReprocess()"
+                class="btn-primary btn-sm whitespace-nowrap flex items-center gap-1.5 px-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Reprocess
+            </button>
 
-        <button onclick="batchDelete()"
-            class="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-1.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Delete
-        </button>
+            <button onclick="batchDelete()"
+                class="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+            </button>
+        </div>
     </div>
 </div>
 
@@ -1288,4 +1292,15 @@
     }
 </style>
 
+<style>
+    /* List View: Force Checkbox Static Placement */
+    #episodes-grid[data-view="list"] .checkbox-wrapper {
+        position: static !important;
+        opacity: 1 !important;
+        transform: none !important;
+        pointer-events: auto !important;
+        grid-area: check;
+        justify-self: center;
+    }
+</style>
 {% endblock %}
