@@ -5,56 +5,88 @@
     <a href="/" class="text-primary-400 hover:text-primary-300 transition-colors">&larr; Back to Subscriptions</a>
 </div>
 
-<div class="card mb-8 overflow-hidden relative group">
-    <!-- Cinematic Background Blur -->
-    <div class="absolute inset-0 z-0">
-        {% if subscription.image_url %}
-        <div class="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-110"
-            style="background-image: url('{{ subscription.image_url }}');"></div>
-        {% endif %}
-        <div class="absolute inset-0 bg-gradient-to-r from-bg-surface via-bg-surface/95 to-transparent"></div>
-    </div>
+<div class="card mb-10 overflow-hidden relative group border-0 bg-transparent shadow-none p-0">
+    <!-- Cinematic Header -->
+    <div
+        class="relative overflow-hidden rounded-3xl p-6 md:p-10 border border-white/5 bg-surface-elevated/40 backdrop-blur-md">
+        <div class="absolute inset-0 z-0">
+            {% if subscription.image_url %}
+            <div class="absolute inset-0 bg-cover bg-center blur-[100px] opacity-30 scale-125"
+                style="background-image: url('{{ subscription.image_url }}');"></div>
+            {% endif %}
+            <div class="absolute inset-0 bg-gradient-to-br from-bg-surface/90 via-bg-surface/60 to-transparent"></div>
+        </div>
 
-    <div class="relative z-10 flex flex-col md:flex-row items-start gap-8 p-2">
-        <!-- Artwork -->
-        {% if subscription.image_url %}
-        <img src="{{ subscription.image_url }}" alt="{{ subscription.title }}"
-            class="w-32 h-32 md:w-40 md:h-40 object-cover rounded-xl shadow-2xl ring-1 ring-white/10 shrink-0">
-        {% endif %}
-
-        <!-- Content -->
-        <div class="flex-1 min-w-0 py-1">
-            <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight text-white mb-3">
-                {{ subscription.title }}
-            </h1>
-
-            {% if subscription.description %}
-            <div class="text-text-secondary leading-relaxed max-w-2xl text-sm line-clamp-2 md:line-clamp-3 mb-5">
-                {{ subscription.description | striptags }}
+        <div class="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
+            <!-- Artwork -->
+            {% if subscription.image_url %}
+            <div class="shrink-0 relative">
+                <img src="{{ subscription.image_url }}" alt="{{ subscription.title }}"
+                    class="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform duration-500">
+                <div class="absolute inset-0 rounded-2xl ring-inset ring-1 ring-white/20"></div>
             </div>
             {% endif %}
 
-            <div class="flex flex-wrap items-center gap-2">
-                <button onclick="checkNow({{ subscription.id }})"
-                    class="btn-primary btn-sm shadow-lg shadow-primary-500/20">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                        </path>
-                    </svg>
-                    Check Updates
-                </button>
-                <div class="h-8 w-px bg-white/10 mx-2"></div>
-                <a href="{{ links.direct }}" class="btn-secondary btn-sm" target="_blank">Direct RSS</a>
-                <a href="/subscribe/apple?url={{ links.apple | urlencode }}" class="btn-secondary btn-sm"
-                    target="_blank">Apple</a>
-                <!-- More links hidden/optional for cleaner UI -->
-                <div class="flex-1"></div>
-                <button onclick="deleteSubscription({{ subscription.id }})"
-                    class="text-xs text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-500/10">
-                    Delete Show
-                </button>
+            <!-- Content -->
+            <div class="flex-1 min-w-0 text-center md:text-left pt-2 pb-2">
+                <div class="mb-4">
+                    <h1
+                        class="font-display text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-4 leading-tight">
+                        {{ subscription.title }}
+                    </h1>
+                    {% if subscription.description %}
+                    <div
+                        class="text-text-secondary leading-relaxed max-w-2xl text-base font-medium opacity-90 line-clamp-3 md:line-clamp-4">
+                        {{ subscription.description | striptags }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-8">
+                    <button onclick="checkNow({{ subscription.id }})"
+                        class="btn-primary px-8 py-3 rounded-2xl shadow-xl shadow-primary-500/30 hover:shadow-primary-500/50 transition-all font-bold">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                            </path>
+                        </svg>
+                        Refresh Show
+                    </button>
+                    <div class="h-10 w-px bg-white/10 hidden md:block"></div>
+                    <div class="flex gap-2">
+                        <a href="{{ links.direct }}"
+                            class="btn-secondary h-12 w-12 p-0 flex items-center justify-center rounded-2xl group/btn"
+                            title="Direct RSS Feed" target="_blank">
+                            <svg class="w-5 h-5 group-hover/btn:text-primary-400 transition-colors" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 5c7.18 0 13 5.82 13 13M6 11a7 7 0 017 7m-6 0a1 1 0 11-2 0 1 1 0 012 0z">
+                                </path>
+                            </svg>
+                        </a>
+                        <a href="/subscribe/apple?url={{ links.apple | urlencode }}"
+                            class="btn-secondary h-12 w-12 p-0 flex items-center justify-center rounded-2xl group/btn"
+                            title="Subscribe on Apple Podcasts" target="_blank">
+                            <svg class="w-5 h-5 group-hover/btn:text-primary-400 transition-colors" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M11.996 11.53c0-.39.123-.746.368-1.066.241-.322.569-.481.986-.481.365 0 .66.126.885.378s.338.563.338.932h1.693c0-.858-.291-1.574-.874-2.147-.582-.573-1.267-.859-2.053-.859-1.033 0-1.872.378-2.518 1.133s-.969 1.666-.969 2.731c0 1.056.332 1.956.996 2.702.664.746 1.494 1.119 2.491 1.119.866 0 1.579-.312 2.138-.938s.839-1.428.839-2.408h-1.693c0 .546-.145.986-.434 1.32s-.657.501-1.104.501c-.514 0-.91-.186-1.189-.559-.278-.372-.418-.934-.418-1.684v-.194z">
+                                </path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
             </div>
+
+            <button onclick="deleteSubscription({{ subscription.id }})"
+                class="absolute top-6 right-6 p-3 text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all"
+                title="Delete Show">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
+                </svg>
+            </button>
         </div>
     </div>
 </div>
@@ -240,12 +272,12 @@
 
 <div class="flex items-center gap-3 w-full md:w-auto">
     <!-- Search Input -->
-    <div class="relative flex-1 md:w-64">
+    <div class="relative flex-1 md:w-80">
         <input type="text" id="episode-search" placeholder="Search episodes..."
-            class="w-full bg-surface-base border border-white/[0.1] rounded-lg pl-10 pr-3 py-2 text-sm text-text-primary focus:ring-1 focus:ring-primary-500 focus:border-primary-500 transition-colors">
-        <svg class="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none"
+            class="w-full bg-surface-base border border-white/[0.1] rounded-2xl pl-12 pr-4 py-3 text-sm text-text-primary focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all shadow-inner">
+        <svg class="w-5 h-5 text-text-muted absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" fill="none"
             stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
         </svg>
     </div>
@@ -336,7 +368,7 @@
     }
 </style>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="episodes-grid">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 mb-20" id="episodes-grid">
     {% for ep in episodes %}
     <div class="episode-card card flex flex-col relative overflow-hidden group transition-all duration-300 h-full border hover:border-white/10"
         data-status="{{ ep.status }}" data-manual="{{ 'true' if ep.is_manual_download else 'false' }}"
@@ -401,42 +433,50 @@
                 {{ ep.title }}
             </h3>
 
-            <!-- Description & AI -->
-            <div class="mb-4 text-sm leading-relaxed text-text-secondary" onclick="event.stopPropagation()">
+            <!-- Description & AI (Click to Expand Entire Block) -->
+            <div class="mb-4 text-sm leading-relaxed text-text-secondary cursor-pointer group/ep-desc relative"
+                onclick="this.classList.toggle('expanded'); event.stopPropagation();">
 
                 {% if ep.ai_summary %}
-                <!-- Primary View: AI Summary -->
-                <div class="p-4 bg-primary-500/5 rounded-xl border border-primary-500/10 mb-2 group/ai cursor-pointer"
-                    onclick="toggleDescription('{{ ep.id }}')">
+                <!-- AI Summary View -->
+                <div
+                    class="p-5 bg-primary-500/5 rounded-2xl border border-primary-500/10 mb-3 group/ai transition-all hover:bg-primary-500/[0.08]">
                     <div
-                        class="flex items-center gap-2 mb-2 text-primary-400 text-xs font-bold uppercase tracking-wide">
-                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                        class="flex items-center gap-2 mb-3 text-primary-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                             <path
                                 d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
                             </path>
                         </svg>
-                        AI Summary
+                        AI Insights
                     </div>
-                    <div class="markdown-content text-text-body-bright line-clamp-3 group-[.expanded]/ai:line-clamp-none transition-all"
+                    <div class="markdown-content text-white/90 line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out"
                         id="ai-sum-{{ ep.id }}">
                         {{ ep.ai_summary|simple_markdown|safe }}
                     </div>
+                    <div
+                        class="mt-4 text-[10px] font-bold text-primary-400/60 uppercase tracking-widest group-[.expanded]/ep-desc:hidden flex items-center gap-1">
+                        Full Summary <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </div>
                 </div>
 
-                <!-- Toggle for Original -->
                 {% if ep.description %}
-                <details class="group/details">
+                <details class="group/details mt-2" onclick="event.stopPropagation()">
                     <summary
-                        class="text-xs font-medium text-text-muted cursor-pointer hover:text-text-secondary list-none flex items-center gap-1 mt-2">
-                        <span class="group-open/details:hidden">View Original Description</span>
-                        <span class="hidden group-open/details:block">Hide Original Description</span>
+                        class="text-[10px] font-bold text-text-muted cursor-pointer hover:text-text-secondary list-none flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest pl-1">
+                        <span class="group-open/details:hidden">View Show Notes</span>
+                        <span class="hidden group-open/details:block">Hide Show Notes</span>
                         <svg class="w-3 h-3 group-open/details:rotate-180 transition-transform" fill="none"
                             stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7">
                             </path>
                         </svg>
                     </summary>
-                    <div class="mt-3 text-text-secondary/80 text-[13px] pl-2 border-l-2 border-white/10">
+                    <div
+                        class="mt-4 text-text-secondary/80 text-[13px] pl-4 border-l-2 border-white/5 space-y-3 leading-relaxed">
                         {{ ep.description|clean_description }}
                     </div>
                 </details>
@@ -445,14 +485,15 @@
                 {% else %}
                 <!-- Fallback: Standard Description -->
                 {% if ep.description %}
-                <div class="cursor-pointer group/desc relative" onclick="this.classList.toggle('expanded')">
-                    <div class="line-clamp-3 group-[.expanded]/desc:line-clamp-none transition-all duration-300">
+                <div class="py-1 px-1">
+                    <div
+                        class="line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out text-text-secondary/90">
                         {{ ep.description|clean_description }}
                     </div>
                     <div
-                        class="mt-2 text-[10px] font-bold text-primary-400 uppercase tracking-widest opacity-60 group-hover/desc:opacity-100 transition-opacity flex items-center gap-1 group-[.expanded]/desc:hidden">
-                        Expand <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                        class="mt-4 text-[10px] font-bold text-primary-400/60 group-hover/ep-desc:text-primary-400 group-hover/ep-desc:opacity-100 transition-all flex items-center gap-1 group-[.expanded]/ep-desc:hidden uppercase tracking-widest">
+                        Read More <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7">
                             </path>
                         </svg>
                     </div>
@@ -650,10 +691,7 @@
     });
 
     function toggleDescription(id) {
-        const el = document.getElementById(`ai-sum-${id}`);
-        if (el) {
-            el.parentElement.classList.toggle('expanded');
-        }
+        // Logic moved to inline onclick for better reliability and performance
     }
 
 
