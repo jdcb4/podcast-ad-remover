@@ -1212,12 +1212,10 @@
             // Set attribute
             grid.setAttribute('data-view', mode);
 
-            // Save preference
+            // Save preference (reset to v2 for the new default)
             try {
-                localStorage.setItem('episodes-view-mode', mode);
-            } catch (e) {
-                console.warn('Could not save view preference', e);
-            }
+                localStorage.setItem('episodes-view-mode-v2', mode);
+            } catch (e) { }
 
             // Update buttons
             ['grid', 'list'].forEach(m => {
@@ -1234,8 +1232,8 @@
             });
         }
 
-        // Init view
-        const savedView = localStorage.getItem('episodes-view-mode') || 'grid';
+        // Init view (using v2 to force the new Grid default)
+        const savedView = localStorage.getItem('episodes-view-mode-v2') || 'grid';
         setEpisodeView(savedView);
 
         // Attach listeners
