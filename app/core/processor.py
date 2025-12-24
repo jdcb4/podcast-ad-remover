@@ -132,7 +132,7 @@ class Processor:
 
     async def process_queue(self):
         """Process pending episodes concurrently up to the configured limit."""
-        # Use lock to prevent race conditions from multiple callers
+        # Use lock to prevent race conditions from multiple callers WITHIN this process
         async with Processor._queue_lock:
             # 1. Fetch limit from settings
             from app.web.router import get_global_settings
@@ -140,8 +140,9 @@ class Processor:
             limit = db_settings.get('concurrent_downloads', 2)
             if not limit or limit < 1: limit = 2
 
-            # 2. Check if we have room
-            if len(Processor._active_task_ids) >= limit:
+            # 2. Check if we have room using DATABASE count (cross-process safe)
+            currently_processing = self.ep_repo.count_processing()
+            if currently_processing >= limit:
                 return
 
             # 3. Get pending episodes
@@ -150,16 +151,23 @@ class Processor:
                 return
 
             # 4. Launch new tasks up to limit
-            capacity = limit - len(Processor._active_task_ids)
+            capacity = limit - currently_processing
             for ep_dict in pending:
                 if capacity <= 0:
                     break
                     
                 ep_id = ep_dict['id']
+                
+                # Skip if already in our in-process tracking (for this process)
                 if ep_id in Processor._active_task_ids:
                     continue
+                
+                # CRITICAL: Mark as "processing" in DB BEFORE launching task
+                # This prevents other processes from picking up the same episode
+                self.ep_repo.update_status(ep_id, "processing")
+                self.ep_repo.update_progress(ep_id, "Starting...", 0)
                     
-                # Reserve it
+                # Add to in-process set and launch
                 Processor._active_task_ids.add(ep_id)
                 capacity -= 1
                 

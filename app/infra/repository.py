@@ -264,6 +264,12 @@ class EpisodeRepository:
                 return Episode.model_validate(dict(row))
             return None
 
+    def count_processing(self) -> int:
+        """Count episodes currently in 'processing' status. Used for concurrent limit enforcement."""
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT COUNT(*) as count FROM episodes WHERE status = 'processing'").fetchone()
+            return row['count'] if row else 0
+
     def soft_delete(self, id: int):
         """Mark episode as ignored and clear paths to free space."""
         with get_db_connection() as conn:
