@@ -282,8 +282,14 @@
             <!-- Episodes Preview -->
             <div class="border-t border-white/[0.06] pt-4 mb-4">
                 <div class="flex justify-between items-center mb-3">
-                    <span class="text-xs text-text-muted uppercase tracking-wider font-medium">Episodes ({{
-                        item.episode_count }})</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-text-muted uppercase tracking-wider font-medium">Episodes ({{
+                            item.episode_count }})</span>
+                        {% if item.total_listens and item.total_listens > 0 %}
+                        <span class="text-xs text-primary-400 uppercase tracking-wider font-medium">{{
+                            item.total_listens }} play{% if item.total_listens != 1 %}s{% endif %}</span>
+                        {% endif %}
+                    </div>
                     <a href="/subscriptions/{{ item.sub.id }}"
                         class="text-xs text-primary-400 hover:text-primary-300">View all →</a>
                 </div>
