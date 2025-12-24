@@ -590,6 +590,33 @@
     .markdown-content h4 {
         @apply font-bold text-white mt-6 mb-3 first:mt-0;
     }
+
+    /* Episode Card Equal Heights */
+    /* Make description section expand to fill card height for better visual balance */
+    .episode-card .group\/ep-desc {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* When there's no AI summary, ensure the standard description has min-height to roughly match AI summary cards */
+    .episode-card .group\/ep-desc > .py-1.px-1 {
+        flex: 1;
+        min-height: 120px;
+    }
+
+    /* Ensure line-clamp works with flex */
+    .episode-card .group\/ep-desc > .py-1.px-1 > .line-clamp-4 {
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* When expanded, allow full height */
+    .episode-card .group\/ep-desc.expanded > .py-1.px-1 {
+        min-height: auto;
+    }
 }
 
 @layer utilities {
