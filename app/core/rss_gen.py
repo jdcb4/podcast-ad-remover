@@ -175,12 +175,10 @@ class RSSGenerator:
         SubElement(channel, 'description').text = "All your ad-free podcasts in one place."
         SubElement(channel, 'link').text = base_url
         
-        # We can use a generic image or the image of the latest episode's podcast
-        if episodes:
-             latest_img = episodes[0]['podcast_image']
-             if latest_img:
-                itunes_image = SubElement(channel, 'itunes:image')
-                itunes_image.set('href', latest_img)
+        # Use custom unified feed cover image
+        unified_cover_url = f"{base_url}/static/unified_feed_cover.png"
+        itunes_image = SubElement(channel, 'itunes:image')
+        itunes_image.set('href', unified_cover_url)
 
         for ep_row in episodes:
             ep = dict(ep_row)
