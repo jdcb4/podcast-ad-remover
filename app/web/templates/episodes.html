@@ -361,7 +361,7 @@
 </style>
 
 <style>
-    /* List View Styles */
+    /* Consolidated List View Styles */
     #episodes-grid[data-view="list"] {
         display: flex;
         flex-direction: column;
@@ -382,236 +382,76 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     }
 
-    /* Global Checkbox Visibility Rule - No Layout Shifts */
-    .checkbox-wrapper:has(input:checked),
-    .episode-card:hover .checkbox-wrapper {
-        opacity: 1 !important;
-        visibility: visible !important;
-        pointer-events: auto !important;
-    }
-
-    /* Mobile: Clean compact cards */
-    @media (max-width: 768px) {
-
-        /* Single column */
-        #episodes-grid[data-view="list"] {
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 0 !important;
-        }
-
-        /* Compact card */
-        #episodes-grid[data-view="list"] .episode-card {
-            display: block !important;
-            padding: 0.875rem 1rem !important;
-            min-height: auto !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
-            border-radius: 0 !important;
-        }
-
-        /* Keep checked checkboxes visible */
-        .checkbox-wrapper:has(input:checked) {
-            opacity: 1 !important;
-        }
-
-        /* Show checkbox in list view when checked or on hover */
-        #episodes-grid[data-view="list"] .checkbox-wrapper {
-            display: block !important;
-            position: absolute;
-            left: 0.5rem;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        /* Reset grid areas */
-        #episodes-grid[data-view="list"] .episode-card>div,
-        #episodes-grid[data-view="list"] .episode-card h3 {
-            grid-area: unset !important;
-            height: auto !important;
-        }
-
-        /* Content wrapper */
-        #episodes-grid[data-view="list"] .episode-card>div:nth-child(2) {
-            display: block !important;
-            padding: 0 !important;
-        }
-
-        /* Metadata row hidden */
-        #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3 {
-            display: none !important;
-        }
-
-        /* Title with badge */
-        #episodes-grid[data-view="list"] .episode-card h3 {
-            display: block !important;
-            white-space: normal !important;
-            font-size: 0.9rem !important;
-            font-weight: 600 !important;
-            line-height: 1.35 !important;
-            margin: 0 0 0.5rem 0 !important;
-            padding: 0 !important;
-        }
-
-        /* Description hidden */
-        #episodes-grid[data-view="list"] .episode-card .group\/ep-desc {
-            display: none !important;
-        }
-
-        /* Actions row */
-        #episodes-grid[data-view="list"] .episode-card>div:last-child {
-            display: flex !important;
-            justify-content: flex-end !important;
-            gap: 0.5rem !important;
-            padding: 0 !important;
-            position: static !important;
-            height: auto !important;
-            background: transparent !important;
-        }
-
-        /* Compact single-line mobile layout */
-        #episodes-grid[data-view="list"] .episode-card {
-            display: grid !important;
-            grid-template-columns: 40px 1fr auto !important;
-            grid-template-areas: "check title actions" !important;
-            align-items: center !important;
-            gap: 0.75rem !important;
-            padding: 0.75rem 1rem !important;
-            min-height: 52px !important;
-        }
-
-        #episodes-grid[data-view="list"] .checkbox-wrapper {
-            grid-area: check !important;
-            position: static !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            opacity: 1 !important;
-            z-index: 10 !important;
-            padding: 0 !important;
-            /* Fixed height for top alignment */
-        }
-
-        #episodes-grid[data-view="list"] .episode-card h3 {
-            grid-area: title !important;
-            display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            font-size: 0.875rem !important;
-            white-space: normal !important;
-            word-wrap: break-word !important;
-            line-height: 1.2 !important;
-            /* Tighter line height for better centering */
-        }
-
-        #episodes-grid[data-view="list"] .episode-card h3 span.block {
-            display: inline !important;
-            margin: 0 !important;
-            /* Remove margin from title span as well */
-        }
-
-        #episodes-grid[data-view="list"] .episode-card .list-actions {
-            display: flex !important;
-            align-items: center !important;
-        }
-    }
-
-    /* Column 1: Checkbox */
+    /* Column Styles (Desktop Default) */
     #episodes-grid[data-view="list"] .episode-card>div:first-child {
         grid-area: check;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 52px;
         position: static !important;
         opacity: 1 !important;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 52px;
-        z-index: 10;
     }
 
-    /* Main Info Area - MUST BE CONTENTS to participate in parent grid */
     #episodes-grid[data-view="list"] .episode-card>div:nth-child(2) {
         display: contents;
     }
 
-    /* Metadata Wrapper */
-    #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3,
-    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\] {
-        display: contents;
-    }
-
-    /* Column 2: Date */
-    #episodes-grid[data-view="list"] .episode-card .date-relative {
+    #episodes-grid[data-view="list"] .date-relative {
         grid-area: date;
+        display: flex;
+        align-items: center;
+        height: 52px;
         font-weight: 700;
         color: var(--text-primary);
         font-size: 0.75rem;
         text-transform: uppercase;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\]>span:last-child {
+        grid-area: dur;
         display: flex;
         align-items: center;
         height: 52px;
-    }
-
-    /* Column 3: Duration */
-    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\]>span:last-child {
-        grid-area: dur;
         color: var(--text-muted);
         font-family: ui-monospace, monospace;
         font-size: 0.75rem;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card h3 {
+        grid-area: title;
         display: flex;
         align-items: center;
         height: 52px;
-    }
-
-    /* Hide the dot separator in list view */
-    #episodes-grid[data-view="list"] .episode-card .text-white\/10 {
-        display: none;
-    }
-
-    /* Column 4: Title */
-    #episodes-grid[data-view="list"] .episode-card h3 {
-        grid-area: title;
         margin: 0 !important;
         padding: 0 1.5rem;
         font-size: 0.92rem;
         font-weight: 600;
+        color: var(--text-primary);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: var(--text-primary);
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        height: 52px;
     }
 
-    /* Target the inner title span to ensure it truncates */
-    #episodes-grid[data-view="list"] .episode-card h3 .truncate {
-        flex: 1;
-        min-width: 0;
-    }
-
-    /* Column 5: Actions */
     #episodes-grid[data-view="list"] .episode-card>div:last-child {
         grid-area: actions;
-        position: static !important;
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        gap: 0.25rem;
         height: 52px;
         background: transparent !important;
-        border: none !important;
         padding: 0 0.5rem 0 0 !important;
     }
 
-    /* Row Status Badge Alignment */
+    /* Hide elements not needed in list view row */
+    #episodes-grid[data-view="list"] .episode-card .text-white\/10,
+    #episodes-grid[data-view="list"] .episode-card .flex.flex-wrap.gap-2.mt-2,
+    #episodes-grid[data-view="list"] .episode-card .mt-4.bg-surface-base,
     #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3:not(.list-actions) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-left: 0.5rem;
+        display: none !important;
     }
 
-    /* Standard Action Buttons */
+    /* Action Buttons Polish */
     #episodes-grid[data-view="list"] .episode-card .list-actions a,
     #episodes-grid[data-view="list"] .episode-card .list-actions button {
         width: 32px !important;
@@ -632,26 +472,23 @@
         color: white !important;
     }
 
-    /* Expansion Detail Area (Now part of the grid flow) */
+    /* Detail / Description Expansion */
     #episodes-grid[data-view="list"] .group\/ep-desc {
         grid-area: desc;
         display: none;
         width: 100%;
-        padding: 1rem 2rem 2rem 158px;
+        padding: 1.5rem 2rem 2rem 158px;
         background: rgba(0, 0, 0, 0.2);
         border-top: 1px solid rgba(255, 255, 255, 0.03);
         margin: 0;
         color: var(--text-secondary);
         font-size: 0.9rem;
-        cursor: text;
-        /* Allow text selection */
     }
 
     #episodes-grid[data-view="list"] .episode-card.expanded .group\/ep-desc {
         display: block;
     }
 
-    /* Dropdown alignment */
     #episodes-grid[data-view="list"] .episode-card .origin-top-right {
         top: 100% !important;
         bottom: auto !important;
@@ -659,14 +496,67 @@
         z-index: 100 !important;
     }
 
-    /* Hide elements not needed in list view row */
-    #episodes-grid[data-view="list"] .episode-card .flex.flex-wrap.gap-2.mt-2,
-    #episodes-grid[data-view="list"] .episode-card .mt-4.bg-surface-base,
-    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3 {
-        display: none;
-    }
+    /* Mobile Overrides (Max-Width 768px) */
+    @media (max-width: 768px) {
+        #episodes-grid[data-view="list"] .episode-card {
+            grid-template-columns: 48px 1fr auto !important;
+            grid-template-areas: "check title actions" !important;
+            grid-template-rows: auto !important;
+            align-items: center !important;
+            padding: 0.875rem 0.5rem !important;
+            min-height: 60px !important;
+            gap: 0 !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+        }
 
-    /* Dropdown transcript/report always visible since footer buttons removed */
+        #episodes-grid[data-view="list"] .episode-card>div:first-child {
+            grid-area: check !important;
+            height: auto !important;
+            justify-content: center !important;
+        }
+
+        #episodes-grid[data-view="list"] .episode-card h3 {
+            grid-area: title !important;
+            display: block !important;
+            height: auto !important;
+            padding: 0 0.5rem !important;
+            margin: 0 !important;
+            font-size: 0.875rem !important;
+            white-space: normal !important;
+            line-height: 1.25 !important;
+            overflow: visible !important;
+        }
+
+        #episodes-grid[data-view="list"] .episode-card>div:last-child {
+            grid-area: actions !important;
+            height: auto !important;
+            justify-content: flex-end !important;
+            padding-right: 0.5rem !important;
+        }
+
+        /* Hide desktop-only columns explicitly */
+        #episodes-grid[data-view="list"] .date-relative,
+        #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\]>span:last-child {
+            display: none !important;
+        }
+
+        /* Ensure checkbox is perfectly centered */
+        #episodes-grid[data-view="list"] .checkbox-wrapper {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+        }
+
+        #episodes-grid[data-view="list"] .episode-card h3 span.block {
+            display: inline !important;
+            margin: 0 !important;
+        }
+
+        #episodes-grid[data-view="list"] .group\/ep-desc {
+            padding: 1rem !important;
+        }
+    }
 </style>
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 mb-20" id="episodes-grid" data-view="grid">
