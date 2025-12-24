@@ -382,7 +382,7 @@
         </div>
 
         <!-- Main Clickable Area -->
-        <div class="flex-1 p-6 flex flex-col cursor-pointer relative" onclick="toggleDescription('{{ ep.id }}')">
+        <div class="flex-1 p-4 flex flex-col cursor-pointer relative" onclick="toggleDescription('{{ ep.id }}')">
 
             <!-- Metadata Row -->
             <div class="flex justify-between items-start mb-3">
@@ -440,7 +440,7 @@
                 {% if ep.ai_summary %}
                 <!-- AI Summary View -->
                 <div
-                    class="p-5 bg-primary-500/5 rounded-2xl border border-primary-500/10 mb-3 group/ai transition-all hover:bg-primary-500/[0.08]">
+                    class="p-4 bg-primary-500/5 rounded-2xl border border-primary-500/10 mb-3 group/ai transition-all hover:bg-primary-500/[0.08]">
                     <div
                         class="flex items-center gap-2 mb-3 text-primary-400 text-[10px] font-bold uppercase tracking-[0.2em]">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -450,7 +450,7 @@
                         </svg>
                         AI Insights
                     </div>
-                    <div class="markdown-content text-white/90 line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out"
+                    <div class="markdown-content text-white line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out"
                         id="ai-sum-{{ ep.id }}">
                         {{ ep.ai_summary|simple_markdown|safe }}
                     </div>
@@ -518,7 +518,7 @@
         </div>
 
         <!-- Footer / Actions -->
-        <div class="px-5 py-3 border-t border-white/[0.06] flex justify-between items-center bg-surface-base/30 backdrop-blur-sm"
+        <div class="px-4 py-3 border-t border-white/[0.06] flex justify-between items-center bg-surface-base/30 backdrop-blur-sm"
             onclick="event.stopPropagation();">
 
             <div class="flex items-center gap-3">
