@@ -339,56 +339,72 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     }
 
-    /* Mobile: Use card view instead of list view */
+    /* Mobile: Clean compact cards */
     @media (max-width: 768px) {
 
-        /* Force card layout on mobile by resetting grid */
+        /* Single column */
         #episodes-grid[data-view="list"] {
-            display: grid !important;
-            grid-template-columns: 1fr !important;
-            gap: 1rem !important;
-        }
-
-        #episodes-grid[data-view="list"] .episode-card {
             display: flex !important;
             flex-direction: column !important;
-            padding: 1rem !important;
-            min-height: auto !important;
-            grid-template-columns: unset !important;
-            grid-template-areas: unset !important;
+            gap: 0 !important;
         }
 
-        /* Reset all grid areas to display normally */
+        /* Compact card */
+        #episodes-grid[data-view="list"] .episode-card {
+            display: block !important;
+            padding: 0.875rem 1rem !important;
+            min-height: auto !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            border-radius: 0 !important;
+        }
+
+        /* Hide checkbox */
+        #episodes-grid[data-view="list"] .episode-card>div:first-child {
+            display: none !important;
+        }
+
+        /* Reset grid areas */
         #episodes-grid[data-view="list"] .episode-card>div,
-        #episodes-grid[data-view="list"] .episode-card h3,
-        #episodes-grid[data-view="list"] .episode-card .date-relative,
-        #episodes-grid[data-view="list"] .episode-card .flex {
+        #episodes-grid[data-view="list"] .episode-card h3 {
             grid-area: unset !important;
             height: auto !important;
-            display: flex !important;
         }
 
+        /* Content wrapper */
+        #episodes-grid[data-view="list"] .episode-card>div:nth-child(2) {
+            display: block !important;
+            padding: 0 !important;
+        }
+
+        /* Metadata row hidden */
+        #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3 {
+            display: none !important;
+        }
+
+        /* Title with badge */
         #episodes-grid[data-view="list"] .episode-card h3 {
+            display: block !important;
             white-space: normal !important;
-            overflow: visible !important;
-            text-overflow: unset !important;
-            font-size: 1rem !important;
-            margin-bottom: 0.5rem !important;
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
+            line-height: 1.35 !important;
+            margin: 0 0 0.5rem 0 !important;
             padding: 0 !important;
         }
 
-        /* Show checkbox on mobile */
-        #episodes-grid[data-view="list"] .episode-card>div:first-child {
-            position: absolute !important;
-            top: 1rem !important;
-            left: 1rem !important;
+        /* Description hidden */
+        #episodes-grid[data-view="list"] .episode-card .group\/ep-desc {
+            display: none !important;
         }
 
-        /* Actions at bottom */
+        /* Actions row */
         #episodes-grid[data-view="list"] .episode-card>div:last-child {
-            position: static !important;
-            margin-top: 0.75rem !important;
+            display: flex !important;
+            justify-content: flex-end !important;
+            gap: 0.25rem !important;
             padding: 0 !important;
+            position: static !important;
+            height: auto !important;
         }
     }
 
