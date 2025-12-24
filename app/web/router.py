@@ -582,7 +582,7 @@ async def save_prompts(request: Request):
     # Required variables for validation
     required_vars = {
         'ad_prompt_base': ['{targets}', '{custom_instr}'],
-        'summary_prompt_template': ['{transcript_context}']
+        'summary_prompt_template': ['{transcript_context}', '{targets}']
     }
     
     # Validate required variables

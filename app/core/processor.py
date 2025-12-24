@@ -563,12 +563,20 @@ class Processor:
                     summary_text = None
                     try:
                         logger.info(f"Generating episode summary for {ep.title}...")
+                        # Build subscription settings dict for targets
+                        sub_settings = {
+                            'remove_ads': sub.remove_ads,
+                            'remove_promos': sub.remove_promos,
+                            'remove_intros': sub.remove_intros,
+                            'remove_outros': sub.remove_outros
+                        }
                         summary_text = await asyncio.to_thread(
                             self.ad_detector.generate_summary,
                             transcript, 
                             sub.title or "Podcast", 
                             ep.title, 
-                            str(ep.pub_date) if ep.pub_date else "recently"
+                            str(ep.pub_date) if ep.pub_date else "recently",
+                            sub_settings
                         )
                         # Save to DB and file immediately
                         self.ep_repo.update_ai_summary(ep.id, summary_text)

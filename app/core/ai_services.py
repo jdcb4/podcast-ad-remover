@@ -456,11 +456,25 @@ class AdDetector:
             logger.error(f"Ad detection failed: {e}")
             raise e
 
-    def generate_summary(self, transcript: Dict, podcast_name: str, episode_title: str, pub_date: str) -> str:
+    def generate_summary(self, transcript: Dict, podcast_name: str, episode_title: str, pub_date: str, subscription_settings: Dict = None) -> str:
         self.settings = self._load_settings()
         text_data = ""
         for seg in transcript['segments']:
             text_data += f"{seg['text']} "
+            
+        # Build targets list from subscription settings
+        targets = []
+        if subscription_settings:
+            if subscription_settings.get('remove_ads'):
+                targets.append(self.settings.get('ad_target_sponsor') or 'Sponsor messages, Ad reads')
+            if subscription_settings.get('remove_promos'):
+                targets.append(self.settings.get('ad_target_promo') or 'Cross-promotions, plugs for other shows')
+            if subscription_settings.get('remove_intros'):
+                targets.append(self.settings.get('ad_target_intro') or 'Intro music, opening segments')
+            if subscription_settings.get('remove_outros'):
+                targets.append(self.settings.get('ad_target_outro') or 'Outro music, closing segments')
+        
+        targets_text = "\n".join(targets) if targets else "None"
             
         # Build Prompt (use default if None or empty in database)
         db_template = self.settings.get('summary_prompt_template')
@@ -468,8 +482,9 @@ class AdDetector:
         You are a smart assistant. Write a short 2-3 sentence summary of this podcast episode.
         The summary must:
         1. NOT mention the podcast name, episode title, or date.
-        2. Start immediately with "This episode includes".
-        3. Briefly summarize key topics.
+        2. DO NOT summarize anything relating to {targets}.
+        3. Start immediately with "This episode includes".
+        4. Briefly summarize key topics.
         Transcript Context: {transcript_context}
         """
 
@@ -479,7 +494,7 @@ class AdDetector:
 
         
         try:
-             prompt = template.format(transcript_context=text_data[:100000])
+             prompt = template.format(transcript_context=text_data[:100000], targets=targets_text)
         except KeyError:
              prompt = template # Fallback
         
