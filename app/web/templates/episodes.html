@@ -371,11 +371,12 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     }
 
-    /* Global Checkbox Visibility Rule - High Specificity */
+    /* Global Checkbox Visibility Rule - No Layout Shifts */
     .checkbox-wrapper:has(input:checked),
     .episode-card:hover .checkbox-wrapper {
         opacity: 1 !important;
-        display: block !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
     }
 
     /* Mobile: Clean compact cards */
@@ -877,18 +878,18 @@
         const toolbar = document.getElementById('batch-actions');
         const countEl = document.getElementById('batch-count');
 
-        console.log('Batch update:', checkboxes.length, 'selected. Toolbar:', toolbar);
+        console.log('Batch update:', checkboxes.length, 'selected');
 
         if (checkboxes.length > 0) {
             if (toolbar) {
-                // Show
-                toolbar.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+                toolbar.classList.remove('opacity-0', 'pointer-events-none');
+                toolbar.classList.add('opacity-100', 'pointer-events-auto');
             }
             if (countEl) countEl.textContent = checkboxes.length + ' selected';
         } else {
             if (toolbar) {
-                // Hide
-                toolbar.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+                toolbar.classList.add('opacity-0', 'pointer-events-none');
+                toolbar.classList.remove('opacity-100', 'pointer-events-auto');
             }
         }
     }
@@ -1282,25 +1283,37 @@
 </div>
 
 <style>
-    /* Ensure content on mobile list view doesn't overlap checkbox */
-    @media (max-width: 768px) {
-        #episodes-grid[data-view="list"] .episode-card {
-            padding-left: 3rem !important;
-            /* Make room for absolute checkbox */
-            position: relative;
-        }
-    }
-</style>
-
-<style>
-    /* List View: Force Checkbox Static Placement */
+    /* List View: Robust Checkbox Static Placement */
     #episodes-grid[data-view="list"] .checkbox-wrapper {
         position: static !important;
         opacity: 1 !important;
+        visibility: visible !important;
         transform: none !important;
         pointer-events: auto !important;
         grid-area: check;
-        justify-self: center;
+        display: flex !important;
+        /* Force flex for centering */
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
+        height: 52px !important;
+    }
+
+    /* Mobile: Ensure room for absolute checkbox */
+    @media (max-width: 768px) {
+        #episodes-grid[data-view="list"] .episode-card {
+            padding-left: 3.5rem !important;
+            position: relative;
+        }
+
+        #episodes-grid[data-view="list"] .checkbox-wrapper {
+            position: absolute !important;
+            left: 0.75rem !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: auto !important;
+            display: block !important;
+        }
     }
 </style>
 {% endblock %}
