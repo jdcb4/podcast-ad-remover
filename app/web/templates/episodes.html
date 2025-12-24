@@ -318,10 +318,10 @@
 
     #episodes-grid[data-view="list"] .episode-card {
         display: grid;
-        grid-template-columns: 48px 100px 80px 1fr 200px;
+        grid-template-columns: 48px 110px 80px 1fr 180px;
         align-items: center;
-        padding: 0.5rem 1rem;
-        min-height: auto;
+        padding: 0.25rem 0.75rem;
+        min-height: 56px;
         gap: 0;
     }
 
@@ -336,61 +336,53 @@
         z-index: 10;
     }
 
-    /* Main Content Wrapper (Display Contents to join parent grid) */
+    /* Full Detail Expansion Toggle Logic */
     #episodes-grid[data-view="list"] .episode-card>div:nth-child(2) {
         display: contents;
     }
 
-    /* Metadata Row Mapping */
+    /* Metadata Wrapper (Contents) */
     #episodes-grid[data-view="list"] .episode-card .flex.justify-between.items-start.mb-3 {
         display: contents;
     }
 
+    /* Metadata Column (Contents) */
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\] {
+        display: contents;
+    }
+
+    /* Column 2: Date */
     #episodes-grid[data-view="list"] .episode-card .date-relative {
         grid-column: 2;
         font-weight: 700;
         color: var(--text-primary);
         white-space: nowrap;
         font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
-    /* Duration mapping */
+    /* Column 3: Duration */
     #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\]>span:last-child {
         grid-column: 3;
         color: var(--text-muted);
-        text-align: center;
+        text-align: left;
         font-size: 0.75rem;
+        font-family: ui-monospace, monospace;
     }
 
     /* Column 4: Title */
     #episodes-grid[data-view="list"] .episode-card h3 {
         grid-column: 4;
         margin: 0 !important;
-        padding: 0 1rem;
+        padding: 0 1.5rem;
         font-size: 0.95rem;
+        font-weight: 600;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: var(--text-primary);
         order: 4;
-    }
-
-    /* Hide redundant elements in list view */
-    #episodes-grid[data-view="list"] .episode-card .text-white\/10,
-    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3:not(.col-5) {
-        display: none;
-    }
-
-    /* Expandable Description (Span all columns) */
-    #episodes-grid[data-view="list"] .group\/ep-desc {
-        display: none;
-        grid-column: 1 / -1;
-        padding: 1rem 1rem 1rem 160px;
-        border-top: 1px solid rgba(255, 255, 255, 0.03);
-        margin-top: 0.5rem;
-    }
-
-    #episodes-grid[data-view="list"] .episode-card.expanded .group\/ep-desc {
-        display: block;
     }
 
     /* Column 5: Actions */
@@ -399,30 +391,60 @@
         position: static !important;
         padding: 0;
         margin: 0;
-        border: none;
-        background: transparent;
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        gap: 0.5rem;
-        z-index: 20;
+        gap: 0.25rem;
+        border: none;
+        background: transparent;
     }
 
-    /* Standardize button sizes for list view alignment */
+    /* Standardization for all Action Buttons */
     #episodes-grid[data-view="list"] .episode-card>div:last-child a,
     #episodes-grid[data-view="list"] .episode-card>div:last-child button {
-        height: 36px;
-        min-width: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 0.5rem;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 9999px !important;
+        background: transparent !important;
+        border: none !important;
+        color: var(--text-muted) !important;
+        transition: all 0.2s;
     }
 
-    #episodes-grid[data-view="list"] .episode-card>div:last-child .rounded-full {
-        width: 36px;
-        height: 36px;
-        padding: 0;
+    #episodes-grid[data-view="list"] .episode-card>div:last-child .bg-primary-500 {
+        background-color: var(--primary-500) !important;
+        color: white !important;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card>div:last-child a:hover,
+    #episodes-grid[data-view="list"] .episode-card>div:last-child button:hover {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+        color: white !important;
+    }
+
+    /* Hide redundant elements */
+    #episodes-grid[data-view="list"] .episode-card .text-white\/10,
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3:not(.row-actions) {
+        display: none;
+    }
+
+    /* Expansion Row */
+    #episodes-grid[data-view="list"] .group\/ep-desc {
+        display: none;
+        grid-column: 1 / -1;
+        padding: 1.25rem 2rem 1.5rem 240px;
+        /* Align with title start approx */
+        background: rgba(255, 255, 255, 0.01);
+        border-top: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    #episodes-grid[data-view="list"] .episode-card.expanded .group\/ep-desc {
+        display: block;
     }
 
     #episodes-grid[data-view="list"] .episode-card .mt-4.bg-surface-base {
