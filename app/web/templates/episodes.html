@@ -513,25 +513,25 @@
                 title="{{ ep.title }}">
                 {% if ep.status == 'completed' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[6px] font-black tracking-widest leading-none border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors">
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/30 text-emerald-400 text-[6px] font-black tracking-widest leading-none hover:bg-emerald-500/40 transition-colors">
                     <span class="w-1 h-1 rounded-full bg-emerald-400"></span>
                     DOWNLOADED
                 </span>
                 {% elif ep.status == 'processing' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/20 text-amber-400 text-[6px] font-black tracking-widest leading-none border border-amber-500/30 animate-pulse">
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[6px] font-black tracking-widest leading-none animate-pulse">
                     <span class="w-1 h-1 rounded-full bg-amber-400"></span>
                     PROCESSING
                 </span>
                 {% elif ep.status == 'ignored' or ep.status == 'deleted' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/20 text-slate-400 text-[6px] font-black tracking-widest leading-none border border-slate-500/30 hover:bg-slate-500/30 transition-colors">
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[6px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors">
                     <span class="w-1 h-1 rounded-full bg-slate-400"></span>
                     DELETED
                 </span>
                 {% elif ep.status == 'failed' %}
                 <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/20 text-red-400 text-[6px] font-black tracking-widest leading-none border border-red-500/30 hover:bg-red-500/30 transition-colors">
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[6px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors">
                     <span class="w-1 h-1 rounded-full bg-red-400"></span>
                     FAILED
                 </span>
