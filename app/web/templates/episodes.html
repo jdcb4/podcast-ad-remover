@@ -27,6 +27,18 @@
             </div>
             {% endif %}
 
+            <!-- Mobile Delete Button (Between Image and Title) -->
+            <button onclick="deleteSubscription({{ subscription.id }})"
+                class="md:hidden px-6 py-3 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-sm font-bold border border-red-500/20 shadow-lg -mt-4 mb-2"
+                title="Delete Show">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
+                </svg>
+                Delete Show
+            </button>
+
             <!-- Content -->
             <div class="flex-1 min-w-0 text-center md:text-left pt-2 pb-2">
                 <div class="mb-4">
@@ -109,20 +121,6 @@
             </button>
         </div>
     </div>
-</div>
-
-<!-- Mobile Delete Button (Outside Border) -->
-<div class="md:hidden flex justify-center mb-8 px-4">
-    <button onclick="deleteSubscription({{ subscription.id }})"
-        class="w-full max-w-sm px-6 py-4 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-base font-bold border border-red-500/20 shadow-lg"
-        title="Delete Show">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-            </path>
-        </svg>
-        Delete Show
-    </button>
 </div>
 </div>
 
