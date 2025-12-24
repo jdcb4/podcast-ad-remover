@@ -3,6 +3,7 @@ import os
 import logging
 import httpx
 import aiofiles
+import json
 from datetime import datetime
 from app.core.config import settings
 from app.core.models import Episode
@@ -200,10 +201,13 @@ class Processor:
             skip_transcription = False
             if ep.processing_flags:
                 try:
-                    import json
+                    logger.info(f"Checking processing flags for {ep.title}: {ep.processing_flags}")
                     flags = json.loads(ep.processing_flags)
                     skip_transcription = flags.get('skip_transcription', False)
-                except: pass
+                    if skip_transcription:
+                        logger.info(f"Targeting skip_transcription for {ep.title}")
+                except Exception as e:
+                    logger.error(f"Failed to parse processing flags: {e}")
                 
             transcript = None
             
@@ -216,7 +220,7 @@ class Processor:
             transcript_path = None
             
             if skip_transcription and ep.transcript_path and os.path.exists(ep.transcript_path):
-                 logger.info(f"Skipping transcription, using existing: {ep.transcript_path}")
+                 logger.info(f"Attempting to skip transcription, using existing: {ep.transcript_path}")
                  transcript_path = ep.transcript_path
                  import ast
                  async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
@@ -224,14 +228,19 @@ class Processor:
                      # Handle both JSON and Python dict string (legacy)
                      try:
                          transcript = json.loads(content)
+                         logger.info(f"Successfully loaded JSON transcript for {ep.title}")
                      except:
                          try:
                              transcript = ast.literal_eval(content)
+                             logger.info(f"Successfully loaded legacy dict transcript for {ep.title}")
                          except Exception as e:
-                             logger.error(f"Failed to load transcript: {e}")
+                             logger.error(f"Failed to load transcript for {ep.title}: {e}")
                              # Fallback to re-transcribe if load fails
                              skip_transcription = False
-            
+                             transcript = None
+            elif skip_transcription:
+                logger.warning(f"skip_transcription requested for {ep.title} but transcript_path missing or file not found: {ep.transcript_path}")
+                skip_transcription = False
             # 1. Ensure Audio Exists (Download if missing)
             if not os.path.exists(input_path):
                 if not self._check_cancellation(ep): return
@@ -335,7 +344,6 @@ class Processor:
                 
                 # Save Transcript (Prefer JSON now)
                 transcript_path = os.path.join(episode_dir, "transcript.json")
-                import json
                 async with aiofiles.open(transcript_path, "w", encoding="utf-8") as f:
                     await f.write(json.dumps(transcript))
                 
@@ -379,7 +387,6 @@ class Processor:
                 s['text'] = self._extract_text(s['start'], s['end'], transcript['segments'])
 
             # Save Ad Report (JSON)
-            import json
             report_path = os.path.join(episode_dir, "report.json")
             report_data = {
                 "episode_id": ep.id,
