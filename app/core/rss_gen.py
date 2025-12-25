@@ -21,7 +21,7 @@ class RSSGenerator:
             return
             
         # Get base URL from settings
-        from app.web.router import get_global_settings
+        from app.core.utils import get_global_settings
         from app.core.utils import get_lan_ip
         global_settings = get_global_settings()
         external_url = global_settings.get("app_external_url")
@@ -94,6 +94,8 @@ class RSSGenerator:
             # This ensures we include the podcast_slug/episode_slug/ structure
             try:
                 rel_path = os.path.relpath(ep['local_filename'], settings.PODCASTS_DIR)
+                if rel_path.startswith(".."):
+                    raise ValueError("Path mismatch")
                 # Ensure we use forward slashes for the URL
                 url_path = rel_path.replace(os.sep, '/')
                 url = f"{base_url}/audio/{url_path}"
@@ -137,7 +139,7 @@ class RSSGenerator:
         """Generate a single RSS feed containing all episodes from all subscriptions."""
         
         # Get base URL from settings (reuse logic from generate_feed)
-        from app.web.router import get_global_settings
+        from app.core.utils import get_global_settings
         from app.core.utils import get_lan_ip
         global_settings = get_global_settings()
         external_url = global_settings.get("app_external_url")
@@ -198,6 +200,8 @@ class RSSGenerator:
             # Construct URL using the same relative path logic
             try:
                 rel_path = os.path.relpath(ep['local_filename'], settings.PODCASTS_DIR)
+                if rel_path.startswith(".."):
+                    raise ValueError("Path mismatch")
                 url_path = rel_path.replace(os.sep, '/')
                 url = f"{base_url}/audio/{url_path}"
             except Exception:

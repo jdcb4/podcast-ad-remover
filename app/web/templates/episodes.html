@@ -8,10 +8,10 @@
 <div class="card mb-10 overflow-hidden relative group border-0 bg-transparent shadow-none p-0">
     <!-- Cinematic Header -->
     <div
-        class="relative overflow-hidden rounded-3xl p-6 md:p-10 border border-white/5 bg-surface-elevated/40 backdrop-blur-md">
+        class="relative overflow-hidden rounded-3xl p-6 md:p-10 border border-white/5 bg-surface-elevated/40 backdrop-blur-none md:backdrop-blur-md">
         <div class="absolute inset-0 z-0">
             {% if subscription.image_url %}
-            <div class="absolute inset-0 bg-cover bg-center blur-[100px] opacity-30 scale-125"
+            <div class="hidden md:block absolute inset-0 bg-cover bg-center blur-[100px] opacity-30 scale-125"
                 style="background-image: url('{{ subscription.image_url }}');"></div>
             {% endif %}
             <div class="absolute inset-0 bg-gradient-to-br from-bg-surface/90 via-bg-surface/60 to-transparent"></div>
@@ -715,7 +715,7 @@
         </div>
 
         <!-- Footer / Actions -->
-        <div class="px-4 py-3 flex justify-between items-center bg-surface-base/30 backdrop-blur-sm"
+        <div class="px-4 py-3 flex justify-between items-center bg-surface-base/95 md:bg-surface-base/30 md:backdrop-blur-sm"
             onclick="event.stopPropagation();">
 
             <!-- Actions moved to dropdown menu -->

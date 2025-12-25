@@ -77,3 +77,15 @@ def get_app_base_url(global_settings: dict, request=None) -> str:
         return str(request.base_url).rstrip("/")
     
     return settings.BASE_URL.rstrip("/")
+
+def get_global_settings():
+    from app.infra.database import get_db_connection
+    with get_db_connection() as conn:
+        # Check if table exists first (bootstrap safety)
+        try:
+            row = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
+            if row:
+                return dict(row)
+        except Exception:
+            pass
+    return {}
