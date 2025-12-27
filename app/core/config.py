@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str | None = Field(None, description="Anthropic API Key")
     OPENROUTER_API_KEY: str | None = Field(None, description="OpenRouter API Key")
     LOG_LEVEL: str = "INFO"
+    SESSION_SECRET_KEY: str = Field("super-secret-session-key-change-me", description="Secret key for session encryption")
     
     # Paths
     DATA_DIR: str = "/data"

@@ -222,6 +222,11 @@ class RSSGenerator:
             if ep.get('podcast_title'):
                 description = f"From: {ep['podcast_title']}\n\n" + description
 
+            # Episode Artwork - Use podcast image for each item
+            if ep.get('podcast_image'):
+                itunes_ep_image = SubElement(item, 'itunes:image')
+                itunes_ep_image.set('href', ep['podcast_image'])
+
             # Use CDATA for HTML support and to prevent double-escaping
             clean_description = html.unescape(description)
             desc_element = SubElement(item, 'description')

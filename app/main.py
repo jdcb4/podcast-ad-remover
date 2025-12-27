@@ -120,7 +120,11 @@ app = FastAPI(
 # Execution order: SessionMiddleware -> auth_middleware -> feed_auth_middleware
 app.middleware("http")(feed_auth_middleware)
 app.middleware("http")(auth_middleware)
-app.add_middleware(SessionMiddleware, secret_key=secrets.token_urlsafe(32))
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=settings.SESSION_SECRET_KEY,
+    max_age=30 * 24 * 60 * 60  # 30 days in seconds
+)
 
 app.include_router(subscriptions.router, prefix="/api")
 app.include_router(audio_routes.router)  # Dynamic audio serving with listen tracking
