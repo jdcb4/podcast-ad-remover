@@ -451,7 +451,25 @@ class AdDetector:
         try:
             provider = self._get_provider()
             response_text = provider.generate(prompt)
-            return self._parse_ad_response(response_text)
+            raw_segments = self._parse_ad_response(response_text)
+            
+            # Filter to only include requested types and exclude 'Content'
+            removable_labels = []
+            if options.get("remove_ads"): removable_labels.append("Ad")
+            if options.get("remove_promos"): 
+                removable_labels.extend(["Promo", "Cross-promotion"])
+            if options.get("remove_intros"): removable_labels.append("Intro")
+            if options.get("remove_outros"): removable_labels.append("Outro")
+            
+            filtered = []
+            for s in raw_segments:
+                label = s.get('label', 'Ad')
+                if label in removable_labels:
+                    filtered.append(s)
+                else:
+                    logger.info(f"Skipping segment labeled '{label}' (Reason: {s.get('reason')})")
+            
+            return filtered
         except Exception as e:
             logger.error(f"Ad detection failed: {e}")
             raise e
