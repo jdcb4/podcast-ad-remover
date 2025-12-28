@@ -678,6 +678,9 @@ async def retry_episode(episode_id: int):
          return RedirectResponse(url="/admin/queue", status_code=303)
          
     # Force to pending (Background processor will pick it up)
+    from app.core.processor import Processor
+    proc = Processor()
+    await proc.version_episode(episode_id)
     ep_repo.update_status(episode_id, "pending")
     return RedirectResponse(url="/admin/queue", status_code=303)
 
@@ -696,6 +699,9 @@ async def api_reprocess_episode(episode_id: int, skip_transcription: bool = Fals
     flags_json = json.dumps(flags)
     
     # Reset status with flags so processor respects skip_transcription
+    from app.core.processor import Processor
+    proc = Processor()
+    await proc.version_episode(episode_id)
     ep_repo.reset_status(episode_id, processing_flags=flags_json)
     ep_repo.update_status(episode_id, "pending")
     return {"status": "ok"}

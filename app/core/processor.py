@@ -110,6 +110,81 @@ class Processor:
         
         return True
 
+    async def version_episode(self, episode_id: int):
+        """
+        Increments the version suffix of an episode's GUID (e.g., _v2, _v3)
+         and renames its physical directory to match.
+        """
+        import re
+        ep = self.ep_repo.get_by_id(episode_id)
+        if not ep:
+            logger.error(f"Cannot version episode {episode_id}: Not found")
+            return False
+            
+        sub = self.sub_repo.get_by_id(ep.subscription_id)
+        if not sub:
+            logger.error(f"Cannot version episode {episode_id}: Subscription {ep.subscription_id} not found")
+            return False
+
+        old_guid = ep.guid
+        
+        # Determine next version
+        match = re.search(r'_v(\d+)$', old_guid)
+        if match:
+            current_version = int(match.group(1))
+            new_suffix = f"_v{current_version + 1}"
+            new_guid = re.sub(r'_v\d+$', new_suffix, old_guid)
+        else:
+            new_suffix = "_v2"
+            new_guid = f"{old_guid}{new_suffix}"
+
+        logger.info(f"Versioning episode {episode_id}: {old_guid} -> {new_guid}")
+
+        # Rename physical directory
+        old_episode_slug = f"{old_guid}".replace("/", "_").replace(" ", "_")
+        new_episode_slug = f"{new_guid}".replace("/", "_").replace(" ", "_")
+        
+        old_dir = settings.get_episode_dir(sub.slug, old_episode_slug)
+        new_dir = settings.get_episode_dir(sub.slug, new_episode_slug)
+
+        if os.path.exists(old_dir):
+            try:
+                os.rename(old_dir, new_dir)
+                logger.info(f"Renamed episode directory: {old_dir} -> {new_dir}")
+            except Exception as e:
+                logger.error(f"Failed to rename directory {old_dir} to {new_dir}: {e}")
+                # We continue anyway to update the DB, as the directory move is preferred but metadata is critical
+        
+        # Update database paths using a helper or manual dict update
+        def update_path(p):
+            if not p: return p
+            return p.replace(old_dir, new_dir)
+
+        # We need a way to update the GUID and paths in the DB. 
+        # Using a fresh connection helper from the database module
+        from app.infra.database import get_db_connection
+        with get_db_connection() as conn:
+            conn.execute("""
+                UPDATE episodes SET 
+                    guid = ?, 
+                    local_filename = ?, 
+                    transcript_path = ?, 
+                    ad_report_path = ?, 
+                    report_path = ? 
+                WHERE id = ?
+            """, (
+                new_guid, 
+                update_path(ep.local_filename),
+                update_path(ep.transcript_path),
+                update_path(ep.ad_report_path),
+                update_path(ep.report_path),
+                episode_id
+            ))
+            conn.commit()
+
+        logger.info(f"Metadata updated for episode {episode_id}")
+        return True
+
     def _extract_text(self, start: float, end: float, segments: list) -> str:
         """Extract text from transcript overlapping with the given time range."""
         text = []
