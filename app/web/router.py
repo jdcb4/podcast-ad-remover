@@ -6,6 +6,7 @@ from app.core.feed import FeedManager
 from app.core.models import SubscriptionCreate
 from app.web.auth import get_current_user, require_auth, require_admin, log_login_attempt, SESSION_USER_KEY
 from app.web.auth_utils import hash_password, verify_password, generate_secure_password, get_client_ip
+from app.web.rate_limiter import login_rate_limiter, check_rate_limit
 from app.infra.database import get_db_connection
 from datetime import datetime
 import os
@@ -201,23 +202,45 @@ async def login_page(request: Request):
 
 @router.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    """Handle login submission."""
+    """Handle login submission with rate limiting protection."""
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
+    
+    # Check rate limit before processing login
+    try:
+        check_rate_limit(client_ip)
+    except HTTPException as e:
+        # Return user-friendly error page instead of raw exception
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": e.detail,
+            "first_launch": False,
+            "auth_enabled": True,
+            "rate_limited": True
+        }, status_code=e.status_code)
     
     with get_db_connection() as conn:
         user_row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
     
     if not user_row or not verify_password(password, user_row['password_hash']):
+        # Record failed attempt and check if now locked
+        is_locked = login_rate_limiter.record_failed_attempt(client_ip)
         log_login_attempt(username, client_ip, False, user_agent)
+        
+        error_msg = "Invalid username or password"
+        if is_locked:
+            error_msg = f"Too many failed login attempts. Your IP has been locked for {login_rate_limiter.lockout_seconds // 60} minutes."
+        
         return templates.TemplateResponse("login.html", {
             "request": request,
-            "error": "Invalid username or password",
+            "error": error_msg,
             "first_launch": False,
-            "auth_enabled": True
+            "auth_enabled": True,
+            "rate_limited": is_locked
         })
     
-    # Successful login
+    # Successful login - clear rate limiting for this IP
+    login_rate_limiter.record_successful_login(client_ip)
     log_login_attempt(username, client_ip, True, user_agent)
     
     # Update last login

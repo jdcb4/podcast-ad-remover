@@ -108,23 +108,35 @@ from app.api import audio_routes
 from app.web import router as web_router
 from app.web.middleware import feed_auth_middleware
 from app.web.auth import auth_middleware
+from app.web.security_headers import SecurityHeadersMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import secrets
 
 app = FastAPI(
     title="Podcast Ad Remover",
-    lifespan=lifespan
+    lifespan=lifespan,
+    debug=settings.ENVIRONMENT != "production",  # Disable debug in production
+    docs_url="/api/docs" if settings.ENVIRONMENT != "production" else None,  # Hide docs in production
+    redoc_url="/api/redoc" if settings.ENVIRONMENT != "production" else None  # Hide redoc in production
 )
 
 # Add middleware (order matters - added in reverse of execution order)
-# Execution order: SessionMiddleware -> auth_middleware -> feed_auth_middleware
+# Execution order: SecurityHeadersMiddleware -> SessionMiddleware -> auth_middleware -> feed_auth_middleware
 app.middleware("http")(feed_auth_middleware)
 app.middleware("http")(auth_middleware)
 app.add_middleware(
     SessionMiddleware, 
     secret_key=settings.SESSION_SECRET_KEY,
-    max_age=30 * 24 * 60 * 60  # 30 days in seconds
+    max_age=30 * 24 * 60 * 60,  # 30 days in seconds
+    session_cookie="session",
+    same_site="lax",  # Prevents CSRF while allowing external navigation
+    https_only=settings.ENVIRONMENT == "production"  # HTTPS-only in production
 )
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Configure custom error handlers to prevent information disclosure
+from app.web.error_handlers import configure_error_handlers
+configure_error_handlers(app)
 
 app.include_router(subscriptions.router, prefix="/api")
 app.include_router(audio_routes.router)  # Dynamic audio serving with listen tracking
