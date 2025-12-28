@@ -847,7 +847,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     // Lazy Loading State
     let currentOffset = {{ episodes| length }};
     const pageSize = {{ page_size|default (20) }};

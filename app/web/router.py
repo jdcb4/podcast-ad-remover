@@ -18,6 +18,12 @@ router = APIRouter()
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 
+# Helper to get CSP nonce from request
+def get_csp_nonce(request: Request) -> str:
+    """Extract CSP nonce from request state (set by SecurityHeadersMiddleware)"""
+    return getattr(request.state, 'csp_nonce', '')
+
+
 # Add simple markdown filter
 def simple_markdown(text):
     """Convert basic markdown to HTML: **bold**, bullets (*, -, •, 1.)"""
@@ -195,6 +201,7 @@ async def login_page(request: Request):
     
     return templates.TemplateResponse("login.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "first_launch": first_launch,
         "initial_password": settings['initial_password'] if settings else None,
         "auth_enabled": settings['auth_enabled'] if settings else False
@@ -213,6 +220,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
         # Return user-friendly error page instead of raw exception
         return templates.TemplateResponse("login.html", {
             "request": request,
+        "csp_nonce": get_csp_nonce(request),
             "error": e.detail,
             "first_launch": False,
             "auth_enabled": True,
@@ -233,6 +241,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
         
         return templates.TemplateResponse("login.html", {
             "request": request,
+        "csp_nonce": get_csp_nonce(request),
             "error": error_msg,
             "first_launch": False,
             "auth_enabled": True,
@@ -268,6 +277,7 @@ async def change_password_page(request: Request, user: dict = Depends(require_au
     
     return templates.TemplateResponse("change_password.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "required": settings['require_password_change'] if settings else False
     })
@@ -284,6 +294,7 @@ async def change_password(
     if new_password != confirm_password:
         return templates.TemplateResponse("change_password.html", {
             "request": request,
+        "csp_nonce": get_csp_nonce(request),
             "user": user,
             "error": "Passwords do not match"
         })
@@ -295,6 +306,7 @@ async def change_password(
     if not verify_password(current_password, user_row['password_hash']):
         return templates.TemplateResponse("change_password.html", {
             "request": request,
+        "csp_nonce": get_csp_nonce(request),
             "user": user,
             "error": "Current password is incorrect"
         })
@@ -335,6 +347,7 @@ async def submit_access_request(
     
     return templates.TemplateResponse("request_access.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "success": "Your access request has been submitted. You will be notified when it is reviewed."
     })
 
@@ -352,6 +365,7 @@ async def admin_system(request: Request):
     user = get_current_user(request)
     return templates.TemplateResponse("admin/system.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "settings": get_global_settings(),
         "pending_requests_count": get_pending_requests_count(),
@@ -479,6 +493,7 @@ async def admin_ai(request: Request):
 
     return templates.TemplateResponse("admin/ai.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "settings": get_global_settings(),
         "pending_requests_count": get_pending_requests_count(),
@@ -587,6 +602,7 @@ Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for
 
     return templates.TemplateResponse("admin/prompts.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "settings": get_global_settings(),
         "default_prompts": default_prompts,
@@ -679,6 +695,7 @@ async def admin_queue(request: Request):
     queue = ep_repo.get_queue()
     return templates.TemplateResponse("admin/queue.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "queue": queue,
         "pending_requests_count": get_pending_requests_count(),
@@ -790,6 +807,7 @@ async def admin_logs(request: Request, lines: int = 1000, level: str = "ALL"):
 
     return templates.TemplateResponse("admin/logs.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "logs": logs,
         "pending_requests_count": get_pending_requests_count(),
@@ -805,6 +823,7 @@ async def apple_subscribe_page(request: Request, url: str):
     """Render the Apple Podcasts subscription instruction page."""
     return templates.TemplateResponse("apple_subscribe.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "feed_url": url
     })
 
@@ -840,6 +859,7 @@ async def admin_access(request: Request):
     
     return templates.TemplateResponse("admin/access_requests.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "active_tab": "access",
         "settings": settings,
@@ -1112,7 +1132,8 @@ def _render_index(request: Request, error: str = None):
         }
 
     return templates.TemplateResponse("index.html", {
-        "request": request, 
+        "request": request,
+        "csp_nonce": get_csp_nonce(request), 
         "user": user,
         "subscriptions": subs_with_links, 
         "stats": stats,
@@ -1139,6 +1160,7 @@ async def admin_global_subscription_settings(request: Request):
         
     return templates.TemplateResponse("admin/global_subscription_settings.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "settings": settings_row,
         "active_tab": "global_subs"
@@ -1293,7 +1315,8 @@ async def view_subscription(request: Request, id: int):
     total_listens = ep_repo.get_subscription_listen_count(sub.id)
 
     return templates.TemplateResponse("episodes.html", {
-        "request": request, 
+        "request": request,
+        "csp_nonce": get_csp_nonce(request), 
         "user": user,
         "subscription": sub, 
         "episodes": episodes,
@@ -1434,6 +1457,7 @@ async def view_transcript(id: int, request: Request):
 
     return templates.TemplateResponse("transcript.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "episode": row,
         "transcript_data": data,
         "format_duration": format_duration

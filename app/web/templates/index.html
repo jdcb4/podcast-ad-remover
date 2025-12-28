@@ -142,7 +142,7 @@
         {% endfor %}
     </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
     function toggleQueue() {
         const content = document.getElementById('queue-content');
         const chevron = document.getElementById('queue-chevron');
@@ -356,11 +356,11 @@
     {% endfor %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     const GLOBAL_RETENTION_DEFAULT = {{ settings.default_retention_limit if settings.default_retention_limit is not none else 1 }};
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     async function searchPodcasts() {
         const query = document.getElementById('search-input').value;
         const resultsDiv = document.getElementById('search-results');

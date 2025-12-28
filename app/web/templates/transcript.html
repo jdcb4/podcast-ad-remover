@@ -63,7 +63,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     function copyTranscript() {
         const text = document.getElementById('transcript-content').innerText;
         navigator.clipboard.writeText(text).then(() => {

@@ -81,7 +81,7 @@
         </div>
     </form>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         document.getElementById('auth_enabled').addEventListener('change', function () {
             document.getElementById('auth_settings').style.display = this.checked ? 'block' : 'none';
         });
@@ -216,7 +216,7 @@
         </div>
     </form>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         const authEnabledCheckbox = document.getElementById('auth_enabled');
         const feedAuthCheckbox = document.getElementById('enable_feed_auth');
         const feedAuthContainer = document.getElementById('feed_auth_container');
@@ -372,7 +372,7 @@
     </div>
     <div class="mt-2 text-xs text-text-muted" id="login-count">Showing {{ login_history|length }} entries</div>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         // Search filter
         document.getElementById('login-filter').addEventListener('input', function (e) {
             const filter = e.target.value.toLowerCase();

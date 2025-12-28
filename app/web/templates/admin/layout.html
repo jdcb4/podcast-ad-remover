@@ -146,7 +146,7 @@
             </svg>
             <span>{{ request.query_params.get('success') }}</span>
         </div>
-        <script>
+        <script nonce="{{ csp_nonce }}">
             setTimeout(function () {
                 const alert = document.querySelector('[role="alert"]');
                 if (alert) {

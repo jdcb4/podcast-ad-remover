@@ -93,7 +93,7 @@
 </div>
 {% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
     (function () {
         const toggle = document.getElementById('auto-refresh-toggle');
         const intervalInput = document.getElementById('refresh-interval');
