@@ -34,7 +34,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Uses nonce-based approach to allow specific inline scripts while blocking arbitrary code execution
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            f"script-src 'self' 'nonce-{csp_nonce}' 'unsafe-inline' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com; "  # Added unsafe-inline and Cloudflare
+            f"script-src 'self' 'nonce-{csp_nonce}' 'unsafe-hashes' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com; "  # unsafe-hashes allows inline event handlers
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; "  # Explicit style-src-elem
             "img-src 'self' data: blob: https:; "
