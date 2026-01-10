@@ -755,7 +755,6 @@ class Processor:
             if any(pattern in error_str for pattern in rate_limit_patterns):
                 # Treat as rate limit
                 logger.warning(f"Detected possible rate limit in error: {e}")
-                from app.core.ai_services import RateLimitError
                 rate_error = RateLimitError(str(e), is_daily_limit=True, provider="unknown")
                 next_retry = rate_error.get_next_retry_time()
                 self.ep_repo.update_rate_limited(ep.id, next_retry, str(e))
