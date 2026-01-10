@@ -262,6 +262,13 @@
         border-color: rgba(139, 92, 246, 0.3);
     }
 
+    .badge-secondary {
+        @apply badge;
+        background: rgba(236, 72, 153, 0.15);
+        color: #f472b6;
+        border: 1px solid rgba(236, 72, 153, 0.2);
+    }
+
     .badge-success {
         @apply badge;
         background: rgba(52, 211, 153, 0.15);
