@@ -6,7 +6,7 @@
     <div class="flex justify-between items-center mb-4">
         <div>
             <label class="block text-sm font-medium">{{ label }}</label>
-            <span class="text-xs text-text-muted">Drag to reorder. Max 5 models.</span>
+            <span class="text-xs text-text-muted">Drag to reorder. Max 10 models.</span>
         </div>
         <div class="space-x-2">
             <button type="button" onclick="shuttleManager.refresh('{{ provider }}')"
@@ -91,15 +91,21 @@
             <!-- Gemini Shuttle -->
             <div id="geminiSettings" class="provider-section">
                 <div>
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Gemini API Key</label>
-                    <input type="password" name="gemini_api_key" id="gemini_key"
-                        value="{{ settings.gemini_api_key or '' }}"
-                        placeholder="{% if env_keys.GEMINI_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
-                        class="input mb-2">
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Gemini API Keys</label>
+                    <p class="text-xs text-text-muted mb-2">Add multiple API keys for automatic failover when rate
+                        limits are reached.</p>
+                    <div id="gemini_keys_container" class="space-y-2 mb-2">
+                        <!-- Keys will be rendered here by JS -->
+                    </div>
+                    <button type="button" onclick="geminiKeyManager.addKey()"
+                        class="flex items-center gap-2 text-sm text-primary-400 hover:text-primary-300 transition-colors">
+                        <span class="text-lg">+</span> Add API Key
+                    </button>
                     {% if env_keys.GEMINI_API_KEY %}
-                    <p class="text-xs text-emerald-400 mb-2">✓ Environment Variable Detected (will be used if this field
-                        is empty)</p>
+                    <p class="text-xs text-emerald-400 mt-2">✓ Environment Variable Detected (will be used as fallback
+                        if no keys are saved)</p>
                     {% endif %}
+                    <input type="hidden" name="gemini_api_keys" id="gemini_api_keys_input" value="">
                 </div>
                 {{ shuttle_ui('gemini', 'Gemini Model Cascade', 'ai_model_cascade', settings.ai_model_cascade | tojson)
                 }}
@@ -247,7 +253,7 @@
 
         add(provider, model) {
             const state = this.states[provider];
-            if (state.selected.length >= 5) { alert("Max 5 models."); return; }
+            if (state.selected.length >= 10) { alert("Max 10 models."); return; }
             state.selected.push(model);
             this.sync(provider);
         }
@@ -315,6 +321,102 @@
     shuttleManager.init('anthropic', {{ settings.anthropic_model | tojson }});
     shuttleManager.init('openrouter', {{ settings.openrouter_model | tojson }});
 
+    // Gemini Multi-Key Manager
+    class GeminiKeyManager {
+        constructor(initialKeys) {
+            this.keys = [];
+            // Parse initial keys from DB
+            if (initialKeys) {
+                try {
+                    if (typeof initialKeys === 'string') {
+                        this.keys = JSON.parse(initialKeys);
+                    } else if (Array.isArray(initialKeys)) {
+                        this.keys = initialKeys;
+                    }
+                } catch (e) {
+                    // Fallback: treat as single key
+                    if (initialKeys.trim()) {
+                        this.keys = [initialKeys.trim()];
+                    }
+                }
+            }
+            this.render();
+            this.updateInput();
+        }
+
+        addKey(value = '') {
+            this.keys.push(value);
+            this.render();
+            this.updateInput();
+            // Focus the new input
+            const inputs = document.querySelectorAll('#gemini_keys_container input');
+            if (inputs.length > 0) {
+                inputs[inputs.length - 1].focus();
+            }
+        }
+
+        removeKey(index) {
+            this.keys.splice(index, 1);
+            this.render();
+            this.updateInput();
+        }
+
+        updateKey(index, value) {
+            this.keys[index] = value;
+            this.updateInput();
+        }
+
+        updateInput() {
+            // Filter empty keys and update hidden input
+            const validKeys = this.keys.filter(k => k && k.trim());
+            document.getElementById('gemini_api_keys_input').value = JSON.stringify(validKeys);
+        }
+
+        render() {
+            const container = document.getElementById('gemini_keys_container');
+            container.innerHTML = '';
+
+            this.keys.forEach((key, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-2';
+
+                const label = document.createElement('span');
+                label.className = 'text-xs text-text-muted min-w-[4rem]';
+                label.textContent = `Key ${index + 1}`;
+
+                const input = document.createElement('input');
+                input.type = 'password';
+                input.className = 'input flex-1';
+                input.placeholder = 'Enter API Key';
+                input.autocomplete = 'off';
+                input.value = key;
+                input.oninput = (e) => this.updateKey(index, e.target.value);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'text-red-400/50 hover:text-red-400 p-2 transition-colors';
+                removeBtn.innerHTML = '×';
+                removeBtn.onclick = () => this.removeKey(index);
+
+                div.appendChild(label);
+                div.appendChild(input);
+                div.appendChild(removeBtn);
+                container.appendChild(div);
+            });
+
+            // If no keys, show a placeholder message
+            if (this.keys.length === 0) {
+                const placeholder = document.createElement('p');
+                placeholder.className = 'text-xs text-text-muted italic py-2';
+                placeholder.textContent = 'No API keys configured. Click "Add API Key" to add one.';
+                container.appendChild(placeholder);
+            }
+        }
+    }
+
+    // Initialize with saved keys
+    const geminiKeyManager = new GeminiKeyManager({{ settings.gemini_api_keys | tojson if settings.gemini_api_keys else '[]' }});
+
     async function testConnection() {
         const provider = document.getElementById('providerSelect').value;
         const out = document.getElementById('testOutput');
@@ -324,8 +426,18 @@
 
         const formData = new FormData();
         formData.append('provider', provider);
-        const keyEl = document.getElementById(provider + '_key');
-        if (keyEl) formData.append('api_key', keyEl.value);
+
+        // For Gemini, use the first key from multi-key manager
+        if (provider === 'gemini') {
+            const keys = geminiKeyManager.keys.filter(k => k && k.trim());
+            if (keys.length > 0) {
+                formData.append('api_key', keys[0]);
+            }
+        } else {
+            const keyEl = document.getElementById(provider + '_key');
+            if (keyEl) formData.append('api_key', keyEl.value);
+        }
+
         const modelEl = document.getElementById(provider + '_input');
         if (modelEl) formData.append('model', modelEl.value);
 

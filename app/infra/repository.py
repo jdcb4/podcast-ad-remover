@@ -87,28 +87,30 @@ class EpisodeRepository:
 
     def get_pending(self) -> List[dict]:
         with get_db_connection() as conn:
-            # Get pending episodes OR failed episodes that are due for retry
+            # Get pending episodes OR failed/rate_limited episodes that are due for retry
             rows = conn.execute("""
                 SELECT * FROM episodes 
                 WHERE status = 'pending' 
                 OR (status = 'failed' AND next_retry_at IS NOT NULL AND next_retry_at <= CURRENT_TIMESTAMP)
+                OR (status = 'rate_limited' AND next_retry_at IS NOT NULL AND next_retry_at <= CURRENT_TIMESTAMP)
             """).fetchall()
             return [dict(row) for row in rows]
             
     def get_queue(self) -> List[dict]:
         with get_db_connection() as conn:
-            # Get full processing queue with details
+            # Get full processing queue with details (including rate_limited)
             rows = conn.execute("""
                 SELECT e.*, s.title as podcast_title 
                 FROM episodes e
                 JOIN subscriptions s ON e.subscription_id = s.id
-                WHERE e.status IN ('processing', 'pending')
+                WHERE e.status IN ('processing', 'pending', 'rate_limited')
                 OR (e.status = 'failed' AND e.next_retry_at IS NOT NULL)
                 ORDER BY 
                     CASE e.status 
                         WHEN 'processing' THEN 1 
                         WHEN 'pending' THEN 2 
-                        ELSE 3 
+                        WHEN 'rate_limited' THEN 3
+                        ELSE 4 
                     END,
                     e.id ASC
             """).fetchall()
@@ -180,13 +182,15 @@ class EpisodeRepository:
             conn.commit()
 
     def requeue_stuck(self):
-        """Reset all 'processing' episodes to 'pending' on startup."""
+        """Reset all 'processing' episodes to 'failed' on startup."""
         with get_db_connection() as conn:
             conn.execute("""
                 UPDATE episodes 
-                SET status = 'pending', 
-                    processing_step = 'requeued after restart', 
-                    progress = 0 
+                SET status = 'failed', 
+                    error_message = 'Interrupted by system restart',
+                    processing_step = 'interrupted', 
+                    progress = 0,
+                    next_retry_at = NULL
                 WHERE status = 'processing'
             """)
             conn.commit()
@@ -203,10 +207,23 @@ class EpisodeRepository:
             """, (retry_count, next_retry_at, error, id))
             conn.commit()
 
+    def update_rate_limited(self, id: int, next_retry_at: datetime, error: str):
+        """Set episode to rate_limited status with scheduled retry at API quota reset."""
+        with get_db_connection() as conn:
+            conn.execute("""
+                UPDATE episodes 
+                SET status = 'rate_limited', 
+                    next_retry_at = ?, 
+                    error_message = ?,
+                    processing_step = 'Waiting for API quota reset'
+                WHERE id = ?
+            """, (next_retry_at, error, id))
+            conn.commit()
+
     def update_status(self, id: int, status: str, error: str = None, filename: str = None, file_size: int = None):
         with get_db_connection() as conn:
             conn.execute(
-                "UPDATE episodes SET status = ?, error_message = ?, local_filename = ?, file_size = ?, processed_at = ? WHERE id = ?",
+                "UPDATE episodes SET status = ?, error_message = ?, local_filename = ?, file_size = ?, processed_at = ?, next_retry_at = NULL WHERE id = ?",
                 (status, error, filename, file_size, datetime.now() if status == 'completed' else None, id)
             )
             conn.commit()

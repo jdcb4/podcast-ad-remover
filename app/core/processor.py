@@ -8,7 +8,7 @@ from datetime import datetime
 from app.core.config import settings
 from app.core.models import Episode
 from app.infra.repository import EpisodeRepository, SubscriptionRepository
-from app.core.ai_services import Transcriber, AdDetector
+from app.core.ai_services import Transcriber, AdDetector, RateLimitError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
 from app.core.feed import FeedManager
@@ -738,10 +738,30 @@ class Processor:
             
             logger.info(f"Successfully processed {ep.title}")
 
+        except RateLimitError as e:
+            # Special handling for API rate limits - wait until quota resets
+            logger.warning(f"Rate limit hit for episode {ep.id}: {e}")
+            next_retry = e.get_next_retry_time()
+            retry_time_str = next_retry.strftime('%Y-%m-%d %H:%M:%S UTC')
+            logger.info(f"Episode {ep.title} placed on hold until API quota resets at {retry_time_str}")
+            self.ep_repo.update_rate_limited(ep.id, next_retry, str(e))
+            
         except Exception as e:
             logger.error(f"Failed to process episode {ep.id}: {e}")
             
-            # Retry Logic
+            # Check if this might be a rate limit we didn't catch
+            error_str = str(e).lower()
+            rate_limit_patterns = ['resource_exhausted', 'quota', 'rate limit', '429', 'too many requests']
+            if any(pattern in error_str for pattern in rate_limit_patterns):
+                # Treat as rate limit
+                logger.warning(f"Detected possible rate limit in error: {e}")
+                from app.core.ai_services import RateLimitError
+                rate_error = RateLimitError(str(e), is_daily_limit=True, provider="unknown")
+                next_retry = rate_error.get_next_retry_time()
+                self.ep_repo.update_rate_limited(ep.id, next_retry, str(e))
+                return
+            
+            # Regular Retry Logic
             retry_count = ep_dict.get('retry_count', 0) + 1
             if retry_count <= 5:
                 # Exponential backoff: 5, 10, 20, 40, 80 minutes

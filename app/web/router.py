@@ -511,7 +511,7 @@ async def update_ai_settings(
     openai_api_key: str = Form(None),
     anthropic_api_key: str = Form(None),
     openrouter_api_key: str = Form(None),
-    gemini_api_key: str = Form(None),
+    gemini_api_keys: str = Form(None),
     openai_model: str = Form("gpt-4o"),
     anthropic_model: str = Form("claude-3-5-sonnet"),
     openrouter_model: str = Form("google/gemini-2.0-flash-001")
@@ -522,6 +522,17 @@ async def update_ai_settings(
         json.loads(ai_model_cascade)
     except:
         ai_model_cascade = '["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]'
+    
+    # Validate gemini_api_keys is valid JSON array
+    if gemini_api_keys:
+        try:
+            parsed_keys = json.loads(gemini_api_keys)
+            if not isinstance(parsed_keys, list):
+                gemini_api_keys = "[]"
+        except:
+            gemini_api_keys = "[]"
+    else:
+        gemini_api_keys = "[]"
 
     with get_db_connection() as conn:
         conn.execute("""
@@ -533,7 +544,7 @@ async def update_ai_settings(
                 openai_api_key = ?,
                 anthropic_api_key = ?,
                 openrouter_api_key = ?,
-                gemini_api_key = ?,
+                gemini_api_keys = ?,
                 openai_model = ?,
                 anthropic_model = ?,
                 openrouter_model = ?,
@@ -541,7 +552,7 @@ async def update_ai_settings(
             WHERE id = 1
         """, (
             whisper_model, ai_model_cascade, piper_model, active_ai_provider,
-            openai_api_key, anthropic_api_key, openrouter_api_key, gemini_api_key,
+            openai_api_key, anthropic_api_key, openrouter_api_key, gemini_api_keys,
             openai_model, anthropic_model, openrouter_model
         ))
         conn.commit()
@@ -1099,7 +1110,12 @@ def _render_index(request: Request, error: str = None):
             latest_summary = latest_ep['ai_summary']
             latest_description = latest_ep['description']
         if latest_any_ep and latest_any_ep['pub_date']:
-            latest_episode_date = latest_any_ep['pub_date']
+            # Convert to ISO format string for safe JS parsing
+            d = latest_any_ep['pub_date']
+            if hasattr(d, 'isoformat'):
+                latest_episode_date = d.isoformat()
+            else:
+                latest_episode_date = str(d)
         
         subs_with_links.append({
             "sub": sub,

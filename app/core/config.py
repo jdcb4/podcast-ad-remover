@@ -5,7 +5,7 @@ from pydantic import Field
 class Settings(BaseSettings):
     # Core
     ENVIRONMENT: str = Field("production", description="Environment: development or production")
-    GEMINI_API_KEY: str | None = Field(None, description="Google Gemini API Key")
+    GEMINI_API_KEY: str | None = Field(None, description="Google Gemini API Key (comma-separated for multiple keys)")
     OPENAI_API_KEY: str | None = Field(None, description="OpenAI API Key")
     ANTHROPIC_API_KEY: str | None = Field(None, description="Anthropic API Key")
     OPENROUTER_API_KEY: str | None = Field(None, description="OpenRouter API Key")

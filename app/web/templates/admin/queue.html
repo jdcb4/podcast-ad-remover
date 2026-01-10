@@ -44,6 +44,16 @@
                 <span class="badge-info animate-pulse flex-shrink-0">Processing</span>
                 {% elif item.status == 'pending' %}
                 <span class="badge-neutral flex-shrink-0">Pending</span>
+                {% elif item.status == 'rate_limited' %}
+                <span
+                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex-shrink-0"
+                    title="Waiting for API quota reset: {{ item.next_retry_at }}">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Rate Limited
+                </span>
                 {% elif item.status == 'failed' %}
                 <span class="badge-error flex-shrink-0" title="Retry scheduled: {{ item.next_retry_at }}">Retry
                     Pending</span>
@@ -62,7 +72,8 @@
                 {% else %}
                 <form action="/admin/queue/retry/{{ item.id }}" method="post" class="inline">
                     <button type="submit" class="text-primary-400 hover:text-primary-300 font-medium text-sm">
-                        {% if item.status == 'failed' %}Retry Now{% else %}Process Now{% endif %}
+                        {% if item.status == 'failed' or item.status == 'rate_limited' %}Retry Now{% else %}Process
+                        Now{% endif %}
                     </button>
                 </form>
                 {% endif %}
@@ -77,6 +88,23 @@
             <div class="progress-bar">
                 <div class="progress-bar-fill" style="width: {{ item.progress }}%"></div>
             </div>
+        </div>
+        {% elif item.status == 'rate_limited' %}
+        <div class="mt-3 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+            <div class="flex items-center gap-2 text-sm text-amber-400">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="font-medium">Waiting for API quota reset</span>
+            </div>
+            {% if item.next_retry_at %}
+            <p class="text-xs text-amber-400/70 mt-1 ml-6">Scheduled retry: {{ item.next_retry_at }}</p>
+            {% endif %}
+            {% if item.error_message %}
+            <p class="text-xs text-text-muted mt-2 ml-6 truncate" title="{{ item.error_message }}">{{
+                item.error_message[:100] }}...</p>
+            {% endif %}
         </div>
         {% endif %}
     </div>

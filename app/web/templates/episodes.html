@@ -382,6 +382,11 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     }
 
+    /* Fix: Ensure hidden class overrides list view display */
+    #episodes-grid[data-view="list"] .episode-card.hidden {
+        display: none !important;
+    }
+
     /* Column Styles (Desktop Default) */
     #episodes-grid[data-view="list"] .episode-card>div:first-child {
         grid-area: check;
@@ -623,6 +628,12 @@
                     class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[8px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors">
                     <span class="w-1 h-1 rounded-full bg-red-400"></span>
                     FAILED
+                </span>
+                {% elif ep.status == 'rate_limited' %}
+                <span
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none">
+                    <span class="w-1 h-1 rounded-full bg-amber-400"></span>
+                    RATE LIMITED
                 </span>
                 {% endif %}
                 <span class="block mt-5">{{ ep.title }}{% if ep.listen_count and ep.listen_count > 0 %} <span
@@ -885,6 +896,8 @@
             statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[8px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors"><span class="w-1 h-1 rounded-full bg-slate-400"></span>DELETED</span>`;
         } else if (status === 'failed') {
             statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[8px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors"><span class="w-1 h-1 rounded-full bg-red-400"></span>FAILED</span>`;
+        } else if (status === 'rate_limited') {
+            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none"><span class="w-1 h-1 rounded-full bg-amber-400"></span>RATE LIMITED</span>`;
         }
 
         // Play count badge

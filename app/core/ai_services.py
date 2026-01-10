@@ -11,6 +11,40 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
+class RateLimitError(Exception):
+    """Custom exception for API rate limit errors with retry timing info."""
+    
+    def __init__(self, message: str, is_daily_limit: bool = True, provider: str = "gemini"):
+        super().__init__(message)
+        self.is_daily_limit = is_daily_limit  # True = wait until midnight PT, False = short retry
+        self.provider = provider
+        self.original_message = message
+    
+    def get_next_retry_time(self):
+        """Calculate appropriate retry time based on limit type."""
+        from datetime import datetime, timedelta
+        try:
+            from zoneinfo import ZoneInfo
+        except ImportError:
+            # Fallback for older Python
+            import pytz
+            ZoneInfo = lambda tz: pytz.timezone(tz)
+        
+        if self.is_daily_limit:
+            # Daily limit: retry at midnight Pacific Time + 5 min buffer
+            pacific = ZoneInfo('America/Los_Angeles')
+            now_pt = datetime.now(pacific)
+            # Next midnight
+            midnight_pt = now_pt.replace(hour=0, minute=5, second=0, microsecond=0)
+            if midnight_pt <= now_pt:
+                midnight_pt += timedelta(days=1)
+            # Convert to naive UTC for database storage
+            return midnight_pt.astimezone(ZoneInfo('UTC')).replace(tzinfo=None)
+        else:
+            # Per-minute limit: short 2-minute retry
+            return datetime.now() + timedelta(minutes=2)
+
 class Transcriber:
     def __init__(self):
         self.model = None
@@ -228,23 +262,89 @@ class LLMProvider:
             return {"status": "error", "error": str(e)}
 
 class GeminiProvider(LLMProvider):
-    def __init__(self, api_key: str, model_cascade: List[str]):
-        self.client = genai.Client(api_key=api_key)
+    def __init__(self, api_keys: List[str], model_cascade: List[str]):
+        self.api_keys = api_keys
+        self.current_key_idx = 0
         self.cascade = model_cascade
+        self._init_client()
+
+    def _init_client(self):
+        key = self.api_keys[self.current_key_idx]
+        # masking key in logs for security
+        masked = key[:4] + "..." + key[-4:] if len(key) > 8 else "***"
+        logger.info(f"Gemini: Initializing client with key #{self.current_key_idx + 1} ({masked})")
+        self.client = genai.Client(api_key=key)
+
+    def _rotate_key(self) -> bool:
+        """Switch to the next available API key if possible."""
+        if self.current_key_idx + 1 < len(self.api_keys):
+            self.current_key_idx += 1
+            logger.warning(f"Gemini: Rate limit hit. Rotating to key #{self.current_key_idx + 1}...")
+            self._init_client()
+            return True
+        logger.error("Gemini: Rate limit hit and no more keys available.")
+        return False
 
     def generate(self, prompt: str) -> str:
+        """
+        Generate content using the model cascade.
+        Failover logic: Try all models in cascade with current key, then rotate to next key and retry.
+        """
         last_error = None
-        for model_name in self.cascade:
-            try:
-                logger.info(f"Gemini: Trying model {model_name}...")
-                response = self.client.models.generate_content(
-                    model=model_name,
-                    contents=prompt
-                )
-                return response.text
-            except Exception as e:
-                logger.warning(f"Gemini model {model_name} failed: {e}")
-                last_error = e
+        
+        # Outer loop: iterate through available keys
+        while True:
+            all_rate_limited = True  # Track if all models hit rate limits on this key
+            
+            for model_name in self.cascade:
+                try:
+                    logger.info(f"Gemini: Trying model {model_name} with key #{self.current_key_idx + 1}...")
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=prompt
+                    )
+                    return response.text
+                except Exception as e:
+                    error_str = str(e).lower()
+                    last_error = e
+                    
+                    # Check for rate limit indicators
+                    rate_limit_patterns = [
+                        'resource_exhausted', 
+                        'quota exceeded', 
+                        'rate limit', 
+                        '429', 
+                        'too many requests',
+                        'resourceexhausted'
+                    ]
+                    is_rate_limit = any(pattern in error_str for pattern in rate_limit_patterns)
+                    
+                    if is_rate_limit:
+                        logger.warning(f"Gemini model {model_name} rate limited on key #{self.current_key_idx + 1}: {e}")
+                        # Continue to try next model in cascade with same key
+                    else:
+                        # Non-rate-limit error - this model just failed, try next model
+                        logger.warning(f"Gemini model {model_name} failed: {e}")
+                        all_rate_limited = False
+            
+            # All models in cascade exhausted for this key
+            # If at least one model failed for non-rate-limit reasons, we've truly failed
+            # If all were rate-limited, try rotating to next key
+            if all_rate_limited:
+                if self._rotate_key():
+                    logger.info(f"Gemini: Retrying all models with key #{self.current_key_idx + 1}...")
+                    continue  # Retry the cascade with new key
+                else:
+                    # No more keys available
+                    raise RateLimitError(
+                        f"Gemini API rate limit exceeded on all keys and all models. Last error: {last_error}",
+                        is_daily_limit=True,
+                        provider="gemini"
+                    )
+            else:
+                # Some models failed for non-rate-limit reasons - don't bother rotating key
+                break
+        
         raise Exception(f"All Gemini models failed. Last error: {last_error}")
         
     def list_models(self) -> List[str]:
@@ -367,14 +467,23 @@ class AdDetector:
     def create_provider(self, provider_type: str, api_key: str = None, model: str = None, openrouter_key: str = None) -> LLMProvider:
         """Factory to create a provider instance."""
         
-        # Resolve keys
         # Resolve keys (DB Overrides Env)
         if not api_key:
-            # 1. Try DB first (passed via create_provider or from self.settings lookup if we did that earlier)
-            # Actually, create_provider is called with args, but let's check self.settings if api_key is None/params not sufficient
-            
             db_key = None
-            if provider_type == 'gemini': db_key = self.settings.get('gemini_api_key')
+            if provider_type == 'gemini':
+                # For Gemini, try the new gemini_api_keys (JSON array) first
+                db_keys_json = self.settings.get('gemini_api_keys')
+                if db_keys_json:
+                    try:
+                        parsed = json.loads(db_keys_json)
+                        if isinstance(parsed, list) and len(parsed) > 0:
+                            # Return first key for compatibility, but full list used below
+                            db_key = parsed[0]
+                    except:
+                        pass
+                # Fallback to legacy single key field
+                if not db_key:
+                    db_key = self.settings.get('gemini_api_key')
             elif provider_type == 'openai': db_key = self.settings.get('openai_api_key')
             elif provider_type == 'anthropic': db_key = self.settings.get('anthropic_api_key')
             elif provider_type == 'openrouter': db_key = self.settings.get('openrouter_api_key')
@@ -423,9 +532,36 @@ class AdDetector:
             return OpenAIProvider(api_key, models_list, base_url="https://openrouter.ai/api/v1")
             
         else: # Gemini
-            # For Gemini, we might have passed models_list if 'model' arg was used,
-            # otherwise we default.
-            return GeminiProvider(api_key, models_list)
+            # For Gemini, build the full keys list from all sources
+            api_keys = []
+            
+            # 1. DB keys (gemini_api_keys JSON array)
+            db_keys_json = self.settings.get('gemini_api_keys')
+            if db_keys_json:
+                try:
+                    parsed = json.loads(db_keys_json)
+                    if isinstance(parsed, list):
+                        api_keys.extend([k for k in parsed if k and k.strip()])
+                except:
+                    pass
+            
+            # 2. Legacy single key from DB
+            legacy_key = self.settings.get('gemini_api_key')
+            if legacy_key and legacy_key not in api_keys:
+                api_keys.append(legacy_key)
+            
+            # 3. Environment variable (can be comma-separated)
+            if settings.GEMINI_API_KEY:
+                env_keys = [k.strip() for k in settings.GEMINI_API_KEY.split(',') if k.strip()]
+                for k in env_keys:
+                    if k not in api_keys:
+                        api_keys.append(k)
+            
+            # If still no keys, use the api_key that was resolved above
+            if not api_keys:
+                api_keys = [api_key]
+                
+            return GeminiProvider(api_keys, models_list)
 
     def _get_provider(self) -> LLMProvider:
         # Use current settings
@@ -586,18 +722,36 @@ class AdDetector:
     # Static method to list Gemini models
     @staticmethod
     def list_gemini_models():
-        # Priority: DB > Env
-        api_key = settings.GEMINI_API_KEY
+        # Priority: DB (gemini_api_keys) > DB (gemini_api_key) > Env
+        api_key = None
         try:
             from app.infra.database import get_db_connection
             with get_db_connection() as conn:
-                row = conn.execute("SELECT gemini_api_key FROM app_settings WHERE id = 1").fetchone()
-                if row and row['gemini_api_key']:
-                    api_key = row['gemini_api_key']
+                row = conn.execute("SELECT gemini_api_keys, gemini_api_key FROM app_settings WHERE id = 1").fetchone()
+                if row:
+                    # Try new multi-key field first
+                    if row['gemini_api_keys']:
+                        try:
+                            parsed = json.loads(row['gemini_api_keys'])
+                            if isinstance(parsed, list) and len(parsed) > 0:
+                                api_key = parsed[0]
+                        except:
+                            pass
+                    # Fallback to legacy single key
+                    if not api_key and row['gemini_api_key']:
+                        api_key = row['gemini_api_key']
         except: pass
+        
+        # Fallback to env
+        if not api_key:
+            api_key = settings.GEMINI_API_KEY
 
         if not api_key:
             return []
+            
+        # Handle env variable with multiple comma-separated keys (use first one)
+        if ',' in api_key:
+            api_key = api_key.split(',')[0].strip()
             
         try:
             genai.configure(api_key=api_key)
@@ -612,8 +766,17 @@ class AdDetector:
             
     def has_valid_config(self) -> bool:
         """Check if any API provider is configured via DB or Env."""
-        # Check Gemini
-        if self.settings.get('gemini_api_key') or settings.GEMINI_API_KEY: return True
+        # Check Gemini - both new multi-key and legacy single-key fields
+        gemini_keys_json = self.settings.get('gemini_api_keys')
+        if gemini_keys_json:
+            try:
+                parsed = json.loads(gemini_keys_json)
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    return True
+            except:
+                pass
+        if self.settings.get('gemini_api_key') or settings.GEMINI_API_KEY: 
+            return True
         
         # Check others
         s = self.settings
