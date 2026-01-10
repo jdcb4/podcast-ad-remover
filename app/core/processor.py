@@ -188,6 +188,25 @@ class Processor:
                 update_path(ep.report_path),
                 episode_id
             ))
+            
+            # Insert placeholder for old GUID to prevent re-downloading
+            try:
+                conn.execute("""
+                    INSERT INTO episodes (subscription_id, guid, title, pub_date, original_url, duration, description, status, file_size)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'ignored', 0)
+                """, (
+                    ep.subscription_id, 
+                    old_guid, 
+                    old_title, 
+                    ep.pub_date, 
+                    ep.original_url, 
+                    ep.duration, 
+                    ep.description
+                ))
+                logger.info(f"Created placeholder for old GUID: {old_guid}")
+            except Exception as e:
+                logger.warning(f"Failed to create placeholder for old GUID {old_guid}: {e}")
+
             conn.commit()
 
         logger.info(f"Metadata and Title updated for episode {episode_id}")

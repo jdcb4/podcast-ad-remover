@@ -124,6 +124,8 @@
                     <span class="badge-info animate-pulse">Processing</span>
                     {% elif ep.status == 'rate_limited' %}
                     <span class="badge-warning">Rate Limited</span>
+                    {% elif ep.status == 'failed' %}
+                    <span class="badge-secondary">Retry Pending</span>
                     {% else %}
                     <span class="badge-neutral">Queued</span>
                     {% endif %}

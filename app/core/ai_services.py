@@ -303,7 +303,7 @@ class GeminiProvider(LLMProvider):
                         model=model_name,
                         contents=prompt
                     )
-                    return response.text
+                    return response.text if response.text else ""
                 except Exception as e:
                     error_str = str(e).lower()
                     last_error = e
