@@ -1,17 +1,51 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex flex-col md:flex-row gap-6">
-    <!-- Sidebar -->
-    <aside class="w-full md:w-64 flex-shrink-0">
-        <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
-            <div class="p-4 bg-gray-50 border-b">
-                <h2 class="font-semibold text-gray-700">Admin Area</h2>
+<div class="flex min-h-[calc(100vh-80px)] relative">
+
+    <!-- Mobile Drawer Overlay -->
+    <div id="admin-overlay" class="admin-drawer-overlay md:hidden" onclick="closeAdminDrawer()"></div>
+
+    <!-- Sidebar / Drawer -->
+    <aside id="admin-sidebar"
+        class="admin-drawer md:relative md:translate-x-0 md:w-64 md:shadow-none md:border-r md:border-white/[0.06] md:bg-transparent">
+
+        <!-- Close button (mobile only) -->
+        <button onclick="closeAdminDrawer()"
+            class="md:hidden absolute top-4 right-4 p-2 text-text-secondary hover:text-text-primary rounded-xl hover:bg-white/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Close menu">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+
+        <div class="p-4 pt-16 md:pt-4 h-full overflow-y-auto">
+            <!-- Admin Header -->
+            <div class="bg-surface-elevated border border-white/[0.08] rounded-2xl p-5 mb-6 relative overflow-hidden">
+                <!-- Subtle accent line -->
+                <div
+                    class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary-500 via-accent-500 to-primary-500">
+                </div>
+                <h2 class="font-display font-bold text-lg flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                    Admin Panel
+                </h2>
+                <p class="text-sm text-text-muted mt-1">System settings & controls</p>
             </div>
-            <nav class="flex flex-col p-2 space-y-1">
+
+            <nav class="space-y-1">
                 <a href="/admin/queue"
-                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if active_tab == 'queue' %}bg-blue-50 text-blue-700{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
-                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="{% if active_tab == 'queue' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                         </path>
@@ -20,8 +54,9 @@
                 </a>
 
                 <a href="/admin/system"
-                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if active_tab == 'system' %}bg-blue-50 text-blue-700{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
-                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="{% if active_tab == 'system' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
                         </path>
@@ -31,9 +66,9 @@
                     System Settings
                 </a>
 
-                <a href="/admin/ai"
-                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if active_tab == 'ai' %}bg-blue-50 text-blue-700{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
-                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="/admin/ai" class="{% if active_tab == 'ai' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
                         </path>
@@ -42,18 +77,20 @@
                 </a>
 
                 <a href="/admin/global-subscription-settings"
-                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if active_tab == 'global_subs' %}bg-blue-50 text-blue-700{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
-                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="{% if active_tab == 'global_subs' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
                         </path>
                     </svg>
-                    Global Subscription Settings
+                    Global Settings
                 </a>
 
                 <a href="/admin/prompts"
-                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if active_tab == 'prompts' %}bg-blue-50 text-blue-700{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
-                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="{% if active_tab == 'prompts' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
                         </path>
@@ -61,11 +98,11 @@
                     Prompt Rules
                 </a>
 
-                <div class="border-t my-2"></div>
+                <div class="border-t border-white/[0.06] my-4"></div>
 
-                <a href="/admin/logs"
-                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if active_tab == 'logs' %}bg-blue-50 text-blue-700{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
-                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="/admin/logs" class="{% if active_tab == 'logs' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
                         </path>
@@ -74,8 +111,9 @@
                 </a>
 
                 <a href="/admin/access"
-                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if active_tab == 'access' %}bg-blue-50 text-blue-700{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
-                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="{% if active_tab == 'access' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
                         </path>
@@ -90,28 +128,25 @@
         </div>
     </aside>
 
+    <!-- Mobile FAB -->
+    <button id="admin-fab" onclick="openAdminDrawer()" class="admin-fab md:hidden" aria-label="Open admin menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+    </button>
+
     <!-- Content Area -->
-    <div class="flex-1">
+    <div class="flex-1 min-w-0 p-4 md:p-6 lg:p-8">
         {% if request.query_params.get('success') %}
-        <div class="mb-6 bg-green-50 border-l-4 border-green-400 p-4 shadow-sm animate-fade-in-down" role="alert">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                        fill="currentColor">
-                        <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium text-green-800">
-                        {{ request.query_params.get('success') }}
-                    </p>
-                </div>
-            </div>
+        <div class="alert-success mb-6 animate-fade-in" role="alert">
+            <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd" />
+            </svg>
+            <span>{{ request.query_params.get('success') }}</span>
         </div>
-        <script>
-            // Auto-dismiss after 5 seconds
+        <script nonce="{{ csp_nonce }}">
             setTimeout(function () {
                 const alert = document.querySelector('[role="alert"]');
                 if (alert) {
@@ -123,9 +158,31 @@
         </script>
         {% endif %}
 
-        <div class="bg-white rounded-lg shadow-sm border p-6">
-            {% block admin_content %}{% endblock %}
+        <div class="max-w-6xl">
+            <div class="card">
+                {% block admin_content %}{% endblock %}
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    function openAdminDrawer() {
+        document.getElementById('admin-sidebar').classList.add('open');
+        document.getElementById('admin-overlay').classList.add('open');
+        document.getElementById('admin-fab').style.display = 'none';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAdminDrawer() {
+        document.getElementById('admin-sidebar').classList.remove('open');
+        document.getElementById('admin-overlay').classList.remove('open');
+        document.getElementById('admin-fab').style.display = 'flex';
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAdminDrawer();
+    });
+</script>
 {% endblock %}

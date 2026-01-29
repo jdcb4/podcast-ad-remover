@@ -1,98 +1,98 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Config Warning -->
 {% if config_warning %}
-<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-    <div class="flex">
-        <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                fill="currentColor">
-                <path fill-rule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clip-rule="evenodd" />
-            </svg>
-        </div>
-        <div class="ml-3">
-            <p class="text-sm text-yellow-700">
-                <span class="font-bold">No AI Provider Configured!</span>
-                Processing will fail until you configure an API key (Gemini, OpenAI, etc) in
-                <a href="/admin/ai" class="font-medium underline text-yellow-700 hover:text-yellow-600">Settings > AI
-                    Models</a>.
-            </p>
-        </div>
+<div class="alert-warning mb-6">
+    <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd"
+            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+            clip-rule="evenodd" />
+    </svg>
+    <div>
+        <span class="font-bold">No AI Provider Configured!</span>
+        Processing will fail until you configure an API key in
+        <a href="/admin/ai" class="underline hover:no-underline">Settings > AI Models</a>.
     </div>
 </div>
 {% endif %}
-<div class="bg-white p-6 rounded-lg shadow-md mb-6">
-    <h2 class="text-xl font-semibold mb-4">Add Subscription</h2>
+
+<!-- Search & Stats Card -->
+<div class="card mb-8">
+    <h2 class="font-display text-2xl sm:text-3xl font-bold mb-6">Add Subscription</h2>
 
     <!-- Search -->
-    <div class="mb-4">
+    <div class="mb-8">
         <div class="flex flex-col sm:flex-row gap-3">
-            <input type="text" id="search-input" placeholder="Search Podcasts..." aria-label="Search Podcasts"
-                class="flex-1 p-3 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-base">
-            <button onclick="searchPodcasts()"
-                class="bg-gray-600 text-white px-6 py-3 rounded hover:bg-gray-700 transition min-h-[44px] font-medium">
+            <div class="relative flex-1">
+                <input type="text" id="search-input" placeholder="Search for podcasts..." aria-label="Search Podcasts"
+                    class="input-lg pl-12">
+                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+            <button onclick="searchPodcasts()" class="btn-primary">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
                 Search
             </button>
         </div>
-        <div id="search-results" class="mb-6 grid gap-4 mt-4"></div>
+        <div id="search-results" class="mt-4 space-y-3"></div>
     </div>
 
-    <!-- Stats Panel -->
-    <div class="border-t mt-6 pt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-        <div class="bg-gray-50 p-3 rounded">
-            <div class="text-2xl font-bold text-blue-600">{{ stats.podcasts }}</div>
-            <div class="text-xs text-gray-500 uppercase">Podcasts</div>
-        </div>
-        <div class="bg-gray-50 p-3 rounded">
-            <div class="text-2xl font-bold text-blue-600">{{ stats.episodes }}</div>
-            <div class="text-xs text-gray-500 uppercase">Episodes</div>
-        </div>
-        <div class="bg-gray-50 p-3 rounded">
-            <div class="text-2xl font-bold text-blue-600">{{ stats.hours }}</div>
-            <div class="text-xs text-gray-500 uppercase">Hours</div>
-        </div>
-        <div class="bg-gray-50 p-3 rounded">
-            <div class="text-2xl font-bold text-blue-600">{{ stats.size_gb }}</div>
-            <div class="text-xs text-gray-500 uppercase">GB Saved</div>
+    <!-- Stats Grid -->
+    <div class="border-t border-white/[0.06] pt-8">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="stat-card text-center">
+                <div class="stat-value">{{ stats.podcasts }}</div>
+                <div class="stat-label">Podcasts</div>
+            </div>
+            <div class="stat-card text-center">
+                <div class="stat-value">{{ stats.episodes }}</div>
+                <div class="stat-label">Episodes</div>
+            </div>
+            <div class="stat-card text-center">
+                <div class="stat-value">{{ stats.hours }}</div>
+                <div class="stat-label">Hours</div>
+            </div>
+            <div class="stat-card text-center">
+                <div class="stat-value">{{ stats.size_gb }}</div>
+                <div class="stat-label">GB Saved</div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Processing Queue Section (only shows if there are items) -->
+<!-- Processing Queue -->
 {% if queue %}
-<div class="bg-white p-6 rounded-lg shadow-md mb-6">
-    <!-- Auto-Refresh Controls -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-        <div class="flex items-center gap-2 flex-wrap">
-            <div class="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-            <h2 class="text-lg sm:text-xl font-semibold">Actively processing</h2>
-            <span class="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded">{{ queue|length }}
-                items</span>
+<div class="card mb-8">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <div class="flex items-center gap-3">
+            <div class="w-3 h-3 bg-primary-500 rounded-full animate-pulse"></div>
+            <h2 class="font-display text-xl font-bold">Actively processing</h2>
+            <span class="badge-info">{{ queue|length }} items</span>
         </div>
-        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-            <div
-                class="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-md border shadow-sm w-full sm:w-auto justify-between sm:justify-start">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center text-sm bg-surface-base px-3 py-2 rounded-xl border border-white/[0.08]">
                 <label class="flex items-center cursor-pointer mr-3">
                     <input type="checkbox" id="auto-refresh-toggle" checked
-                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2 transition cursor-pointer w-5 h-5">
-                    <span class="font-medium">Auto</span>
+                        class="rounded border-white/20 bg-surface-base text-primary-500 focus:ring-primary-500 mr-2 w-4 h-4">
+                    <span class="text-text-secondary">Auto</span>
                 </label>
-                <div class="flex items-center">
-                    <input type="number" id="refresh-interval" value="30" min="5" max="300"
-                        class="w-10 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-blue-600 appearance-none"
-                        style="-moz-appearance: textfield;">
-                    <span class="mr-2 text-gray-400">s</span>
-                    <span
-                        class="text-xs font-mono font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full min-w-[3rem] text-center"
-                        id="refresh-countdown">30s</span>
-                </div>
+                <input type="number" id="refresh-interval" value="30" min="5" max="300"
+                    class="w-10 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-primary-400 appearance-none"
+                    style="-moz-appearance: textfield;">
+                <span class="text-text-muted mr-2">s</span>
+                <span
+                    class="text-xs font-mono font-bold bg-primary-500/20 text-primary-400 px-2.5 py-1 rounded-full min-w-[3rem] text-center"
+                    id="refresh-countdown">30s</span>
             </div>
-
-            <a href="/"
-                class="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center font-medium bg-white px-3 py-2 rounded-md border hover:bg-gray-50 transition shadow-sm min-h-[44px]">
-                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="/" class="btn-secondary btn-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
                     </path>
@@ -101,47 +101,52 @@
             </a>
         </div>
     </div>
-    <button onclick="toggleQueue()" class="flex items-center justify-between w-full text-left">
-        <div class="flex items-center gap-3">
-            <span class="text-gray-600">Show/Hide Details</span>
-        </div>
-        <svg id="queue-chevron" class="w-5 h-5 text-gray-500 transform transition-transform" fill="none"
+
+    <button onclick="toggleQueue()"
+        class="flex items-center justify-between w-full text-left py-2 text-text-secondary hover:text-text-primary transition-colors">
+        <span>Show/Hide Details</span>
+        <svg id="queue-chevron" class="w-5 h-5 transform transition-transform rotate-180" fill="none"
             stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
         </svg>
     </button>
-    <div id="queue-content" class="mt-4 hidden">
-        <div class="space-y-2">
-            {% for ep in queue %}
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded border">
+
+    <div id="queue-content" class="mt-4 space-y-3">
+        {% for ep in queue %}
+        <div class="p-4 bg-surface-elevated rounded-xl border border-white/[0.06]">
+            <div class="flex items-start justify-between mb-2">
                 <div class="flex-1 min-w-0 mr-4">
                     <p class="font-medium text-sm truncate">{{ ep.title }}</p>
-                    <p class="text-xs text-gray-500">{{ ep.podcast_title }}</p>
+                    <p class="text-xs text-text-muted">{{ ep.podcast_title }}</p>
                 </div>
-                <div class="flex items-center gap-2 min-w-[200px]">
+                <div class="flex-shrink-0">
                     {% if ep.status == 'processing' %}
-                    <div class="flex-1 flex flex-col items-end">
-                        <span class="text-xs font-medium text-blue-700 truncate max-w-[300px] mb-1">
-                            {{ ep.processing_step or 'Processing...' }}
-                        </span>
-                        <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                            <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
-                                style="width: {{ ep.progress or 0 }}%"></div>
-                        </div>
-                    </div>
+                    <span class="badge-info animate-pulse">Processing</span>
+                    {% elif ep.status == 'rate_limited' %}
+                    <span class="badge-warning">Rate Limited</span>
+                    {% elif ep.status == 'failed' %}
+                    <span class="badge-secondary">Retry Pending</span>
                     {% else %}
-                    <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded ml-auto">Pending</span>
+                    <span class="badge-neutral">Queued</span>
                     {% endif %}
                 </div>
             </div>
-            {% endfor %}
+            {% if ep.status == 'processing' and ep.processing_step %}
+            <div class="mt-3">
+                <div class="flex justify-between items-center text-xs mb-1.5">
+                    <span class="text-primary-400 font-medium">{{ ep.processing_step }}</span>
+                    <span class="text-text-muted">{{ ep.progress }}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: {{ ep.progress }}%"></div>
+                </div>
+            </div>
+            {% endif %}
         </div>
-        <div class="mt-4 text-right">
-            <a href="/admin/queue" class="text-blue-600 hover:underline text-sm">View Full Queue →</a>
-        </div>
+        {% endfor %}
     </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
     function toggleQueue() {
         const content = document.getElementById('queue-content');
         const chevron = document.getElementById('queue-chevron');
@@ -149,145 +154,224 @@
         chevron.classList.toggle('rotate-180');
     }
 </script>
-<script>
-    // Auto-expand if processing
-    if (document.querySelector('.animate-pulse')) {
-        const content = document.getElementById('queue-content');
-        const chevron = document.getElementById('queue-chevron');
-        if (content && chevron) {
-            content.classList.remove('hidden');
-            chevron.classList.add('rotate-180');
-        }
-    }
-</script>
 {% endif %}
 
-
+<!-- Unified RSS Feed -->
 {% if subscriptions %}
-<div class="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-6 border-t-4 border-blue-600">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-            <h3 class="text-lg sm:text-xl font-bold text-black">Unified RSS Feed</h3>
-            <p class="text-black text-sm">Subscribe to all your ad-free podcasts in a single feed.</p>
+<div class="card mb-8 border-l-4 border-primary-500">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6 text-center md:text-left">
+        <div class="flex flex-col items-center md:items-start">
+            <h3 class="font-display text-xl font-bold flex items-center gap-2">
+                <svg class="w-5 h-5 text-primary-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19 7.38 20 6.18 20C5 20 4 19 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1Z" />
+                </svg>
+                Unified RSS Feed
+            </h3>
+            <p class="text-text-secondary text-sm mt-1">Subscribe to all podcasts in one feed</p>
         </div>
-        <div class="flex flex-nowrap gap-2 overflow-x-auto scrollbar-hide">
-            <a href="{{ unified_links.direct }}"
-                class="text-xs bg-orange-600 text-white px-3 py-1.5 rounded hover:bg-orange-700 whitespace-nowrap min-h-[32px] flex items-center">Direct</a>
-            <a href="{{ unified_links.pocket_casts }}"
-                class="text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 whitespace-nowrap min-h-[32px] flex items-center">Pocket</a>
-            <a href="/subscribe/apple?url={{ unified_links.apple | urlencode }}"
-                class="text-xs bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 whitespace-nowrap min-h-[32px] flex items-center">Apple</a>
-            <a href="{{ unified_links.overcast }}"
-                class="text-xs bg-orange-600 text-white px-3 py-1.5 rounded hover:bg-orange-700 whitespace-nowrap min-h-[32px] flex items-center">Overcast</a>
-            <a href="{{ unified_links.castbox }}"
-                class="text-xs bg-orange-400 text-white px-3 py-1.5 rounded hover:bg-orange-500 whitespace-nowrap min-h-[32px] flex items-center">Castbox</a>
-            <a href="{{ unified_links.podcast_addict }}"
-                class="text-xs bg-teal-600 text-white px-3 py-1.5 rounded hover:bg-teal-700 whitespace-nowrap min-h-[32px] flex items-center">Addict</a>
+        <div class="flex flex-wrap gap-3 justify-center md:justify-start items-center">
+            <a href="{{ unified_links.direct }}" class="badge-soft hover:glow-primary"
+                style="padding: 0 16px; height: 24px; line-height: 24px;">Direct</a>
+            <a href="{{ unified_links.pocket_casts }}" class="badge-soft"
+                style="padding: 0 16px; height: 24px; line-height: 24px;">Pocket Casts</a>
+            <a href="/subscribe/apple?url={{ unified_links.apple | urlencode }}" class="badge-soft"
+                style="padding: 0 16px; height: 24px; line-height: 24px;">Apple</a>
+            <a href="{{ unified_links.overcast }}" class="badge-soft"
+                style="padding: 0 16px; height: 24px; line-height: 24px;">Overcast</a>
+            <a href="{{ unified_links.castbox }}" class="badge-soft"
+                style="padding: 0 16px; height: 24px; line-height: 24px;">Castbox</a>
+            <a href="{{ unified_links.podcast_addict }}" class="badge-soft"
+                style="padding: 0 16px; height: 24px; line-height: 24px;">Podcast Addict</a>
         </div>
     </div>
 </div>
 {% endif %}
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    {% for item in subscriptions %}
-    <div class="bg-white p-4 rounded-lg shadow-md flex flex-col h-full">
-        <div class="flex items-start gap-4 mb-3">
-            {% if item.sub.image_url %}
-            <img src="{{ item.sub.image_url }}" alt="{{ item.sub.title }}"
-                class="w-16 h-16 object-cover rounded shadow-sm flex-shrink-0">
-            {% endif %}
-            <div class="flex-1 min-w-0">
-                <h3 class="text-lg font-bold truncate" title="{{ item.sub.title }}">
-                    <a href="/subscriptions/{{ item.sub.id }}" class="hover:underline">{{ item.sub.title }}</a>
-                </h3>
-                <p class="text-gray-500 text-[11px] truncate">{{ item.sub.feed_url }}</p>
+<!-- Podcast Filter Toolbar -->
+{% if subscriptions %}
+<div class="flex flex-wrap items-center gap-3 mb-6 bg-surface-elevated rounded-xl border border-white/[0.08] p-3">
+    <input type="text" id="podcast-search" placeholder="Search podcasts..."
+        class="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-surface-base border border-white/[0.1] text-white placeholder:text-text-muted focus:border-primary-500 outline-none text-sm">
 
-                <div class="mt-2 h-12 overflow-hidden cursor-pointer group" title="Click to expand"
-                    onclick="this.classList.toggle('h-12'); this.classList.toggle('overflow-hidden'); const p = this.querySelector('p'); if(p) p.classList.toggle('line-clamp-3');">
-                    <!-- Fixed height container for description ensures tags align -->
-                    {% if item.sub.description %}
-                    <p
-                        class="text-gray-600 text-[11px] leading-snug line-clamp-3 group-hover:text-gray-900 transition-colors">
-                        {{ item.sub.description | striptags }}
-                    </p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
+    <select id="podcast-filter"
+        class="px-3 py-1.5 rounded-lg bg-surface-base border border-white/[0.1] text-white text-sm cursor-pointer">
+        <option value="all">All Podcasts</option>
+        <option value="downloaded">Episodes Downloaded</option>
+        <option value="processing">Processing</option>
+        <option value="recent">Recently Updated</option>
+    </select>
 
-        <div class="flex flex-nowrap gap-1 mb-4 content-start overflow-x-auto scrollbar-hide">
-            <a href="{{ item.links.pocket_casts }}"
-                class="text-[10px] bg-red-500 text-white px-1 py-0.5 rounded hover:bg-red-600 whitespace-nowrap">Pocket</a>
-            <a href="/subscribe/apple?url={{ item.links.apple | urlencode }}"
-                class="text-[10px] bg-purple-600 text-white px-1 py-0.5 rounded hover:bg-purple-700 whitespace-nowrap">Apple</a>
-            <a href="{{ item.links.overcast }}"
-                class="text-[10px] bg-orange-600 text-white px-1 py-0.5 rounded hover:bg-orange-700 whitespace-nowrap">Overcast</a>
-            <a href="{{ item.links.castbox }}"
-                class="text-[10px] bg-orange-400 text-white px-1 py-0.5 rounded hover:bg-orange-500 whitespace-nowrap">Castbox</a>
-            <a href="{{ item.links.podcast_addict }}"
-                class="text-[10px] bg-teal-600 text-white px-1 py-0.5 rounded hover:bg-teal-700 whitespace-nowrap">Addict</a>
-        </div>
+    <select id="podcast-sort"
+        class="px-3 py-1.5 rounded-lg bg-surface-base border border-white/[0.1] text-white text-sm cursor-pointer">
+        <option value="alpha">A-Z</option>
+        <option value="recent">Most Recent</option>
+        <option value="episodes">Most Episodes</option>
+        <option value="plays">Most Plays</option>
+    </select>
 
-        <!-- Episode List Preview -->
-        <div class="mb-4 border-t pt-3 min-h-[110px]">
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-xs font-bold text-gray-500 uppercase">Episodes ({{ item.episode_count }})</span>
-                <a href="/subscriptions/{{ item.sub.id }}" class="text-xs text-blue-600 hover:underline">View all</a>
-            </div>
-            <ul class="space-y-1.5">
-                {% for ep in item.episodes[:3] %}
-                <li class="flex justify-between items-baseline gap-2">
-                    <span class="text-xs text-gray-700 truncate min-w-0" title="{{ ep.title }}">{{ ep.title }}</span>
-                    <span class="text-[10px] text-gray-400 whitespace-nowrap">
-                        {% if ep.published_date and ep.published_date is string %}
-                        {{ ep.published_date.split(' ')[0] }}
-                        {% elif ep.published_date %}
-                        {{ ep.published_date }}
-                        {% else %}
-                        recently
-                        {% endif %}
-                    </span>
-                </li>
-                {% endfor %}
-                {% if not item.episodes %}
-                <li class="text-xs text-gray-400 italic">No episodes processed yet</li>
-                {% endif %}
-            </ul>
-        </div>
+    <div class="h-6 w-px bg-white/[0.1] mx-1 hidden sm:block"></div>
 
-        <div class="flex justify-between items-center border-t pt-3 mt-auto">
-            <a href="{{ item.links.direct }}" target="_blank"
-                class="text-blue-600 hover:underline text-sm flex items-center gap-1">
-                <span>Direct RSS</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-            </a>
-            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
-        </div>
+    <!-- View Toggles -->
+    <div class="flex items-center bg-surface-base rounded-lg p-1 border border-white/[0.1]">
+        <button type="button" id="view-grid"
+            class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
+            title="Grid View">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                </path>
+            </svg>
+        </button>
+        <button type="button" id="view-list"
+            class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
+            title="List View">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                </path>
+            </svg>
+        </button>
+        <button type="button" id="view-art"
+            class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
+            title="Art View">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                </path>
+            </svg>
+        </button>
     </div>
+
+    <span id="podcast-count" class="text-xs text-text-muted ml-auto hidden sm:inline-block">{{ subscriptions|length }}
+        podcasts</span>
+</div>
+{% endif %}
+
+<!-- Podcast Grid -->
+<div id="podcast-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    {% for item in subscriptions %}
+    <article class="podcast-card" data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}"
+        data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}"
+        data-recent="{{ item.latest_episode_date|default('') }}">
+        <!-- Artwork -->
+        {% if item.sub.image_url %}
+        <div class="podcast-artwork">
+            <img src="{{ item.sub.image_url }}" alt="{{ item.sub.title }}" loading="lazy">
+            <div class="podcast-overlay">
+                <a href="/subscriptions/{{ item.sub.id }}"
+                    class="w-14 h-14 rounded-full bg-primary-500 flex items-center justify-center text-white shadow-glow-md hover:scale-110 transition-transform">
+                    <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Content -->
+        <div class="podcast-content p-5">
+            <h3 class="font-display text-lg font-bold truncate mb-1">
+                <a href="/subscriptions/{{ item.sub.id }}" class="hover:text-primary-400 transition-colors">{{
+                    item.sub.title }}</a>
+            </h3>
+
+            {% if item.sub.description %}
+            <p class="text-sm text-text-secondary line-clamp-2 mb-4">
+                {{ item.sub.description | striptags | truncate(100) }}
+            </p>
+            {% endif %}
+
+            <!-- Client Badges -->
+            {% if item.episode_count > 0 %}
+            <div class="podcast-badges flex flex-wrap gap-2 mb-4">
+                <a href="{{ item.links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
+                <a href="/subscribe/apple?url={{ item.links.apple | urlencode }}" class="badge-soft">Apple</a>
+                <a href="{{ item.links.overcast }}" class="badge-soft">Overcast</a>
+                <a href="{{ item.links.castbox }}" class="badge-soft">Castbox</a>
+                <a href="{{ item.links.podcast_addict }}" class="badge-soft">Podcast Addict</a>
+            </div>
+            {% else %}
+            <div class="mb-4 text-sm text-text-muted italic">
+                Feed links will appear once episodes are processed
+            </div>
+            {% endif %}
+
+            <!-- Episodes Preview -->
+            <div class="border-t border-white/[0.06] pt-4 mb-4">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-text-muted uppercase tracking-wider font-medium">Episodes ({{
+                            item.episode_count }})</span>
+                        {% if item.total_listens and item.total_listens > 0 %}
+                        <span class="text-xs text-primary-400 uppercase tracking-wider font-medium">{{
+                            item.total_listens }} play{% if item.total_listens != 1 %}s{% endif %}</span>
+                        {% endif %}
+                    </div>
+                    <a href="/subscriptions/{{ item.sub.id }}"
+                        class="text-xs text-primary-400 hover:text-primary-300">View all →</a>
+                </div>
+                <ul class="space-y-2">
+                    {% for ep in item.episodes[:3] %}
+                    <li class="flex justify-between items-baseline gap-2">
+                        <span class="text-sm text-text-secondary truncate" title="{{ ep.title }}">{{ ep.title }}</span>
+                        <span class="text-xs text-text-muted whitespace-nowrap">
+                            {% if ep.published_date and ep.published_date is string %}
+                            {{ ep.published_date.split(' ')[0] }}
+                            {% elif ep.published_date %}
+                            {{ ep.published_date }}
+                            {% endif %}
+                        </span>
+                    </li>
+                    {% endfor %}
+                    {% if not item.episodes %}
+                    <li class="text-sm text-text-muted italic">No episodes yet</li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <!-- Footer -->
+            <div class="podcast-footer flex justify-between items-center pt-4 border-t border-white/[0.06]">
+                {% if item.episode_count > 0 %}
+                <a href="{{ item.links.direct }}" target="_blank"
+                    class="text-sm text-primary-400 hover:text-primary-300 flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19 7.38 20 6.18 20C5 20 4 19 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1Z" />
+                    </svg>
+                    RSS Feed
+                </a>
+                {% else %}
+                <span class="text-sm text-text-muted">Waiting for episodes...</span>
+                {% endif %}
+                <span class="badge-success">Active</span>
+            </div>
+        </div>
+    </article>
     {% else %}
-    <div class="col-span-full text-center py-10 text-gray-500">
-        No subscriptions yet. Add one above!
+    <div class="col-span-full text-center py-20">
+        <svg class="w-20 h-20 mx-auto text-text-muted mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z">
+            </path>
+        </svg>
+        <h3 class="font-display text-2xl font-bold text-text-secondary mb-2">No subscriptions yet</h3>
+        <p class="text-text-muted">Search for a podcast above to get started</p>
     </div>
     {% endfor %}
 </div>
 
-<script>
-    // Inject global default from backend
+<script nonce="{{ csp_nonce }}">
     const GLOBAL_RETENTION_DEFAULT = {{ settings.default_retention_limit if settings.default_retention_limit is not none else 1 }};
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     async function searchPodcasts() {
         const query = document.getElementById('search-input').value;
         const resultsDiv = document.getElementById('search-results');
 
         if (!query) return;
 
-        resultsDiv.innerHTML = '<div class="text-center p-4">Searching...</div>';
+        resultsDiv.innerHTML = '<div class="text-center p-4 text-text-secondary">Searching...</div>';
 
         try {
             const res = await fetch('/api/search', {
@@ -299,11 +383,10 @@
 
             resultsDiv.innerHTML = '';
             if (data.length === 0) {
-                resultsDiv.innerHTML = '<div class="text-center p-4">No results found.</div>';
+                resultsDiv.innerHTML = '<div class="text-center p-4 text-text-muted">No results found.</div>';
                 return;
             }
 
-            // Generate options logic
             const limits = [0, 1, 3, 5, 10];
             if (!limits.includes(GLOBAL_RETENTION_DEFAULT)) limits.push(GLOBAL_RETENTION_DEFAULT);
             limits.sort((a, b) => a - b);
@@ -317,62 +400,41 @@
 
             data.forEach(pod => {
                 const el = document.createElement('div');
-                el.className = 'flex items-center gap-4 p-3 border rounded hover:bg-gray-50';
+                el.className = 'flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-surface-base rounded-xl border border-white/[0.06] hover:border-primary-500/30 transition-colors';
                 el.innerHTML = `
-                <img src="${pod.image}" class="w-12 h-12 rounded bg-gray-200">
-                <div class="flex-1 min-w-0">
-                    <h4 class="font-bold truncate">${pod.title}</h4>
-                    <p class="text-xs text-gray-500 truncate">${pod.description}</p>
+                <div class="flex items-center gap-4 flex-1 min-w-0">
+                    <img src="${pod.image}" class="w-14 h-14 shrink-0 rounded-lg object-cover bg-surface-hover">
+                    <div class="min-w-0">
+                        <h4 class="font-bold text-sm sm:truncate">${pod.title}</h4>
+                        <p class="text-xs text-text-muted line-clamp-2 sm:truncate">${pod.description}</p>
+                    </div>
                 </div>
-                <form action="/add" method="post" class="flex items-center gap-2">
+                <form action="/add" method="post" class="flex items-center gap-2 sm:shrink-0">
                     <input type="hidden" name="feed_url" value="${pod.feed_url}">
-                    <select name="initial_count" class="text-sm p-1 border rounded" aria-label="Episodes to download">
+                    <select name="initial_count" class="select text-sm py-2 min-w-[80px]" aria-label="Episodes to download">
                         ${optionsHtml}
                     </select>
-                    <button type="submit" class="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
-                        Add
-                    </button>
+                    <button type="submit" class="btn-primary btn-sm">Add</button>
                 </form>
             `;
                 resultsDiv.appendChild(el);
             });
         } catch (e) {
-            resultsDiv.innerHTML = '<div class="text-red-500 p-4">Search failed.</div>';
+            resultsDiv.innerHTML = '<div class="text-red-400 p-4">Search failed. Please try again.</div>';
         }
     }
 
-    function toggleSummary(subId) {
-        const aiDesc = document.getElementById(`desc-ai-${subId}`);
-        const origDesc = document.getElementById(`desc-orig-${subId}`);
-        const btn = document.getElementById(`btn-summary-${subId}`);
+    // Enter key to search
+    document.getElementById('search-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchPodcasts();
+    });
 
-        if (aiDesc && origDesc && btn) {
-            if (aiDesc.classList.contains('hidden')) {
-                // Show AI
-                aiDesc.classList.remove('hidden');
-                origDesc.classList.add('hidden');
-                btn.textContent = 'Show Original';
-                btn.classList.remove('bg-gray-100', 'text-gray-700');
-                btn.classList.add('bg-purple-100', 'text-purple-700');
-            } else {
-                // Show Original
-                aiDesc.classList.add('hidden');
-                origDesc.classList.remove('hidden');
-                btn.textContent = 'Show AI Summary';
-                btn.classList.add('bg-gray-100', 'text-gray-700');
-                btn.classList.remove('bg-purple-100', 'text-purple-700');
-            }
-        }
-    }
-
-    // Auto-refresh logic for processing queue
     {% if queue %}
     (function () {
         const toggle = document.getElementById('auto-refresh-toggle');
         const intervalInput = document.getElementById('refresh-interval');
         const countdownDisplay = document.getElementById('refresh-countdown');
 
-        // Load settings from localStorage if available
         const savedInterval = localStorage.getItem('dashboard-refresh-interval');
         const savedToggle = localStorage.getItem('dashboard-refresh-enabled');
 
@@ -384,10 +446,8 @@
 
         function updateCountdown() {
             if (!toggle.checked) return;
-
             timeLeft--;
             if (timeLeft <= 0) {
-                // Save state before reload
                 localStorage.setItem('dashboard-refresh-enabled', toggle.checked);
                 localStorage.setItem('dashboard-refresh-interval', intervalInput.value);
                 window.location.reload();
@@ -400,17 +460,15 @@
             if (intervalId) clearInterval(intervalId);
             timeLeft = parseInt(intervalInput.value);
             if (isNaN(timeLeft) || timeLeft < 5) timeLeft = 5;
-
             countdownDisplay.textContent = timeLeft + 's';
-
             if (toggle.checked) {
                 intervalId = setInterval(updateCountdown, 1000);
-                countdownDisplay.classList.remove('bg-gray-100', 'text-gray-400');
-                countdownDisplay.classList.add('bg-blue-100', 'text-blue-700');
+                countdownDisplay.classList.remove('bg-white/5', 'text-text-muted');
+                countdownDisplay.classList.add('bg-primary-500/20', 'text-primary-400');
             } else {
                 countdownDisplay.textContent = 'Off';
-                countdownDisplay.classList.remove('bg-blue-100', 'text-blue-700');
-                countdownDisplay.classList.add('bg-gray-100', 'text-gray-400');
+                countdownDisplay.classList.remove('bg-primary-500/20', 'text-primary-400');
+                countdownDisplay.classList.add('bg-white/5', 'text-text-muted');
             }
         }
 
@@ -421,21 +479,133 @@
 
         intervalInput.onchange = function () {
             let val = parseInt(this.value);
-            if (isNaN(val) || val < 5) {
-                val = 5;
-                this.value = 5;
-            }
-            if (val > 300) {
-                val = 300;
-                this.value = 300;
-            }
+            if (isNaN(val) || val < 5) { val = 5; this.value = 5; }
+            if (val > 300) { val = 300; this.value = 300; }
             localStorage.setItem('dashboard-refresh-interval', val);
             startTimer();
         };
 
-        // Initialize
         startTimer();
     })();
     {% endif %}
+
+    // View Toggle Logic
+    document.addEventListener('DOMContentLoaded', () => {
+        function setView(mode) {
+            const grid = document.getElementById('podcast-grid');
+            if (!grid) return;
+
+            // Set attribute
+            grid.setAttribute('data-view', mode);
+
+            // Save preference
+            try {
+                localStorage.setItem('dashboard-view-mode', mode);
+            } catch (e) {
+                console.warn('Could not save view preference', e);
+            }
+
+            // Update buttons
+            ['grid', 'list', 'art'].forEach(m => {
+                const btn = document.getElementById(`view-${m}`);
+                if (btn) {
+                    if (m === mode) {
+                        btn.classList.add('bg-primary-500', 'text-white');
+                        btn.classList.remove('text-text-muted', 'hover:bg-white/[0.1]');
+                    } else {
+                        btn.classList.remove('bg-primary-500', 'text-white');
+                        btn.classList.add('text-text-muted', 'hover:bg-white/[0.1]');
+                    }
+                }
+            });
+        }
+
+        // Init view
+        const savedView = localStorage.getItem('dashboard-view-mode') || 'grid';
+        setView(savedView);
+
+        // Attach listeners
+        ['grid', 'list', 'art'].forEach(m => {
+            const btn = document.getElementById(`view-${m}`);
+            if (btn) {
+                btn.addEventListener('click', () => setView(m));
+            }
+        });
+    });
+
+    // Podcast Filter/Sort
+    (function () {
+        const searchInput = document.getElementById('podcast-search');
+        const filterSelect = document.getElementById('podcast-filter');
+        const sortSelect = document.getElementById('podcast-sort');
+        const countSpan = document.getElementById('podcast-count');
+        const grid = document.getElementById('podcast-grid');
+        if (!grid) return;
+
+        const cards = Array.from(grid.querySelectorAll('.podcast-card'));
+
+        function applyFiltersAndSort() {
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+            const filterVal = filterSelect ? filterSelect.value : 'all';
+            const sortVal = sortSelect ? sortSelect.value : 'alpha';
+
+            // Calculate 7 days ago for "recently updated" filter
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+            let visibleCards = cards.filter(card => {
+                const title = card.dataset.title || '';
+                const processing = parseInt(card.dataset.processing) || 0;
+                const recentDate = card.dataset.recent ? new Date(card.dataset.recent) : null;
+
+                // Search filter
+                if (searchTerm && !title.includes(searchTerm)) return false;
+
+                // Status filter
+                if (filterVal === 'processing' && processing === 0) return false;
+                if (filterVal === 'downloaded' && (parseInt(card.dataset.episodes) || 0) === 0) return false;
+                if (filterVal === 'recent') {
+                    // Show only podcasts with an episode published in last 7 days
+                    if (!recentDate || recentDate < sevenDaysAgo) return false;
+                }
+
+                return true;
+            });
+
+            // Sort
+            visibleCards.sort((a, b) => {
+                if (sortVal === 'alpha') {
+                    return (a.dataset.title || '').localeCompare(b.dataset.title || '');
+                } else if (sortVal === 'episodes') {
+                    return (parseInt(b.dataset.episodes) || 0) - (parseInt(a.dataset.episodes) || 0);
+                } else if (sortVal === 'plays') {
+                    return (parseInt(b.dataset.listens) || 0) - (parseInt(a.dataset.listens) || 0);
+                } else if (sortVal === 'recent') {
+                    // Sort by newest episode first
+                    const dateA = a.dataset.recent ? new Date(a.dataset.recent) : new Date(0);
+                    const dateB = b.dataset.recent ? new Date(b.dataset.recent) : new Date(0);
+                    return dateB - dateA;
+                }
+                return 0;
+            });
+
+            // Hide all first
+            cards.forEach(c => c.style.display = 'none');
+
+            // Show filtered and reorder
+            visibleCards.forEach(c => {
+                c.style.display = '';
+                grid.appendChild(c);
+            });
+
+            if (countSpan) {
+                countSpan.textContent = visibleCards.length + ' podcast' + (visibleCards.length !== 1 ? 's' : '');
+            }
+        }
+
+        if (searchInput) searchInput.addEventListener('input', applyFiltersAndSort);
+        if (filterSelect) filterSelect.addEventListener('change', applyFiltersAndSort);
+        if (sortSelect) sortSelect.addEventListener('change', applyFiltersAndSort);
+    })();
 </script>
 {% endblock %}

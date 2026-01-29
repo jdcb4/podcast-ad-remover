@@ -230,7 +230,9 @@ Transcript Context: {transcript_context}""",))
         "ALTER TABLE app_settings ADD COLUMN default_retention_limit INTEGER DEFAULT 1",
         "ALTER TABLE app_settings ADD COLUMN default_retention_days INTEGER DEFAULT 30",
         "ALTER TABLE app_settings ADD COLUMN default_manual_retention_days INTEGER DEFAULT 14",
-        "ALTER TABLE app_settings ADD COLUMN default_custom_instructions TEXT"
+        "ALTER TABLE app_settings ADD COLUMN default_custom_instructions TEXT",
+        "ALTER TABLE episodes ADD COLUMN listen_count INTEGER DEFAULT 0",
+        "ALTER TABLE app_settings ADD COLUMN gemini_api_keys TEXT"
     ]
     
     for sql in migrations:

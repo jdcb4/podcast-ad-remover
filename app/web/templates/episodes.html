@@ -2,95 +2,176 @@
 
 {% block content %}
 <div class="mb-6">
-    <a href="/" class="text-blue-600 hover:underline">&larr; Back to Subscriptions</a>
+    <a href="/" class="text-primary-400 hover:text-primary-300 transition-colors">&larr; Back to Subscriptions</a>
 </div>
 
-<div class="bg-white p-4 sm:p-6 rounded-lg shadow-md mb-6">
-    <div class="flex gap-4 sm:gap-6 items-start flex-col md:flex-row">
-        {% if subscription.image_url %}
-        <img src="{{ subscription.image_url }}" alt="{{ subscription.title }}"
-            class="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-lg shadow-sm">
-        {% endif %}
-        <div class="flex-1 w-full">
-            <div class="flex flex-col gap-3 mb-4">
-                <h2 class="text-xl sm:text-2xl font-bold">{{ subscription.title }}</h2>
-                <div class="flex flex-wrap gap-2">
+<div class="card mb-10 overflow-hidden relative group border-0 bg-transparent shadow-none p-0">
+    <!-- Cinematic Header -->
+    <div
+        class="relative overflow-hidden rounded-3xl p-6 md:p-10 border border-white/5 bg-surface-elevated/40 backdrop-blur-none md:backdrop-blur-md">
+        <div class="absolute inset-0 z-0">
+            {% if subscription.image_url %}
+            <div class="hidden md:block absolute inset-0 bg-cover bg-center blur-[100px] opacity-30 scale-125"
+                style="background-image: url('{{ subscription.image_url }}');"></div>
+            {% endif %}
+            <div class="absolute inset-0 bg-gradient-to-br from-bg-surface/90 via-bg-surface/60 to-transparent"></div>
+        </div>
+
+        <div class="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
+            <!-- Artwork and Delete Button (mobile) -->
+            {% if subscription.image_url %}
+            <div class="shrink-0 relative flex flex-col items-center gap-4">
+                <img src="{{ subscription.image_url }}" alt="{{ subscription.title }}"
+                    class="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform duration-500">
+                <div class="absolute inset-0 rounded-2xl ring-inset ring-1 ring-white/20 pointer-events-none"></div>
+            </div>
+            {% endif %}
+
+            <!-- Mobile Delete Button (Between Image and Title) -->
+            <button onclick="deleteSubscription({{ subscription.id }})"
+                class="md:hidden px-6 py-3 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-sm font-bold border border-red-500/20 shadow-lg -mt-4 mb-2"
+                title="Delete Show">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
+                </svg>
+                Delete Show
+            </button>
+
+            <!-- Content -->
+            <div class="flex-1 min-w-0 text-center md:text-left pt-2 pb-2">
+                <div class="mb-4">
+                    <h1
+                        class="font-display text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-4 leading-tight">
+                        {{ subscription.title }}
+                    </h1>
+                    {% if subscription.description %}
+                    <div
+                        class="text-text-secondary leading-relaxed max-w-2xl text-base font-medium opacity-90 line-clamp-3 md:line-clamp-4">
+                        {{ subscription.description | striptags }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-8">
                     <button onclick="checkNow({{ subscription.id }})"
-                        class="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 min-h-[44px]">
-                        Check Updates
+                        class="btn-primary px-8 py-3 rounded-2xl shadow-xl shadow-primary-500/30 hover:shadow-primary-500/50 transition-all font-bold">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                            </path>
+                        </svg>
+                        Refresh Show
                     </button>
-                    <button onclick="deleteSubscription({{ subscription.id }})"
-                        class="inline-flex items-center px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-md hover:bg-red-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 min-h-[44px]">
-                        Delete
-                    </button>
+                    <!-- Listen count -->
+                    <div class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10">
+                        <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z">
+                            </path>
+                        </svg>
+                        <span class="text-sm font-semibold text-white">{{ total_listens }}</span>
+                        <span class="text-xs text-text-muted">plays</span>
+                    </div>
+                    <div class="h-10 w-px bg-white/10 hidden md:block"></div>
+                    <div class="flex gap-2 flex-wrap justify-center md:justify-start">
+                        <a href="{{ links.direct }}" class="btn-secondary px-4 py-2 text-sm font-medium rounded-full"
+                            title="Direct RSS Feed" target="_blank">
+                            Direct
+                        </a>
+                        <a href="pktc://subscribe/{{ links.direct | urlencode }}"
+                            class="btn-secondary px-4 py-2 text-sm font-medium rounded-full"
+                            title="Subscribe on Pocket Casts" target="_blank">
+                            Pocket Casts
+                        </a>
+                        <a href="/subscribe/apple?url={{ links.apple | urlencode }}"
+                            class="btn-secondary px-4 py-2 text-sm font-medium rounded-full"
+                            title="Subscribe on Apple Podcasts" target="_blank">
+                            Apple
+                        </a>
+                        <a href="overcast://x-callback-url/add?url={{ links.direct | urlencode }}"
+                            class="btn-secondary px-4 py-2 text-sm font-medium rounded-full"
+                            title="Subscribe on Overcast" target="_blank">
+                            Overcast
+                        </a>
+                        <a href="https://castbox.fm/vic/{{ links.direct | urlencode }}"
+                            class="btn-secondary px-4 py-2 text-sm font-medium rounded-full"
+                            title="Subscribe on Castbox" target="_blank">
+                            Castbox
+                        </a>
+                        <a href="podcastaddict://subscribe/{{ links.direct | urlencode }}"
+                            class="btn-secondary px-4 py-2 text-sm font-medium rounded-full"
+                            title="Subscribe on Podcast Addict" target="_blank">
+                            Podcast Addict
+                        </a>
+                    </div>
                 </div>
             </div>
-            <p class="text-gray-600 break-all text-sm">{{ subscription.feed_url }}</p>
 
-            <div class="mt-4 flex flex-wrap gap-2 overflow-x-auto scrollbar-hide">
-                <a href="{{ links.direct }}"
-                    class="text-xs bg-orange-600 text-white px-3 py-2 rounded hover:bg-orange-700 whitespace-nowrap min-h-[36px] flex items-center">Direct</a>
-                <a href="{{ links.pocket_casts }}"
-                    class="text-xs bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600 whitespace-nowrap min-h-[36px] flex items-center">Pocket
-                    Casts</a>
-                <a href="/subscribe/apple?url={{ links.apple | urlencode }}"
-                    class="text-xs bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 whitespace-nowrap min-h-[36px] flex items-center">Apple</a>
-                <a href="{{ links.overcast }}"
-                    class="text-xs bg-orange-600 text-white px-3 py-2 rounded hover:bg-orange-700 whitespace-nowrap min-h-[36px] flex items-center">Overcast</a>
-                <a href="{{ links.castbox }}"
-                    class="text-xs bg-orange-400 text-white px-3 py-2 rounded hover:bg-orange-500 whitespace-nowrap min-h-[36px] flex items-center">Castbox</a>
-                <a href="{{ links.podcast_addict }}"
-                    class="text-xs bg-teal-600 text-white px-3 py-2 rounded hover:bg-teal-700 whitespace-nowrap min-h-[36px] flex items-center">Addict</a>
-            </div>
+            <!-- Delete button (desktop only - top right) -->
+            <button onclick="deleteSubscription({{ subscription.id }})"
+                class="hidden md:block absolute top-6 right-6 p-3 text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all"
+                title="Delete Show">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
+                </svg>
+            </button>
         </div>
     </div>
 </div>
 </div>
 
-<div class="bg-white p-6 rounded-lg shadow-md mb-6">
+<div class="card mb-6">
     <div class="flex justify-between items-center mb-4 cursor-pointer"
         onclick="document.getElementById('settings-form').classList.toggle('hidden')">
-        <h3 class="text-xl font-bold">Processing Settings</h3>
-        <span class="text-gray-500 text-sm hover:text-gray-700">Toggle</span>
+        <h3 class="font-display text-xl font-bold">Processing Settings</h3>
+        <span class="text-text-muted text-sm hover:text-text-secondary transition-colors">Toggle</span>
     </div>
 
     <form id="settings-form" action="/subscriptions/{{ subscription.id }}/settings" method="POST" class="hidden">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-4">
-                <h4 class="font-semibold text-gray-700">Content Removal</h4>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_ads" name="remove_ads" value="true" {% if subscription.remove_ads
-                        %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_ads" class="ml-2 text-gray-700">Remove Ads</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_promos" name="remove_promos" value="true" {% if
-                        subscription.remove_promos %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_promos" class="ml-2 text-gray-700">Remove Promos</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_intros" name="remove_intros" value="true" {% if
-                        subscription.remove_intros %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_intros" class="ml-2 text-gray-700">Remove Intros</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_outros" name="remove_outros" value="true" {% if
-                        subscription.remove_outros %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_outros" class="ml-2 text-gray-700">Remove Outros</label>
-                </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+            <div class="space-y-6">
+                <h4 class="font-semibold border-b border-white/[0.08] pb-2">Content Removal</h4>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="remove_ads" value="true" {% if subscription.remove_ads %}checked{%
+                        endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Ads</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="remove_promos" value="true" {% if subscription.remove_promos
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Promos</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="remove_intros" value="true" {% if subscription.remove_intros
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Intros</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="remove_outros" value="true" {% if subscription.remove_outros
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Outros</span>
+                </label>
 
-                <div class="pt-4 border-t border-gray-100">
-                    <h4 class="font-semibold text-gray-700 mb-2">Retention Policy</h4>
-                    <div class="space-y-3">
+                <div class="pt-4 border-t border-white/[0.08]">
+                    <h4 class="font-semibold mb-3">Retention Policy</h4>
+                    <div class="space-y-4">
                         <div>
-                            <label class="block text-sm text-gray-600">Auto-Downloads (Episodes to Keep)</label>
-                            <select name="retention_limit"
-                                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <label class="block text-sm text-text-secondary mb-2">Auto-Downloads (Episodes to
+                                Keep)</label>
+                            <select name="retention_limit" class="select">
                                 <option value="0" {% if subscription.retention_limit==0 %}selected{% endif %}>None
                                     (Manual Only)</option>
                                 <option value="1" {% if (subscription.retention_limit is none or
-                                    subscription.retention_limit==1) %}selected{% endif %}>
-                                    Keep Latest 1 (Default)</option>
+                                    subscription.retention_limit==1) %}selected{% endif %}>Keep Latest 1 (Default)
+                                </option>
                                 <option value="2" {% if subscription.retention_limit==2 %}selected{% endif %}>Keep
                                     Latest 2</option>
                                 <option value="3" {% if subscription.retention_limit==3 %}selected{% endif %}>Keep
@@ -106,9 +187,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm text-gray-600">Manual Downloads</label>
-                            <select name="manual_retention_days"
-                                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <label class="block text-sm text-text-secondary mb-2">Manual Downloads</label>
+                            <select name="manual_retention_days" class="select">
                                 <option value="7" {% if subscription.manual_retention_days==7 %}selected{% endif %}>Keep
                                     7 Days</option>
                                 <option value="14" {% if (subscription.manual_retention_days or 14)==14 %}selected{%
@@ -126,459 +206,1176 @@
             </div>
 
             <div class="space-y-4">
-                <h4 class="font-semibold text-gray-700">Features</h4>
-                <div class="flex items-center">
-                    <input type="checkbox" id="ai_rewrite_description" name="ai_rewrite_description" value="true" {% if
-                        subscription.ai_rewrite_description %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="ai_rewrite_description" class="ml-2 text-gray-700">Rewrite Description (AI Text)</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="ai_audio_summary" name="ai_audio_summary" value="true" {% if
-                        subscription.ai_audio_summary %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="ai_audio_summary" class="ml-2 text-gray-700">Append Audio Summary (AI TTS)</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="append_title_intro" name="append_title_intro" value="true" {% if
-                        subscription.append_title_intro %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="append_title_intro" class="ml-2 text-gray-700">Append Audio Title as Intro (TTS)</label>
-                </div>
+                <h4 class="font-semibold border-b border-white/[0.08] pb-2">Features</h4>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="ai_rewrite_description" value="true" {% if
+                        subscription.ai_rewrite_description %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Rewrite Description (AI Text)</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="ai_audio_summary" value="true" {% if subscription.ai_audio_summary
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Append Audio Summary (AI TTS)</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="append_title_intro" value="true" {% if subscription.append_title_intro
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Append Audio Title as Intro (TTS)</span>
+                </label>
 
                 <div class="mt-4">
-                    <label for="custom_instructions" class="block text-sm font-medium text-gray-700">Custom Ad Detection
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Custom Ad Detection
                         Instructions</label>
-                    <textarea id="custom_instructions" name="custom_instructions" rows="3"
-                        placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border">{{ subscription.custom_instructions or '' }}</textarea>
+                    <textarea name="custom_instructions" rows="3" class="input font-mono text-sm"
+                        placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'">{{ subscription.custom_instructions or '' }}</textarea>
                 </div>
             </div>
         </div>
 
-        <div class="mt-6 flex justify-end">
-            <button type="submit" class="bg-gray-900 text-white px-4 py-2 rounded hover:bg-gray-800">
-                Save Settings
-            </button>
+        <div class="mt-6 flex justify-end pt-4 border-t border-white/[0.08]">
+            <button type="submit" class="btn-primary">Save Settings</button>
         </div>
     </form>
 </div>
 
-{% set has_processing = namespace(value=false) %}
-{% for ep in episodes %}
-{% if ep.status == 'processing' %}
-{% set has_processing.value = true %}
-{% endif %}
-{% endfor %}
 
-{% if has_processing.value %}
-<div class="bg-white p-4 rounded-lg shadow-md mb-6">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h3 class="text-lg font-semibold text-gray-900">Actively processing</h3>
-        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-            <div
-                class="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-md border shadow-sm w-full sm:w-auto justify-between sm:justify-start">
-                <label class="flex items-center cursor-pointer mr-3">
-                    <input type="checkbox" id="auto-refresh-toggle" checked
-                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2 transition cursor-pointer w-5 h-5">
-                    <span class="font-medium">Auto</span>
-                </label>
-                <div class="flex items-center">
-                    <input type="number" id="refresh-interval" value="30" min="5" max="300"
-                        class="w-10 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-blue-600 appearance-none"
-                        style="-moz-appearance: textfield;">
-                    <span class="mr-2 text-gray-400">s</span>
-                    <span
-                        class="text-xs font-mono font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full min-w-[3rem] text-center"
-                        id="refresh-countdown">30s</span>
-                </div>
-            </div>
 
-            <a href="/subscriptions/{{ subscription.slug }}"
-                class="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center font-medium bg-white px-3 py-2 rounded-md border hover:bg-gray-50 transition shadow-sm min-h-[44px]">
-                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<!-- Episode Filters -->
+<div class="mb-8 flex flex-wrap gap-2 items-center justify-center md:justify-between">
+    <div class="flex flex-wrap gap-2 justify-center" id="episode-filters">
+        <button onclick="filterEpisodes('all')" data-filter="all" class="filter-btn active badge-info">All
+            Episodes</button>
+        <button onclick="filterEpisodes('completed')" data-filter="completed"
+            class="filter-btn badge-soft">Downloaded</button>
+        <button onclick="filterEpisodes('manual')" data-filter="manual" class="filter-btn badge-soft">Manually
+            Downloaded</button>
+        <button onclick="filterEpisodes('not-downloaded')" data-filter="not-downloaded"
+            class="filter-btn badge-soft">Not Downloaded</button>
+        <button onclick="filterEpisodes('ignored')" data-filter="ignored" class="filter-btn badge-soft">Deleted</button>
+        <button onclick="filterEpisodes('played')" data-filter="played" class="filter-btn badge-soft">Played</button>
+    </div>
+</div>
+
+<div class="flex items-center justify-between gap-3 w-full">
+    <!-- Search Input -->
+    <div class="relative flex-1 md:w-80">
+        <input type="text" id="episode-search" placeholder="Search episodes..."
+            class="w-full bg-surface-base border border-white/[0.1] rounded-2xl pl-12 pr-4 py-3 text-sm text-text-primary focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all shadow-inner">
+        <svg class="w-5 h-5 text-text-muted absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" fill="none"
+            stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+    </div>
+
+    {% set has_processing = namespace(value=false) %}
+    {% for ep in episodes %}
+    {% if ep.status == 'processing' %}
+    {% set has_processing.value = true %}
+    {% endif %}
+    {% endfor %}
+
+    {% if has_processing.value %}
+    <!-- Processing Indicator with Inline Refresh Controls -->
+    <div class="flex items-center gap-3 bg-surface-base/50 border border-white/[0.08] rounded-2xl px-4 py-2.5">
+        <div class="flex items-center gap-2">
+            <div class="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
+            <span class="text-xs font-semibold text-text-secondary">Processing</span>
+        </div>
+        <div class="h-4 w-px bg-white/10"></div>
+        <label class="flex items-center cursor-pointer">
+            <input type="checkbox" id="auto-refresh-toggle" checked
+                class="rounded border-white/20 bg-surface-base text-primary-500 focus:ring-primary-500 mr-1.5 w-3.5 h-3.5">
+            <span class="text-xs font-medium text-text-muted">Auto</span>
+        </label>
+        <div class="flex items-center gap-1">
+            <input type="number" id="refresh-interval" value="30" min="5" max="300"
+                class="w-8 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-primary-400 appearance-none text-xs"
+                style="-moz-appearance: textfield;">
+            <span class="text-xs text-text-muted">s</span>
+            <span
+                class="text-[10px] font-mono font-bold bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full min-w-[2.5rem] text-center"
+                id="refresh-countdown">30s</span>
+        </div>
+        <button onclick="location.reload()" class="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+            title="Refresh Now">
+            <svg class="w-3.5 h-3.5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                </path>
+            </svg>
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- View Toggles -->
+    <div class="flex items-center gap-2">
+        <div class="flex items-center bg-surface-base rounded-lg p-1 border border-white/[0.1]">
+            <button type="button" id="view-grid"
+                class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
+                title="Grid View">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
                     </path>
                 </svg>
-                Refresh
-            </a>
+            </button>
+            <button type="button" id="view-list"
+                class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
+                title="List View">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                    </path>
+                </svg>
+            </button>
+        </div>
+        <div class="text-xs text-text-muted font-medium hidden sm:block" id="episode-count">
+            All episodes
         </div>
     </div>
 </div>
-{% endif %}
-
-<!-- Episode Filters -->
-<div class="mb-6 flex flex-wrap gap-2 items-center justify-between">
-    <div class="flex flex-wrap gap-2" id="episode-filters">
-        <button onclick="filterEpisodes('all')" data-filter="all"
-            class="filter-btn active px-3 py-1.5 rounded-full text-xs font-medium border bg-blue-600 text-white border-blue-600 transition-colors">
-            All Episodes
-        </button>
-        <button onclick="filterEpisodes('completed')" data-filter="completed"
-            class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:border-blue-500 transition-colors">
-            Downloaded
-        </button>
-        <button onclick="filterEpisodes('not-downloaded')" data-filter="not-downloaded"
-            class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:border-blue-500 transition-colors">
-            Not Downloaded
-        </button>
-        <button onclick="filterEpisodes('ignored')" data-filter="ignored"
-            class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:border-blue-500 transition-colors">
-            Deleted
-        </button>
-    </div>
-    <div class="text-xs text-gray-400 font-medium" id="episode-count">
-        Showing all episodes
-    </div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="episodes-grid">
+<!-- Batch Actions Toolbar (hidden by default) -->
+
+
+<style>
+    @keyframes slide-up {
+        from {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    }
+
+    .animate-slide-up {
+        animation: slide-up 0.2s ease-out;
+    }
+</style>
+
+<style>
+    /* Consolidated List View Styles */
+    #episodes-grid[data-view="list"] {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card {
+        display: grid;
+        grid-template-columns: 48px 110px 80px 1fr 180px;
+        grid-template-areas:
+            "check date dur title actions"
+            "desc  desc desc desc desc";
+        align-items: center;
+        padding: 0 0.5rem;
+        min-height: 52px;
+        gap: 0;
+        overflow: visible !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    /* Fix: Ensure hidden class overrides list view display */
+    #episodes-grid[data-view="list"] .episode-card.hidden {
+        display: none !important;
+    }
+
+    /* Column Styles (Desktop Default) */
+    #episodes-grid[data-view="list"] .episode-card>div:first-child {
+        grid-area: check;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 52px;
+        position: static !important;
+        opacity: 1 !important;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card>div:nth-child(2) {
+        display: contents;
+    }
+
+    #episodes-grid[data-view="list"] .date-relative {
+        grid-area: date;
+        display: flex;
+        align-items: center;
+        height: 52px;
+        font-weight: 700;
+        color: var(--text-primary);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\]>span:last-child {
+        grid-area: dur;
+        display: flex;
+        align-items: center;
+        height: 52px;
+        color: var(--text-muted);
+        font-family: ui-monospace, monospace;
+        font-size: 0.75rem;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card h3 {
+        grid-area: title;
+        display: flex;
+        align-items: center;
+        height: 52px;
+        margin: 0 !important;
+        padding: 0 1.5rem;
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Small gap between badge and title in list view */
+    #episodes-grid[data-view="list"] .episode-card h3 span.block {
+        display: inline;
+        margin-left: 0.75rem;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card>div:last-child {
+        grid-area: actions;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        height: 52px;
+        background: transparent !important;
+        padding: 0 0.5rem 0 0 !important;
+    }
+
+    /* Hide elements not needed in list view row */
+    #episodes-grid[data-view="list"] .episode-card .text-white\/10,
+    #episodes-grid[data-view="list"] .episode-card .flex.flex-wrap.gap-2.mt-2,
+    #episodes-grid[data-view="list"] .episode-card .mt-4.bg-surface-base,
+    #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3:not(.list-actions) {
+        display: none !important;
+    }
+
+    /* Action Buttons Polish */
+    #episodes-grid[data-view="list"] .episode-card .list-actions a,
+    #episodes-grid[data-view="list"] .episode-card .list-actions button {
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999px;
+        background: transparent !important;
+        border: none !important;
+        color: var(--text-muted);
+        transition: all 0.2s;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card .list-actions .bg-primary-500 {
+        background-color: var(--primary-500) !important;
+        color: white !important;
+    }
+
+    /* Detail / Description Expansion */
+    #episodes-grid[data-view="list"] .group\/ep-desc {
+        grid-area: desc;
+        display: none;
+        width: 100%;
+        padding: 1.5rem 2rem 2rem 158px;
+        background: rgba(0, 0, 0, 0.2);
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card.expanded .group\/ep-desc {
+        display: block;
+    }
+
+    #episodes-grid[data-view="list"] .episode-card .origin-top-right {
+        top: 100% !important;
+        bottom: auto !important;
+        margin-top: 0.5rem;
+        z-index: 100 !important;
+    }
+
+    /* Mobile Overrides (Max-Width 768px) */
+    @media (max-width: 768px) {
+        #episodes-grid[data-view="list"] .episode-card {
+            grid-template-columns: 48px 1fr auto !important;
+            grid-template-areas: "check title actions" !important;
+            grid-template-rows: auto !important;
+            align-items: center !important;
+            padding: 0.875rem 0.5rem !important;
+            min-height: 60px !important;
+            gap: 0 !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            border-left: none !important;
+            border-right: none !important;
+            border-top: none !important;
+        }
+
+        #episodes-grid[data-view="list"] .episode-card>div:first-child {
+            grid-area: check !important;
+            height: auto !important;
+            justify-content: center !important;
+        }
+
+        #episodes-grid[data-view="list"] .episode-card h3 {
+            grid-area: title !important;
+            display: block !important;
+            height: auto !important;
+            padding: 0 0.5rem !important;
+            margin: 0 !important;
+            font-size: 0.875rem !important;
+            white-space: normal !important;
+            line-height: 1.25 !important;
+            overflow: visible !important;
+        }
+
+        #episodes-grid[data-view="list"] .episode-card>div:last-child {
+            grid-area: actions !important;
+            height: auto !important;
+            justify-content: flex-end !important;
+            padding-right: 0.5rem !important;
+        }
+
+        /* Hide desktop-only columns explicitly */
+        #episodes-grid[data-view="list"] .date-relative,
+        #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-2.text-\[11px\]>span:last-child {
+            display: none !important;
+        }
+
+        /* Ensure checkbox is perfectly centered */
+        #episodes-grid[data-view="list"] .checkbox-wrapper {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+        }
+
+        #episodes-grid[data-view="list"] .episode-card h3 span.block {
+            display: block !important;
+            width: 100% !important;
+            margin-top: 0.75rem !important;
+        }
+
+        #episodes-grid[data-view="list"] .group\/ep-desc {
+            padding: 1rem !important;
+        }
+    }
+</style>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 mb-20" id="episodes-grid" data-view="grid">
     {% for ep in episodes %}
-    <div class="episode-card bg-white rounded-lg shadow-md flex flex-col" data-status="{{ ep.status }}">
-        <div class="p-4 flex-1">
-            <div class="flex justify-between items-start mb-2">
-                <h3 class="font-bold text-lg text-gray-900 line-clamp-2" title="{{ ep.title }}">{{ ep.title }}</h3>
-                <span class="text-xs text-gray-500 whitespace-nowrap ml-2">{{ ep.pub_date }}</span>
-            </div>
-            <p class="text-xs text-gray-400 mb-3 truncate">{{ ep.guid }}</p>
+    <div class="episode-card card flex flex-col relative overflow-visible group transition-all duration-300 h-full border hover:border-white/10"
+        data-status="{{ ep.status }}" data-manual="{{ 'true' if ep.is_manual_download else 'false' }}"
+        data-title="{{ ep.title|lower }}" data-date="{{ ep.pub_date }}" data-listen-count="{{ ep.listen_count or 0 }}"
+        id="card-{{ ep.id }}">
 
-            <div class="flex justify-between items-center mb-3">
-                <div class="flex flex-wrap gap-2">
-                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                        {{ format_duration(ep.duration) }}
-                    </span>
+        <!-- Batch Selection Checkbox -->
+        <div class="checkbox-wrapper absolute top-4 left-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+            onclick="event.stopPropagation();">
+            <input type="checkbox" name="episode_ids" value="{{ ep.id }}"
+                class="h-5 w-5 rounded border-white/20 bg-surface-elevated text-primary-500 focus:ring-primary-500 cursor-pointer shadow-lg episode-checkbox"
+                onchange="updateBatchActions()">
+        </div>
 
-                    {% if ep.status == 'completed' %}
-                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">Completed</span>
-                    {% elif ep.status == 'processing' %}
-                    <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-semibold">Actively
-                        Processing</span>
-                    {% elif ep.status == 'failed' %}
-                    <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded font-semibold"
-                        title="{{ ep.error_message }}">Failed</span>
-                    {% elif ep.status == 'ignored' %}
-                    <span
-                        class="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded font-semibold flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                            </path>
-                        </svg>
-                        Deleted
-                    </span>
-                    {% else %}
-                    <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded font-semibold">{{ ep.status
-                        }}</span>
-                    {% endif %}
+        <!-- Main Clickable Area -->
+        <div class="flex-1 p-4 flex flex-col cursor-pointer relative" onclick="toggleDescription('{{ ep.id }}')">
+
+            <!-- Metadata Row -->
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center gap-2 text-[11px] font-bold tracking-wider text-text-muted uppercase">
+                    <span class="date-relative" data-date="{{ ep.pub_date }}">{{ ep.pub_date }}</span>
+                    <span class="text-white/10 dot-separator">•</span>
+                    <span>{{ format_duration(ep.duration) }}</span>
                 </div>
 
+
+            </div>
+
+            <!-- Title -->
+            <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors"
+                title="{{ ep.title }}">
+                {% if ep.status == 'completed' %}
+                <span
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/30 text-emerald-400 text-[8px] font-black tracking-widest leading-none hover:bg-emerald-500/40 transition-colors">
+                    <span class="w-1 h-1 rounded-full bg-emerald-400"></span>
+                    DOWNLOADED
+                </span>
+                {% elif ep.status == 'processing' %}
+                <span
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none animate-pulse">
+                    <span class="w-1 h-1 rounded-full bg-amber-400"></span>
+                    PROCESSING
+                </span>
+                {% elif ep.status == 'ignored' or ep.status == 'deleted' %}
+                <span
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[8px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors">
+                    <span class="w-1 h-1 rounded-full bg-slate-400"></span>
+                    DELETED
+                </span>
+                {% elif ep.status == 'failed' %}
+                <span
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[8px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors">
+                    <span class="w-1 h-1 rounded-full bg-red-400"></span>
+                    FAILED
+                </span>
+                {% elif ep.status == 'rate_limited' %}
+                <span
+                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none">
+                    <span class="w-1 h-1 rounded-full bg-amber-400"></span>
+                    RATE LIMITED
+                </span>
+                {% endif %}
+                <span class="block mt-5">{{ ep.title }}{% if ep.listen_count and ep.listen_count > 0 %} <span
+                        class="ml-3 text-primary-400 text-[11px] font-bold tracking-wider uppercase">{{ ep.listen_count
+                        }} play{% if ep.listen_count != 1 %}s{% endif %}</span>{% endif %}</span>
+            </h3>
+
+            <!-- Description & AI (Click to Expand Entire Block) -->
+            <div class="mb-4 text-sm leading-relaxed text-text-secondary cursor-pointer group/ep-desc relative"
+                onclick="this.classList.toggle('expanded'); event.stopPropagation();">
+
                 {% if ep.ai_summary %}
-                <button onclick="toggleAiSummary('{{ ep.id }}'); event.stopPropagation();"
-                    id="btn-ai-toggle-{{ ep.id }}"
-                    class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium transition-colors whitespace-nowrap ml-2 z-10">
-                    Show Original
-                </button>
+                <!-- AI Summary View -->
+                <div
+                    class="p-4 bg-primary-500/5 rounded-2xl border border-primary-500/10 mb-3 group/ai transition-all hover:bg-primary-500/[0.08]">
+                    <div
+                        class="flex items-center gap-2 mb-3 text-primary-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
+                            </path>
+                        </svg>
+                        AI Insights
+                    </div>
+                    <div class="markdown-content text-white line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out"
+                        id="ai-sum-{{ ep.id }}">
+                        {{ ep.ai_summary|simple_markdown|safe }}
+                    </div>
+                    <div
+                        class="mt-4 text-[10px] font-bold text-primary-400/60 group-[.expanded]/ep-desc:hidden flex items-center gap-1">
+                        Full Summary <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </div>
+                </div>
+
+                {% if ep.description %}
+                <details class="group/details mt-2" onclick="event.stopPropagation()">
+                    <summary
+                        class="text-[10px] font-bold text-text-muted cursor-pointer hover:text-text-secondary list-none flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest pl-1">
+                        <span class="group-open/details:hidden">Original Description</span>
+                        <span class="hidden group-open/details:block">Hide Description</span>
+                        <svg class="w-3 h-3 group-open/details:rotate-180 transition-transform" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </summary>
+                    <div
+                        class="mt-4 text-text-secondary/80 text-[13px] pl-4 border-l-2 border-white/5 space-y-3 leading-relaxed">
+                        {{ ep.description|clean_description }}
+                    </div>
+                </details>
+                {% endif %}
+
+                {% else %}
+                <!-- Fallback: Standard Description -->
+                {% if ep.description %}
+                <div class="py-1 px-1">
+                    <div
+                        class="line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out text-text-secondary/90">
+                        {{ ep.description|clean_description }}
+                    </div>
+                    <div
+                        class="mt-4 text-[10px] font-bold text-primary-400/60 group-hover/ep-desc:text-primary-400 group-hover/ep-desc:opacity-100 transition-all flex items-center gap-1 group-[.expanded]/ep-desc:hidden uppercase tracking-widest">
+                        Read More <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </div>
+                </div>
+                {% endif %}
                 {% endif %}
             </div>
 
-            {% if ep.description or ep.ai_summary %}
-            <div class="relative">
-
-                <div class="relative group cursor-pointer" onclick="toggleDescription('{{ ep.id }}')">
-                    <div id="desc-{{ ep.id }}"
-                        class="text-sm text-gray-600 mb-2 overflow-hidden transition-all duration-300 relative"
-                        style="max-height: 6rem;">
-                        <!-- Original Content (Hidden by default if AI summary exists) -->
-                        <div id="desc-content-orig-{{ ep.id }}" {% if ep.ai_summary %}class="hidden" {% endif %}>
-                            {{ ep.description|striptags }}
-                        </div>
-
-                        <!-- AI Content (Shown by default if it exists) -->
-                        {% if ep.ai_summary %}
-                        <div id="desc-content-ai-{{ ep.id }}" class="bg-gray-50 p-2 rounded-md border border-gray-100">
-                            <div
-                                class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 tracking-wide mb-1.5 uppercase shadow-sm">
-                                ✨ AI Summary
-                            </div>
-                            <div class="text-gray-800 text-sm leading-relaxed">
-                                {{ ep.ai_summary|simple_markdown|safe }}
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
+            <!-- Progress Bar -->
             {% if ep.status == 'processing' %}
-            <div class="mb-4">
-                <div class="flex justify-between text-xs text-gray-500 mb-1">
+            <div class="mt-4 bg-surface-base rounded-md p-1.5 border border-white/[0.06]">
+                <div class="flex justify-between text-[10px] uppercase font-bold text-text-muted mb-1">
                     <span>{{ ep.processing_step }}</span>
                     <span>{{ ep.progress }}%</span>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div class="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                        style="width: {{ ep.progress }}%"></div>
+                <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div class="h-full bg-warning transition-all duration-500" style="width: {{ ep.progress }}%"></div>
                 </div>
             </div>
             {% endif %}
 
-            <div class="flex flex-wrap gap-3 text-sm text-blue-600">
-                {% if ep.transcript_path %}
-                <a href="../artifacts/transcript/{{ ep.id }}" target="_blank"
-                    class="hover:underline flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                        </path>
-                    </svg>
-                    Transcript
-                </a>
-                {% endif %}
-                {% if ep.ad_report_path %}
-                <a href="../artifacts/report/{{ ep.id }}" target="_blank"
-                    class="hover:underline flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                        </path>
-                    </svg>
-                    Report
-                </a>
-                {% endif %}
-            </div>
         </div>
 
-        <div class="bg-gray-50 px-4 py-3 border-t border-gray-100 flex justify-between gap-2 items-center">
-            <!-- Delete Button -->
-            {% if ep.status in ['completed', 'failed'] %}
-            <button onclick="deleteEpisode({{ ep.id }})" id="btn-delete-{{ ep.id }}"
-                class="text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 rounded hover:bg-red-50 transition-colors">
-                Delete
-            </button>
-            {% endif %}
+        <!-- Footer / Actions -->
+        <div class="px-4 py-3 flex justify-between items-center bg-surface-base/95 md:bg-surface-base/30 md:backdrop-blur-sm"
+            onclick="event.stopPropagation();">
 
-            <div class="flex gap-2">
+            <!-- Actions moved to dropdown menu -->
+
+            <!-- Quick Actions -->
+            <div class="flex items-center gap-2 list-actions">
                 {% if ep.status == 'completed' %}
                 <a href="/audio/{{ subscription.slug }}/{{ ep.guid | replace('/', '_') | replace(' ', '_') }}/{{ basename(ep.local_filename) }}"
-                    target="_blank"
-                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
-                        </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    target="_blank" onclick="trackListen({{ ep.id }})"
+                    class="p-2 bg-primary-500 rounded-full text-white hover:bg-primary-400 hover:scale-105 transition-all shadow-lg"
+                    title="Play">
+                    <svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
                     </svg>
-                    Listen
                 </a>
-                {% endif %}
-
-                {% if ep.status in ['processing', 'pending'] %}
-                <button onclick="cancelEpisode({{ ep.id }})"
-                    class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Cancel
-                </button>
                 {% elif ep.status == 'unprocessed' or ep.status == 'ignored' %}
                 <button onclick="downloadEpisode({{ ep.id }})"
-                    class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="p-2 text-text-muted hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                    title="Download">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                     </svg>
-                    {{ 'Re-download' if ep.status == 'ignored' else 'Download' }}
                 </button>
-                {% else %}
-                <!-- Unified Reprocess Dropdown for Completed and Failed/Others -->
+                {% endif %}
+
+                <!-- Options Menu (Always show if not ignored or failed?) -->
                 <div class="relative inline-block text-left">
-                    <button type="button" onclick="toggleDropdown('menu-{{ ep.id }}')"
-                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Reprocess
-                        <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                            fill="currentColor" aria-hidden="true">
-                            <path fill-rule="evenodd"
-                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                clip-rule="evenodd" />
+                    <button
+                        onclick="showActionSheet(event, {{ ep.id }}, {{ 'true' if ep.transcript_path else 'false' }}, {{ 'true' if (ep.report_path or ep.ad_report_path) else 'false' }})"
+                        class="p-2 text-text-muted hover:text-white transition-colors rounded-full hover:bg-white/10"
+                        title="More">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 5v.01M12 12v.01M12 19v.01"></path>
                         </svg>
                     </button>
+                    <!-- Dropdown Menu -->
                     <div id="menu-{{ ep.id }}"
-                        class="origin-top-right absolute right-0 bottom-full mb-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50">
-                        <div class="py-1" role="menu">
-                            <a href="#"
-                                onclick="processEpisode({{ ep.id }}, false); toggleDropdown('menu-{{ ep.id }}'); return false;"
-                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Full
-                                Reprocess</a>
-                            <a href="#"
-                                onclick="processEpisode({{ ep.id }}, true); toggleDropdown('menu-{{ ep.id }}'); return false;"
-                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                role="menuitem">Reprocess
-                                (Skip Transcription)</a>
+                        class="absolute right-0 top-full mt-2 w-52 rounded-xl shadow-2xl bg-surface-elevated border border-white/10 hidden z-[9999]">
+                        <div class="p-1">
+                            {% if ep.transcript_path %}
+                            <a href="/episodes/{{ ep.id }}/transcript"
+                                class="w-full text-left px-4 py-2.5 text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                    </path>
+                                </svg>
+                                View Transcript
+                            </a>
+                            {% endif %}
+                            {% if ep.report_path or ep.ad_report_path %}
+                            <a href="/artifacts/report/{{ ep.id }}" target="_blank"
+                                class="w-full text-left px-4 py-2.5 text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                    </path>
+                                </svg>
+                                View Report
+                            </a>
+                            {% endif %}
+                            <button onclick="processEpisode({{ ep.id }})"
+                                class="w-full text-left px-4 py-2.5 text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                    </path>
+                                </svg>
+                                Reprocess Episode
+                            </button>
+                            <button onclick="deleteEpisode({{ ep.id }})"
+                                class="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 rounded-lg flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                    </path>
+                                </svg>
+                                Delete File
+                            </button>
                         </div>
                     </div>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
     {% else %}
-    <div class="col-span-full text-center py-12 bg-white rounded-lg shadow text-gray-500">
+    <div class="col-span-full text-center py-12 card text-text-muted">
         No episodes found.
     </div>
     {% endfor %}
 </div>
 
-<script>
+<!-- Load More Button -->
+{% if has_more %}
+<div id="load-more-container" class="flex justify-center mt-8 mb-12">
+    <button id="load-more-btn" onclick="loadMoreEpisodes()"
+        class="px-8 py-4 rounded-2xl bg-surface-base border border-white/10 hover:border-primary-500/50 hover:bg-primary-500/10 transition-all duration-300 flex items-center gap-3 group">
+        <svg class="w-5 h-5 text-text-muted group-hover:text-primary-400 transition-colors" fill="none"
+            stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
+        <span class="text-sm font-bold text-text-secondary group-hover:text-white transition-colors">
+            Load More Episodes
+        </span>
+        <span id="load-more-count" class="text-xs font-semibold text-text-muted bg-white/5 px-2 py-1 rounded-full">
+            {{ episodes|length }} of {{ total_episodes }}
+        </span>
+    </button>
+</div>
+{% endif %}
 
-    function filterEpisodes(filter) {
-        const cards = document.querySelectorAll('.episode-card');
-        const buttons = document.querySelectorAll('#episode-filters .filter-btn');
-        let visibleCount = 0;
+<!-- Global Action Sheet Modal -->
+<div id="action-sheet"
+    class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-[9999] flex items-center justify-center"
+    onclick="closeActionSheet()">
+    <div class="bg-surface-elevated border border-white/10 rounded-2xl w-72 max-w-[90vw] shadow-2xl"
+        onclick="event.stopPropagation()">
+        <div class="p-2 space-y-1" id="action-sheet-content">
+            <!-- Content populated by JS -->
+        </div>
+        <div class="border-t border-white/10 p-2">
+            <button onclick="closeActionSheet()"
+                class="w-full py-3 text-sm font-semibold text-text-secondary hover:text-white rounded-xl hover:bg-white/5 transition-colors">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
 
-        // Update active button state
-        buttons.forEach(btn => {
-            if (btn.getAttribute('data-filter') === filter) {
-                btn.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-600');
-                btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
-            } else {
-                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-600');
-                btn.classList.add('bg-white', 'text-gray-700', 'border-gray-300');
+<script nonce="{{ csp_nonce }}">
+    // Lazy Loading State
+    let currentOffset = {{ episodes| length }};
+    const pageSize = {{ page_size|default (20) }};
+    const subscriptionId = {{ subscription.id }};
+    let isLoading = false;
+    let totalEpisodes = {{ total_episodes|default (0) }};
+
+    // Search State
+    let currentSearchTerm = '';
+    let searchDebounceTimer = null;
+    let isSearchMode = false;
+
+    // Episode Card Template Generator
+    function createEpisodeCardHTML(ep, subscriptionSlug) {
+        const status = ep.status || 'unprocessed';
+        const isManual = ep.is_manual_download ? 'true' : 'false';
+        const title = (ep.title || '').toLowerCase();
+        const listenCount = ep.listen_count || 0;
+        const formatDuration = (seconds) => {
+            if (!seconds) return '-';
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            const h = Math.floor(seconds / 3600);
+            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        };
+
+        // Status badge HTML
+        let statusBadge = '';
+        if (status === 'completed') {
+            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/30 text-emerald-400 text-[8px] font-black tracking-widest leading-none hover:bg-emerald-500/40 transition-colors"><span class="w-1 h-1 rounded-full bg-emerald-400"></span>DOWNLOADED</span>`;
+        } else if (status === 'processing') {
+            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none animate-pulse"><span class="w-1 h-1 rounded-full bg-amber-400"></span>PROCESSING</span>`;
+        } else if (status === 'ignored' || status === 'deleted') {
+            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[8px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors"><span class="w-1 h-1 rounded-full bg-slate-400"></span>DELETED</span>`;
+        } else if (status === 'failed') {
+            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[8px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors"><span class="w-1 h-1 rounded-full bg-red-400"></span>FAILED</span>`;
+        } else if (status === 'rate_limited') {
+            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none"><span class="w-1 h-1 rounded-full bg-amber-400"></span>RATE LIMITED</span>`;
+        }
+
+        // Play count badge
+        const playsBadge = listenCount > 0 ? `<span class="ml-3 text-primary-400 text-[11px] font-bold tracking-wider uppercase">${listenCount} play${listenCount !== 1 ? 's' : ''}</span>` : '';
+
+        // Action buttons
+        let actionButtons = '';
+        if (status === 'completed' && ep.local_filename) {
+            const filename = ep.local_filename.split('/').pop();
+            const guid = (ep.guid || '').replace(/\//g, '_').replace(/ /g, '_');
+            actionButtons = `<a href="/audio/${subscriptionSlug}/${guid}/${filename}" target="_blank" onclick="trackListen(${ep.id})" class="p-2 bg-primary-500 rounded-full text-white hover:bg-primary-400 hover:scale-105 transition-all shadow-lg" title="Play"><svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></a>`;
+        } else if (status === 'unprocessed' || status === 'ignored') {
+            actionButtons = `<button onclick="downloadEpisode(${ep.id})" class="p-2 text-text-muted hover:text-white hover:bg-white/10 rounded-full transition-colors" title="Download"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>`;
+        }
+
+        const hasTranscript = ep.transcript_path ? 'true' : 'false';
+        const hasReport = (ep.report_path || ep.ad_report_path) ? 'true' : 'false';
+
+        return `
+        <div class="episode-card card flex flex-col relative overflow-visible group transition-all duration-300 h-full border hover:border-white/10"
+            data-status="${status}" data-manual="${isManual}"
+            data-title="${title}" data-date="${ep.pub_date}" data-listen-count="${listenCount}"
+            id="card-${ep.id}">
+            <div class="checkbox-wrapper absolute top-4 left-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation();">
+                <input type="checkbox" name="episode_ids" value="${ep.id}" class="h-5 w-5 rounded border-white/20 bg-surface-elevated text-primary-500 focus:ring-primary-500 cursor-pointer shadow-lg episode-checkbox" onchange="updateBatchActions()">
+            </div>
+            <div class="flex-1 p-4 flex flex-col cursor-pointer relative" onclick="toggleDescription('${ep.id}')">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex items-center gap-2 text-[11px] font-bold tracking-wider text-text-muted uppercase">
+                        <span class="date-relative" data-date="${ep.pub_date}">${ep.pub_date}</span>
+                        <span class="text-white/10 dot-separator">•</span>
+                        <span>${formatDuration(ep.duration)}</span>
+                    </div>
+                </div>
+                <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors" title="${ep.title}">
+                    ${statusBadge}
+                    <span class="block mt-5">${ep.title}${playsBadge}</span>
+                </h3>
+                <div class="mb-4 text-sm leading-relaxed text-text-secondary cursor-pointer group/ep-desc relative" onclick="this.classList.toggle('expanded'); event.stopPropagation();">
+                    ${ep.description ? `<div class="py-1 px-1"><div class="line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out text-text-secondary/90">${ep.description}</div></div>` : ''}
+                </div>
+            </div>
+            <div class="px-4 py-3 flex justify-between items-center bg-surface-base/95 md:bg-surface-base/30 md:backdrop-blur-sm" onclick="event.stopPropagation();">
+                <div class="flex items-center gap-2 list-actions">
+                    ${actionButtons}
+                    <div class="relative inline-block text-left">
+                        <button onclick="showActionSheet(event, ${ep.id}, ${hasTranscript}, ${hasReport})" class="p-2 text-text-muted hover:text-white transition-colors rounded-full hover:bg-white/10" title="More">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    async function loadMoreEpisodes() {
+        if (isLoading) return;
+        isLoading = true;
+
+        const btn = document.getElementById('load-more-btn');
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = `<svg class="w-5 h-5 animate-spin text-primary-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="text-sm font-bold text-text-secondary">Loading...</span>`;
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`/api/subscriptions/${subscriptionId}/episodes?limit=${pageSize}&offset=${currentOffset}`);
+            const data = await response.json();
+
+            if (data.episodes && data.episodes.length > 0) {
+                const grid = document.getElementById('episodes-grid');
+                data.episodes.forEach(ep => {
+                    const cardHTML = createEpisodeCardHTML(ep, data.subscription_slug);
+                    grid.insertAdjacentHTML('beforeend', cardHTML);
+                });
+
+                currentOffset += data.episodes.length;
+
+                // Update count display
+                const countEl = document.getElementById('load-more-count');
+                if (countEl) countEl.textContent = `${currentOffset} of ${totalEpisodes}`;
+
+                // Format dates for new cards
+                document.querySelectorAll('.date-relative').forEach(el => {
+                    const dateStr = el.getAttribute('data-date');
+                    const rel = timeAgo(dateStr);
+                    if (rel) el.textContent = rel;
+                });
+
+                // Re-apply current filter
+                filterEpisodes(null);
             }
-        });
+
+            // Hide button if no more episodes
+            if (!data.has_more) {
+                document.getElementById('load-more-container').style.display = 'none';
+            } else {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Failed to load more episodes:', error);
+            btn.innerHTML = `<span class="text-red-400 text-sm font-bold">Error loading episodes. Click to retry.</span>`;
+            btn.disabled = false;
+        }
+
+        isLoading = false;
+    }
+
+    // Server-side search function with debounce
+    async function performServerSearch(searchTerm) {
+        if (isLoading) return;
+
+        const grid = document.getElementById('episodes-grid');
+        const loadMoreContainer = document.getElementById('load-more-container');
+        const countText = document.getElementById('episode-count');
+
+        // Clear search mode if empty
+        if (!searchTerm || searchTerm.trim() === '') {
+            if (isSearchMode) {
+                // Reset to normal mode - reload page to restore original pagination
+                window.location.reload();
+            }
+            return;
+        }
+
+        isLoading = true;
+        isSearchMode = true;
+        currentSearchTerm = searchTerm;
+
+        // Show loading state in count
+        countText.textContent = 'Searching...';
+
+        try {
+            // Fetch ALL matching episodes (use high limit for search)
+            const response = await fetch(`/api/subscriptions/${subscriptionId}/episodes?limit=500&offset=0&search=${encodeURIComponent(searchTerm)}`);
+            const data = await response.json();
+
+            // Clear existing cards and replace with search results
+            grid.innerHTML = '';
+
+            if (data.episodes && data.episodes.length > 0) {
+                data.episodes.forEach(ep => {
+                    const cardHTML = createEpisodeCardHTML(ep, data.subscription_slug);
+                    grid.insertAdjacentHTML('beforeend', cardHTML);
+                });
+
+                // Format dates for new cards
+                document.querySelectorAll('.date-relative').forEach(el => {
+                    const dateStr = el.getAttribute('data-date');
+                    const rel = timeAgo(dateStr);
+                    if (rel) el.textContent = rel;
+                });
+
+                countText.textContent = `Found ${data.total} matches for "${searchTerm}"`;
+            } else {
+                grid.innerHTML = '<div class="col-span-full text-center py-12 card text-text-muted">No episodes found matching your search.</div>';
+                countText.textContent = `No matches for "${searchTerm}"`;
+            }
+
+            // Hide load more in search mode
+            if (loadMoreContainer) loadMoreContainer.style.display = 'none';
+
+            // Apply current filter to search results
+            const currentFilter = localStorage.getItem('episode-filter-preference') || 'all';
+            applyFilterToCards(currentFilter);
+
+        } catch (error) {
+            console.error('Search failed:', error);
+            countText.textContent = 'Search failed. Please try again.';
+        }
+
+        isLoading = false;
+    }
+
+    // Apply filter only (no search query) - for use with search results
+    function applyFilterToCards(filter) {
+        const cards = document.querySelectorAll('.episode-card');
+        let visibleCount = 0;
 
         cards.forEach(card => {
             const status = card.getAttribute('data-status');
             let show = false;
 
-            if (filter === 'all') {
-                show = true; // Show everything including recently deleted
-            } else if (filter === 'completed') {
-                show = status === 'completed';
-            } else if (filter === 'not-downloaded') {
-                show = (status === 'unprocessed' || status === 'failed' || status === 'pending');
-            } else if (filter === 'ignored') {
-                show = status === 'ignored';
-            }
+            if (filter === 'all') show = true;
+            else if (filter === 'completed') show = status === 'completed';
+            else if (filter === 'manual') show = card.getAttribute('data-manual') === 'true';
+            else if (filter === 'not-downloaded') show = (status === 'unprocessed' || status === 'failed' || status === 'pending');
+            else if (filter === 'ignored') show = status === 'ignored';
+            else if (filter === 'played') show = parseInt(card.getAttribute('data-listen-count') || '0') > 0;
 
-            if (show) {
-                card.classList.remove('hidden');
-                visibleCount++;
-            } else {
-                card.classList.add('hidden');
+            if (show) { card.classList.remove('hidden'); visibleCount++; }
+            else { card.classList.add('hidden'); }
+        });
+
+        return visibleCount;
+    }
+
+    // Debounced search input handler
+    function handleSearchInput(e) {
+        const searchTerm = e.target.value.trim();
+
+        // Clear existing timer
+        if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+
+        // For empty input, clear immediately
+        if (!searchTerm) {
+            if (isSearchMode) {
+                window.location.reload();
             }
+            return;
+        }
+
+        // Debounce the search by 300ms
+        searchDebounceTimer = setTimeout(() => {
+            performServerSearch(searchTerm);
+        }, 300);
+    }
+
+    // Initialize search input listener
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('episode-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', handleSearchInput);
+        }
+    });
+
+    // Batch Actions Functions
+    function updateBatchActions() {
+        const checkboxes = document.querySelectorAll('.episode-checkbox:checked');
+        const toolbar = document.getElementById('batch-actions');
+        const countEl = document.getElementById('batch-count');
+
+        if (checkboxes.length > 0) {
+            if (toolbar) {
+                toolbar.style.display = 'flex';
+                // Trigger reflow for transition
+                toolbar.offsetHeight;
+                toolbar.style.opacity = '1';
+                toolbar.style.pointerEvents = 'auto';
+                toolbar.style.transform = 'translateY(0)';
+            }
+            if (countEl) countEl.textContent = checkboxes.length + ' selected';
+        } else {
+            if (toolbar) {
+                toolbar.style.opacity = '0';
+                toolbar.style.transform = 'translateY(20px)';
+                toolbar.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    if (document.querySelectorAll('.episode-checkbox:checked').length === 0) {
+                        toolbar.style.display = 'none';
+                    }
+                }, 300);
+            }
+        }
+    }
+
+    function selectAllEpisodes() {
+        const visibleCards = document.querySelectorAll('.episode-card:not(.hidden)');
+        visibleCards.forEach(card => {
+            const cb = card.querySelector('.episode-checkbox');
+            if (cb) cb.checked = true;
+        });
+        updateBatchActions();
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.episode-checkbox:checked').forEach(cb => cb.checked = false);
+        updateBatchActions();
+    }
+
+    async function batchReprocess() {
+        const ids = Array.from(document.querySelectorAll('.episode-checkbox:checked')).map(cb => cb.value);
+        if (ids.length === 0) return;
+
+        if (!confirm(`Reprocess ${ids.length} episode(s)?`)) return;
+
+        for (const id of ids) {
+            try {
+                await fetch(`/api/episodes/${id}/reprocess`, { method: 'POST' });
+            } catch (e) {
+                console.error('Failed to reprocess', id, e);
+            }
+        }
+        clearSelection();
+        window.location.reload();
+    }
+
+    async function batchDelete() {
+        const ids = Array.from(document.querySelectorAll('.episode-checkbox:checked')).map(cb => cb.value);
+        if (ids.length === 0) return;
+
+        if (!confirm(`Delete ${ids.length} episode(s)? This will mark them as ignored.`)) return;
+
+        for (const id of ids) {
+            try {
+                await fetch(`/api/episodes/${id}/ignore`, { method: 'POST' });
+            } catch (e) {
+                console.error('Failed to delete', id, e);
+            }
+        }
+        clearSelection();
+        window.location.reload();
+    }
+
+    function filterEpisodes(filter) {
+        const cards = document.querySelectorAll('.episode-card');
+        const searchInput = document.getElementById('episode-search');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+        let visibleCount = 0;
+
+        // Update active button state
+        if (filter !== null) {
+            document.querySelectorAll('#episode-filters .filter-btn').forEach(btn => {
+                const btnFilter = btn.getAttribute('data-filter');
+                if (btnFilter === (filter || 'all')) {
+                    btn.classList.remove('badge-soft'); btn.classList.add('badge-info');
+                } else {
+                    btn.classList.remove('badge-info'); btn.classList.add('badge-soft');
+                }
+            });
+            localStorage.setItem('episode-filter-preference', filter);
+        } else {
+            filter = localStorage.getItem('episode-filter-preference') || 'all';
+        }
+
+        cards.forEach(card => {
+            const status = card.getAttribute('data-status');
+            const title = card.getAttribute('data-title') || '';
+            let show = false;
+
+            // Status Filter logic
+            if (filter === 'all') show = true;
+            else if (filter === 'completed') show = status === 'completed';
+            else if (filter === 'manual') show = card.getAttribute('data-manual') === 'true';
+            else if (filter === 'not-downloaded') show = (status === 'unprocessed' || status === 'failed' || status === 'pending');
+            else if (filter === 'ignored') show = status === 'ignored';
+            else if (filter === 'played') show = parseInt(card.getAttribute('data-listen-count') || '0') > 0;
+
+            // Client-side search fallback (only for already-loaded episodes when not in server search mode)
+            if (!isSearchMode && searchTerm && !title.includes(searchTerm)) show = false;
+
+            if (show) { card.classList.remove('hidden'); visibleCount++; }
+            else { card.classList.add('hidden'); }
         });
 
         // Update count text
         const countText = document.getElementById('episode-count');
-        if (filter === 'all') {
-            countText.textContent = `Showing all active episodes (${visibleCount})`;
-        } else if (filter === 'ignored') {
-            countText.textContent = `Showing recently deleted (${visibleCount})`;
+        if (isSearchMode && currentSearchTerm) {
+            // In server search mode, show search-specific count
+            countText.textContent = `Found ${visibleCount} matches for "${currentSearchTerm}"`;
+        } else if (searchTerm && !isSearchMode) {
+            countText.textContent = `Found ${visibleCount} matches`;
+        } else if (filter === 'all') {
+            countText.textContent = `Showing all episodes (${visibleCount})`;
         } else {
             countText.textContent = `Filtered: ${visibleCount} episodes`;
         }
-
-        // Save filter preference
-        localStorage.setItem('episode-filter-preference', filter);
     }
 
-    // Initialize filter from preference or default to 'all'
+    function timeAgo(dateParam) {
+        if (!dateParam) return null;
+        const date = typeof dateParam === 'object' ? dateParam : new Date(dateParam);
+        const today = new Date();
+        const seconds = Math.round((today - date) / 1000);
+        const minutes = Math.round(seconds / 60);
+        const isToday = today.toDateString() === date.toDateString();
+
+        if (isToday) return 'Today';
+        if (seconds < 86400 * 2 && today.getDate() - date.getDate() === 1) return 'Yesterday';
+        if (seconds < 86400 * 7) return `${Math.floor(seconds / 86400)} days ago`;
+
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    // Format Dates on Load with Relative Logic
     document.addEventListener('DOMContentLoaded', () => {
-        const savedFilter = localStorage.getItem('episode-filter-preference') || 'all';
-        filterEpisodes(savedFilter);
+        document.querySelectorAll('.date-relative').forEach(el => {
+            try {
+                const dateStr = el.getAttribute('data-date');
+                const rel = timeAgo(dateStr);
+                if (rel) el.textContent = rel;
+            } catch (e) { }
+        });
     });
 
     function toggleDescription(id) {
-        const desc = document.getElementById(`desc-${id}`);
-        // Handle max-height toggle logic
-        if (desc.style.maxHeight === 'none' || desc.classList.contains('max-h-full')) {
-            desc.style.maxHeight = '6rem';
-            desc.classList.remove('max-h-full');
-        } else {
-            desc.style.maxHeight = 'none';
-            desc.classList.add('max-h-full');
+        const card = document.getElementById('card-' + id);
+        if (card) {
+            card.classList.toggle('expanded');
         }
     }
 
+
+
+    // Unified Toggle
     function toggleAiSummary(id) {
-        const originalContent = document.getElementById(`desc-content-orig-${id}`);
-        const aiContent = document.getElementById(`desc-content-ai-${id}`);
-        const btn = document.getElementById(`btn-ai-toggle-${id}`);
-
-        if (aiContent.classList.contains('hidden')) {
-            // Show AI
-            aiContent.classList.remove('hidden');
-            originalContent.classList.add('hidden');
-            btn.textContent = 'Show Original';
-            btn.classList.remove('bg-purple-100', 'text-purple-700');
-            btn.classList.add('bg-gray-100', 'text-gray-700');
-        } else {
-            // Show Original
-            aiContent.classList.add('hidden');
-            originalContent.classList.remove('hidden');
-            btn.textContent = 'Show AI Summary';
-            btn.classList.add('bg-purple-100', 'text-purple-700');
-            btn.classList.remove('bg-gray-100', 'text-gray-700');
-        }
+        // Now handled by toggleDescription logic for the primary view
     }
+
+    // Format Dates on Load
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.date-formatted').forEach(el => {
+            try {
+                const dateStr = el.textContent.trim();
+                const date = new Date(dateStr);
+                if (!isNaN(date)) {
+                    // Use simple format: "Dec 23, 2023"
+                    el.textContent = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                }
+            } catch (e) { }
+        });
+    });
 
     async function deleteEpisode(id) {
-        if (!confirm('Are you sure you want to permanently delete this episode and all its files? This cannot be undone.')) return;
-
+        if (!confirm('Are you sure you want to permanently delete this episode and all its files?')) return;
         const btn = document.getElementById(`btn-delete-${id}`);
         const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = 'Deleting...';
-
+        btn.disabled = true; btn.innerHTML = 'Deleting...';
         try {
             const response = await fetch(`/api/episodes/${id}`, { method: 'DELETE' });
-            if (response.ok) {
-                // Determine if we should reload or remove element. Reload is safest for list state.
-                window.location.reload();
-            } else {
-                alert('Failed to delete episode.');
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Error deleting episode.');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
+            if (response.ok) window.location.reload();
+            else { alert('Failed to delete episode.'); btn.disabled = false; btn.innerHTML = originalText; }
+        } catch (e) { alert('Error deleting episode.'); btn.disabled = false; btn.innerHTML = originalText; }
     }
 
     async function downloadEpisode(id) {
-        if (!confirm('Download this episode manually? It will be retained for 14 days.')) return;
+        if (!confirm('Download this episode manually?')) return;
         try {
             const resp = await fetch(`/episodes/${id}/download`, { method: 'POST' });
-            if (resp.ok) {
-                alert('Download queued! Refreshing...');
-                location.reload();
-            } else {
-                alert('Failed to queue download.');
-            }
-        } catch (e) {
-            console.error(e);
-            alert('Error starting download.');
-        }
+            if (resp.ok) { alert('Download queued!'); location.reload(); }
+            else alert('Failed to queue download.');
+        } catch (e) { alert('Error starting download.'); }
     }
 
-    function toggleDropdown(id) {
-        const el = document.getElementById(id);
-        if (el.classList.contains('hidden')) {
-            // Hide all others
-            document.querySelectorAll('[id^=menu-]').forEach(x => x.classList.add('hidden'));
-            el.classList.remove('hidden');
-        } else {
-            el.classList.add('hidden');
+    function showActionSheet(e, episodeId, hasTranscript, hasReport) {
+        e.stopPropagation();
+        const sheet = document.getElementById('action-sheet');
+        const content = document.getElementById('action-sheet-content');
+
+        // Build menu items
+        let html = '';
+        if (hasTranscript) {
+            html += `<a href="/episodes/${episodeId}/transcript" class="block w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-xl flex items-center gap-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                View Transcript
+            </a>`;
         }
+        if (hasReport) {
+            html += `<a href="/artifacts/report/${episodeId}" target="_blank" class="block w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-xl flex items-center gap-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                View Report
+            </a>`;
+        }
+        html += `<button onclick="closeActionSheet(); processEpisode(${episodeId}, false)" class="w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-xl flex items-center gap-3">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            Full Reprocess
+        </button>`;
+        if (hasTranscript) {
+            html += `<button onclick="closeActionSheet(); processEpisode(${episodeId}, true)" class="w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-xl flex items-center gap-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Reprocess (Keep Transcript)
+            </button>`;
+        }
+        html += `<button onclick="closeActionSheet(); deleteEpisode(${episodeId})" class="w-full text-left px-4 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-3">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            Delete File
+        </button>`;
+
+        content.innerHTML = html;
+        sheet.classList.remove('hidden');
     }
 
-    // Close on click outside
+    function closeActionSheet() {
+        document.getElementById('action-sheet').classList.add('hidden');
+    }
+
     window.onclick = function (event) {
-        // Check if the click target or any of its parents is a dropdown button or inside a dropdown menu
-        let isDropdownButton = event.target.closest('.relative.inline-block.text-left > button');
-        let isDropdownMenu = event.target.closest('[id^=menu-]');
-
-        if (!isDropdownButton && !isDropdownMenu) {
+        if (!event.target.closest('.relative.inline-block.text-left > button') && !event.target.closest('[id^=menu-]')) {
             document.querySelectorAll('[id^=menu-]').forEach(x => x.classList.add('hidden'));
         }
     }
@@ -586,61 +1383,52 @@
     async function checkNow(id) {
         if (!confirm('Check for new episodes now?')) return;
         await fetch(`/api/subscriptions/${id}/check`, { method: 'POST' });
-        alert('Check triggered! Refresh in a moment.');
-        location.reload();
+        alert('Check triggered!'); location.reload();
     }
 
     async function processEpisode(id, skipTranscription) {
-        const action = skipTranscription ? "Reprocess (Keep Transcript)" : "Process/Reprocess FULLY";
+        const action = skipTranscription ? "Reprocess (Keep Transcript)" : "Full Reprocess";
         if (!confirm(`${action}: Are you sure?`)) return;
-
-        const url = `/api/episodes/${id}/process` + (skipTranscription ? "?skip_transcription=true" : "");
+        const url = `/api/episodes/${id}/reprocess` + (skipTranscription ? "?skip_transcription=true" : "");
         try {
-            console.log(`Triggering reprocess for episode ${id}...`);
             const response = await fetch(url, { method: 'POST' });
             if (response.ok) {
-                const data = await response.json();
-                console.log('Reprocess response:', data);
-                // No alert, just reload to show status change
-                location.reload();
-            } else {
-                const errorText = await response.text();
-                console.error('Reprocess failed:', errorText);
-                alert(`Failed to trigger processing: ${response.status} ${response.statusText}`);
+                // Wait 20 seconds for system to queue the episode before refreshing
+                setTimeout(() => location.reload(), 20000);
             }
-        } catch (e) {
-            console.error('Error triggering reprocess:', e);
-            alert('Error starting processing. Check console for details.');
-        }
+            else alert(`Failed to trigger processing: ${response.status}`);
+        } catch (e) { alert('Error starting processing.'); }
     }
 
     async function cancelEpisode(id) {
-        if (!confirm('Cancel processing for this episode?')) return;
+        if (!confirm('Cancel processing?')) return;
         await fetch(`/api/episodes/${id}/cancel`, { method: 'POST' });
         location.reload();
     }
 
-    async function deleteSubscription(id) {
-        if (!confirm('Are you sure you want to delete this subscription? All episodes and files will be removed.')) return;
-        const res = await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            window.location.href = '/';
-        } else {
-            alert('Failed to delete subscription');
+    async function trackListen(id) {
+        try {
+            await fetch(`/api/episodes/${id}/track-listen`, { method: 'POST' });
+        } catch (e) {
+            console.error('Failed to track listen:', e);
         }
     }
 
-    // Auto-refresh logic for processing episodes
+    async function deleteSubscription(id) {
+        if (!confirm('Delete this subscription? All episodes and files will be removed.')) return;
+        const res = await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
+        if (res.ok) window.location.href = '/';
+        else alert('Failed to delete subscription');
+    }
+
     {% if has_processing.value %}
     (function () {
         const toggle = document.getElementById('auto-refresh-toggle');
         const intervalInput = document.getElementById('refresh-interval');
         const countdownDisplay = document.getElementById('refresh-countdown');
 
-        // Load settings from localStorage if available
         const savedInterval = localStorage.getItem('episodes-refresh-interval');
         const savedToggle = localStorage.getItem('episodes-refresh-enabled');
-
         if (savedInterval) intervalInput.value = savedInterval;
         if (savedToggle !== null) toggle.checked = savedToggle === 'true';
 
@@ -649,58 +1437,130 @@
 
         function updateCountdown() {
             if (!toggle.checked) return;
-
             timeLeft--;
             if (timeLeft <= 0) {
-                // Save state before reload
                 localStorage.setItem('episodes-refresh-enabled', toggle.checked);
                 localStorage.setItem('episodes-refresh-interval', intervalInput.value);
                 window.location.reload();
-            } else {
-                countdownDisplay.textContent = timeLeft + 's';
-            }
+            } else { countdownDisplay.textContent = timeLeft + 's'; }
         }
 
         function startTimer() {
             if (intervalId) clearInterval(intervalId);
             timeLeft = parseInt(intervalInput.value);
             if (isNaN(timeLeft) || timeLeft < 5) timeLeft = 5;
-
             countdownDisplay.textContent = timeLeft + 's';
-
             if (toggle.checked) {
+                countdownDisplay.classList.remove('bg-white/5', 'text-text-muted');
+                countdownDisplay.classList.add('bg-primary-500/20', 'text-primary-400');
                 intervalId = setInterval(updateCountdown, 1000);
-                countdownDisplay.classList.remove('bg-gray-100', 'text-gray-400');
-                countdownDisplay.classList.add('bg-blue-100', 'text-blue-700');
             } else {
                 countdownDisplay.textContent = 'Off';
-                countdownDisplay.classList.remove('bg-blue-100', 'text-blue-700');
-                countdownDisplay.classList.add('bg-gray-100', 'text-gray-400');
+                countdownDisplay.classList.remove('bg-primary-500/20', 'text-primary-400');
+                countdownDisplay.classList.add('bg-white/5', 'text-text-muted');
             }
         }
 
-        toggle.onchange = function () {
-            localStorage.setItem('episodes-refresh-enabled', toggle.checked);
-            startTimer();
-        };
-
+        toggle.onchange = function () { localStorage.setItem('episodes-refresh-enabled', toggle.checked); startTimer(); };
         intervalInput.onchange = function () {
             let val = parseInt(this.value);
-            if (isNaN(val) || val < 5) {
-                val = 5;
-                this.value = 5;
-            }
-            if (val > 300) {
-                val = 300;
-                this.value = 300;
-            }
+            if (isNaN(val) || val < 5) { val = 5; this.value = 5; }
+            if (val > 300) { val = 300; this.value = 300; }
             localStorage.setItem('episodes-refresh-interval', val);
             startTimer();
         };
-
-        // Initialize
         startTimer();
     })();
     {% endif %}
+    // View Toggle Logic for Episodes
+    document.addEventListener('DOMContentLoaded', () => {
+        function setEpisodeView(mode) {
+            const grid = document.getElementById('episodes-grid');
+            if (!grid) return;
+
+            // Set attribute
+            grid.setAttribute('data-view', mode);
+
+            // Save preference (reset to v4 for the new default)
+            try {
+                localStorage.setItem('episodes-view-mode-v4', mode);
+            } catch (e) { }
+
+            // Update buttons
+            ['grid', 'list'].forEach(m => {
+                const btn = document.getElementById(`view-${m}`);
+                if (btn) {
+                    if (m === mode) {
+                        btn.classList.add('bg-primary-500', 'text-white');
+                        btn.classList.remove('text-text-muted', 'hover:bg-white/[0.1]');
+                    } else {
+                        btn.classList.remove('bg-primary-500', 'text-white');
+                        btn.classList.add('text-text-muted', 'hover:bg-white/[0.1]');
+                    }
+                }
+            });
+        }
+
+        // Init view (using v4 to force the new Grid default)
+        const savedView = localStorage.getItem('episodes-view-mode-v4') || 'grid';
+        setEpisodeView(savedView);
+
+        // Attach listeners
+        ['grid', 'list'].forEach(m => {
+            const btn = document.getElementById(`view-${m}`);
+            if (btn) {
+                btn.addEventListener('click', () => setEpisodeView(m));
+            }
+        });
+
+        // Hoist toolbar to body to avoid stacking context/transform issues
+        const toolbar = document.getElementById('batch-actions');
+        if (toolbar) {
+            document.body.appendChild(toolbar);
+        }
+    });
 </script>
+<!-- Batch Actions Toolbar -->
+<div id="batch-actions"
+    style="position: fixed; bottom: 24px; left: 0; right: 0; margin-left: auto; margin-right: auto; width: max-content; min-width: 320px; max-width: 90vw; z-index: 2147483647; display: none; opacity: 0; transform: translateY(20px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; background-color: #151515;"
+    class="border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,1)] px-6 py-4 flex items-center gap-4">
+
+    <div class="flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></div>
+        <span id="batch-count" class="text-sm font-bold text-white whitespace-nowrap">0 selected</span>
+    </div>
+
+    <div class="h-6 w-px bg-white/20 shrink-0"></div>
+
+    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <button onclick="selectAllEpisodes()"
+            class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10 transition-colors whitespace-nowrap">
+            Select All
+        </button>
+        <button onclick="clearSelection()"
+            class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10 transition-colors whitespace-nowrap">
+            Clear
+        </button>
+
+        <div class="h-6 w-px bg-white/20 shrink-0 mx-1"></div>
+
+        <button onclick="batchReprocess()"
+            class="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-bold shadow-lg flex items-center gap-2 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Reprocess
+        </button>
+
+        <button onclick="batchDelete()"
+            class="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-bold flex items-center gap-2 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete
+        </button>
+    </div>
+</div>
 {% endblock %}

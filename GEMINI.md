@@ -10,7 +10,7 @@ CRITICAL: You are running in a manual, periodic session. Your FIRST action is al
 ## 2. Autonomous Git & GitHub Protocol
 **Atomic Logic**: "Work in small, logical units. Do not attempt to refactor the entire codebase in one turn."
 
-**Completion Trigger**: "Once a feature, bug fix, or logical unit of work is complete, you must generate a git commit message following Conventional Commits specifications (e.g., feat: add user auth, fix: resolve race condition, refactor: optimize database query)."
+**No Manual Deployments**: "DO NOT deploy directly to the server (e.g., stopping/starting containers). The user manages deployments manually via Dockge. Always provide the build/push status and ask the user to pull the update."
 
 ## 3. Engineering Standards
 **No Placeholders**: "Never use comments like // rest of code here or .... You must write the full implementation. If the file is too large, explicitly ask to break the response into multiple parts."

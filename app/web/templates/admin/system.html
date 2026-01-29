@@ -4,70 +4,63 @@
 
 {% block admin_content %}
 <form method="post" action="/admin/system/update" class="space-y-6">
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h2 class="text-2xl font-bold mb-6">System Settings</h2>
+    <h2 class="font-display text-2xl font-bold mb-6">System Settings</h2>
 
-        <!-- Processing -->
-        <div>
-            <h4 class="text-lg font-medium text-gray-700 border-b pb-2 mb-4">Processing</h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Concurrent Downloads</label>
-                    <input type="number" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 2 }}"
-                        min="1" max="10" class="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
-                    <p class="text-xs text-gray-500 mt-1">Number of episodes to process in parallel.</p>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Retention Policy</label>
-                    <div class="flex items-center gap-2">
-                        <input type="number" name="retention_days" value="{{ settings.retention_days or 30 }}" min="1"
-                            class="flex-1 p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
-                        <span class="text-sm text-gray-600">days</span>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">Auto-delete files older than X days (0 = Keep Forever).</p>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Check Interval</label>
-                    <div class="flex items-center gap-2">
-                        <input type="number" name="check_interval_minutes"
-                            value="{{ settings.check_interval_minutes or 60 }}" min="1"
-                            class="flex-1 p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
-                        <span class="text-sm text-gray-600">mins</span>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">How often to check for new episodes.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Network -->
-        <div>
-            <h4 class="text-lg font-medium text-gray-700 border-b pb-2 mb-4 mt-6">Network</h4>
+    <!-- Processing -->
+    <div>
+        <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Processing</h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Public Application URL</label>
-                <input type="text" name="app_external_url" value="{{ settings.app_external_url or '' }}"
-                    placeholder="https://domainname.com"
-                    class="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
-                <p class="text-xs text-gray-500 mt-1">
-                    The base URL used for RSS feeds (e.g., your LAN IP or custom domain).
-                    <strong>Use http:// for local network access</strong> (e.g., http://192.168.x.x:8000).
-                </p>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Concurrent Downloads</label>
+                <input type="number" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 2 }}"
+                    min="1" max="10" class="input">
+                <p class="text-xs text-text-muted mt-1">Number of episodes to process in parallel.</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Retention Policy</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="retention_days" value="{{ settings.retention_days or 30 }}" min="1"
+                        class="input flex-1">
+                    <span class="text-sm text-text-muted">days</span>
+                </div>
+                <p class="text-xs text-text-muted mt-1">Auto-delete files older than X days (0 = Keep Forever).</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Check Interval</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="check_interval_minutes"
+                        value="{{ settings.check_interval_minutes or 60 }}" min="1" class="input flex-1">
+                    <span class="text-sm text-text-muted">mins</span>
+                </div>
+                <p class="text-xs text-text-muted mt-1">How often to check for new episodes.</p>
             </div>
         </div>
+    </div>
 
-        <div class="flex justify-end pt-4 border-t mt-6">
-            <!-- Hidden fields to preserve Auth/Access settings -->
-            <input type="hidden" name="auth_enabled" value="{% if settings.auth_enabled %}on{% endif %}">
-            <input type="hidden" name="enable_feed_auth" value="{% if settings.enable_feed_auth %}on{% endif %}">
-            <input type="hidden" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}">
-            <input type="hidden" name="feed_auth_username" value="{{ settings.feed_auth_username or '' }}">
-
-            <button type="submit"
-                class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm font-medium">
-                Save Changes
-            </button>
+    <!-- Network -->
+    <div>
+        <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4 mt-6">Network</h4>
+        <div>
+            <label class="block text-sm font-medium text-text-secondary mb-2">Public Application URL</label>
+            <input type="text" name="app_external_url" value="{{ settings.app_external_url or '' }}"
+                placeholder="https://domainname.com" class="input">
+            <p class="text-xs text-text-muted mt-1">
+                The base URL used for RSS feeds (e.g., your LAN IP or custom domain).
+                <strong>Use http:// for local network access</strong> (e.g., http://192.168.x.x:8000).
+            </p>
         </div>
+    </div>
+
+    <div class="flex justify-end pt-4 border-t border-white/[0.08] mt-6">
+        <!-- Hidden fields to preserve Auth/Access settings -->
+        <input type="hidden" name="auth_enabled" value="{% if settings.auth_enabled %}on{% endif %}">
+        <input type="hidden" name="enable_feed_auth" value="{% if settings.enable_feed_auth %}on{% endif %}">
+        <input type="hidden" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}">
+        <input type="hidden" name="feed_auth_username" value="{{ settings.feed_auth_username or '' }}">
+
+        <button type="submit" class="btn-primary">Save Changes</button>
     </div>
 </form>
 {% endblock %}

@@ -4,11 +4,13 @@ from pydantic import Field
 
 class Settings(BaseSettings):
     # Core
-    GEMINI_API_KEY: str | None = Field(None, description="Google Gemini API Key")
+    ENVIRONMENT: str = Field("production", description="Environment: development or production")
+    GEMINI_API_KEY: str | None = Field(None, description="Google Gemini API Key (comma-separated for multiple keys)")
     OPENAI_API_KEY: str | None = Field(None, description="OpenAI API Key")
     ANTHROPIC_API_KEY: str | None = Field(None, description="Anthropic API Key")
     OPENROUTER_API_KEY: str | None = Field(None, description="OpenRouter API Key")
     LOG_LEVEL: str = "INFO"
+    SESSION_SECRET_KEY: str = Field("super-secret-session-key-change-me", description="Secret key for session encryption")
     
     # Paths
     DATA_DIR: str = "/data"

@@ -3,119 +3,121 @@
 {% block title %}Global Subscription Settings{% endblock %}
 
 {% block admin_content %}
-<div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-    <h2 class="text-2xl font-bold mb-6">Global Subscription Settings</h2>
-    <p class="text-gray-500 mb-6">These settings will be used as defaults for any NEW podcast subscriptions added to the
-        system. Existing subscriptions will not be affected.</p>
+<h2 class="font-display text-2xl font-bold mb-6">Global Subscription Settings</h2>
+<p class="text-text-secondary mb-6">These settings will be used as defaults for any NEW podcast subscriptions added to
+    the system. Existing subscriptions will not be affected.</p>
 
-    <form action="/admin/global-subscription-settings/update" method="POST">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Content Removal -->
-            <div class="space-y-4">
-                <h4 class="font-semibold text-gray-700">Default Content Removal</h4>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_ads" name="default_remove_ads" value="true" {% if
-                        settings.default_remove_ads %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_ads" class="ml-2 text-gray-700">Remove Ads</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_promos" name="default_remove_promos" value="true" {% if
-                        settings.default_remove_promos %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_promos" class="ml-2 text-gray-700">Remove Promos</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_intros" name="default_remove_intros" value="true" {% if
-                        settings.default_remove_intros %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_intros" class="ml-2 text-gray-700">Remove Intros</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remove_outros" name="default_remove_outros" value="true" {% if
-                        settings.default_remove_outros %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="remove_outros" class="ml-2 text-gray-700">Remove Outros</label>
-                </div>
+<form action="/admin/global-subscription-settings/update" method="POST">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Content Removal -->
+        <div class="space-y-4">
+            <h4 class="font-semibold border-b border-white/[0.08] pb-2">Default Content Removal</h4>
+            <div class="space-y-3">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="default_remove_ads" value="true" {% if settings.default_remove_ads
+                        %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Ads</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="default_remove_promos" value="true" {% if
+                        settings.default_remove_promos %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Promos</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="default_remove_intros" value="true" {% if
+                        settings.default_remove_intros %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Intros</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="default_remove_outros" value="true" {% if
+                        settings.default_remove_outros %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Remove Outros</span>
+                </label>
+            </div>
 
-                <div class="pt-4 border-t border-gray-100">
-                    <h4 class="font-semibold text-gray-700 mb-2">Default Retention Policy</h4>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-sm text-gray-600">Auto-Downloads (Episodes to Keep)</label>
-                            <select name="default_retention_limit"
-                                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-                                <option value="0" {% if settings.default_retention_limit==0 %}selected{% endif %}>None
-                                    (Manual Only)</option>
-                                <option value="1" {% if (settings.default_retention_limit is none or
-                                    settings.default_retention_limit==1) %}selected{% endif %}>Keep Latest 1 (Default)
-                                </option>
-                                <option value="2" {% if settings.default_retention_limit==2 %}selected{% endif %}>Keep
-                                    Latest 2</option>
-                                <option value="3" {% if settings.default_retention_limit==3 %}selected{% endif %}>Keep
-                                    Latest 3</option>
-                                <option value="5" {% if settings.default_retention_limit==5 %}selected{% endif %}>Keep
-                                    Latest 5</option>
-                                <option value="10" {% if settings.default_retention_limit==10 %}selected{% endif %}>Keep
-                                    Latest 10</option>
-                                <option value="20" {% if settings.default_retention_limit==20 %}selected{% endif %}>Keep
-                                    Latest 20</option>
-                                <option value="1000" {% if settings.default_retention_limit>=1000 %}selected{% endif
-                                    %}>Keep All</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-600">Manual Downloads</label>
-                            <select name="default_manual_retention_days"
-                                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-                                <option value="7" {% if settings.default_manual_retention_days==7 %}selected{% endif %}>
-                                    Keep 7 Days</option>
-                                <option value="14" {% if (settings.default_manual_retention_days or 14)==14 %}selected{%
-                                    endif %}>Keep 14 Days</option>
-                                <option value="30" {% if settings.default_manual_retention_days==30 %}selected{% endif
-                                    %}>Keep 30 Days</option>
-                                <option value="90" {% if settings.default_manual_retention_days==90 %}selected{% endif
-                                    %}>Keep 90 Days</option>
-                                <option value="365" {% if settings.default_manual_retention_days==365 %}selected{% endif
-                                    %}>Keep 1 Year</option>
-                            </select>
-                        </div>
+            <div class="pt-4 border-t border-white/[0.08]">
+                <h4 class="font-semibold mb-3">Default Retention Policy</h4>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-text-secondary mb-2">Auto-Downloads (Episodes to Keep)</label>
+                        <select name="default_retention_limit" class="select">
+                            <option value="0" {% if settings.default_retention_limit==0 %}selected{% endif %}>None
+                                (Manual Only)</option>
+                            <option value="1" {% if (settings.default_retention_limit is none or
+                                settings.default_retention_limit==1) %}selected{% endif %}>Keep Latest 1 (Default)
+                            </option>
+                            <option value="2" {% if settings.default_retention_limit==2 %}selected{% endif %}>Keep
+                                Latest 2</option>
+                            <option value="3" {% if settings.default_retention_limit==3 %}selected{% endif %}>Keep
+                                Latest 3</option>
+                            <option value="5" {% if settings.default_retention_limit==5 %}selected{% endif %}>Keep
+                                Latest 5</option>
+                            <option value="10" {% if settings.default_retention_limit==10 %}selected{% endif %}>Keep
+                                Latest 10</option>
+                            <option value="20" {% if settings.default_retention_limit==20 %}selected{% endif %}>Keep
+                                Latest 20</option>
+                            <option value="1000" {% if settings.default_retention_limit>=1000 %}selected{% endif %}>Keep
+                                All</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-text-secondary mb-2">Manual Downloads</label>
+                        <select name="default_manual_retention_days" class="select">
+                            <option value="7" {% if settings.default_manual_retention_days==7 %}selected{% endif %}>Keep
+                                7 Days</option>
+                            <option value="14" {% if (settings.default_manual_retention_days or 14)==14 %}selected{%
+                                endif %}>Keep 14 Days</option>
+                            <option value="30" {% if settings.default_manual_retention_days==30 %}selected{% endif %}>
+                                Keep 30 Days</option>
+                            <option value="90" {% if settings.default_manual_retention_days==90 %}selected{% endif %}>
+                                Keep 90 Days</option>
+                            <option value="365" {% if settings.default_manual_retention_days==365 %}selected{% endif %}>
+                                Keep 1 Year</option>
+                        </select>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Features -->
-            <div class="space-y-4">
-                <h4 class="font-semibold text-gray-700">Default Features</h4>
-                <div class="flex items-center">
-                    <input type="checkbox" id="ai_rewrite_description" name="default_ai_rewrite_description"
-                        value="true" {% if settings.default_ai_rewrite_description %}checked{% endif %}
-                        class="h-4 w-4 text-blue-600 rounded">
-                    <label for="ai_rewrite_description" class="ml-2 text-gray-700">Rewrite Description (AI Text)</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="ai_audio_summary" name="default_ai_audio_summary" value="true" {% if
-                        settings.default_ai_audio_summary %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="ai_audio_summary" class="ml-2 text-gray-700">Append Audio Summary (AI TTS)</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="append_title_intro" name="default_append_title_intro" value="true" {% if
-                        settings.default_append_title_intro %}checked{% endif %} class="h-4 w-4 text-blue-600 rounded">
-                    <label for="append_title_intro" class="ml-2 text-gray-700">Append Audio Title as Intro (TTS)</label>
-                </div>
+        <!-- Features -->
+        <div class="space-y-4">
+            <h4 class="font-semibold border-b border-white/[0.08] pb-2">Default Features</h4>
+            <div class="space-y-3">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="default_ai_rewrite_description" value="true" {% if
+                        settings.default_ai_rewrite_description %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Rewrite Description (AI Text)</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="default_ai_audio_summary" value="true" {% if
+                        settings.default_ai_audio_summary %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Append Audio Summary (AI TTS)</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="default_append_title_intro" value="true" {% if
+                        settings.default_append_title_intro %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Append Audio Title as Intro (TTS)</span>
+                </label>
+            </div>
 
-                <div class="mt-4">
-                    <label for="custom_instructions" class="block text-sm font-medium text-gray-700">Default Custom Ad
-                        Detection Instructions</label>
-                    <textarea id="custom_instructions" name="default_custom_instructions" rows="3"
-                        class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'">{{ settings.default_custom_instructions or '' }}</textarea>
-                </div>
+            <div class="mt-6">
+                <label class="block text-sm font-medium text-text-secondary mb-2">Default Custom Ad Detection
+                    Instructions</label>
+                <textarea name="default_custom_instructions" rows="4" class="input font-mono text-sm"
+                    placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'">{{ settings.default_custom_instructions or '' }}</textarea>
             </div>
         </div>
+    </div>
 
-        <div class="flex justify-end pt-4 border-t mt-6">
-            <button type="submit"
-                class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm font-medium">
-                Save Global Defaults
-            </button>
-        </div>
-    </form>
-</div>
+    <div class="flex justify-end pt-4 border-t border-white/[0.08] mt-8">
+        <button type="submit" class="btn-primary">Save Global Defaults</button>
+    </div>
+</form>
 {% endblock %}

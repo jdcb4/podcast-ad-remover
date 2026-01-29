@@ -3,11 +3,12 @@ import os
 import logging
 import httpx
 import aiofiles
+import json
 from datetime import datetime
 from app.core.config import settings
 from app.core.models import Episode
 from app.infra.repository import EpisodeRepository, SubscriptionRepository
-from app.core.ai_services import Transcriber, AdDetector
+from app.core.ai_services import Transcriber, AdDetector, RateLimitError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
 from app.core.feed import FeedManager
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class Processor:
     _active_task_ids = set()
+    _queue_lock = asyncio.Lock()  # Prevent race conditions in process_queue
 
     def __init__(self):
         self.ep_repo = EpisodeRepository()
@@ -108,6 +110,108 @@ class Processor:
         
         return True
 
+    async def version_episode(self, episode_id: int):
+        """
+        Increments the version suffix of an episode's GUID (e.g., _v2, _v3)
+         and renames its physical directory to match.
+        """
+        import re
+        ep = self.ep_repo.get_by_id(episode_id)
+        if not ep:
+            logger.error(f"Cannot version episode {episode_id}: Not found")
+            return False
+            
+        sub = self.sub_repo.get_by_id(ep.subscription_id)
+        if not sub:
+            logger.error(f"Cannot version episode {episode_id}: Subscription {ep.subscription_id} not found")
+            return False
+
+        old_guid = ep.guid
+        old_title = ep.title
+        
+        # Determine next version
+        match = re.search(r'_v(\d+)$', old_guid)
+        if match:
+            v_num = int(match.group(1)) + 1
+            new_guid = re.sub(r'_v\d+$', f"_v{v_num}", old_guid)
+            # Update title version if present, else append
+            if re.search(r' \(Reprocessed V\d+\)$', old_title):
+                new_title = re.sub(r' \(Reprocessed V\d+\)$', f" (Reprocessed V{v_num})", old_title)
+            else:
+                new_title = f"{old_title} (Reprocessed V{v_num})"
+        else:
+            v_num = 1
+            new_guid = f"{old_guid}_v{v_num}"
+            new_title = f"{old_title} (Reprocessed V{v_num})"
+
+        logger.info(f"Versioning episode {episode_id}: '{old_title}' ({old_guid}) -> '{new_title}' ({new_guid})")
+
+        # Rename physical directory
+        old_episode_slug = f"{old_guid}".replace("/", "_").replace(" ", "_")
+        new_episode_slug = f"{new_guid}".replace("/", "_").replace(" ", "_")
+        
+        old_dir = settings.get_episode_dir(sub.slug, old_episode_slug)
+        new_dir = settings.get_episode_dir(sub.slug, new_episode_slug)
+
+        if os.path.exists(old_dir):
+            try:
+                os.rename(old_dir, new_dir)
+                logger.info(f"Renamed episode directory: {old_dir} -> {new_dir}")
+            except Exception as e:
+                logger.error(f"Failed to rename directory {old_dir} to {new_dir}: {e}")
+                # We continue anyway to update the DB, as the directory move is preferred but metadata is critical
+        
+        # Update database paths using a helper or manual dict update
+        def update_path(p):
+            if not p: return p
+            return p.replace(old_dir, new_dir)
+
+        # We need a way to update the GUID, Title and paths in the DB. 
+        # Using a fresh connection helper from the database module
+        from app.infra.database import get_db_connection
+        with get_db_connection() as conn:
+            conn.execute("""
+                UPDATE episodes SET 
+                    guid = ?, 
+                    title = ?,
+                    local_filename = ?, 
+                    transcript_path = ?, 
+                    ad_report_path = ?, 
+                    report_path = ? 
+                WHERE id = ?
+            """, (
+                new_guid, 
+                new_title,
+                update_path(ep.local_filename),
+                update_path(ep.transcript_path),
+                update_path(ep.ad_report_path),
+                update_path(ep.report_path),
+                episode_id
+            ))
+            
+            # Insert placeholder for old GUID to prevent re-downloading
+            try:
+                conn.execute("""
+                    INSERT INTO episodes (subscription_id, guid, title, pub_date, original_url, duration, description, status, file_size)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'ignored', 0)
+                """, (
+                    ep.subscription_id, 
+                    old_guid, 
+                    old_title, 
+                    ep.pub_date, 
+                    ep.original_url, 
+                    ep.duration, 
+                    ep.description
+                ))
+                logger.info(f"Created placeholder for old GUID: {old_guid}")
+            except Exception as e:
+                logger.warning(f"Failed to create placeholder for old GUID {old_guid}: {e}")
+
+            conn.commit()
+
+        logger.info(f"Metadata and Title updated for episode {episode_id}")
+        return True
+
     def _extract_text(self, start: float, end: float, segments: list) -> str:
         """Extract text from transcript overlapping with the given time range."""
         text = []
@@ -130,37 +234,47 @@ class Processor:
 
     async def process_queue(self):
         """Process pending episodes concurrently up to the configured limit."""
-        # 1. Fetch limit from settings
-        from app.web.router import get_global_settings
-        db_settings = get_global_settings()
-        limit = db_settings.get('concurrent_downloads', 2)
-        if not limit or limit < 1: limit = 2
+        # Use lock to prevent race conditions from multiple callers WITHIN this process
+        async with Processor._queue_lock:
+            # 1. Fetch limit from settings
+            from app.web.router import get_global_settings
+            db_settings = get_global_settings()
+            limit = db_settings.get('concurrent_downloads', 2)
+            if not limit or limit < 1: limit = 2
 
-        # 2. Check if we have room
-        if len(Processor._active_task_ids) >= limit:
-            return
+            # 2. Check if we have room using DATABASE count (cross-process safe)
+            currently_processing = self.ep_repo.count_processing()
+            if currently_processing >= limit:
+                return
 
-        # 3. Get pending episodes
-        pending = self.ep_repo.get_pending()
-        if not pending:
-            return
+            # 3. Get pending episodes
+            pending = self.ep_repo.get_pending()
+            if not pending:
+                return
 
-        # 4. Launch new tasks up to limit
-        capacity = limit - len(Processor._active_task_ids)
-        for ep_dict in pending:
-            if capacity <= 0:
-                break
+            # 4. Launch new tasks up to limit
+            capacity = limit - currently_processing
+            for ep_dict in pending:
+                if capacity <= 0:
+                    break
+                    
+                ep_id = ep_dict['id']
                 
-            ep_id = ep_dict['id']
-            if ep_id in Processor._active_task_ids:
-                continue
+                # Skip if already in our in-process tracking (for this process)
+                if ep_id in Processor._active_task_ids:
+                    continue
                 
-            # Reserve it
-            Processor._active_task_ids.add(ep_id)
-            capacity -= 1
-            
-            # Start background task
-            asyncio.create_task(self._process_single_episode_task(ep_dict))
+                # CRITICAL: Mark as "processing" in DB BEFORE launching task
+                # This prevents other processes from picking up the same episode
+                self.ep_repo.update_status(ep_id, "processing")
+                self.ep_repo.update_progress(ep_id, "Starting...", 0)
+                    
+                # Add to in-process set and launch
+                Processor._active_task_ids.add(ep_id)
+                capacity -= 1
+                
+                # Start background task
+                asyncio.create_task(self._process_single_episode_task(ep_dict))
 
     async def _process_single_episode_task(self, ep_dict: dict):
         """Wrapper to manage active task state and call the actual processor."""
@@ -200,10 +314,13 @@ class Processor:
             skip_transcription = False
             if ep.processing_flags:
                 try:
-                    import json
+                    logger.info(f"Checking processing flags for {ep.title}: {ep.processing_flags}")
                     flags = json.loads(ep.processing_flags)
                     skip_transcription = flags.get('skip_transcription', False)
-                except: pass
+                    if skip_transcription:
+                        logger.info(f"Targeting skip_transcription for {ep.title}")
+                except Exception as e:
+                    logger.error(f"Failed to parse processing flags: {e}")
                 
             transcript = None
             
@@ -216,7 +333,7 @@ class Processor:
             transcript_path = None
             
             if skip_transcription and ep.transcript_path and os.path.exists(ep.transcript_path):
-                 logger.info(f"Skipping transcription, using existing: {ep.transcript_path}")
+                 logger.info(f"Attempting to skip transcription, using existing: {ep.transcript_path}")
                  transcript_path = ep.transcript_path
                  import ast
                  async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
@@ -224,14 +341,19 @@ class Processor:
                      # Handle both JSON and Python dict string (legacy)
                      try:
                          transcript = json.loads(content)
+                         logger.info(f"Successfully loaded JSON transcript for {ep.title}")
                      except:
                          try:
                              transcript = ast.literal_eval(content)
+                             logger.info(f"Successfully loaded legacy dict transcript for {ep.title}")
                          except Exception as e:
-                             logger.error(f"Failed to load transcript: {e}")
+                             logger.error(f"Failed to load transcript for {ep.title}: {e}")
                              # Fallback to re-transcribe if load fails
                              skip_transcription = False
-            
+                             transcript = None
+            elif skip_transcription:
+                logger.warning(f"skip_transcription requested for {ep.title} but transcript_path missing or file not found: {ep.transcript_path}")
+                skip_transcription = False
             # 1. Ensure Audio Exists (Download if missing)
             if not os.path.exists(input_path):
                 if not self._check_cancellation(ep): return
@@ -335,7 +457,6 @@ class Processor:
                 
                 # Save Transcript (Prefer JSON now)
                 transcript_path = os.path.join(episode_dir, "transcript.json")
-                import json
                 async with aiofiles.open(transcript_path, "w", encoding="utf-8") as f:
                     await f.write(json.dumps(transcript))
                 
@@ -379,7 +500,6 @@ class Processor:
                 s['text'] = self._extract_text(s['start'], s['end'], transcript['segments'])
 
             # Save Ad Report (JSON)
-            import json
             report_path = os.path.join(episode_dir, "report.json")
             report_data = {
                 "episode_id": ep.id,
@@ -412,28 +532,94 @@ class Processor:
             <html>
             <head>
                 <title>Ad Report: {ep.title}</title>
+                <link rel="preconnect" href="https://fonts.googleapis.com">
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
                 <style>
-                    body {{ font-family: sans-serif; max_width: 800px; margin: 2rem auto; padding: 0 1rem; }}
-                    .segment {{ background: #ffebee; padding: 15px; margin: 10px 0; border-left: 4px solid #f44336; border-radius: 4px; }}
-                    .meta {{ color: #666; font-size: 0.9em; margin-bottom: 20px; }}
-                    .badge {{ background: #e53935; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }}
-                    .flex {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }}
-                    .transcript-text {{ background: rgba(255,255,255,0.5); padding: 8px; border-radius: 4px; font-style: italic; color: #444; font-size: 0.9em; margin-top: 10px; }}
-                    .reason {{ margin: 0 0 5px 0; font-weight: bold; color: #b71c1c; }}
+                    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+                    body {{ 
+                        font-family: 'Inter', sans-serif; 
+                        max-width: 900px; 
+                        margin: 0 auto; 
+                        padding: 2rem 1rem;
+                        background: #0a0a0f;
+                        color: #fafafa;
+                        line-height: 1.6;
+                    }}
+                    h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; }}
+                    h1 {{ font-size: 2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, #a78bfa, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+                    h2 {{ font-size: 1.5rem; margin-bottom: 1rem; color: #fafafa; }}
+                    h3 {{ font-size: 1.125rem; margin: 1.5rem 0 1rem 0; color: #a1a1aa; }}
+                    .meta {{ color: #52525b; font-size: 0.85em; margin-bottom: 1.5rem; font-family: monospace; }}
+                    /* Scrollbar */
+                    ::-webkit-scrollbar {{ width: 8px; }}
+                    ::-webkit-scrollbar-track {{ background: #0a0a0f; }}
+                    ::-webkit-scrollbar-thumb {{ background: #22222f; border-radius: 4px; }}
+                    ::-webkit-scrollbar-thumb:hover {{ background: #3f3f46; }}
+
+                    .segment {{ 
+                        background: #1a1a25;
+                        padding: 1.25rem; 
+                        margin: 1rem 0; 
+                        border-left: 4px solid #8b5cf6; 
+                        border-radius: 0.75rem;
+                        border: 1px solid rgba(255,255,255,0.08);
+                    }}
+                    .badge {{ 
+                        background: rgba(139,92,246,0.15); 
+                        color: #a78bfa; 
+                        padding: 0.25rem 0.75rem; 
+                        border-radius: 999px; 
+                        font-size: 0.75em; 
+                        font-weight: 600;
+                        border: 1px solid rgba(139,92,246,0.2);
+                    }}
+                    .badge.intro {{ background: rgba(52,211,153,0.15); color: #34d399; border-color: rgba(52,211,153,0.2); }}
+                    .badge.outro {{ background: rgba(251,191,36,0.15); color: #fbbf24; border-color: rgba(251,191,36,0.2); }}
+                    .flex {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }}
+                    .transcript-text {{ 
+                        background: rgba(255,255,255,0.03); 
+                        padding: 0.75rem 1rem; 
+                        border-radius: 0.5rem; 
+                        font-style: italic; 
+                        color: #a1a1aa; 
+                        font-size: 0.9em; 
+                        margin-top: 0.75rem;
+                        border: 1px solid rgba(255,255,255,0.06);
+                    }}
+                    .reason {{ margin: 0; font-weight: 600; color: #a78bfa; }}
+                    .time {{ color: #fafafa; font-weight: 600; }}
+                    a {{ color: #a78bfa; text-decoration: none; }}
+                    a:hover {{ text-decoration: underline; }}
+                    .total {{ 
+                        display: inline-block;
+                        background: rgba(139,92,246,0.1); 
+                        color: #a78bfa; 
+                        padding: 0.5rem 1rem; 
+                        border-radius: 0.5rem;
+                        font-weight: 600;
+                        margin-bottom: 1rem;
+                    }}
                 </style>
             </head>
             <body>
+                <div style="margin-bottom: 2rem;">
+                    <a href="/" style="font-weight: 700; font-size: 1.25rem; color: #fafafa; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;"><path d="M4 11v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M4 11l8-8 8 8"></path><path d="M12 19v-6"></path></svg>
+                         Back to Dashboard
+                    </a>
+                </div>
                 <h1>Ad Report</h1>
                 <h2>{ep.title}</h2>
                 <p class="meta">GUID: {ep.guid}</p>
                 
                 <h3>Detected Segments</h3>
-                <p>Total Segments: {len(ad_segments)}</p>
+                <p class="total">Total Segments: {len(ad_segments)}</p>
                 
                 {rows_html}
                 
                 <h3>Transcript</h3>
-                <p><a href="file://{transcript_path}">View Full Transcript</a></p>
+                <p><a href="/artifacts/transcript/{ep.id}" class="btn">View Full Transcript (JSON)</a></p>
             </body>
             </html>
             """
@@ -490,12 +676,20 @@ class Processor:
                     summary_text = None
                     try:
                         logger.info(f"Generating episode summary for {ep.title}...")
+                        # Build subscription settings dict for targets
+                        sub_settings = {
+                            'remove_ads': sub.remove_ads,
+                            'remove_promos': sub.remove_promos,
+                            'remove_intros': sub.remove_intros,
+                            'remove_outros': sub.remove_outros
+                        }
                         summary_text = await asyncio.to_thread(
                             self.ad_detector.generate_summary,
                             transcript, 
                             sub.title or "Podcast", 
                             ep.title, 
-                            str(ep.pub_date) if ep.pub_date else "recently"
+                            str(ep.pub_date) if ep.pub_date else "recently",
+                            sub_settings
                         )
                         # Save to DB and file immediately
                         self.ep_repo.update_ai_summary(ep.id, summary_text)
@@ -563,10 +757,29 @@ class Processor:
             
             logger.info(f"Successfully processed {ep.title}")
 
+        except RateLimitError as e:
+            # Special handling for API rate limits - wait until quota resets
+            logger.warning(f"Rate limit hit for episode {ep.id}: {e}")
+            next_retry = e.get_next_retry_time()
+            retry_time_str = next_retry.strftime('%Y-%m-%d %H:%M:%S UTC')
+            logger.info(f"Episode {ep.title} placed on hold until API quota resets at {retry_time_str}")
+            self.ep_repo.update_rate_limited(ep.id, next_retry, str(e))
+            
         except Exception as e:
             logger.error(f"Failed to process episode {ep.id}: {e}")
             
-            # Retry Logic
+            # Check if this might be a rate limit we didn't catch
+            error_str = str(e).lower()
+            rate_limit_patterns = ['resource_exhausted', 'quota', 'rate limit', '429', 'too many requests']
+            if any(pattern in error_str for pattern in rate_limit_patterns):
+                # Treat as rate limit
+                logger.warning(f"Detected possible rate limit in error: {e}")
+                rate_error = RateLimitError(str(e), is_daily_limit=True, provider="unknown")
+                next_retry = rate_error.get_next_retry_time()
+                self.ep_repo.update_rate_limited(ep.id, next_retry, str(e))
+                return
+            
+            # Regular Retry Logic
             retry_count = ep_dict.get('retry_count', 0) + 1
             if retry_count <= 5:
                 # Exponential backoff: 5, 10, 20, 40, 80 minutes
@@ -682,13 +895,13 @@ class Processor:
                                 except Exception as e:
                                     logger.warning(f"Failed to delete empty folder {ep_path}: {e}")
                     
-                    # Check if subscription folder is empty
-                    if os.path.exists(sub_path) and not os.listdir(sub_path):
-                        try:
-                            os.rmdir(sub_path)
-                            logger.info(f"Deleted empty subscription folder: {subscription_folder}")
-                        except Exception as e:
-                            logger.warning(f"Failed to delete empty subscription folder {sub_path}: {e}")
+                        # Check if subscription folder is empty (inside the loop where sub_path is defined)
+                        if os.path.exists(sub_path) and not os.listdir(sub_path):
+                            try:
+                                os.rmdir(sub_path)
+                                logger.info(f"Deleted empty subscription folder: {subscription_folder}")
+                            except Exception as e:
+                                logger.warning(f"Failed to delete empty subscription folder {sub_path}: {e}")
 
                     if deleted_folders > 0:
                         logger.info(f"Cleaned up {deleted_folders} empty episode folders")

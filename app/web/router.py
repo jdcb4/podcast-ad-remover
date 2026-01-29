@@ -6,6 +6,7 @@ from app.core.feed import FeedManager
 from app.core.models import SubscriptionCreate
 from app.web.auth import get_current_user, require_auth, require_admin, log_login_attempt, SESSION_USER_KEY
 from app.web.auth_utils import hash_password, verify_password, generate_secure_password, get_client_ip
+from app.web.rate_limiter import login_rate_limiter, check_rate_limit
 from app.infra.database import get_db_connection
 from datetime import datetime
 import os
@@ -16,6 +17,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
+
+# Helper to get CSP nonce from request
+def get_csp_nonce(request: Request) -> str:
+    """Extract CSP nonce from request state (set by SecurityHeadersMiddleware)"""
+    return getattr(request.state, 'csp_nonce', '')
+
 
 # Add simple markdown filter
 def simple_markdown(text):
@@ -41,7 +48,7 @@ def simple_markdown(text):
         nonlocal in_list, list_items, result
         if in_list and list_items:
             # Inline styles as baseline, tailwind classes for styling
-            list_html = '<ul class="list-disc ml-8 space-y-2 mb-4 text-gray-800" style="list-style-type: disc; margin-left: 2rem; margin-bottom: 1rem;">\n' + \
+            list_html = '<ul class="list-disc ml-8 space-y-2 mb-4 text-white/90" style="list-style-type: disc; margin-left: 2rem; margin-bottom: 1rem;">\n' + \
                         '\n'.join(list_items) + '\n</ul>'
             result.append(list_html)
             list_items = []
@@ -69,14 +76,57 @@ def simple_markdown(text):
                 flush_list()
             # Apply bolding to the paragraph text
             processed_line = apply_bold(stripped_line)
-            result.append(f'<p class="mb-2 text-gray-800 leading-relaxed">{processed_line}</p>')
+            result.append(f'<p class="mb-2 text-white/90 leading-relaxed">{processed_line}</p>')
             
     if in_list:
         flush_list()
         
     return '\n'.join(result)
 
+    return '\n'.join(result)
+
+def clean_description(text):
+    """Clean episode description: remove URLs, sponsors, promotional text, and HTML tags."""
+    if not text:
+        return ""
+    import re
+    import html
+    
+    # 0. Strip HTML tags first
+    text = re.sub(r'<[^>]+>', ' ', text)
+    
+    # 0.5. Decode HTML entities
+    text = html.unescape(text)
+    
+    # 1. Remove URLs
+    text = re.sub(r'https?://\S+|www\.\S+', '', text)
+    
+    # 2. Remove common promo codes/sponsor patterns
+    # (Simple heuristic: if line starts with 'Sponsor' or 'Promo', cut off rest or remove line)
+    # For now, let's just remove specific keywords/lines
+    lines = text.split('\n')
+    cleaned_lines = []
+    
+    cutoff_keywords = ["Sponsors:", "Support the show:", "Brought to you by:", "Advertise with us:", "See omnystudio.com/listener"]
+    
+    for line in lines:
+        stripped = line.strip()
+        # Check cutoff
+        if any(keyword in stripped for keyword in cutoff_keywords):
+           break # Stop processing description here (assuming footer junk follows)
+           
+        if stripped:
+            cleaned_lines.append(stripped)
+            
+    result = " ".join(cleaned_lines)
+    
+    # 3. Clean up extra whitespace
+    result = re.sub(r'\s+', ' ', result).strip()
+    
+    return result
+
 templates.env.filters['simple_markdown'] = simple_markdown
+templates.env.filters['clean_description'] = clean_description
 
 sub_repo = SubscriptionRepository()
 ep_repo = EpisodeRepository()
@@ -151,6 +201,7 @@ async def login_page(request: Request):
     
     return templates.TemplateResponse("login.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "first_launch": first_launch,
         "initial_password": settings['initial_password'] if settings else None,
         "auth_enabled": settings['auth_enabled'] if settings else False
@@ -158,23 +209,47 @@ async def login_page(request: Request):
 
 @router.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    """Handle login submission."""
+    """Handle login submission with rate limiting protection."""
     client_ip = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
+    
+    # Check rate limit before processing login
+    try:
+        check_rate_limit(client_ip)
+    except HTTPException as e:
+        # Return user-friendly error page instead of raw exception
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+        "csp_nonce": get_csp_nonce(request),
+            "error": e.detail,
+            "first_launch": False,
+            "auth_enabled": True,
+            "rate_limited": True
+        }, status_code=e.status_code)
     
     with get_db_connection() as conn:
         user_row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
     
     if not user_row or not verify_password(password, user_row['password_hash']):
+        # Record failed attempt and check if now locked
+        is_locked = login_rate_limiter.record_failed_attempt(client_ip)
         log_login_attempt(username, client_ip, False, user_agent)
+        
+        error_msg = "Invalid username or password"
+        if is_locked:
+            error_msg = f"Too many failed login attempts. Your IP has been locked for {login_rate_limiter.lockout_seconds // 60} minutes."
+        
         return templates.TemplateResponse("login.html", {
             "request": request,
-            "error": "Invalid username or password",
+        "csp_nonce": get_csp_nonce(request),
+            "error": error_msg,
             "first_launch": False,
-            "auth_enabled": True
+            "auth_enabled": True,
+            "rate_limited": is_locked
         })
     
-    # Successful login
+    # Successful login - clear rate limiting for this IP
+    login_rate_limiter.record_successful_login(client_ip)
     log_login_attempt(username, client_ip, True, user_agent)
     
     # Update last login
@@ -202,6 +277,7 @@ async def change_password_page(request: Request, user: dict = Depends(require_au
     
     return templates.TemplateResponse("change_password.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "required": settings['require_password_change'] if settings else False
     })
@@ -218,6 +294,7 @@ async def change_password(
     if new_password != confirm_password:
         return templates.TemplateResponse("change_password.html", {
             "request": request,
+        "csp_nonce": get_csp_nonce(request),
             "user": user,
             "error": "Passwords do not match"
         })
@@ -229,6 +306,7 @@ async def change_password(
     if not verify_password(current_password, user_row['password_hash']):
         return templates.TemplateResponse("change_password.html", {
             "request": request,
+        "csp_nonce": get_csp_nonce(request),
             "user": user,
             "error": "Current password is incorrect"
         })
@@ -269,6 +347,7 @@ async def submit_access_request(
     
     return templates.TemplateResponse("request_access.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "success": "Your access request has been submitted. You will be notified when it is reviewed."
     })
 
@@ -286,6 +365,7 @@ async def admin_system(request: Request):
     user = get_current_user(request)
     return templates.TemplateResponse("admin/system.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "settings": get_global_settings(),
         "pending_requests_count": get_pending_requests_count(),
@@ -413,6 +493,7 @@ async def admin_ai(request: Request):
 
     return templates.TemplateResponse("admin/ai.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "settings": get_global_settings(),
         "pending_requests_count": get_pending_requests_count(),
@@ -430,7 +511,7 @@ async def update_ai_settings(
     openai_api_key: str = Form(None),
     anthropic_api_key: str = Form(None),
     openrouter_api_key: str = Form(None),
-    gemini_api_key: str = Form(None),
+    gemini_api_keys: str = Form(None),
     openai_model: str = Form("gpt-4o"),
     anthropic_model: str = Form("claude-3-5-sonnet"),
     openrouter_model: str = Form("google/gemini-2.0-flash-001")
@@ -441,6 +522,17 @@ async def update_ai_settings(
         json.loads(ai_model_cascade)
     except:
         ai_model_cascade = '["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]'
+    
+    # Validate gemini_api_keys is valid JSON array
+    if gemini_api_keys:
+        try:
+            parsed_keys = json.loads(gemini_api_keys)
+            if not isinstance(parsed_keys, list):
+                gemini_api_keys = "[]"
+        except:
+            gemini_api_keys = "[]"
+    else:
+        gemini_api_keys = "[]"
 
     with get_db_connection() as conn:
         conn.execute("""
@@ -452,7 +544,7 @@ async def update_ai_settings(
                 openai_api_key = ?,
                 anthropic_api_key = ?,
                 openrouter_api_key = ?,
-                gemini_api_key = ?,
+                gemini_api_keys = ?,
                 openai_model = ?,
                 anthropic_model = ?,
                 openrouter_model = ?,
@@ -460,7 +552,7 @@ async def update_ai_settings(
             WHERE id = 1
         """, (
             whisper_model, ai_model_cascade, piper_model, active_ai_provider,
-            openai_api_key, anthropic_api_key, openrouter_api_key, gemini_api_key,
+            openai_api_key, anthropic_api_key, openrouter_api_key, gemini_api_keys,
             openai_model, anthropic_model, openrouter_model
         ))
         conn.commit()
@@ -521,6 +613,7 @@ Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for
 
     return templates.TemplateResponse("admin/prompts.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "settings": get_global_settings(),
         "default_prompts": default_prompts,
@@ -611,10 +704,13 @@ Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for
 async def admin_queue(request: Request):
     user = get_current_user(request)
     queue = ep_repo.get_queue()
+    recently_processed = ep_repo.get_recently_processed(days=3)
     return templates.TemplateResponse("admin/queue.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "queue": queue,
+        "recently_processed": recently_processed,
         "pending_requests_count": get_pending_requests_count(),
         "active_tab": "queue"
     })
@@ -635,8 +731,41 @@ async def retry_episode(episode_id: int):
          return RedirectResponse(url="/admin/queue", status_code=303)
          
     # Force to pending (Background processor will pick it up)
+    from app.core.processor import Processor
+    proc = Processor()
+    await proc.version_episode(episode_id)
     ep_repo.update_status(episode_id, "pending")
     return RedirectResponse(url="/admin/queue", status_code=303)
+
+@router.post("/api/episodes/{episode_id}/reprocess")
+async def api_reprocess_episode(episode_id: int, skip_transcription: bool = False):
+    import json
+    logger.info(f"Reprocess request for {episode_id} with skip_transcription={skip_transcription}")
+    
+    # API version of retry - force status to pending
+    current_status = ep_repo.get_status(episode_id)
+    if current_status == 'processing':
+         return {"status": "ignored", "reason": "already_processing"}
+    
+    # Set processing flags (like subscriptions.py does)
+    flags = {'skip_transcription': skip_transcription}
+    flags_json = json.dumps(flags)
+    
+    # Reset status with flags so processor respects skip_transcription
+    from app.core.processor import Processor
+    proc = Processor()
+    await proc.version_episode(episode_id)
+    ep_repo.reset_status(episode_id, processing_flags=flags_json)
+    ep_repo.update_status(episode_id, "pending")
+    return {"status": "ok"}
+
+@router.post("/api/episodes/{episode_id}/ignore")
+async def api_ignore_episode(episode_id: int):
+    # API version of cancel/delete - soft delete
+    from app.core.processor import Processor
+    proc = Processor()
+    await proc.delete_episode(episode_id)
+    return {"status": "ok"}
 
 @router.post("/episodes/{episode_id}/download")
 async def manual_download_episode(episode_id: int, request: Request):
@@ -691,6 +820,7 @@ async def admin_logs(request: Request, lines: int = 1000, level: str = "ALL"):
 
     return templates.TemplateResponse("admin/logs.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "logs": logs,
         "pending_requests_count": get_pending_requests_count(),
@@ -706,6 +836,7 @@ async def apple_subscribe_page(request: Request, url: str):
     """Render the Apple Podcasts subscription instruction page."""
     return templates.TemplateResponse("apple_subscribe.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "feed_url": url
     })
 
@@ -741,6 +872,7 @@ async def admin_access(request: Request):
     
     return templates.TemplateResponse("admin/access_requests.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "active_tab": "access",
         "settings": settings,
@@ -751,10 +883,48 @@ async def admin_access(request: Request):
         "pending_requests_count": get_pending_requests_count(),
     })
 
-@router.post("/admin/users/delete/{user_id}")
-async def delete_user(request: Request, user_id: int):
+@router.post("/admin/users/{user_id}/password")
+async def admin_change_user_password(
+    request: Request, 
+    user_id: int, 
+    password: str = Form(...),
+    admin_user: dict = Depends(require_admin)
+):
+    """Admin route to force change a user's password."""
+    # Prevent changing own password via this route (use /change-password instead)
+    if user_id == admin_user.id:
+        return RedirectResponse(
+            url="/admin/access?error=Use+My+Profile+to+change+your+own+password", 
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    # Hash new password
+    new_hash = hash_password(password)
+    
+    from app.infra.database import get_db_connection
+    with get_db_connection() as conn:
+        # Check if user exists
+        user = conn.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not user:
+            return RedirectResponse(
+                url="/admin/access?error=User+not+found", 
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+            
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?", 
+            (new_hash, user_id)
+        )
+        conn.commit()
+    
+    return RedirectResponse(
+        url=f"/admin/access?success=Password+updated+for+{user['username']}", 
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+
+@router.delete("/admin/users/{user_id}")
+async def delete_user(user_id: int, request: Request, user: dict = Depends(require_admin)):
     # Check admin
-    user = require_admin(request)
     if user.id == user_id:
         return RedirectResponse(
             url="/admin/access?error=Cannot delete your own account", 
@@ -913,25 +1083,52 @@ def _render_index(request: Request, error: str = None):
             
             # Get latest episode with AI summary
             latest_ep = conn.execute(
-                """SELECT id, title, description, ai_summary FROM episodes 
+                """SELECT id, title, description, ai_summary, pub_date FROM episodes 
                    WHERE subscription_id = ? AND status = 'completed'
                    ORDER BY pub_date DESC LIMIT 1""",
                 (sub.id,)
             ).fetchone()
+            
+            # Get the latest episode date (any status) for filtering/sorting
+            latest_any_ep = conn.execute(
+                """SELECT pub_date FROM episodes 
+                   WHERE subscription_id = ?
+                   ORDER BY pub_date DESC LIMIT 1""",
+                (sub.id,)
+            ).fetchone()
+            
+            # Count processing/pending episodes for this subscription
+            processing_row = conn.execute(
+                """SELECT COUNT(*) as count FROM episodes 
+                   WHERE subscription_id = ? AND status IN ('processing', 'pending')""",
+                (sub.id,)
+            ).fetchone()
+            processing_count = processing_row['count'] if processing_row else 0
         
         latest_summary = None
         latest_description = None
+        latest_episode_date = None
         if latest_ep:
             latest_summary = latest_ep['ai_summary']
             latest_description = latest_ep['description']
+        if latest_any_ep and latest_any_ep['pub_date']:
+            # Convert to ISO format string for safe JS parsing
+            d = latest_any_ep['pub_date']
+            if hasattr(d, 'isoformat'):
+                latest_episode_date = d.isoformat()
+            else:
+                latest_episode_date = str(d)
         
         subs_with_links.append({
             "sub": sub,
             "links": generate_rss_links(request, sub, global_settings, user),
             "episodes": [dict(ep) for ep in episodes],
             "episode_count": len(episodes),
+            "processing_count": processing_count,
+            "total_listens": ep_repo.get_subscription_listen_count(sub.id),
             "latest_ai_summary": latest_summary,
-            "latest_description": latest_description
+            "latest_description": latest_description,
+            "latest_episode_date": latest_episode_date
         })
 
     # Get queue data for dashboard display
@@ -991,7 +1188,8 @@ def _render_index(request: Request, error: str = None):
         }
 
     return templates.TemplateResponse("index.html", {
-        "request": request, 
+        "request": request,
+        "csp_nonce": get_csp_nonce(request), 
         "user": user,
         "subscriptions": subs_with_links, 
         "stats": stats,
@@ -1018,6 +1216,7 @@ async def admin_global_subscription_settings(request: Request):
         
     return templates.TemplateResponse("admin/global_subscription_settings.html", {
         "request": request,
+        "csp_nonce": get_csp_nonce(request),
         "user": user,
         "settings": settings_row,
         "active_tab": "global_subs"
@@ -1141,12 +1340,14 @@ async def view_subscription(request: Request, id: int):
     sub = sub_repo.get_by_id(id)
     if not sub:
         return RedirectResponse(url="/")
-        
-    # Get episodes (we need to add this to repo)
-    # For now, raw SQL query or add method to repo
-    from app.infra.database import get_db_connection
-    with get_db_connection() as conn:
-        episodes = conn.execute("SELECT * FROM episodes WHERE subscription_id = ? ORDER BY pub_date DESC", (id,)).fetchall()
+    
+    # Initial page size for lazy loading
+    INITIAL_PAGE_SIZE = 20
+    
+    # Get first batch of episodes using pagination
+    episodes = ep_repo.get_by_subscription_paginated(id, limit=INITIAL_PAGE_SIZE, offset=0)
+    total_episodes = ep_repo.count_by_subscription(id)
+    has_more = total_episodes > INITIAL_PAGE_SIZE
     
     def format_duration(seconds: int) -> str:
         if not seconds:
@@ -1165,16 +1366,54 @@ async def view_subscription(request: Request, id: int):
     user = get_current_user(request)
 
     links = generate_rss_links(request, sub, global_settings, user)
+    
+    # Get total listen count for this subscription
+    total_listens = ep_repo.get_subscription_listen_count(sub.id)
 
     return templates.TemplateResponse("episodes.html", {
-        "request": request, 
+        "request": request,
+        "csp_nonce": get_csp_nonce(request), 
         "user": user,
         "subscription": sub, 
         "episodes": episodes,
         "links": links,
         "basename": lambda p: p.split('/')[-1] if p else '',
-        "format_duration": format_duration
+        "format_duration": format_duration,
+        "total_listens": total_listens,
+        "total_episodes": total_episodes,
+        "has_more": has_more,
+        "page_size": INITIAL_PAGE_SIZE
     })
+
+@router.get("/api/subscriptions/{id}/episodes")
+async def get_subscription_episodes_api(id: int, limit: int = 20, offset: int = 0, search: str = None):
+    """Return episodes for a subscription as JSON for lazy loading. Supports search by title."""
+    sub = sub_repo.get_by_id(id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    
+    # Pass search to repository methods
+    episodes = ep_repo.get_by_subscription_paginated(id, limit=limit, offset=offset, search=search)
+    total = ep_repo.count_by_subscription(id, search=search)
+    
+    # Convert sqlite rows to dicts
+    episodes_data = []
+    for ep in episodes:
+        ep_dict = dict(ep)
+        # Ensure pub_date is a string for JSON serialization
+        if ep_dict.get('pub_date') and hasattr(ep_dict['pub_date'], 'isoformat'):
+            ep_dict['pub_date'] = ep_dict['pub_date'].isoformat()
+        episodes_data.append(ep_dict)
+    
+    return {
+        "episodes": episodes_data,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "search": search,
+        "has_more": offset + len(episodes) < total,
+        "subscription_slug": sub.slug
+    }
 
 @router.post("/subscriptions/{id}/settings")
 async def update_settings(
@@ -1223,8 +1462,65 @@ async def update_settings(
 
 from fastapi.responses import FileResponse
 
+@router.get("/episodes/{id}/transcript")
+async def view_transcript(id: int, request: Request):
+    from app.infra.database import get_db_connection
+    from app.core.config import settings
+    import json
+    
+    with get_db_connection() as conn:
+        row = conn.execute(
+            """SELECT e.id, e.title, e.pub_date, e.duration, e.guid, s.slug as subscription_slug, e.transcript_path 
+               FROM episodes e 
+               JOIN subscriptions s ON e.subscription_id = s.id 
+               WHERE e.id = ?""", 
+            (id,)
+        ).fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Episode not found")
+            
+        transcript_path = row['transcript_path']
+        
+        # Check standard paths if not recorded in DB or file missing
+        if not transcript_path or not os.path.exists(transcript_path):
+             episode_slug = f"{row['guid']}".replace("/", "_").replace(" ", "_")
+             potential_path = os.path.join(
+                settings.get_episode_dir(row['subscription_slug'], episode_slug),
+                "transcript.json"
+            )
+             if os.path.exists(potential_path):
+                 transcript_path = potential_path
+        
+        if not transcript_path or not os.path.exists(transcript_path):
+             raise HTTPException(status_code=404, detail="Transcript file not found")
+             
+        try:
+            with open(transcript_path, 'r') as f:
+                data = json.load(f)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error reading transcript: {str(e)}")
+    
+    def format_duration(seconds: int) -> str:
+        if not seconds:
+            return "-"
+        seconds = int(seconds)  # Convert to int to handle floats
+        m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        if h > 0:
+            return f"{h}:{m:02d}:{s:02d}"
+        return f"{m}:{s:02d}"
+
+    return templates.TemplateResponse("transcript.html", {
+        "request": request,
+        "csp_nonce": get_csp_nonce(request),
+        "episode": row,
+        "transcript_data": data,
+        "format_duration": format_duration
+    })
+
 @router.get("/artifacts/transcript/{id}")
-async def get_transcript(id: int):
+async def get_transcript_json(id: int):
     from app.infra.database import get_db_connection
     from app.core.config import settings
     
@@ -1337,6 +1633,13 @@ async def get_individual_feed(slug: str, request: Request):
             except:
                 pass
     
+    # Set no-cache headers
+    cache_headers = {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    
     # If auth is enabled and we have credentials, inject token into audio URLs
     if is_auth_enabled and username and password:
         try:
@@ -1352,11 +1655,11 @@ async def get_individual_feed(slug: str, request: Request):
 
             xml_content = re.sub(r'(enclosure\s+url=")(https?://[^"]+)', inject_auth, xml_content)
             
-            return Response(content=xml_content, media_type="application/xml")
+            return Response(content=xml_content, media_type="application/xml", headers=cache_headers)
         except Exception as e:
             logger.error(f"Error injecting auth into feed {slug}: {e}")
     
-    return FileResponse(file_path, media_type="application/xml")
+    return FileResponse(file_path, media_type="application/xml", headers=cache_headers)
 
 @router.get("/feed/unified")
 @router.get("/feed/unified.xml")
@@ -1418,6 +1721,13 @@ async def get_unified_feed(request: Request):
         gen = RSSGenerator()
         gen.generate_unified_feed()
     
+    # Set no-cache headers
+    cache_headers = {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+
     # If auth is enabled, inject credentials into the XML on the fly
     if is_auth_enabled and authorized:
         try:
@@ -1440,9 +1750,9 @@ async def get_unified_feed(request: Request):
                 xml_content = re.sub(r'(enclosure\s+url=")(https?://[^"]+)', inject_auth, xml_content)
 
                 
-            return Response(content=xml_content, media_type="application/xml")
+            return Response(content=xml_content, media_type="application/xml", headers=cache_headers)
         except Exception as e:
             logger.error(f"Error injecting credentials into unified feed: {e}")
             # Fallback to static file if injection fails
     
-    return FileResponse(file_path, media_type="application/xml")
+    return FileResponse(file_path, media_type="application/xml", headers=cache_headers)

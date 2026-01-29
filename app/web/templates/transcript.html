@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6 flex items-center justify-between">
+        <a href="javascript:history.back()"
+            class="text-primary-400 hover:text-primary-300 transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                </path>
+            </svg>
+            Back to Episodes
+        </a>
+        <div class="flex gap-2">
+            <button onclick="copyTranscript()" class="btn-secondary btn-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+                    </path>
+                </svg>
+                Copy Text
+            </button>
+            <a href="/artifacts/transcript/{{ episode.id }}" download="transcript.json"
+                class="btn-secondary btn-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                JSON
+            </a>
+        </div>
+    </div>
+
+    <div class="card p-8">
+        <div class="mb-8 border-b border-white/10 pb-6">
+            <h1 class="font-display text-2xl font-bold mb-2">{{ episode.title }}</h1>
+            <p class="text-text-muted text-sm">{{ episode.pub_date }} • {{ format_duration(episode.duration) }}</p>
+        </div>
+
+        <div class="space-y-6 text-text-secondary leading-relaxed font-serif text-lg" id="transcript-content">
+            {% if transcript_data.segments %}
+            {% for segment in transcript_data.segments %}
+            <div class="group hover:bg-white/[0.02] -mx-4 px-4 py-2 rounded-lg transition-colors">
+                <div class="flex gap-4 mb-1">
+                    <span
+                        class="text-xs font-mono text-text-muted opacity-50 pt-1 shrink-0 w-12 text-right select-none">
+                        {{ format_duration(segment.start) }}
+                    </span>
+                    {% if segment.speaker %}
+                    <span class="text-sm font-bold text-primary-400 uppercase tracking-wide pt-0.5">{{ segment.speaker
+                        }}</span>
+                    {% endif %}
+                </div>
+                <p class="pl-16">{{ segment.text }}</p>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-text-muted italic">Raw transcript format:</p>
+            <div class="whitespace-pre-wrap font-mono text-sm bg-base/50 p-4 rounded-lg">{{ transcript_data.text or
+                transcript_data }}</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+    function copyTranscript() {
+        const text = document.getElementById('transcript-content').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Transcript copied to clipboard!');
+        });
+    }
+</script>
+{% endblock %}

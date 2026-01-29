@@ -61,6 +61,7 @@ class Episode(EpisodeBase):
     description: Optional[str] = None
     report_path: Optional[str] = None
     file_size: Optional[int] = None
+    local_filename: Optional[str] = None
 
     class Config:
         from_attributes = True

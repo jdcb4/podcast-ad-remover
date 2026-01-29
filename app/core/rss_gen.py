@@ -21,7 +21,7 @@ class RSSGenerator:
             return
             
         # Get base URL from settings
-        from app.web.router import get_global_settings
+        from app.core.utils import get_global_settings
         from app.core.utils import get_lan_ip
         global_settings = get_global_settings()
         external_url = global_settings.get("app_external_url")
@@ -94,6 +94,8 @@ class RSSGenerator:
             # This ensures we include the podcast_slug/episode_slug/ structure
             try:
                 rel_path = os.path.relpath(ep['local_filename'], settings.PODCASTS_DIR)
+                if rel_path.startswith(".."):
+                    raise ValueError("Path mismatch")
                 # Ensure we use forward slashes for the URL
                 url_path = rel_path.replace(os.sep, '/')
                 url = f"{base_url}/audio/{url_path}"
@@ -137,7 +139,7 @@ class RSSGenerator:
         """Generate a single RSS feed containing all episodes from all subscriptions."""
         
         # Get base URL from settings (reuse logic from generate_feed)
-        from app.web.router import get_global_settings
+        from app.core.utils import get_global_settings
         from app.core.utils import get_lan_ip
         global_settings = get_global_settings()
         external_url = global_settings.get("app_external_url")
@@ -175,12 +177,10 @@ class RSSGenerator:
         SubElement(channel, 'description').text = "All your ad-free podcasts in one place."
         SubElement(channel, 'link').text = base_url
         
-        # We can use a generic image or the image of the latest episode's podcast
-        if episodes:
-             latest_img = episodes[0]['podcast_image']
-             if latest_img:
-                itunes_image = SubElement(channel, 'itunes:image')
-                itunes_image.set('href', latest_img)
+        # Use custom unified feed cover image
+        unified_cover_url = f"{base_url}/static/unified_feed_cover.png"
+        itunes_image = SubElement(channel, 'itunes:image')
+        itunes_image.set('href', unified_cover_url)
 
         for ep_row in episodes:
             ep = dict(ep_row)
@@ -200,6 +200,8 @@ class RSSGenerator:
             # Construct URL using the same relative path logic
             try:
                 rel_path = os.path.relpath(ep['local_filename'], settings.PODCASTS_DIR)
+                if rel_path.startswith(".."):
+                    raise ValueError("Path mismatch")
                 url_path = rel_path.replace(os.sep, '/')
                 url = f"{base_url}/audio/{url_path}"
             except Exception:
@@ -219,6 +221,11 @@ class RSSGenerator:
             # Optionally add podcast name to description as well
             if ep.get('podcast_title'):
                 description = f"From: {ep['podcast_title']}\n\n" + description
+
+            # Episode Artwork - Use podcast image for each item
+            if ep.get('podcast_image'):
+                itunes_ep_image = SubElement(item, 'itunes:image')
+                itunes_ep_image.set('href', ep['podcast_image'])
 
             # Use CDATA for HTML support and to prevent double-escaping
             clean_description = html.unescape(description)

@@ -87,31 +87,48 @@ class EpisodeRepository:
 
     def get_pending(self) -> List[dict]:
         with get_db_connection() as conn:
-            # Get pending episodes OR failed episodes that are due for retry
+            # Get pending episodes OR failed/rate_limited episodes that are due for retry
             rows = conn.execute("""
                 SELECT * FROM episodes 
                 WHERE status = 'pending' 
                 OR (status = 'failed' AND next_retry_at IS NOT NULL AND next_retry_at <= CURRENT_TIMESTAMP)
+                OR (status = 'rate_limited' AND next_retry_at IS NOT NULL AND next_retry_at <= CURRENT_TIMESTAMP)
             """).fetchall()
             return [dict(row) for row in rows]
             
     def get_queue(self) -> List[dict]:
         with get_db_connection() as conn:
-            # Get full processing queue with details
+            # Get full processing queue with details (including rate_limited)
             rows = conn.execute("""
                 SELECT e.*, s.title as podcast_title 
                 FROM episodes e
                 JOIN subscriptions s ON e.subscription_id = s.id
-                WHERE e.status IN ('processing', 'pending')
+                WHERE e.status IN ('processing', 'pending', 'rate_limited')
                 OR (e.status = 'failed' AND e.next_retry_at IS NOT NULL)
                 ORDER BY 
                     CASE e.status 
                         WHEN 'processing' THEN 1 
                         WHEN 'pending' THEN 2 
-                        ELSE 3 
+                        WHEN 'rate_limited' THEN 3
+                        ELSE 4 
                     END,
                     e.id ASC
             """).fetchall()
+            return [dict(row) for row in rows]
+
+    def get_recently_processed(self, days: int = 3) -> List[dict]:
+        """Get episodes completed or failed in the last N days for audit trail."""
+        with get_db_connection() as conn:
+            rows = conn.execute("""
+                SELECT e.*, s.title as podcast_title 
+                FROM episodes e
+                JOIN subscriptions s ON e.subscription_id = s.id
+                WHERE e.status IN ('completed', 'failed', 'ignored')
+                AND e.processed_at IS NOT NULL
+                AND e.processed_at >= datetime('now', ?)
+                ORDER BY e.processed_at DESC
+                LIMIT 50
+            """, (f'-{days} days',)).fetchall()
             return [dict(row) for row in rows]
 
     def get_by_id(self, id: int) -> Optional[Episode]:
@@ -125,6 +142,35 @@ class EpisodeRepository:
         with get_db_connection() as conn:
             rows = conn.execute("SELECT * FROM episodes WHERE subscription_id = ?", (subscription_id,)).fetchall()
             return [Episode.model_validate(dict(row)) for row in rows]
+
+    def get_by_subscription_paginated(self, subscription_id: int, limit: int = 20, offset: int = 0, search: str = None) -> list:
+        """Get episodes for a subscription with pagination, ordered by pub_date descending.
+        Optionally filter by search term (matches title)."""
+        with get_db_connection() as conn:
+            if search:
+                return conn.execute(
+                    "SELECT * FROM episodes WHERE subscription_id = ? AND title LIKE ? ORDER BY pub_date DESC LIMIT ? OFFSET ?",
+                    (subscription_id, f"%{search}%", limit, offset)
+                ).fetchall()
+            return conn.execute(
+                "SELECT * FROM episodes WHERE subscription_id = ? ORDER BY pub_date DESC LIMIT ? OFFSET ?",
+                (subscription_id, limit, offset)
+            ).fetchall()
+
+    def count_by_subscription(self, subscription_id: int, search: str = None) -> int:
+        """Count total episodes for a subscription, optionally filtered by search term."""
+        with get_db_connection() as conn:
+            if search:
+                result = conn.execute(
+                    "SELECT COUNT(*) FROM episodes WHERE subscription_id = ? AND title LIKE ?",
+                    (subscription_id, f"%{search}%")
+                ).fetchone()
+            else:
+                result = conn.execute(
+                    "SELECT COUNT(*) FROM episodes WHERE subscription_id = ?",
+                    (subscription_id,)
+                ).fetchone()
+            return result[0] if result else 0
 
     def get_status(self, id: int) -> Optional[str]:
         with get_db_connection() as conn:
@@ -151,13 +197,15 @@ class EpisodeRepository:
             conn.commit()
 
     def requeue_stuck(self):
-        """Reset all 'processing' episodes to 'pending' on startup."""
+        """Reset all 'processing' episodes to 'failed' on startup."""
         with get_db_connection() as conn:
             conn.execute("""
                 UPDATE episodes 
-                SET status = 'pending', 
-                    processing_step = 'requeued after restart', 
-                    progress = 0 
+                SET status = 'failed', 
+                    error_message = 'Interrupted by system restart',
+                    processing_step = 'interrupted', 
+                    progress = 0,
+                    next_retry_at = NULL
                 WHERE status = 'processing'
             """)
             conn.commit()
@@ -174,10 +222,23 @@ class EpisodeRepository:
             """, (retry_count, next_retry_at, error, id))
             conn.commit()
 
+    def update_rate_limited(self, id: int, next_retry_at: datetime, error: str):
+        """Set episode to rate_limited status with scheduled retry at API quota reset."""
+        with get_db_connection() as conn:
+            conn.execute("""
+                UPDATE episodes 
+                SET status = 'rate_limited', 
+                    next_retry_at = ?, 
+                    error_message = ?,
+                    processing_step = 'Waiting for API quota reset'
+                WHERE id = ?
+            """, (next_retry_at, error, id))
+            conn.commit()
+
     def update_status(self, id: int, status: str, error: str = None, filename: str = None, file_size: int = None):
         with get_db_connection() as conn:
             conn.execute(
-                "UPDATE episodes SET status = ?, error_message = ?, local_filename = ?, file_size = ?, processed_at = ? WHERE id = ?",
+                "UPDATE episodes SET status = ?, error_message = ?, local_filename = ?, file_size = ?, processed_at = ?, next_retry_at = NULL WHERE id = ?",
                 (status, error, filename, file_size, datetime.now() if status == 'completed' else None, id)
             )
             conn.commit()
@@ -236,6 +297,39 @@ class EpisodeRepository:
         with get_db_connection() as conn:
             conn.execute("DELETE FROM episodes WHERE id = ?", (id,))
             conn.commit()
+    
+    def increment_listen_count(self, id: int):
+        """Increment the listen count for an episode."""
+        with get_db_connection() as conn:
+            conn.execute("UPDATE episodes SET listen_count = listen_count + 1 WHERE id = ?", (id,))
+            conn.commit()
+    
+    def get_subscription_listen_count(self, subscription_id: int) -> int:
+        """Get total listen count for all episodes in a subscription."""
+        with get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT SUM(listen_count) as total FROM episodes WHERE subscription_id = ? AND status = 'completed'",
+                (subscription_id,)
+            ).fetchone()
+            return row['total'] if row and row['total'] else 0
+    
+    def get_by_subscription_and_filename(self, subscription_id: int, filename: str) -> Optional[Episode]:
+        """Find episode by subscription and local filename (for audio tracking)."""
+        with get_db_connection() as conn:
+            # Try exact match first
+            row = conn.execute(
+                "SELECT * FROM episodes WHERE subscription_id = ? AND local_filename LIKE ?",
+                (subscription_id, f"%{filename}")
+            ).fetchone()
+            if row:
+                return Episode.model_validate(dict(row))
+            return None
+
+    def count_processing(self) -> int:
+        """Count episodes currently in 'processing' status. Used for concurrent limit enforcement."""
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT COUNT(*) as count FROM episodes WHERE status = 'processing'").fetchone()
+            return row['count'] if row else 0
 
     def soft_delete(self, id: int):
         """Mark episode as ignored and clear paths to free space."""
