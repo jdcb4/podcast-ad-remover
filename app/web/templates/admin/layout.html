@@ -41,6 +41,16 @@
                     AI Configuration
                 </a>
 
+                <a href="/admin/global-subscription-settings"
+                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if active_tab == 'global_subs' %}bg-blue-50 text-blue-700{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
+                    <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
+                        </path>
+                    </svg>
+                    Global Subscription Settings
+                </a>
+
                 <a href="/admin/prompts"
                     class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if active_tab == 'prompts' %}bg-blue-50 text-blue-700{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
                     <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,6 +81,10 @@
                         </path>
                     </svg>
                     Access Requests
+                    {% if pending_requests_count is defined and pending_requests_count > 0 %}
+                    <span class="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{
+                        pending_requests_count }}</span>
+                    {% endif %}
                 </a>
             </nav>
         </div>
@@ -78,6 +92,37 @@
 
     <!-- Content Area -->
     <div class="flex-1">
+        {% if request.query_params.get('success') %}
+        <div class="mb-6 bg-green-50 border-l-4 border-green-400 p-4 shadow-sm animate-fade-in-down" role="alert">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-green-800">
+                        {{ request.query_params.get('success') }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <script>
+            // Auto-dismiss after 5 seconds
+            setTimeout(function () {
+                const alert = document.querySelector('[role="alert"]');
+                if (alert) {
+                    alert.style.transition = "opacity 0.5s ease";
+                    alert.style.opacity = "0";
+                    setTimeout(() => alert.remove(), 500);
+                }
+            }, 5000);
+        </script>
+        {% endif %}
+
         <div class="bg-white rounded-lg shadow-sm border p-6">
             {% block admin_content %}{% endblock %}
         </div>

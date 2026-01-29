@@ -5,13 +5,13 @@ from app.infra.database import get_db_connection
 from app.core.models import SubscriptionCreate, Subscription, Episode
 
 class SubscriptionRepository:
-    def create(self, sub: SubscriptionCreate, title: str, slug: str, image_url: str = None) -> Subscription:
+    def create(self, sub: SubscriptionCreate, title: str, slug: str, image_url: str = None, description: str = None, retention_limit: int = 1) -> Subscription:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             try:
                 cursor.execute(
-                    "INSERT INTO subscriptions (feed_url, title, slug, image_url) VALUES (?, ?, ?, ?)",
-                    (sub.feed_url, title, slug, image_url)
+                    "INSERT INTO subscriptions (feed_url, title, slug, image_url, description, retention_limit) VALUES (?, ?, ?, ?, ?, ?)",
+                    (sub.feed_url, title, slug, image_url, description, retention_limit)
                 )
                 sub_id = cursor.lastrowid
                 conn.commit()
@@ -38,13 +38,20 @@ class SubscriptionRepository:
                 return Subscription.model_validate(dict(row))
             return None
 
+    def get_by_slug(self, slug: str) -> Optional[Subscription]:
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT * FROM subscriptions WHERE slug = ?", (slug,)).fetchone()
+            if row:
+                return Subscription.model_validate(dict(row))
+            return None
+
     def delete(self, id: int):
         with get_db_connection() as conn:
             conn.execute("DELETE FROM episodes WHERE subscription_id = ?", (id,))
             conn.execute("DELETE FROM subscriptions WHERE id = ?", (id,))
             conn.commit()
 
-    def update_settings(self, id: int, remove_ads: bool, remove_promos: bool, remove_intros: bool, remove_outros: bool, custom_instructions: str, append_summary: bool, append_title_intro: bool):
+    def update_settings(self, id: int, remove_ads: bool, remove_promos: bool, remove_intros: bool, remove_outros: bool, custom_instructions: str, append_summary: bool, append_title_intro: bool, ai_rewrite_description: bool, ai_audio_summary: bool, retention_days: int = 30, manual_retention_days: int = 14, retention_limit: int = 1):
         with get_db_connection() as conn:
             conn.execute("""
                 UPDATE subscriptions 
@@ -54,9 +61,14 @@ class SubscriptionRepository:
                     remove_outros = ?, 
                     custom_instructions = ?,
                     append_summary = ?,
-                    append_title_intro = ?
+                    append_title_intro = ?,
+                    ai_rewrite_description = ?,
+                    ai_audio_summary = ?,
+                    retention_days = ?,
+                    manual_retention_days = ?,
+                    retention_limit = ?
                 WHERE id = ?
-            """, (remove_ads, remove_promos, remove_intros, remove_outros, custom_instructions, append_summary, append_title_intro, id))
+            """, (remove_ads, remove_promos, remove_intros, remove_outros, custom_instructions, append_summary, append_title_intro, ai_rewrite_description, ai_audio_summary, retention_days, manual_retention_days, retention_limit, id))
             conn.commit()
 
 class EpisodeRepository:
@@ -109,6 +121,11 @@ class EpisodeRepository:
                 return Episode.model_validate(dict(row))
             return None
 
+    def get_by_subscription(self, subscription_id: int) -> List[Episode]:
+        with get_db_connection() as conn:
+            rows = conn.execute("SELECT * FROM episodes WHERE subscription_id = ?", (subscription_id,)).fetchall()
+            return [Episode.model_validate(dict(row)) for row in rows]
+
     def get_status(self, id: int) -> Optional[str]:
         with get_db_connection() as conn:
             row = conn.execute("SELECT status FROM episodes WHERE id = ?", (id,)).fetchone()
@@ -127,9 +144,22 @@ class EpisodeRepository:
                     error_message = NULL,
                     retry_count = 0,
                     next_retry_at = NULL,
-                    processing_flags = ?
+                    processing_flags = ?,
+                    ai_summary = NULL
                 WHERE id = ?
             """, (processing_flags, id))
+            conn.commit()
+
+    def requeue_stuck(self):
+        """Reset all 'processing' episodes to 'pending' on startup."""
+        with get_db_connection() as conn:
+            conn.execute("""
+                UPDATE episodes 
+                SET status = 'pending', 
+                    processing_step = 'requeued after restart', 
+                    progress = 0 
+                WHERE status = 'processing'
+            """)
             conn.commit()
 
     def update_retry(self, id: int, retry_count: int, next_retry_at: datetime, error: str):
@@ -144,11 +174,11 @@ class EpisodeRepository:
             """, (retry_count, next_retry_at, error, id))
             conn.commit()
 
-    def update_status(self, id: int, status: str, error: str = None, filename: str = None):
+    def update_status(self, id: int, status: str, error: str = None, filename: str = None, file_size: int = None):
         with get_db_connection() as conn:
             conn.execute(
-                "UPDATE episodes SET status = ?, error_message = ?, local_filename = ?, processed_at = ? WHERE id = ?",
-                (status, error, filename, datetime.now() if status == 'completed' else None, id)
+                "UPDATE episodes SET status = ?, error_message = ?, local_filename = ?, file_size = ?, processed_at = ? WHERE id = ?",
+                (status, error, filename, file_size, datetime.now() if status == 'completed' else None, id)
             )
             conn.commit()
 
@@ -178,4 +208,47 @@ class EpisodeRepository:
     def update_description(self, id: int, description: str):
         with get_db_connection() as conn:
             conn.execute("UPDATE episodes SET description = ? WHERE id = ?", (description, id))
+            conn.commit()
+
+    def update_ai_summary(self, id: int, summary: str):
+        with get_db_connection() as conn:
+            conn.execute("UPDATE episodes SET ai_summary = ? WHERE id = ?", (summary, id))
+            conn.commit()
+
+    def update_status_by_guid(self, subscription_id: int, guid: str, status: str, condition_status: str = None):
+        """Update status of an episode by GUID, optionally only if current status matches condition."""
+        with get_db_connection() as conn:
+            if condition_status:
+                conn.execute("""
+                    UPDATE episodes 
+                    SET status = ? 
+                    WHERE subscription_id = ? AND guid = ? AND (status = ? or status = 'pending_manual')
+                """, (status, subscription_id, guid, condition_status))
+            else:
+                conn.execute("""
+                    UPDATE episodes 
+                    SET status = ? 
+                    WHERE subscription_id = ? AND guid = ?
+                """, (status, subscription_id, guid))
+            conn.commit()
+
+    def delete(self, id: int):
+        with get_db_connection() as conn:
+            conn.execute("DELETE FROM episodes WHERE id = ?", (id,))
+            conn.commit()
+
+    def soft_delete(self, id: int):
+        """Mark episode as ignored and clear paths to free space."""
+        with get_db_connection() as conn:
+            conn.execute("""
+                UPDATE episodes 
+                SET status = 'ignored',
+                    local_filename = NULL,
+                    transcript_path = NULL,
+                    ad_report_path = NULL,
+                    report_path = NULL,
+                    progress = 0,
+                    processing_step = NULL
+                WHERE id = ?
+            """, (id,))
             conn.commit()

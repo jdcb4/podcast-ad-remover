@@ -1,148 +1,73 @@
 import sys
-import wave
 import os
-import subprocess
-import urllib.request
-from piper.voice import PiperVoice
+import argparse
+import logging
 
-# Resolve model path: check Docker path, then relative path
-# We prefer /data/models/piper (persistent)
-DOCKER_MODEL_DIR = "/data/models/piper"
-LOCAL_MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "models", "piper")
+# Simple worker script for Piper TTS
+# Designed to be run as a separate process to avoid stability issues
 
-MODEL_JSON = "en_GB-cori-high.onnx.json"
-MODEL_URL_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/cori/high/"
-MODEL_JSON = "en_GB-cori-high.onnx.json"
-MODEL_URL_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/cori/high/"
-# Models provided by: https://huggingface.co/rhasspy/piper-voices
-# Current default: en_GB-cori-high
-DEFAULT_MODEL = "en_GB-cori-high.onnx"
-
-MODEL_NAME = DEFAULT_MODEL
-
-if os.path.exists("/data"):
-    # Likely inside Docker
-    TARGET_DIR = DOCKER_MODEL_DIR
-else:
-    # Likely local dev
-    TARGET_DIR = LOCAL_MODEL_DIR
-
-os.makedirs(TARGET_DIR, exist_ok=True)
-MODEL_PATH = os.path.join(TARGET_DIR, MODEL_NAME)
-CONFIG_PATH = os.path.join(TARGET_DIR, MODEL_JSON)
-
-def download_if_missing():
-    """Download the Piper model if it doesn't exist."""
-    if not os.path.exists(MODEL_PATH) or not os.path.exists(CONFIG_PATH):
-        print(f"Model not found at {MODEL_PATH}. Downloading...", file=sys.stderr)
-        try:
-            # Construct URL based on filename? No, that's hard. 
-            # For now, ONLY support auto-download for the default Cori model.
-            # If user picks another model (in future), they must ensure it exists or we need a mapping.
-            if MODEL_NAME == "en_GB-cori-high.onnx":
-                 model_url = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/cori/high/en_GB-cori-high.onnx"
-                 json_url = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_GB/cori/high/en_GB-cori-high.onnx.json"
-                 
-                 if not os.path.exists(MODEL_PATH):
-                    print(f"Downloading {model_url}...", file=sys.stderr)
-                    urllib.request.urlretrieve(model_url, MODEL_PATH)
-                
-                 if not os.path.exists(CONFIG_PATH):
-                    print(f"Downloading {json_url}...", file=sys.stderr)
-                    urllib.request.urlretrieve(json_url, CONFIG_PATH)
-                    
-                 print("Download complete.", file=sys.stderr)
-            else:
-                 print(f"Model {MODEL_NAME} not found and no download URL known.", file=sys.stderr)
-                 
-        except Exception as e:
-            print(f"Failed to download model: {e}", file=sys.stderr)
-            sys.exit(1)
-
-def generate_tts(output_path):
-    # Read text from stdin
-    text = sys.stdin.read()
-    if not text:
-        print("No text received on stdin", file=sys.stderr)
-        sys.exit(1)
-        
-    try:
-        download_if_missing()
-        
-        if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(f"Piper model not found at {MODEL_PATH}")
-
-        # Load voice
-        voice = PiperVoice.load(MODEL_PATH, config_path=CONFIG_PATH)
-        
-        # Synthesize to temp wav
-        temp_wav = output_path + ".wav"
-        with wave.open(temp_wav, "wb") as wav_file:
-            voice.synthesize(text, wav_file)
-            
-            # Append 0.5s of silence to prevent clipping
-            # 22050Hz * 1 channel * 2 bytes/sample * 0.5s
-            # Piper typically outputs 22050Hz, 16-bit mono
-            framerate = wav_file.getframerate() or 22050 
-            nchannels = wav_file.getnchannels() or 1
-            sampwidth = wav_file.getsampwidth() or 2
-            
-            silence_duration = 0.5 # seconds
-            num_frames = int(framerate * silence_duration)
-            silence_data = b'\x00' * num_frames * nchannels * sampwidth
-            wav_file.writeframes(silence_data)
-            
-        # Convert to MP3 (or whatever extension is requested)
-        if output_path.endswith(".mp3"):
-            subprocess.run(
-                ["ffmpeg", "-y", "-i", temp_wav, "-codec:a", "libmp3lame", "-qscale:a", "2", output_path],
-                check=True,
-                stdout=subprocess.DEVNULL, 
-                stderr=subprocess.DEVNULL
-            )
-            os.remove(temp_wav)
-        else:
-            # If not mp3, just rename if extension matches wav, else warn
-            if output_path.endswith(".wav"):
-                os.rename(temp_wav, output_path)
-            else:
-                 # Fallback convert
-                subprocess.run(
-                    ["ffmpeg", "-y", "-i", temp_wav, output_path],
-                    check=True,
-                    stdout=subprocess.DEVNULL, 
-                    stderr=subprocess.DEVNULL
-                )
-                os.remove(temp_wav)
-            
-        print(f"Successfully saved Piper TTS to {output_path}")
-
-    except Exception as e:
-        print(f"Piper TTS failed: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
-
-if __name__ == "__main__":
-    import argparse
-    
+def main():
     parser = argparse.ArgumentParser(description="Piper TTS Worker")
-    parser.add_argument("output_path", help="Path to save the generated audio file")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Name of the Piper model to use (default: %(default)s)")
+    parser.add_argument("output_path", nargs="?", help="Path to save the output WAV")
+    parser.add_argument("--model", required=True, help="Model filename (in models/piper/) or absolute path")
+    parser.add_argument("--models-dir", help="Base models directory")
+    parser.add_argument("--check", action="store_true", help="Only check if model loads")
     
     args = parser.parse_args()
     
-    output_path = args.output_path
-    MODEL_NAME = args.model
-    MODEL_JSON = MODEL_NAME + ".json"
+    try:
+        from piper import PiperVoice
+    except ImportError:
+        print("Error: piper-tts not installed", file=sys.stderr)
+        sys.exit(1)
+        
+    # Resolve model path
+    model_path = args.model
+    if not os.path.isabs(model_path) and args.models_dir:
+        # Try finding it in models/piper/
+        path1 = os.path.join(args.models_dir, "piper", args.model)
+        path2 = os.path.join(args.models_dir, "models", "piper", args.model) # fallback
+        if os.path.exists(path1):
+            model_path = path1
+        elif os.path.exists(path2):
+            model_path = path2
+            
+    config_path = model_path + ".json"
     
-    # Update paths based on selected model
-    MODEL_PATH = os.path.join(TARGET_DIR, MODEL_NAME)
-    CONFIG_PATH = os.path.join(TARGET_DIR, MODEL_JSON)
-    
-    # Ensure directory exists
-    dirname = os.path.dirname(output_path)
-    if dirname:
-        os.makedirs(dirname, exist_ok=True)
-    
-    generate_tts(output_path)
+    if not os.path.exists(model_path):
+        print(f"Error: Model file not found at {model_path}", file=sys.stderr)
+        sys.exit(1)
+        
+    try:
+        # Load voice
+        voice = PiperVoice.load(model_path, config_path=config_path, use_cuda=False)
+        
+        if args.check:
+            # Just testing the load
+            sys.exit(0)
+            
+        if not args.output_path:
+            print("Error: Output path required", file=sys.stderr)
+            sys.exit(1)
+            
+        # Read text from stdin
+        text = sys.stdin.read().strip()
+        if not text:
+            sys.exit(0)
+            
+        # Create output directory if it doesn't exist
+        os.makedirs(os.path.dirname(os.path.abspath(args.output_path)), exist_ok=True)
+        
+        # Synthesize to WAV
+        import wave
+        with wave.open(args.output_path, "wb") as wav_file:
+            voice.synthesize(text, wav_file)
+            
+        sys.exit(0)
+        
+    except Exception as e:
+        print(f"Error: {str(e)}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

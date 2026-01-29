@@ -6,19 +6,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Podcast Ad Remover</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="/static/css/output.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-100 min-h-screen">
     <nav class="bg-blue-600 text-white p-4 shadow-md" aria-label="Main Navigation">
         <div class="container mx-auto flex justify-between items-center">
-            <a href="/" class="text-2xl font-bold">Podcast Ad Remover</a>
-            <div>
-                <a href="/admin" class="hover:underline">Admin</a>
-                <!-- <a href="/logs" class="hover:underline">Logs</a> -->
+            <a href="/" class="text-xl md:text-2xl font-bold">Podcast Ad Remover</a>
+
+            <!-- Mobile Menu Button -->
+            <button id="mobile-menu-btn"
+                class="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded hover:bg-blue-700 transition-colors"
+                aria-label="Toggle menu" aria-expanded="false">
+                <svg id="menu-icon-open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                    </path>
+                </svg>
+                <svg id="menu-icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+
+            <!-- Desktop Navigation -->
+            <div class="hidden md:flex items-center gap-4">
+                {% if user and user.is_admin %}
+                <a href="/admin/queue" class="hover:underline font-medium min-h-[44px] flex items-center">Admin</a>
+                {% endif %}
+
+                {% if user %}
+                <span class="text-sm opacity-80">Hello, {{ user.username }}</span>
+                <a href="/logout"
+                    class="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded text-sm transition-colors min-h-[44px] flex items-center">Logout</a>
+                {% else %}
+                <a href="/login" class="hover:underline min-h-[44px] flex items-center">Login</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Mobile Navigation Menu -->
+        <div id="mobile-menu" class="md:hidden hidden mt-4 pb-2 border-t border-blue-500 pt-4">
+            <div class="flex flex-col gap-2">
+                {% if user and user.is_admin %}
+                <a href="/admin/queue"
+                    class="hover:bg-blue-700 font-medium px-3 py-3 rounded transition-colors min-h-[44px] flex items-center">Admin</a>
+                {% endif %}
+
+                {% if user %}
+                <span class="text-sm opacity-80 px-3 py-2">Hello, {{ user.username }}</span>
+                <a href="/logout"
+                    class="bg-blue-700 hover:bg-blue-800 px-3 py-3 rounded text-sm transition-colors min-h-[44px] flex items-center">Logout</a>
+                {% else %}
+                <a href="/login"
+                    class="hover:bg-blue-700 px-3 py-3 rounded transition-colors min-h-[44px] flex items-center">Login</a>
+                {% endif %}
             </div>
         </div>
     </nav>
+
+    <script>
+        // Mobile menu toggle
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const menuIconOpen = document.getElementById('menu-icon-open');
+        const menuIconClose = document.getElementById('menu-icon-close');
+
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener('click', () => {
+                const isOpen = !mobileMenu.classList.contains('hidden');
+                mobileMenu.classList.toggle('hidden');
+                menuIconOpen.classList.toggle('hidden');
+                menuIconClose.classList.toggle('hidden');
+                mobileMenuBtn.setAttribute('aria-expanded', !isOpen);
+            });
+        }
+    </script>
 
     <main class="container mx-auto p-4">
         {% block content %}{% endblock %}

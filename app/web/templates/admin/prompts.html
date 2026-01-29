@@ -2,38 +2,151 @@
 
 {% block admin_content %}
 <h3 class="text-xl font-bold text-gray-800 mb-6">AI Prompt Rules</h3>
-<p class="text-sm text-gray-500 mb-6 bg-yellow-50 p-3 rounded border border-yellow-200">
-    These prompts control how the AI detects ads and generates summaries.
-    Currently in <strong>Read-Only</strong> mode.
-</p>
 
-<div class="space-y-6">
+<div id="alert-container"></div>
+
+<form id="prompts-form" class="space-y-6">
     <!-- Base Prompt -->
     <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Ad Detection Base Prompt</label>
-        <textarea readonly
-            class="w-full p-2 border rounded bg-gray-50 text-gray-600 text-sm font-mono h-32">{{ settings.ad_prompt_base or 'Using System Default' }}</textarea>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+            Ad Detection Base Prompt
+            <span class="text-xs text-gray-500">(Required variables: <code>{targets}</code>,
+                <code>{custom_instr}</code>)</span>
+        </label>
+        <textarea name="ad_prompt_base" id="ad_prompt_base"
+            class="w-full p-2 border rounded text-gray-800 text-sm font-mono h-40 focus:ring-2 focus:ring-blue-500">{{ settings.ad_prompt_base or default_prompts.ad_base }}</textarea>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Targets -->
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Target: Sponsors/Ads</label>
-            <textarea readonly
-                class="w-full p-2 border rounded bg-gray-50 text-gray-600 text-sm font-mono h-24">{{ settings.ad_target_sponsor or 'Using System Default' }}</textarea>
+            <textarea name="ad_target_sponsor" id="ad_target_sponsor"
+                class="w-full p-2 border rounded text-gray-800 text-sm font-mono h-24 focus:ring-2 focus:ring-blue-500">{{ settings.ad_target_sponsor or default_prompts.sponsor }}</textarea>
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Target: Promos</label>
-            <textarea readonly
-                class="w-full p-2 border rounded bg-gray-50 text-gray-600 text-sm font-mono h-24">{{ settings.ad_target_promo or 'Using System Default' }}</textarea>
+            <textarea name="ad_target_promo" id="ad_target_promo"
+                class="w-full p-2 border rounded text-gray-800 text-sm font-mono h-24 focus:ring-2 focus:ring-blue-500">{{ settings.ad_target_promo or default_prompts.promo }}</textarea>
         </div>
     </div>
 
     <!-- Summary Prompt -->
     <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Summary Generation Template</label>
-        <textarea readonly
-            class="w-full p-2 border rounded bg-gray-50 text-gray-600 text-sm font-mono h-32">{{ settings.summary_prompt_template or 'Using System Default' }}</textarea>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+            Summary Generation Template
+            <span class="text-xs text-gray-500">(Required variable: <code>{transcript_context}</code>)</span>
+        </label>
+        <textarea name="summary_prompt_template" id="summary_prompt_template"
+            class="w-full p-2 border rounded text-gray-800 text-sm font-mono h-40 focus:ring-2 focus:ring-blue-500">{{ settings.summary_prompt_template or default_prompts.summary }}</textarea>
     </div>
-</div>
+
+    <div class="flex gap-3">
+        <button type="submit" id="save-btn"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">
+            Save Changes
+        </button>
+        <button type="button" id="reset-btn"
+            class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium">
+            Reset to Defaults
+        </button>
+    </div>
+</form>
+
+<script>
+    const form = document.getElementById('prompts-form');
+    const saveBtn = document.getElementById('save-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const alertContainer = document.getElementById('alert-container');
+
+    // Required variables for each field
+    const requiredVars = {
+        'ad_prompt_base': ['{targets}', '{custom_instr}'],
+        'summary_prompt_template': ['{transcript_context}']
+    };
+
+    function showAlert(message, type = 'error') {
+        const alertClass = type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800';
+        alertContainer.innerHTML = `
+        <div class="${alertClass} p-3 rounded border mb-4">
+            ${message}
+        </div>
+    `;
+        setTimeout(() => alertContainer.innerHTML = '', 5000);
+    }
+
+    function validatePrompts(formData) {
+        for (const [field, vars] of Object.entries(requiredVars)) {
+            const value = formData.get(field);
+            if (!value) continue;
+
+            for (const variable of vars) {
+                if (!value.includes(variable)) {
+                    return `Error: "${field}" must include the variable ${variable}`;
+                }
+            }
+        }
+        return null;
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+
+        // Validate
+        const error = validatePrompts(formData);
+        if (error) {
+            showAlert(error, 'error');
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        try {
+            const response = await fetch('/admin/prompts', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                showAlert('Prompts saved successfully!', 'success');
+            } else {
+                const data = await response.json();
+                showAlert(data.detail || 'Failed to save prompts', 'error');
+            }
+        } catch (error) {
+            showAlert('Network error: ' + error.message, 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Changes';
+        }
+    });
+
+    resetBtn.addEventListener('click', async () => {
+        if (!confirm('Reset all prompts to defaults? This cannot be undone.')) return;
+
+        resetBtn.disabled = true;
+        resetBtn.textContent = 'Resetting...';
+
+        try {
+            const response = await fetch('/admin/prompts/reset', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                showAlert('Prompts reset to defaults!', 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showAlert('Failed to reset prompts', 'error');
+            }
+        } catch (error) {
+            showAlert('Network error: ' + error.message, 'error');
+        } finally {
+            resetBtn.disabled = false;
+            resetBtn.textContent = 'Reset to Defaults';
+        }
+    });
+</script>
 {% endblock %}

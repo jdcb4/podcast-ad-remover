@@ -27,3 +27,6 @@ app/models/piper/
 # OS
 .DS_Store
 Thumbs.db
+
+#AI
+.agent/

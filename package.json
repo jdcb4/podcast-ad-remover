@@ -1,0 +1,28 @@
+{
+  "name": "podcast-ad-remover",
+  "version": "1.0.0",
+  "description": "This is an app that downloads podcasts, uses AI to remove ads, and then creates a new feed that you can consume them from.  I mainly vibe-coded for my own personal use and it seems to be working pretty well so I thought I would share it. I've been using it fora bout a month and had a couple of friends also using it and we're pretty hapopy with how it's going. For the most part it just works. I'm sure there are heaps of things that aren't up to a professional standard, but for running on my own homelab it has worked great.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:css": "tailwindcss -i ./app/web/static/css/input.css -o ./app/web/static/css/output.css --minify",
+    "watch:css": "tailwindcss -i ./app/web/static/css/input.css -o ./app/web/static/css/output.css --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akeslo/podcast-ad-remover.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/akeslo/podcast-ad-remover/issues"
+  },
+  "homepage": "https://github.com/akeslo/podcast-ad-remover#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17"
+  }
+}

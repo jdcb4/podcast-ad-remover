@@ -39,10 +39,7 @@ async def create_subscription(sub: SubscriptionCreate, initial_count: int = 5):
         proc = get_processor()
         await proc.check_feeds(subscription_id=new_sub.id, limit=initial_count)
         
-        # Trigger processing in background
-        # In a simple app, we might just let the loop handle it, or trigger it explicitly
-        # For now, let's just trigger the queue processing
-        await proc.process_queue()
+        # Processor loop will pick up 'pending' items automatically
         
 
         
@@ -56,67 +53,80 @@ async def delete_subscription(id: int):
     sub = repo.get_by_id(id)
     
     if sub:
-        # Delete audio directory
+        # 1. Delete all episodes using Processor (cleans DB + all artifact files)
+        proc = get_processor()
+        ep_repo = EpisodeRepository()
+        
+        # We need a way to get all episodes IDs first
+        # Assuming get_by_subscription returns models with IDs
+        episodes = ep_repo.get_by_subscription(sub.id)
+        for ep in episodes:
+            await proc.delete_episode(ep.id)
+            
+        # 2. Delete subscription-level folders/files
+        
+        # Audio directory (Subscription folder)
         dir_path = os.path.join(settings.AUDIO_DIR, sub.slug)
         if os.path.exists(dir_path):
             try:
                 shutil.rmtree(dir_path)
             except Exception as e:
                 print(f"Error deleting directory {dir_path}: {e}")
-                
+        
+        # Feed file
+        feed_path = os.path.join(settings.FEEDS_DIR, f"{sub.slug}.xml")
+        if os.path.exists(feed_path):
+            try:
+                os.remove(feed_path)
+            except Exception as e:
+                 print(f"Error deleting feed file {feed_path}: {e}")
+
+        # 3. Delete Subscription from DB
         repo.delete(id)
     
-    # Regenerate static site
+    return {"status": "deleted"}
+
+@router.delete("/episodes/{id}")
+async def delete_episode(id: int):
+    """Delete a specific episode and its files."""
+    proc = get_processor()
+    success = await proc.delete_episode(id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Episode not found")
     return {"status": "deleted"}
 
 @router.post("/subscriptions/{id}/check")
 async def check_subscription_updates(id: int, background_tasks: BackgroundTasks):
     """Trigger a check for new episodes."""
+    # We allow running check_feeds in background task because it's I/O bound (network)
+    # and doesn't use heavy CPU. The background loop will then pick up any new pending episodes.
     proc = get_processor()
     background_tasks.add_task(proc.check_feeds, subscription_id=id)
-    background_tasks.add_task(proc.process_queue)
     return {"status": "check_triggered"}
 
 @router.post("/episodes/{id}/process")
-async def process_episode(id: int, background_tasks: BackgroundTasks, skip_transcription: bool = False):
+async def process_episode(id: int, skip_transcription: bool = False):
     """Manually trigger processing for an episode."""
     ep_repo = EpisodeRepository()
     
     import json
-    flags = json.dumps({'skip_transcription': skip_transcription}) if skip_transcription else None
+    flags = {'skip_transcription': skip_transcription}
+    flags_json = json.dumps(flags)
     
     # Using reset_status to ensure clean state but with flags
-    ep_repo.reset_status(id, processing_flags=flags)
+    ep_repo.reset_status(id, processing_flags=flags_json)
     ep_repo.update_status(id, "pending")
     
-    proc = get_processor()
-    background_tasks.add_task(proc.process_queue)
+    # Background processor (polling) will pick this up
     return {"status": "processing_triggered"}
 
 @router.post("/episodes/{id}/cancel")
 async def cancel_episode(id: int):
-    """Cancel processing and reset status."""
-    ep_repo = EpisodeRepository()
-    ep = ep_repo.get_by_id(id)
-    
-    if ep:
-        # Clean up artifacts if they exist
-        if ep.transcript_path and os.path.exists(ep.transcript_path):
-            try:
-                os.remove(ep.transcript_path)
-            except: pass
-            
-        if ep.ad_report_path and os.path.exists(ep.ad_report_path):
-            try:
-                os.remove(ep.ad_report_path)
-            except: pass
-            
-        if ep.report_path and os.path.exists(ep.report_path):
-            try:
-                os.remove(ep.report_path)
-            except: pass
-
-    ep_repo.reset_status(id)
+    """Cancel processing and reset status (Soft Delete)."""
+    proc = get_processor()
+    success = await proc.delete_episode(id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Episode not found")
     return {"status": "cancelled"}
 
 class SearchQuery(BaseModel):

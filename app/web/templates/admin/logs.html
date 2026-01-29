@@ -1,22 +1,216 @@
 {% extends "admin/layout.html" %}
 
+{% block title %}System Logs{% endblock %}
+
 {% block admin_content %}
-<div class="flex justify-between items-center mb-6">
-    <h3 class="text-xl font-bold text-gray-800">System Logs</h3>
-    <button onclick="window.location.reload()"
-        class="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
-        Refresh
-    </button>
+<h2 class="text-2xl font-bold mb-4">System Logs</h2>
+
+<div class="mb-4 flex flex-wrap gap-4 items-center justify-between">
+    <div class="flex gap-4 items-center flex-1">
+        <input type="text" id="log_filter" placeholder="Filter logs..."
+            class="flex-1 max-w-md p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
+        <select id="log_level" class="p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
+            <option value="">All Levels</option>
+            <option value="ERROR">Errors Only</option>
+            <option value="WARNING">Warnings</option>
+            <option value="INFO">Info</option>
+            <option value="AUTH">Auth Events</option>
+        </select>
+    </div>
+
+    <!-- Auto Refresh Controls - matching queue page style -->
+    <div class="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-lg border">
+        <button onclick="copyLogs()"
+            class="mr-2 flex items-center gap-1 px-3 py-1 bg-white border rounded text-gray-600 hover:bg-gray-100 text-sm transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+                </path>
+            </svg>
+            Copy Logs
+        </button>
+        <div class="h-6 w-px bg-gray-200 mx-1"></div>
+        <input type="checkbox" id="auto_refresh" checked class="h-4 w-4 text-blue-600 rounded">
+        <label for="auto_refresh" class="text-sm text-gray-600">Auto Refresh</label>
+        <span class="text-sm text-gray-500">every</span>
+        <span class="text-blue-600 font-semibold">10</span>
+        <span class="text-sm text-gray-500">s</span>
+        <span id="countdown" class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">10s</span>
+        <button onclick="refreshLogs()"
+            class="ml-2 flex items-center gap-1 px-3 py-1 border rounded text-blue-600 hover:bg-blue-50 text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                </path>
+            </svg>
+            Refresh
+        </button>
+    </div>
 </div>
 
-<div class="bg-gray-900 text-green-400 p-4 rounded font-mono text-xs overflow-x-auto h-[600px] overflow-y-scroll whitespace-pre"
-    id="logContainer">
-    {{ logs }}
+<style>
+    .log-startup {
+        color: #10b981;
+        font-weight: 600;
+    }
+
+    .log-shutdown {
+        color: #f59e0b;
+        font-weight: 600;
+    }
+
+    .log-error {
+        color: #ef4444;
+        font-weight: 600;
+    }
+
+    .log-warning {
+        color: #fbbf24;
+    }
+
+    .log-auth {
+        color: #8b5cf6;
+    }
+</style>
+
+<div class="flex-1 min-w-0">
+    <div id="log_container" class="bg-gray-900 text-gray-100 p-4 rounded font-mono text-xs overflow-auto"
+        style="height: calc(100vh - 340px); min-height: 300px;">
+        <pre id="log_content" class="whitespace-pre-wrap break-all">{{ logs }}</pre>
+    </div>
+</div>
+
+<div class="mt-2 text-sm text-gray-500 flex justify-between items-center">
+    <span>Showing last {{ current_lines }} lines from <code>data/app.log</code></span>
+    <button onclick="scrollToBottom()" class="text-blue-600 hover:text-blue-800 text-xs">↓ Scroll to latest</button>
 </div>
 
 <script>
-    // Scroll to bottom
-    const c = document.getElementById('logContainer');
-    c.scrollTop = c.scrollHeight;
+    const logContent = document.getElementById('log_content');
+    const logContainer = document.getElementById('log_container');
+    const filterInput = document.getElementById('log_filter');
+    const levelSelect = document.getElementById('log_level');
+    const autoRefreshCheckbox = document.getElementById('auto_refresh');
+    const countdownSpan = document.getElementById('countdown');
+    let originalContent = logContent.textContent;
+    let refreshInterval = 10;
+    let countdown = refreshInterval;
+    let intervalId = null;
+
+    function highlightLog(line) {
+        // Color-code important events
+        if (line.includes('Application startup') || line.includes('Started server') || line.includes('running on')) {
+            return `<span class="log-startup">${line}</span>`;
+        }
+        if (line.includes('Shutting down') || line.includes('shutdown') || line.includes('Finished server')) {
+            return `<span class="log-shutdown">${line}</span>`;
+        }
+        if (line.includes('ERROR')) {
+            return `<span class="log-error">${line}</span>`;
+        }
+        if (line.includes('WARNING')) {
+            return `<span class="log-warning">${line}</span>`;
+        }
+        if (line.includes('AUTH')) {
+            return `<span class="log-auth">${line}</span>`;
+        }
+        return line;
+    }
+
+    function filterLogs() {
+        const filterText = filterInput.value.toLowerCase();
+        const level = levelSelect.value;
+        const lines = originalContent.split('\n');
+
+        const filtered = lines.filter(line => {
+            if (filterText && !line.toLowerCase().includes(filterText)) return false;
+            if (level && !line.includes(level)) return false;
+            return true;
+        });
+
+        const highlighted = filtered.map(highlightLog).join('\n');
+        logContent.innerHTML = highlighted;
+    }
+
+    function scrollToBottom() {
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function copyLogs() {
+        const text = logContent.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            // Find the button (it was the trigger)
+            const btn = document.querySelector('button[onclick="copyLogs()"]');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Copied!
+            `;
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+            }, 2000);
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+            alert('Failed to copy logs to clipboard');
+        });
+    }
+
+    function refreshLogs() {
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newContent = doc.getElementById('log_content');
+                if (newContent) {
+                    originalContent = newContent.textContent;
+                    filterLogs();
+                    scrollToBottom();
+                }
+            })
+            .catch(err => console.error('Failed to refresh logs:', err));
+        countdown = refreshInterval;
+    }
+
+    function startAutoRefresh() {
+        if (intervalId) clearInterval(intervalId);
+        countdown = refreshInterval;
+        countdownSpan.textContent = countdown + 's';
+
+        intervalId = setInterval(() => {
+            countdown--;
+            countdownSpan.textContent = countdown + 's';
+            if (countdown <= 0) {
+                refreshLogs();
+            }
+        }, 1000);
+    }
+
+    function stopAutoRefresh() {
+        if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+        }
+        countdownSpan.textContent = '--';
+    }
+
+    filterInput.addEventListener('input', filterLogs);
+    levelSelect.addEventListener('change', filterLogs);
+    autoRefreshCheckbox.addEventListener('change', function () {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+
+    // Start auto-refresh and scroll to bottom on load
+    if (autoRefreshCheckbox.checked) {
+        startAutoRefresh();
+    }
+    filterLogs();  // Apply highlighting on initial load
+    scrollToBottom();
 </script>
 {% endblock %}

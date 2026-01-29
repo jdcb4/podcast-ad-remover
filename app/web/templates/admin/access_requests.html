@@ -1,0 +1,467 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Access Requests{% endblock %}
+
+{% block admin_content %}
+<!-- Feedback Banners -->
+{% if request.query_params.get('approved') %}
+<div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6 animate-pulse">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                fill="currentColor">
+                <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm font-medium text-green-800">
+                User <strong>{{ request.query_params.get('approved') }}</strong> approved!
+            </p>
+            <div class="mt-2 p-3 bg-white border border-green-200 rounded-lg shadow-sm">
+                <p class="text-xs text-gray-500 mb-1 font-bold uppercase">Temporary Password:</p>
+                <div class="flex items-center gap-3">
+                    <code
+                        class="text-2xl font-mono font-bold text-gray-900 select-all">{{ request.query_params.get('password') }}</code>
+                    <button
+                        onclick="navigator.clipboard.writeText('{{ request.query_params.get('password') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
+                        class="text-xs bg-gray-100 px-2 py-1 rounded border hover:bg-gray-200">Copy</button>
+                </div>
+            </div>
+            <p class="text-xs text-green-600 mt-2 font-medium italic italic">Copy this password and share it with the
+                user. They will be required to change it immediately.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if request.query_params.get('denied') %}
+<div class="bg-gray-50 border-l-4 border-gray-400 p-4 mb-6">
+    <div class="flex">
+        <div class="ml-3">
+            <p class="text-sm font-medium text-gray-800">Access request denied.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if request.query_params.get('error') %}
+<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+    <div class="flex">
+        <div class="ml-3">
+            <p class="text-sm font-medium text-red-800">{{ request.query_params.get('error') }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- User Authentication Settings -->
+<div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+    <h2 class="text-2xl font-bold mb-6">User Authentication</h2>
+
+    <form method="post" action="/admin/system/update">
+        <div class="space-y-6">
+            <!-- Enable Authentication -->
+            <div class="flex items-center">
+                <input type="checkbox" name="auth_enabled" id="auth_enabled" {% if settings.auth_enabled %}checked{%
+                    endif %} class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                <label for="auth_enabled" class="ml-2 text-sm font-medium text-gray-700">
+                    Enable User Authentication
+                </label>
+            </div>
+
+            <!-- IP Allowlist -->
+            <div id="auth_settings" style="display: {% if settings.auth_enabled %}block{% else %}none{% endif %}">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">IP Allowlist (optional)</label>
+                    <input type="text" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}"
+                        placeholder="192.168.1.100, 10.0.0.5"
+                        class="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
+                    <p class="text-xs text-gray-500 mt-1">
+                        Comma-separated list of IPs allowed to access admin panel. Leave blank to allow all IPs.
+                    </p>
+                </div>
+            </div>
+
+            {% if not settings.auth_enabled %}
+            <div class="bg-blue-50 border border-blue-200 rounded p-3">
+                <p class="text-sm text-blue-800">
+                    When you enable authentication, a default <code class="bg-white px-1 rounded">admin</code> user will
+                    be created with a secure random password.
+                    You'll see the password on the login page and will be required to change it on first login.
+                </p>
+            </div>
+            {% endif %}
+
+            <!-- Hidden fields to preserve other settings -->
+            <input type="hidden" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 3 }}">
+            <input type="hidden" name="retention_days" value="{{ settings.retention_days or 30 }}">
+            <input type="hidden" name="check_interval_minutes" value="{{ settings.check_interval_minutes or 60 }}">
+            <input type="hidden" name="app_external_url" value="{{ settings.app_external_url or '' }}">
+            <input type="hidden" name="enable_feed_auth" value="{% if settings.enable_feed_auth %}on{% endif %}">
+            <input type="hidden" name="feed_auth_username" value="{{ settings.feed_auth_username or '' }}">
+        </div>
+
+        <div class="flex justify-end pt-4 border-t mt-6">
+            <button type="submit"
+                class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm font-medium">
+                Save Changes
+            </button>
+        </div>
+    </form>
+
+    <script>
+        document.getElementById('auth_enabled').addEventListener('change', function () {
+            document.getElementById('auth_settings').style.display = this.checked ? 'block' : 'none';
+        });
+    </script>
+</div>
+
+<!-- Active Users -->
+<div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+    <h2 class="text-2xl font-bold mb-6">Active Users</h2>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created At</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Login</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for active_user in active_users %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <span class="cursor-pointer hover:text-blue-600 hover:underline"
+                            onclick="editUsername('{{ active_user.id }}', 'user', '{{ active_user.username }}')">
+                            {{ active_user.username }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if active_user.is_admin %}
+                        <span
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            Admin
+                        </span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            User
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ active_user.created_at }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ active_user.last_login or 'Never'
+                        }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        {% if user.id != active_user.id %}
+                        <form method="post" action="/admin/users/delete/{{ active_user.id }}"
+                            onsubmit="return confirm('Are you sure you want to delete this user?');"
+                            style="display:inline">
+                            <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
+                        </form>
+                        {% else %}
+                        <span class="text-gray-400 cursor-not-allowed">Delete</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not active_users %}
+        <div class="text-center py-4">
+            <p class="text-gray-500">No users found.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Feed Protection Settings -->
+<div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+    <h2 class="text-2xl font-bold mb-6">Feed Protection</h2>
+
+    <form method="post" action="/admin/system/update" onsubmit="return validateFeedAuth(this)">
+        <div class="space-y-6">
+            <div class="flex items-center mb-4">
+                <input type="checkbox" name="enable_feed_auth" id="enable_feed_auth" {% if settings.enable_feed_auth
+                    %}checked{% endif %} class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                <label for="enable_feed_auth" class="ml-2 text-sm font-medium text-gray-700">
+                    Protect RSS Feeds with User Authentication
+                </label>
+            </div>
+
+            <div id="feed_auth_container"
+                style="display: {% if settings.enable_feed_auth %}block{% else %}none{% endif %}">
+                <!-- Integrated Auth Message (Shown when User Auth is ON) -->
+                <div id="feed_auth_integrated" class="bg-blue-50 border border-blue-200 rounded p-3 mb-4"
+                    style="display: {% if settings.auth_enabled %}block{% else %}none{% endif %}">
+                    <p class="text-sm text-blue-800">
+                        <strong>User authentication is enabled.</strong><br>
+                        Podcast apps will require the same <strong>Username</strong> and <strong>Password</strong> that
+                        you use to log in to this dashboard.
+                    </p>
+                </div>
+
+                <!-- Standalone Auth Fields (Shown when User Auth is OFF) -->
+                <div id="feed_auth_standalone" class="grid grid-cols-2 gap-4 mb-4"
+                    style="display: {% if not settings.auth_enabled %}grid{% else %}none{% endif %}">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Feed Username</label>
+                        <input type="text" name="feed_auth_username" id="feed_username"
+                            value="{{ settings.feed_auth_username or '' }}" placeholder="feeduser"
+                            class="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Feed Password</label>
+                        <input type="password" name="feed_auth_password" id="feed_password"
+                            placeholder="{% if settings.feed_auth_password %}Leave blank to keep current{% else %}Enter password{% endif %}"
+                            class="w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="col-span-2">
+                        <p class="text-xs text-gray-500">
+                            Since User Authentication is disabled, you must set a specific username and password for
+                            your feeds.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {% if settings.enable_feed_auth and settings.auth_enabled %}
+            <div class="bg-blue-50 border border-blue-200 rounded p-3 mt-4">
+                <p class="text-sm font-medium text-gray-700 mb-1">Example Feed URL:</p>
+                <code id="example_feed_url" class="text-xs bg-white px-2 py-1 rounded border">
+                    {% set display_url = app_base_url %}
+                    {% if not settings.app_external_url %}
+                        {% set display_url = "https://your-public-url.com" %}
+                    {% endif %}
+                    {{ display_url }}/feeds/SLUG.xml?auth=BASE64_TOKEN
+                </code>
+                <p class="text-xs text-gray-500 mt-2">The token is automatically generated when you copy feed links from
+                    the dashboard.</p>
+            </div>
+            {% endif %}
+
+
+            <p class="text-xs text-gray-500 mt-4">
+                Compatible with most podcast apps (Apple Podcasts, Overcast, Pocket Casts, etc).
+            </p>
+
+
+            <!-- Hidden fields to preserve other settings -->
+            <input type="hidden" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 3 }}">
+            <input type="hidden" name="retention_days" value="{{ settings.retention_days or 30 }}">
+            <input type="hidden" name="check_interval_minutes" value="{{ settings.check_interval_minutes or 60 }}">
+            <input type="hidden" name="app_external_url" value="{{ settings.app_external_url or '' }}">
+            <input type="hidden" name="auth_enabled" value="{% if settings.auth_enabled %}on{% endif %}">
+            <input type="hidden" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}">
+            <input type="hidden" name="redirect_to" value="/admin/access">
+        </div>
+
+        <div class="flex justify-end pt-4 border-t mt-6">
+            <button type="submit"
+                class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm font-medium">
+                Save Changes
+            </button>
+        </div>
+    </form>
+
+    <script>
+        const authEnabledCheckbox = document.getElementById('auth_enabled');
+        const feedAuthCheckbox = document.getElementById('enable_feed_auth');
+        const feedAuthContainer = document.getElementById('feed_auth_container');
+        const feedAuthIntegrated = document.getElementById('feed_auth_integrated');
+        const feedAuthStandalone = document.getElementById('feed_auth_standalone');
+        const authSettingsIP = document.getElementById('auth_settings');
+
+        function updateVisibility() {
+            // Toggle Global Auth IP List
+            if (authSettingsIP) {
+                authSettingsIP.style.display = authEnabledCheckbox.checked ? 'block' : 'none';
+            }
+
+            // Toggle Feed Auth Section
+            if (feedAuthCheckbox.checked) {
+                feedAuthContainer.style.display = 'block';
+                if (authEnabledCheckbox.checked) {
+                    feedAuthIntegrated.style.display = 'block';
+                    feedAuthStandalone.style.display = 'none';
+                } else {
+                    feedAuthIntegrated.style.display = 'none';
+                    feedAuthStandalone.style.display = 'grid';
+                }
+            } else {
+                feedAuthContainer.style.display = 'none';
+            }
+
+            // Toggle Example URL Text
+            const exampleCode = document.getElementById('example_feed_url');
+            if (exampleCode) {
+                const baseUrl = "{{ app_base_url }}";
+                if (feedAuthCheckbox.checked) {
+                    exampleCode.textContent = baseUrl + "/feeds/SLUG.xml?auth=BASE64_TOKEN";
+                } else {
+                    exampleCode.textContent = baseUrl + "/feeds/SLUG.xml";
+                }
+            }
+        }
+
+
+        function validateFeedAuth(form) {
+            const isFeedAuthEnabled = document.getElementById('enable_feed_auth').checked;
+            const isGlobalAuthEnabled = authEnabledCheckbox.checked;
+
+            if (isFeedAuthEnabled && !isGlobalAuthEnabled) {
+                const user = document.getElementById('feed_username').value.trim();
+                const pass = document.getElementById('feed_password').value;
+                const hasExistingPass = document.getElementById('feed_password').placeholder.includes("Leave blank");
+
+                if (!user || (!pass && !hasExistingPass)) {
+                    alert("Stand-alone Feed Protection requires both a Username and Password. Protection has been automatically disabled.");
+                    document.getElementById('enable_feed_auth').checked = false;
+                    updateVisibility();
+                    return true; // We proceed with "Save" but with auth disabled
+                }
+            }
+            return true;
+        }
+
+        if (authEnabledCheckbox) {
+            authEnabledCheckbox.addEventListener('change', updateVisibility);
+        }
+        if (feedAuthCheckbox) {
+            feedAuthCheckbox.addEventListener('change', updateVisibility);
+        }
+
+        // Initial run
+        updateVisibility();
+
+        function editUsername(id, type, currentName) {
+            const newName = prompt("Enter new username:", currentName);
+            if (newName && newName !== currentName) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = type === 'user' ? `/admin/users/${id}/username` : `/admin/access-requests/${id}/username`;
+
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'username';
+                input.value = newName;
+
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+    </script>
+</div>
+
+<!-- Access Requests Table -->
+<div class="bg-white rounded-lg shadow-sm p-6">
+    <h2 class="text-2xl font-bold mb-6">Access Requests</h2>
+
+    {% if pending_requests %}
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requested At</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for req in pending_requests %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <span class="cursor-pointer hover:text-blue-600 hover:underline"
+                            onclick="editUsername('{{ req.id }}', 'request', '{{ req.username }}')">
+                            {{ req.username }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ req.email or '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ req.requested_at }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ req.ip_address }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <form method="post" action="/admin/access-requests/{{ req.id }}/approve" style="display:inline">
+                            <button type="submit" class="text-green-600 hover:text-green-900 mr-3">Approve</button>
+                        </form>
+                        <form method="post" action="/admin/access-requests/{{ req.id }}/deny" style="display:inline">
+                            <button type="submit" class="text-red-600 hover:text-red-900">Deny</button>
+                        </form>
+                    </td>
+                </tr>
+                {% if req.reason %}
+                <tr>
+                    <td colspan="5" class="px-6 py-2 text-sm text-gray-600 bg-gray-50">
+                        <strong>Reason:</strong> {{ req.reason }}
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <p class="text-gray-500">No pending access requests</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Login History Table -->
+<div class="bg-white rounded-lg shadow-sm p-6 mt-6">
+    <h2 class="text-2xl font-bold mb-6">Login History <span class="text-sm font-normal text-gray-500">(last 30
+            days)</span></h2>
+
+    {% if login_history %}
+    <div class="overflow-x-auto" style="max-height: 400px; overflow-y: auto;">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Timestamp</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for login in login_history %}
+                <tr class="{% if login.success %}{% else %}bg-red-50{% endif %}">
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        {% if login.success %}
+                        <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            ✓ Success
+                        </span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                            ✗ Failed
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ login.username or
+                        'unknown' }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{{ login.ip_address }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{{ login.timestamp }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <p class="text-gray-500">No login history recorded</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -61,27 +61,42 @@ class AudioProcessor:
         # [0:a]atrim=start=20:end=30,asetpts=PTS-STARTPTS[a1];
         # [a0][a1]concat=n=2:v=0:a=1[out]
         
+        # [a0][a1]concat=n=2:v=0:a=1[out_concat];[out_concat]aformat=...[out]
+        
         filter_parts = []
         concat_inputs = []
         
         for i, (start, end) in enumerate(keep_segments):
-            filter_parts.append(f"[0:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS[a{i}]")
+            # Add aformat to ensure consistent sample rate and layout for concat
+            filter_parts.append(f"[0:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS,aformat=sample_rates=44100:channel_layouts=stereo[a{i}]")
             concat_inputs.append(f"[a{i}]")
             
         filter_str = ";".join(filter_parts)
-        concat_str = "".join(concat_inputs) + f"concat=n={len(keep_segments)}:v=0:a=1[out]"
-        full_filter = f"{filter_str};{concat_str}"
+        # Output to intermediate [out_concat], then force format/padding before encoder
+        # asetnsamples=n=1152 ensures standard MP3 frame boundaries
+        # sample_fmts=s16p ensures we use signed 16-bit planar integers (avoiding float padding issues)
+        concat_str = "".join(concat_inputs) + f"concat=n={len(keep_segments)}:v=0:a=1[out_concat]"
+        format_str = f"[out_concat]asetnsamples=n=1152,aformat=sample_rates=44100:channel_layouts=stereo:sample_fmts=s16p[out]"
+        full_filter = f"{filter_str};{concat_str};{format_str}"
         
         cmd = [
             "ffmpeg", "-y",
             "-i", input_path,
             "-filter_complex", full_filter,
             "-map", "[out]",
+            "-c:a", "libmp3lame",
+            "-q:a", "2",
             output_path
         ]
         
         logger.info("Running FFmpeg...")
-        subprocess.run(cmd, check=True)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            logger.info("FFmpeg completed successfully.")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFmpeg failed with exit code {e.returncode}")
+            logger.error(f"FFmpeg stderr: {e.stderr}")
+            raise Exception(f"FFmpeg failed: {e.stderr}") from e
 
     @staticmethod
     def prepend_audio(main_audio_path: str, intro_audio_path: str, output_path: str):
@@ -140,8 +155,83 @@ class AudioProcessor:
         ])
         
         try:
-            subprocess.run(cmd, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             logger.info(f"Successfully concatenated files to {output_path}")
         except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to concatenate files: {e}")
-            raise
+            logger.error(f"Failed to concatenate files: {e.returncode}")
+            logger.error(f"FFmpeg stderr: {e.stderr}")
+            raise Exception(f"FFmpeg concatenation failed: {e.stderr}") from e
+    @staticmethod
+    def prepare_for_transcription(input_path: str, output_path: str):
+        """
+        Extract a clean, normalized audio stream for transcription.
+        Uses 16kHz mono as preferred by Whisper. Removes all other streams (video, cover art).
+        """
+        logger.info(f"Preparing clean audio for transcription: {output_path}")
+        
+        # -map 0:a:0 selects ONLY the first audio stream
+        # -ar 16000 sets sample rate to 16kHz
+        # -ac 1 sets to mono
+        # -vn removes all video/attached images
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", input_path,
+            "-map", "0:a:0",
+            "-ar", "16000",
+            "-ac", "1",
+            "-vn",
+            output_path
+        ]
+        
+        try:
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            logger.info("Normalized audio prepared.")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to prepare audio for transcription: {e.stderr}")
+            raise Exception(f"Audio preparation failed: {e.stderr}") from e
+    @staticmethod
+    def create_audio_chunks(input_path: str, chunk_duration: float, overlap: float) -> List[str]:
+        """
+        Split audio into overlapping chunks.
+        Returns list of paths to chunk files.
+        """
+        total_duration = AudioProcessor.get_duration(input_path)
+        logger.info(f"Splitting {input_path} (Total: {total_duration:.2f}s) into {chunk_duration}s chunks with {overlap}s overlap")
+        
+        chunks = []
+        start = 0.0
+        chunk_idx = 0
+        
+        while start < total_duration:
+            output_chunk = f"{input_path}.chunk_{chunk_idx:03d}.wav"
+            # ffmpeg -ss start -t duration
+            # We use a slightly longer duration to ensure we don't miss anything
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(start),
+                "-t", str(chunk_duration),
+                "-i", input_path,
+                "-c", "copy",
+                output_chunk
+            ]
+            
+            try:
+                subprocess.run(cmd, capture_output=True, text=True, check=True)
+                chunks.append(output_chunk)
+                logger.info(f"Created chunk {chunk_idx}: {start}s to {start + chunk_duration}s")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to create chunk {chunk_idx}: {e.stderr}")
+                # Cleanup already created chunks
+                for c in chunks:
+                    if os.path.exists(c):
+                        os.remove(c)
+                raise Exception(f"Audio chunking failed: {e.stderr}") from e
+                
+            start += (chunk_duration - overlap)
+            chunk_idx += 1
+            
+            # If the remaining duration is less than the overlap, we are done
+            if start >= total_duration - overlap:
+                break
+                
+        return chunks

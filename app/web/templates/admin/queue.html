@@ -1,20 +1,42 @@
 {% extends "admin/layout.html" %}
 
 {% block admin_content %}
-<div class="mb-6 flex justify-between items-center">
+<div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
     <h3 class="text-lg font-medium text-gray-900">Processing Queue</h3>
-    <a href="/admin/queue" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-            </path>
-        </svg>
-        Refresh
-    </a>
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+        <!-- Auto-Refresh Controls -->
+        <div
+            class="flex items-center text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-md border shadow-sm justify-between sm:justify-start">
+            <label class="flex items-center cursor-pointer mr-3">
+                <input type="checkbox" id="auto-refresh-toggle" checked
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2 transition cursor-pointer w-5 h-5">
+                <span class="font-medium">Auto</span>
+            </label>
+            <div class="flex items-center">
+                <input type="number" id="refresh-interval" value="30" min="5" max="300"
+                    class="w-10 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-blue-600 appearance-none"
+                    style="-moz-appearance: textfield;">
+                <span class="mr-2 text-gray-400">s</span>
+                <span
+                    class="text-xs font-mono font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full min-w-[3rem] text-center"
+                    id="refresh-countdown">30s</span>
+            </div>
+        </div>
+
+        <a href="/admin/queue"
+            class="text-sm text-blue-600 hover:text-blue-800 flex items-center justify-center font-medium bg-white px-3 py-2 rounded-md border hover:bg-gray-50 transition shadow-sm min-h-[44px]">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                </path>
+            </svg>
+            Refresh
+        </a>
+    </div>
 </div>
 
 {% if queue %}
-<div class="bg-white shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+<div class="bg-white shadow overflow-x-auto border-b border-gray-200 sm:rounded-lg -mx-6 sm:mx-0">
     <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
@@ -41,8 +63,8 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                     {% if item.status == 'processing' %}
                     <span
-                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        Processing
+                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 animate-pulse">
+                        Actively Processing
                     </span>
                     {% elif item.status == 'pending' %}
                     <span
@@ -56,18 +78,18 @@
                     </span>
                     {% endif %}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
                     {{ item.podcast_title }}
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-900">
-                    <div class="line-clamp-1" title="{{ item.title }}">{{ item.title }}</div>
+                <td class="px-6 py-4 text-sm text-gray-900 max-w-md">
+                    <div class="truncate" title="{{ item.title }}">{{ item.title }}</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {% if item.status == 'processing' %}
-                    <div class="flex flex-col">
-                        <span class="text-xs text-gray-400 mb-1">{{ item.processing_step }}</span>
-                        <div class="w-24 bg-gray-200 rounded-full h-1.5">
-                            <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
+                    <div class="flex flex-col min-w-[12rem]">
+                        <span class="text-xs font-bold text-blue-700 mb-1.5">{{ item.processing_step }}</span>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-700 ease-in-out shadow-inner"
                                 style="width: {{ item.progress }}%"></div>
                         </div>
                     </div>
@@ -78,14 +100,14 @@
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {% if item.status == 'processing' %}
                     <form action="/admin/queue/cancel/{{ item.id }}" method="post" class="inline">
-                        <button type="submit" class="text-red-600 hover:text-red-900"
+                        <button type="submit" class="text-red-600 hover:text-red-900 transition font-bold"
                             onclick="return confirm('Stop processing this episode? Partial files will be deleted.')">
                             Cancel
                         </button>
                     </form>
                     {% else %}
                     <form action="/admin/queue/retry/{{ item.id }}" method="post" class="inline">
-                        <button type="submit" class="text-blue-600 hover:text-blue-900">
+                        <button type="submit" class="text-blue-600 hover:text-blue-900 transition font-bold">
                             {% if item.status == 'failed' %}Retry Now{% else %}Process Now{% endif %}
                         </button>
                     </form>
@@ -97,13 +119,85 @@
     </table>
 </div>
 {% else %}
-<div class="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+    <svg class="mx-auto h-14 w-14 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
     </svg>
-    <h3 class="mt-2 text-sm font-medium text-gray-900">Queue is empty</h3>
-    <p class="mt-1 text-sm text-gray-500">No episodes are currently processing or pending.</p>
+    <h3 class="mt-4 text-base font-semibold text-gray-900">Queue is empty</h3>
+    <p class="mt-2 text-sm text-gray-500">No episodes are currently processing or pending.</p>
 </div>
 {% endif %}
+
+<script>
+    (function () {
+        const toggle = document.getElementById('auto-refresh-toggle');
+        const intervalInput = document.getElementById('refresh-interval');
+        const countdownDisplay = document.getElementById('refresh-countdown');
+
+        // Load settings from localStorage if available
+        const savedInterval = localStorage.getItem('queue-refresh-interval');
+        const savedToggle = localStorage.getItem('queue-refresh-enabled');
+
+        if (savedInterval) intervalInput.value = savedInterval;
+        if (savedToggle !== null) toggle.checked = savedToggle === 'true';
+
+        let timeLeft = parseInt(intervalInput.value);
+        let intervalId = null;
+
+        function updateCountdown() {
+            if (!toggle.checked) return;
+
+            timeLeft--;
+            if (timeLeft <= 0) {
+                // Save state before reload
+                localStorage.setItem('queue-refresh-enabled', toggle.checked);
+                localStorage.setItem('queue-refresh-interval', intervalInput.value);
+                window.location.reload();
+            } else {
+                countdownDisplay.textContent = timeLeft + 's';
+            }
+        }
+
+        function startTimer() {
+            if (intervalId) clearInterval(intervalId);
+            timeLeft = parseInt(intervalInput.value);
+            if (isNaN(timeLeft) || timeLeft < 5) timeLeft = 5;
+
+            countdownDisplay.textContent = timeLeft + 's';
+
+            if (toggle.checked) {
+                intervalId = setInterval(updateCountdown, 1000);
+                countdownDisplay.classList.remove('bg-gray-100', 'text-gray-400');
+                countdownDisplay.classList.add('bg-blue-100', 'text-blue-700');
+            } else {
+                countdownDisplay.textContent = 'Off';
+                countdownDisplay.classList.remove('bg-blue-100', 'text-blue-700');
+                countdownDisplay.classList.add('bg-gray-100', 'text-gray-400');
+            }
+        }
+
+        toggle.onchange = function () {
+            localStorage.setItem('queue-refresh-enabled', toggle.checked);
+            startTimer();
+        };
+
+        intervalInput.onchange = function () {
+            let val = parseInt(this.value);
+            if (isNaN(val) || val < 5) {
+                val = 5;
+                this.value = 5;
+            }
+            if (val > 300) {
+                val = 300;
+                this.value = 300;
+            }
+            localStorage.setItem('queue-refresh-interval', val);
+            startTimer();
+        };
+
+        // Initialize
+        startTimer();
+    })();
+</script>
 {% endblock %}

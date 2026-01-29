@@ -60,11 +60,12 @@
                 <!-- Piper -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Piper Voice (TTS)</label>
-                    <select name="piper_model" class="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
-                        readonly>
-                        <option value="en_GB-cori-high.onnx" selected>Cori (High Quality) - UK English</option>
+                    <select name="piper_model" class="w-full p-2 border rounded bg-white focus:ring-blue-500 focus:border-blue-500">
+                        <option value="en_GB-cori-high.onnx" {% if settings.piper_model == 'en_GB-cori-high.onnx' %}selected{% endif %}>Cori (High Quality) - UK English</option>
+                        <option value="en_US-amy-medium.onnx" {% if settings.piper_model == 'en_US-amy-medium.onnx' %}selected{% endif %}>Amy (Medium) - US English</option>
+                        <option value="en_US-ryan-medium.onnx" {% if settings.piper_model == 'en_US-ryan-medium.onnx' %}selected{% endif %}>Ryan (Medium) - US English</option>
+                        <option value="en_US-lessac-medium.onnx" {% if settings.piper_model == 'en_US-lessac-medium.onnx' %}selected{% endif %}>Lessac (Medium) - US English</option>
                     </select>
-                    <input type="hidden" name="piper_model" value="en_GB-cori-high.onnx">
                 </div>
             </div>
         </div>

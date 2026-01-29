@@ -13,8 +13,8 @@ def slugify(text: str) -> str:
 
 class FeedManager:
     @staticmethod
-    def parse_feed(url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """Parse feed and return (title, slug, image_url). Raises error if invalid."""
+    def parse_feed(url: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Parse feed and return (title, slug, image_url, description). Raises error if invalid."""
         d = feedparser.parse(url)
         if d.bozo:
             raise ValueError(f"Invalid feed: {d.bozo_exception}")
@@ -25,13 +25,15 @@ class FeedManager:
         title = d.feed.title
         slug = slugify(title)
         
+        description = d.feed.get('summary', d.feed.get('description', ''))
+        
         image_url = None
         if hasattr(d.feed, 'image') and hasattr(d.feed.image, 'href'):
             image_url = d.feed.image.href
         elif hasattr(d.feed, 'itunes_image') and hasattr(d.feed.itunes_image, 'href'):
              image_url = d.feed.itunes_image.href
              
-        return title, slug, image_url
+        return title, slug, image_url, description
 
     @staticmethod
     def parse_episodes(url: str) -> list:

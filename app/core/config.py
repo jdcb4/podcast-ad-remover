@@ -28,13 +28,20 @@ class Settings(BaseSettings):
     @property
     def DB_PATH(self) -> str:
         return os.path.join(self.DATA_DIR, "db", "podcasts.db")
+    
+    @property
+    def PODCASTS_DIR(self) -> str:
+        """Base directory for all podcast data organized by podcast/episode"""
+        return os.path.join(self.DATA_DIR, "podcasts")
         
     @property
     def DOWNLOADS_DIR(self) -> str:
+        """Deprecated: Use get_episode_dir() instead"""
         return os.path.join(self.DATA_DIR, "downloads")
         
     @property
     def TRANSCRIPTS_DIR(self) -> str:
+        """Deprecated: Use get_episode_dir() instead"""
         return os.path.join(self.DATA_DIR, "transcripts")
         
     @property
@@ -43,11 +50,16 @@ class Settings(BaseSettings):
         
     @property
     def AUDIO_DIR(self) -> str:
+        """Deprecated: Use get_episode_dir() instead"""
         return os.path.join(self.DATA_DIR, "audio")
 
     @property
     def MODELS_DIR(self) -> str:
         return os.path.join(self.DATA_DIR, "models")
+    
+    def get_episode_dir(self, podcast_slug: str, episode_slug: str) -> str:
+        """Get the directory path for a specific episode"""
+        return os.path.join(self.PODCASTS_DIR, podcast_slug, episode_slug)
 
     class Config:
         env_file = ".env"
@@ -57,10 +69,8 @@ settings = Settings()
 # Ensure directories exist
 for path in [
     os.path.dirname(settings.DB_PATH),
-    settings.DOWNLOADS_DIR,
-    settings.TRANSCRIPTS_DIR,
+    settings.PODCASTS_DIR,
     settings.FEEDS_DIR,
-    settings.AUDIO_DIR,
     settings.MODELS_DIR
 ]:
     os.makedirs(path, exist_ok=True)
