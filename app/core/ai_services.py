@@ -568,7 +568,7 @@ class AdDetector:
         provider_type = self.settings.get('active_ai_provider', 'gemini')
         return self.create_provider(provider_type)
 
-    def detect_ads(self, transcript: Dict, options: Dict = None) -> List[Dict[str, float]]:
+    def detect_ads(self, transcript: Dict, options: Dict = None, whitelist_mode: bool = False) -> List[Dict[str, float]]:
         self.settings = self._load_settings()
         if not options:
             options = {
@@ -581,7 +581,7 @@ class AdDetector:
             text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
 
         # Build Prompt
-        prompt = self._build_ad_prompt(options, text_data)
+        prompt = self._build_ad_prompt(options, text_data, whitelist_mode=whitelist_mode)
 
         # Execute
         try:
@@ -589,7 +589,12 @@ class AdDetector:
             response_text = provider.generate(prompt)
             raw_segments = self._parse_ad_response(response_text)
             
-            # Filter to only include requested types and exclude 'Content'
+            # Whitelist mode: return ALL segments (including Content) for processor to invert
+            if whitelist_mode:
+                logger.info(f"Whitelist mode: returning all {len(raw_segments)} segments (including Content)")
+                return raw_segments
+            
+            # Blacklist mode (default): Filter to only include requested types and exclude 'Content'
             removable_labels = []
             if options.get("remove_ads"): removable_labels.append("Ad")
             if options.get("remove_promos"): 
@@ -660,7 +665,7 @@ class AdDetector:
             return f"Welcome to {podcast_name}. Today's episode is {episode_title}."
 
     # --- Helpers ---
-    def _build_ad_prompt(self, options, transcript_text):
+    def _build_ad_prompt(self, options, transcript_text, whitelist_mode: bool = False):
         # Fetch targets with safety defaults
         targets = []
         if options.get("remove_ads"): 
@@ -684,13 +689,23 @@ class AdDetector:
         
         custom = f"Custom: {options.get('custom_instructions')}" if options.get('custom_instructions') else ""
         
+        # Whitelist mode: append instructions to also label Content segments
+        whitelist_addendum = ""
+        if whitelist_mode:
+            whitelist_addendum = """
+IMPORTANT: You MUST also label ALL substantive speech/content segments with label "Content".
+Every segment of the transcript must be classified. Use "Content" for any segment containing substantive speech, interviews, reporting, or discussion that is NOT an ad, promo, intro, or outro.
+Non-speech segments (music, jingles, silence) should NOT be labeled as Content.
+Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main discussion segment"}]
+"""
+        
         # Use manual replacement instead of .format() to avoid breaking on JSON examples
         try:
             prompt = base.replace("{targets}", "\n".join(targets)).replace("{custom_instr}", custom)
-            return prompt + "\n\nTranscript:\n" + transcript_text
+            return prompt + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
         except Exception as e:
              logger.warning(f"Prompt formatting failed: {e}")
-             return base + "\n\nTranscript:\n" + transcript_text
+             return base + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
 
     def _parse_ad_response(self, text: str):
         text = text.strip()

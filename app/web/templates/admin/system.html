@@ -37,6 +37,22 @@
                 <p class="text-xs text-text-muted mt-1">How often to check for new episodes.</p>
             </div>
         </div>
+
+        <!-- Whitelist Mode Toggle -->
+        <div class="mt-4 p-4 rounded-lg border border-white/[0.08] bg-white/[0.02]">
+            <div class="flex items-center gap-3">
+                <input type="checkbox" name="whitelist_mode" id="whitelist_mode"
+                    class="w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                    {% if settings.whitelist_mode %}checked{% endif %}>
+                <div>
+                    <label for="whitelist_mode" class="text-sm font-medium text-text-secondary cursor-pointer">Whitelist Mode</label>
+                    <p class="text-xs text-text-muted mt-0.5">
+                        Instead of removing ad segments (blacklist), keep <strong>only</strong> content segments (whitelist).
+                        This removes non-speech audio like intro music and jingles between segments.
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Network -->

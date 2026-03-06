@@ -17,7 +17,7 @@ class AudioProcessor:
             file_path
         ]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
             return float(result.stdout.strip())
         except Exception as e:
             logger.error(f"Failed to get duration: {e}")
@@ -91,7 +91,7 @@ class AudioProcessor:
         
         logger.info("Running FFmpeg...")
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
             logger.info("FFmpeg completed successfully.")
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg failed with exit code {e.returncode}")
@@ -155,7 +155,7 @@ class AudioProcessor:
         ])
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
             logger.info(f"Successfully concatenated files to {output_path}")
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to concatenate files: {e.returncode}")
@@ -184,7 +184,7 @@ class AudioProcessor:
         ]
         
         try:
-            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
             logger.info("Normalized audio prepared.")
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to prepare audio for transcription: {e.stderr}")
@@ -216,7 +216,7 @@ class AudioProcessor:
             ]
             
             try:
-                subprocess.run(cmd, capture_output=True, text=True, check=True)
+                subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
                 chunks.append(output_chunk)
                 logger.info(f"Created chunk {chunk_idx}: {start}s to {start + chunk_duration}s")
             except subprocess.CalledProcessError as e:

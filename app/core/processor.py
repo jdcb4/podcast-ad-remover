@@ -475,11 +475,66 @@ class Processor:
                 "custom_instructions": sub.custom_instructions
             }
             
-            ad_segments = await asyncio.to_thread(self.ad_detector.detect_ads, transcript, detect_options)
+            # Check whitelist mode from global settings
+            from app.core.utils import get_global_settings
+            global_settings = get_global_settings()
+            whitelist_mode = bool(global_settings.get('whitelist_mode', 0))
+            
+            if whitelist_mode:
+                logger.info("Whitelist mode is ENABLED - will keep only Content segments")
+            
+            ad_segments = await asyncio.to_thread(
+                self.ad_detector.detect_ads, transcript, detect_options, whitelist_mode=whitelist_mode
+            )
             
             if not self._check_cancellation(ep): return
 
-            logger.info(f"Found {len(ad_segments)} ad segments: {ad_segments}")
+            logger.info(f"Found {len(ad_segments)} segments: {ad_segments}")
+            
+            # Whitelist mode: invert logic - extract Content segments, remove everything else
+            if whitelist_mode:
+                content_segments = [s for s in ad_segments if s.get('label') == 'Content']
+                non_content_segments = [s for s in ad_segments if s.get('label') != 'Content']
+                
+                if not content_segments:
+                    # Safety fallback: if AI didn't return any Content labels, fall back to blacklist
+                    logger.warning("Whitelist mode: No Content segments found! Falling back to blacklist mode.")
+                    # Use the non-content segments as removable (same as blacklist)
+                    ad_segments = non_content_segments
+                else:
+                    logger.info(f"Whitelist mode: {len(content_segments)} Content segments, {len(non_content_segments)} non-content segments")
+                    
+                    # Get total duration to calculate inversion
+                    total_duration = AudioProcessor.get_duration(input_path)
+                    
+                    # Sort content segments by start time
+                    content_sorted = sorted(content_segments, key=lambda x: x['start'])
+                    
+                    # Invert: everything NOT covered by a Content segment becomes a "remove" segment
+                    inverted_remove = []
+                    current_time = 0.0
+                    
+                    for cs in content_sorted:
+                        if cs['start'] > current_time:
+                            inverted_remove.append({
+                                'start': current_time,
+                                'end': cs['start'],
+                                'label': 'Non-Content',
+                                'reason': 'Not labeled as content (whitelist mode)'
+                            })
+                        current_time = max(current_time, cs['end'])
+                    
+                    # Handle trailing non-content after last Content segment
+                    if current_time < total_duration:
+                        inverted_remove.append({
+                            'start': current_time,
+                            'end': total_duration,
+                            'label': 'Non-Content',
+                            'reason': 'Trailing non-content (whitelist mode)'
+                        })
+                    
+                    logger.info(f"Whitelist mode: inverted to {len(inverted_remove)} remove segments")
+                    ad_segments = inverted_remove
             
             # Merge ad segments with gaps < 10 seconds
             merged_segments = []
@@ -849,7 +904,7 @@ class Processor:
                 cutoff_date = datetime.now() - timedelta(days=30)
                 cutoff_str = cutoff_date.strftime('%Y-%m-%d')
                 
-                with open(log_path, 'r', encoding='utf-8') as f:
+                with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
                     lines = f.readlines()
                 
                 original_count = len(lines)

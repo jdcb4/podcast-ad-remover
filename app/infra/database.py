@@ -232,7 +232,10 @@ Transcript Context: {transcript_context}""",))
         "ALTER TABLE app_settings ADD COLUMN default_manual_retention_days INTEGER DEFAULT 14",
         "ALTER TABLE app_settings ADD COLUMN default_custom_instructions TEXT",
         "ALTER TABLE episodes ADD COLUMN listen_count INTEGER DEFAULT 0",
-        "ALTER TABLE app_settings ADD COLUMN gemini_api_keys TEXT"
+        "ALTER TABLE app_settings ADD COLUMN gemini_api_keys TEXT",
+
+        # Whitelist mode: inverts filtering to keep only Content segments
+        "ALTER TABLE app_settings ADD COLUMN whitelist_mode INTEGER DEFAULT 0"
     ]
     
     for sql in migrations:

@@ -384,6 +384,7 @@ async def update_system_settings(
     enable_feed_auth: bool = Form(False),
     feed_auth_username: str = Form(None),
     feed_auth_password: str = Form(None),
+    whitelist_mode: bool = Form(False),
     redirect_to: str = Form(None)
 ):
     from app.infra.database import get_db_connection
@@ -444,13 +445,15 @@ async def update_system_settings(
                 enable_feed_auth = ?,
                 feed_auth_username = ?,
                 feed_auth_password = COALESCE(?, feed_auth_password),
+                whitelist_mode = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
         """, (concurrent_downloads, retention_days, check_interval_minutes, app_external_url,
               1 if auth_enabled else 0, ip_allowlist,
               1 if enable_feed_auth else 0, 
               feed_auth_username if feed_auth_username else None, 
-              hashed_feed_password if hashed_feed_password else None))
+              hashed_feed_password if hashed_feed_password else None,
+              1 if whitelist_mode else 0))
         conn.commit()
     
     # Regenerate all feeds if the URL changed
@@ -792,7 +795,7 @@ async def admin_logs(request: Request, lines: int = 1000, level: str = "ALL"):
             # Read relevant lines
             # For simplicity, read last N bytes then filter lines
             # Reading 1MB roughly
-            with open(log_path, "r", encoding="utf-8") as f:
+            with open(log_path, "r", encoding="utf-8", errors="replace") as f:
                 f.seek(0, 2)
                 size = f.tell()
                 f.seek(max(0, size - 1024 * 1024)) # 1MB
