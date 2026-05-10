@@ -199,13 +199,16 @@ async def login_page(request: Request):
     # Check if this is first launch
     first_launch = user_count == 0
     
-    return templates.TemplateResponse("login.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "first_launch": first_launch,
-        "initial_password": settings['initial_password'] if settings else None,
-        "auth_enabled": settings['auth_enabled'] if settings else False
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "first_launch": first_launch,
+            "initial_password": settings['initial_password'] if settings else None,
+            "auth_enabled": settings['auth_enabled'] if settings else False
+        }
+    )
 
 @router.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
@@ -218,14 +221,18 @@ async def login(request: Request, username: str = Form(...), password: str = For
         check_rate_limit(client_ip)
     except HTTPException as e:
         # Return user-friendly error page instead of raw exception
-        return templates.TemplateResponse("login.html", {
-            "request": request,
-        "csp_nonce": get_csp_nonce(request),
-            "error": e.detail,
-            "first_launch": False,
-            "auth_enabled": True,
-            "rate_limited": True
-        }, status_code=e.status_code)
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "csp_nonce": get_csp_nonce(request),
+                "error": e.detail,
+                "first_launch": False,
+                "auth_enabled": True,
+                "rate_limited": True
+            },
+            status_code=e.status_code
+        )
     
     with get_db_connection() as conn:
         user_row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
@@ -239,14 +246,17 @@ async def login(request: Request, username: str = Form(...), password: str = For
         if is_locked:
             error_msg = f"Too many failed login attempts. Your IP has been locked for {login_rate_limiter.lockout_seconds // 60} minutes."
         
-        return templates.TemplateResponse("login.html", {
-            "request": request,
-        "csp_nonce": get_csp_nonce(request),
-            "error": error_msg,
-            "first_launch": False,
-            "auth_enabled": True,
-            "rate_limited": is_locked
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "csp_nonce": get_csp_nonce(request),
+                "error": error_msg,
+                "first_launch": False,
+                "auth_enabled": True,
+                "rate_limited": is_locked
+            }
+        )
     
     # Successful login - clear rate limiting for this IP
     login_rate_limiter.record_successful_login(client_ip)
@@ -363,14 +373,17 @@ async def view_settings_redirect():
 @router.get("/admin/system", response_class=HTMLResponse)
 async def admin_system(request: Request):
     user = get_current_user(request)
-    return templates.TemplateResponse("admin/system.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "user": user,
-        "settings": get_global_settings(),
-        "pending_requests_count": get_pending_requests_count(),
-        "active_tab": "system"
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/system.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "user": user,
+            "settings": get_global_settings(),
+            "pending_requests_count": get_pending_requests_count(),
+            "active_tab": "system"
+        }
+    )
 
 @router.post("/admin/system/update")
 async def update_system_settings(
@@ -494,15 +507,18 @@ async def admin_ai(request: Request):
 
     user = get_current_user(request)
 
-    return templates.TemplateResponse("admin/ai.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "user": user,
-        "settings": get_global_settings(),
-        "pending_requests_count": get_pending_requests_count(),
-        "active_tab": "ai",
-        "env_keys": env_keys
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/ai.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "user": user,
+            "settings": get_global_settings(),
+            "pending_requests_count": get_pending_requests_count(),
+            "active_tab": "ai",
+            "env_keys": env_keys
+        }
+    )
 
 @router.post("/admin/ai/update")
 async def update_ai_settings(
@@ -614,15 +630,18 @@ Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for
     
     user = get_current_user(request)
 
-    return templates.TemplateResponse("admin/prompts.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "user": user,
-        "settings": get_global_settings(),
-        "default_prompts": default_prompts,
-        "pending_requests_count": get_pending_requests_count(),
-        "active_tab": "prompts"
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/prompts.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "user": user,
+            "settings": get_global_settings(),
+            "default_prompts": default_prompts,
+            "pending_requests_count": get_pending_requests_count(),
+            "active_tab": "prompts"
+        }
+    )
 
 @router.post("/admin/prompts")
 async def save_prompts(request: Request):
@@ -708,15 +727,17 @@ async def admin_queue(request: Request):
     user = get_current_user(request)
     queue = ep_repo.get_queue()
     recently_processed = ep_repo.get_recently_processed(days=3)
-    return templates.TemplateResponse("admin/queue.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "user": user,
-        "queue": queue,
-        "recently_processed": recently_processed,
-        "pending_requests_count": get_pending_requests_count(),
-        "active_tab": "queue"
-    })
+    return templates.TemplateResponse(
+        request=request, 
+        name="admin/queue.html", 
+        context={
+            "user": user,
+            "queue": queue,
+            "history": recently_processed,
+            "pending_requests_count": get_pending_requests_count(),
+            "active_tab": "queue"
+        }
+    )
 
 @router.post("/admin/queue/cancel/{episode_id}")
 async def cancel_episode(episode_id: int):
@@ -821,16 +842,19 @@ async def admin_logs(request: Request, lines: int = 1000, level: str = "ALL"):
     
     user = get_current_user(request)
 
-    return templates.TemplateResponse("admin/logs.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "user": user,
-        "logs": logs,
-        "pending_requests_count": get_pending_requests_count(),
-        "active_tab": "logs",
-        "current_lines": lines,
-        "current_level": level
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/logs.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "user": user,
+            "logs": logs,
+            "pending_requests_count": get_pending_requests_count(),
+            "active_tab": "logs",
+            "current_lines": lines,
+            "current_level": level
+        }
+    )
 
 # --- Admin: Access ---
 
@@ -873,18 +897,21 @@ async def admin_access(request: Request):
             "SELECT * FROM users ORDER BY created_at DESC"
         ).fetchall()
     
-    return templates.TemplateResponse("admin/access_requests.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "user": user,
-        "active_tab": "access",
-        "settings": settings,
-        "app_base_url": get_app_base_url(request, settings),
-        "pending_requests": [dict(row) for row in pending_requests],
-        "active_users": [dict(row) for row in active_users],
-        "login_history": [dict(row) for row in login_history],
-        "pending_requests_count": get_pending_requests_count(),
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/access_requests.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "user": user,
+            "active_tab": "access",
+            "settings": settings,
+            "app_base_url": get_app_base_url(request, settings),
+            "pending_requests": [dict(row) for row in pending_requests],
+            "active_users": [dict(row) for row in active_users],
+            "login_history": [dict(row) for row in login_history],
+            "pending_requests_count": get_pending_requests_count(),
+        }
+    )
 
 @router.post("/admin/users/{user_id}/password")
 async def admin_change_user_password(
@@ -1190,18 +1217,21 @@ def _render_index(request: Request, error: str = None):
             "podcast_addict": f"podcastaddict://subscribe/{rss_url}"
         }
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request), 
-        "user": user,
-        "subscriptions": subs_with_links, 
-        "stats": stats,
-        "error": error,
-        "config_warning": config_warning,
-        "queue": queue,
-        "unified_links": unified_links,
-        "settings": global_settings
-    })
+    return templates.TemplateResponse(
+        request=request, 
+        name="index.html", 
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "user": user,
+            "subscriptions": subs_with_links,
+            "stats": stats,
+            "error": error,
+            "config_warning": config_warning,
+            "queue": queue,
+            "unified_links": unified_links,
+            "settings": global_settings
+        }
+    )
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -1217,13 +1247,16 @@ async def admin_global_subscription_settings(request: Request):
     with get_db_connection() as conn:
         settings_row = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
         
-    return templates.TemplateResponse("admin/global_subscription_settings.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "user": user,
-        "settings": settings_row,
-        "active_tab": "global_subs"
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/global_subscription_settings.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "user": user,
+            "settings": settings_row,
+            "active_tab": "global_subs"
+        }
+    )
 
 @router.post("/admin/global-subscription-settings/update")
 async def update_global_subscription_settings(
@@ -1373,20 +1406,24 @@ async def view_subscription(request: Request, id: int):
     # Get total listen count for this subscription
     total_listens = ep_repo.get_subscription_listen_count(sub.id)
 
-    return templates.TemplateResponse("episodes.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request), 
-        "user": user,
-        "subscription": sub, 
-        "episodes": episodes,
-        "links": links,
-        "basename": lambda p: p.split('/')[-1] if p else '',
-        "format_duration": format_duration,
-        "total_listens": total_listens,
-        "total_episodes": total_episodes,
-        "has_more": has_more,
-        "page_size": INITIAL_PAGE_SIZE
-    })
+    return templates.TemplateResponse(
+        request=request, 
+        name="episodes.html", 
+        context={
+            "request": request, # Required for some template helpers
+            "csp_nonce": get_csp_nonce(request), 
+            "user": user,
+            "subscription": sub, 
+            "episodes": episodes,
+            "links": links,
+            "basename": lambda p: p.split('/')[-1] if p else '',
+            "format_duration": format_duration,
+            "total_listens": total_listens,
+            "total_episodes": total_episodes,
+            "has_more": has_more,
+            "page_size": INITIAL_PAGE_SIZE
+        }
+    )
 
 @router.get("/api/subscriptions/{id}/episodes")
 async def get_subscription_episodes_api(id: int, limit: int = 20, offset: int = 0, search: str = None):
@@ -1514,13 +1551,16 @@ async def view_transcript(id: int, request: Request):
             return f"{h}:{m:02d}:{s:02d}"
         return f"{m}:{s:02d}"
 
-    return templates.TemplateResponse("transcript.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "episode": row,
-        "transcript_data": data,
-        "format_duration": format_duration
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="transcript.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "episode": row,
+            "transcript_data": data,
+            "format_duration": format_duration
+        }
+    )
 
 @router.get("/artifacts/transcript/{id}")
 async def get_transcript_json(id: int):
