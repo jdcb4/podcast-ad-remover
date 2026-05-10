@@ -285,12 +285,15 @@ async def change_password_page(request: Request, user: dict = Depends(require_au
     with get_db_connection() as conn:
         settings = conn.execute("SELECT require_password_change FROM app_settings WHERE id = 1").fetchone()
     
-    return templates.TemplateResponse("change_password.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "user": user,
-        "required": settings['require_password_change'] if settings else False
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="change_password.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "user": user,
+            "required": settings['require_password_change'] if settings else False
+        }
+    )
 
 @router.post("/change-password")
 async def change_password(
@@ -302,24 +305,30 @@ async def change_password(
 ):
     """Handle password change submission."""
     if new_password != confirm_password:
-        return templates.TemplateResponse("change_password.html", {
-            "request": request,
-        "csp_nonce": get_csp_nonce(request),
-            "user": user,
-            "error": "Passwords do not match"
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="change_password.html",
+            context={
+                "csp_nonce": get_csp_nonce(request),
+                "user": user,
+                "error": "Passwords do not match"
+            }
+        )
     
     # Verify current password
     with get_db_connection() as conn:
         user_row = conn.execute("SELECT password_hash FROM users WHERE id = ?", (user.id,)).fetchone()
     
     if not verify_password(current_password, user_row['password_hash']):
-        return templates.TemplateResponse("change_password.html", {
-            "request": request,
-        "csp_nonce": get_csp_nonce(request),
-            "user": user,
-            "error": "Current password is incorrect"
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="change_password.html",
+            context={
+                "csp_nonce": get_csp_nonce(request),
+                "user": user,
+                "error": "Current password is incorrect"
+            }
+        )
     
     # Update password
     new_hash = hash_password(new_password)
@@ -336,7 +345,11 @@ async def change_password(
 @router.get("/request-access", response_class=HTMLResponse)
 async def request_access_page(request: Request):
     """Display access request form."""
-    return templates.TemplateResponse("request_access.html", {"request": request})
+    return templates.TemplateResponse(
+        request=request,
+        name="request_access.html",
+        context={}
+    )
 
 @router.post("/submit-access-request")
 async def submit_access_request(
@@ -355,11 +368,14 @@ async def submit_access_request(
         )
         conn.commit()
     
-    return templates.TemplateResponse("request_access.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "success": "Your access request has been submitted. You will be notified when it is reviewed."
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="request_access.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "success": "Your access request has been submitted. You will be notified when it is reviewed."
+        }
+    )
 
 @router.get("/admin", response_class=RedirectResponse)
 async def admin_root():
@@ -587,17 +603,18 @@ async def test_ai_connection(
         from app.core.ai_services import AdDetector
         detector = AdDetector()
         
-        # Create provider slightly differently depending on type to pass correct args
-        # But our factory method handles it if we pass inputs
-        # We need to map form inputs to factory args
-        # The factory takes (provider_type, api_key, model, openrouter_key)
-        # We passed api_key as generic.
-        
         prov_instance = detector.create_provider(provider, api_key=api_key, model=model)
         result = prov_instance.test_connection()
-        return {"status": "success", "message": result}
+        
+        # Return the dictionary returned by test_connection() directly!
+        # It is already formatted as {"status": "ok", "response": "Hello!"}
+        # or {"status": "error", "error": "message"}
+        return result
     except Exception as e:
-        return {"status": "error", "error": str(e)}
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 
 @router.get("/admin/ai/refresh/{provider}")
 async def refresh_models(provider: str):
@@ -735,7 +752,8 @@ async def admin_queue(request: Request):
             "queue": queue,
             "history": recently_processed,
             "pending_requests_count": get_pending_requests_count(),
-            "active_tab": "queue"
+            "active_tab": "queue",
+            "csp_nonce": get_csp_nonce(request),
         }
     )
 
@@ -861,11 +879,14 @@ async def admin_logs(request: Request, lines: int = 1000, level: str = "ALL"):
 @router.get("/subscribe/apple", response_class=HTMLResponse)
 async def apple_subscribe_page(request: Request, url: str):
     """Render the Apple Podcasts subscription instruction page."""
-    return templates.TemplateResponse("apple_subscribe.html", {
-        "request": request,
-        "csp_nonce": get_csp_nonce(request),
-        "feed_url": url
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="apple_subscribe.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "feed_url": url
+        }
+    )
 
 @router.get("/admin/access", response_class=HTMLResponse)
 async def admin_access(request: Request):
@@ -905,7 +926,7 @@ async def admin_access(request: Request):
             "user": user,
             "active_tab": "access",
             "settings": settings,
-            "app_base_url": get_app_base_url(request, settings),
+            "app_base_url": get_app_base_url(settings, request),
             "pending_requests": [dict(row) for row in pending_requests],
             "active_users": [dict(row) for row in active_users],
             "login_history": [dict(row) for row in login_history],
@@ -1168,12 +1189,17 @@ def _render_index(request: Request, error: str = None):
     
     # Determine if AI is configured (DB Overrides/Augments Env)
     from app.core.config import settings
+    
+    # Check if the DB has a non-empty list of Gemini keys
+    db_gemini_keys = global_settings.get('gemini_api_keys')
+    has_db_gemini = db_gemini_keys and db_gemini_keys != "[]" and db_gemini_keys != "null"
+
     config_warning = not any([
         settings.GEMINI_API_KEY,
         settings.OPENAI_API_KEY,
         settings.ANTHROPIC_API_KEY,
         settings.OPENROUTER_API_KEY,
-        global_settings.get('gemini_api_key'),
+        has_db_gemini,  # Correctly check the plural database list
         global_settings.get('openai_api_key'),
         global_settings.get('anthropic_api_key'),
         global_settings.get('openrouter_api_key')
