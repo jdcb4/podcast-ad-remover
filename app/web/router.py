@@ -605,7 +605,7 @@ async def test_ai_connection(
         
         prov_instance = detector.create_provider(provider, api_key=api_key, model=model)
         result = prov_instance.test_connection()
-        
+
         # Return the dictionary returned by test_connection() directly!
         # It is already formatted as {"status": "ok", "response": "Hello!"}
         # or {"status": "error", "error": "message"}
@@ -745,12 +745,12 @@ async def admin_queue(request: Request):
     queue = ep_repo.get_queue()
     recently_processed = ep_repo.get_recently_processed(days=3)
     return templates.TemplateResponse(
-        request=request, 
-        name="admin/queue.html", 
+        request=request,
+        name="admin/queue.html",
         context={
             "user": user,
             "queue": queue,
-            "history": recently_processed,
+            "recently_processed": recently_processed,
             "pending_requests_count": get_pending_requests_count(),
             "active_tab": "queue",
             "csp_nonce": get_csp_nonce(request),
@@ -1189,7 +1189,7 @@ def _render_index(request: Request, error: str = None):
     
     # Determine if AI is configured (DB Overrides/Augments Env)
     from app.core.config import settings
-    
+
     # Check if the DB has a non-empty list of Gemini keys
     db_gemini_keys = global_settings.get('gemini_api_keys')
     has_db_gemini = db_gemini_keys and db_gemini_keys != "[]" and db_gemini_keys != "null"
@@ -1244,8 +1244,8 @@ def _render_index(request: Request, error: str = None):
         }
 
     return templates.TemplateResponse(
-        request=request, 
-        name="index.html", 
+        request=request,
+        name="index.html",
         context={
             "csp_nonce": get_csp_nonce(request),
             "user": user,
@@ -1433,13 +1433,13 @@ async def view_subscription(request: Request, id: int):
     total_listens = ep_repo.get_subscription_listen_count(sub.id)
 
     return templates.TemplateResponse(
-        request=request, 
-        name="episodes.html", 
+        request=request,
+        name="episodes.html",
         context={
             "request": request, # Required for some template helpers
-            "csp_nonce": get_csp_nonce(request), 
+            "csp_nonce": get_csp_nonce(request),
             "user": user,
-            "subscription": sub, 
+            "subscription": sub,
             "episodes": episodes,
             "links": links,
             "basename": lambda p: p.split('/')[-1] if p else '',
