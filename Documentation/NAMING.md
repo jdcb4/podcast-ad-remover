@@ -25,6 +25,18 @@ Keep status values lowercase strings. Current episode statuses include:
 
 Add a migration and UI handling before introducing a new status value.
 
+## Job Statuses
+
+Jobs use lowercase strings and describe worker state rather than the user-facing episode state:
+
+- `queued`: ready to claim.
+- `running`: claimed by a worker.
+- `retry_scheduled`: failed but has a future retry time.
+- `rate_limited`: waiting for provider quota reset.
+- `completed`: finished successfully.
+- `failed`: exhausted or stopped by an unrecoverable error.
+- `cancelled`: cancelled because the episode was ignored or reset.
+
 ## Storage
 
 - Persistent application data lives under `/data`.

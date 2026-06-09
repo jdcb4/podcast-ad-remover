@@ -1,6 +1,98 @@
+import os
+import shutil
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
 from app.core.config import settings
+
+
+FORMAL_MIGRATIONS = [
+    (
+        "20260609_0001_jobs",
+        [
+            """
+            CREATE TABLE IF NOT EXISTS jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                episode_id INTEGER NOT NULL,
+                type TEXT NOT NULL DEFAULT 'process_episode',
+                status TEXT NOT NULL DEFAULT 'queued',
+                priority INTEGER NOT NULL DEFAULT 100,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                locked_at TIMESTAMP,
+                locked_by TEXT,
+                next_run_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                error TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (episode_id) REFERENCES episodes (id)
+            )
+            """,
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_one_active_per_episode_type
+            ON jobs(episode_id, type)
+            WHERE status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_jobs_claim
+            ON jobs(status, next_run_at, priority, created_at)
+            """,
+            """
+            INSERT INTO jobs (episode_id, type, status, priority, attempts, next_run_at, error)
+            SELECT id,
+                   'process_episode',
+                   CASE
+                       WHEN status = 'rate_limited' THEN 'rate_limited'
+                       WHEN status = 'failed' THEN 'retry_scheduled'
+                       ELSE 'queued'
+                   END,
+                   100,
+                   COALESCE(retry_count, 0),
+                   COALESCE(next_retry_at, CURRENT_TIMESTAMP),
+                   error_message
+            FROM episodes
+            WHERE status IN ('pending', 'rate_limited')
+               OR (status = 'failed' AND next_retry_at IS NOT NULL)
+            ON CONFLICT DO NOTHING
+            """,
+        ],
+    )
+]
+
+
+def _backup_database_if_needed(migration_ids: list[str]):
+    """Create a timestamped DB backup before applying formal migrations."""
+    if not migration_ids or not os.path.exists(settings.DB_PATH):
+        return
+
+    backup_dir = os.path.join(settings.DATA_DIR, "backups")
+    os.makedirs(backup_dir, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = os.path.join(backup_dir, f"podcasts-before-migration-{timestamp}.db")
+    shutil.copy2(settings.DB_PATH, backup_path)
+
+
+def _apply_formal_migrations(conn: sqlite3.Connection):
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+        version TEXT PRIMARY KEY,
+        applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    applied = {
+        row[0]
+        for row in cursor.execute("SELECT version FROM schema_migrations").fetchall()
+    }
+    pending = [(version, statements) for version, statements in FORMAL_MIGRATIONS if version not in applied]
+    _backup_database_if_needed([version for version, _ in pending])
+
+    for version, statements in pending:
+        for sql in statements:
+            cursor.execute(sql)
+        cursor.execute("INSERT INTO schema_migrations (version) VALUES (?)", (version,))
+
 
 def init_db():
     """Initialize the database with the schema."""
@@ -245,6 +337,8 @@ Transcript Context: {transcript_context}""",))
             cursor.execute(sql)
         except sqlite3.OperationalError:
             pass # Column likely exists
+
+    _apply_formal_migrations(conn)
 
     conn.commit()
     conn.close()

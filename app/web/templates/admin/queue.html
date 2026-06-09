@@ -34,20 +34,67 @@
     </div>
 </div>
 
+{% if operation_status %}
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-6" id="operation-dashboard">
+    <div class="bg-surface-base rounded-xl border border-white/[0.06] p-4">
+        <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Active Job</p>
+        {% if operation_status.active_job %}
+        <p class="font-semibold truncate" title="{{ operation_status.active_job.episode_title }}">{{ operation_status.active_job.episode_title }}</p>
+        <p class="text-xs text-text-muted truncate">{{ operation_status.active_job.podcast_title }}</p>
+        <p class="text-xs text-primary-400 mt-2" data-active-job-step>{{ operation_status.active_job.processing_step or 'running' }}</p>
+        {% else %}
+        <p class="font-semibold text-text-secondary" data-active-job-step>Idle</p>
+        <p class="text-xs text-text-muted">No episode is currently running.</p>
+        {% endif %}
+    </div>
+    <div class="bg-surface-base rounded-xl border border-white/[0.06] p-4">
+        <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Disk</p>
+        <p class="font-semibold"><span data-disk-free>{{ operation_status.disk.free_display }}</span> free</p>
+        <div class="progress-bar mt-3">
+            <div class="progress-bar-fill" data-disk-used-bar style="width: {{ operation_status.disk.used_percent }}%"></div>
+        </div>
+        <p class="text-xs text-text-muted mt-2"><span data-disk-used>{{ operation_status.disk.used_percent }}</span>% used of {{ operation_status.disk.total_display }}</p>
+    </div>
+    <div class="bg-surface-base rounded-xl border border-white/[0.06] p-4">
+        <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Memory / CPU</p>
+        {% if operation_status.memory %}
+        <p class="font-semibold"><span data-memory-used>{{ operation_status.memory.used_percent }}</span>% memory used</p>
+        <p class="text-xs text-text-muted">{{ operation_status.memory.available_display }} available</p>
+        {% else %}
+        <p class="font-semibold text-text-secondary">Memory unavailable</p>
+        <p class="text-xs text-text-muted">Host metrics are limited on this platform.</p>
+        {% endif %}
+        {% if operation_status.load_average %}
+        <p class="text-xs text-text-muted mt-2">Load: <span data-load-average>{{ operation_status.load_average.one_minute }}</span></p>
+        {% endif %}
+    </div>
+    <div class="bg-surface-base rounded-xl border border-white/[0.06] p-4">
+        <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Schedule</p>
+        <p class="font-semibold">Next feed check</p>
+        <p class="text-xs text-text-muted" data-next-feed-check>{{ operation_status.next_feed_check }}</p>
+        {% if operation_status.next_retry %}
+        <p class="text-xs text-amber-400 mt-2" data-next-retry>Retry: {{ operation_status.next_retry.next_run_at }}</p>
+        {% else %}
+        <p class="text-xs text-text-muted mt-2" data-next-retry>No retries scheduled</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if queue %}
 <div class="space-y-3">
     {% for item in queue %}
-    <div class="bg-surface-elevated rounded-xl border border-white/[0.06] p-4">
+    <div class="bg-surface-elevated rounded-xl border border-white/[0.06] p-4" data-queue-item="{{ item.id }}" data-current-status="{{ item.status }}">
         <div class="flex flex-wrap items-start gap-4 justify-between mb-3">
             <div class="flex items-center gap-3 min-w-0 flex-1">
                 {% if item.status == 'processing' %}
-                <span class="badge-info animate-pulse flex-shrink-0">Processing</span>
+                <span class="badge-info animate-pulse flex-shrink-0" data-queue-badge>Processing</span>
                 {% elif item.status == 'pending' %}
-                <span class="badge-neutral flex-shrink-0">Pending</span>
+                <span class="badge-neutral flex-shrink-0" data-queue-badge>Queued</span>
                 {% elif item.status == 'rate_limited' %}
                 <span
                     class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex-shrink-0"
-                    title="Waiting for API quota reset: {{ item.next_retry_at }}">
+                    title="Waiting for API quota reset: {{ item.next_retry_at }}" data-queue-badge>
                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -55,7 +102,7 @@
                     Rate Limited
                 </span>
                 {% elif item.status == 'failed' %}
-                <span class="badge-error flex-shrink-0" title="Retry scheduled: {{ item.next_retry_at }}">Retry
+                <span class="badge-error flex-shrink-0" title="Retry scheduled: {{ item.next_retry_at }}" data-queue-badge>Retry
                     Pending</span>
                 {% endif %}
                 <div class="min-w-0">
@@ -80,13 +127,13 @@
             </div>
         </div>
         {% if item.status == 'processing' %}
-        <div class="mt-3">
+        <div class="mt-3" data-progress-container>
             <div class="flex justify-between items-center text-xs mb-1.5">
-                <span class="text-primary-400 font-medium">{{ item.processing_step }}</span>
-                <span class="text-text-muted">{{ item.progress }}%</span>
+                <span class="text-primary-400 font-medium" data-progress-step>{{ item.processing_step }}</span>
+                <span class="text-text-muted" data-progress-percent>{{ item.progress }}%</span>
             </div>
             <div class="progress-bar">
-                <div class="progress-bar-fill" style="width: {{ item.progress }}%"></div>
+                <div class="progress-bar-fill" data-progress-bar style="width: {{ item.progress }}%"></div>
             </div>
         </div>
         {% elif item.status == 'rate_limited' %}
@@ -199,7 +246,14 @@
             if (timeLeft <= 0) {
                 localStorage.setItem('queue-refresh-enabled', toggle.checked);
                 localStorage.setItem('queue-refresh-interval', intervalInput.value);
-                window.location.reload();
+                refreshQueueState().then(function (changed) {
+                    if (changed) {
+                        window.location.reload();
+                        return;
+                    }
+                    timeLeft = parseInt(intervalInput.value);
+                    countdownDisplay.textContent = timeLeft + 's';
+                });
             } else {
                 countdownDisplay.textContent = timeLeft + 's';
             }
@@ -235,6 +289,75 @@
         };
 
         startTimer();
+
+        function badgeText(status) {
+            if (status === 'processing') return 'Processing';
+            if (status === 'rate_limited') return 'Rate Limited';
+            if (status === 'failed') return 'Retry Pending';
+            if (status === 'pending') return 'Queued';
+            return status || 'Queued';
+        }
+
+        async function refreshQueueState() {
+            try {
+                const response = await fetch('/api/queue/status', { headers: { 'Accept': 'application/json' } });
+                if (!response.ok) return false;
+                const payload = await response.json();
+                const items = payload.queue || [];
+                const cards = document.querySelectorAll('[data-queue-item]');
+                if (items.length !== cards.length) return true;
+
+                items.forEach((item) => {
+                    const card = document.querySelector(`[data-queue-item="${item.id}"]`);
+                    if (!card) return;
+                    if (card.dataset.currentStatus !== item.status) {
+                        window.location.reload();
+                        return;
+                    }
+                    const badge = card.querySelector('[data-queue-badge]');
+                    if (badge) badge.textContent = badgeText(item.status);
+
+                    const progress = card.querySelector('[data-progress-container]');
+                    if (progress) {
+                        const step = card.querySelector('[data-progress-step]');
+                        const percent = card.querySelector('[data-progress-percent]');
+                        const bar = card.querySelector('[data-progress-bar]');
+                        if (step) step.textContent = item.processing_step || '';
+                        if (percent) percent.textContent = `${item.progress || 0}%`;
+                        if (bar) bar.style.width = `${item.progress || 0}%`;
+                    }
+                });
+
+                const status = payload.operation_status || {};
+                if (status.disk) {
+                    const diskFree = document.querySelector('[data-disk-free]');
+                    const diskUsed = document.querySelector('[data-disk-used]');
+                    const diskBar = document.querySelector('[data-disk-used-bar]');
+                    if (diskFree) diskFree.textContent = status.disk.free_display;
+                    if (diskUsed) diskUsed.textContent = status.disk.used_percent;
+                    if (diskBar) diskBar.style.width = `${status.disk.used_percent}%`;
+                }
+                if (status.memory) {
+                    const memoryUsed = document.querySelector('[data-memory-used]');
+                    if (memoryUsed) memoryUsed.textContent = status.memory.used_percent;
+                }
+                if (status.load_average) {
+                    const loadAverage = document.querySelector('[data-load-average]');
+                    if (loadAverage) loadAverage.textContent = status.load_average.one_minute;
+                }
+                const feedCheck = document.querySelector('[data-next-feed-check]');
+                if (feedCheck && status.next_feed_check) feedCheck.textContent = status.next_feed_check;
+                const retry = document.querySelector('[data-next-retry]');
+                if (retry) retry.textContent = status.next_retry ? `Retry: ${status.next_retry.next_run_at}` : 'No retries scheduled';
+                const activeStep = document.querySelector('[data-active-job-step]');
+                if (activeStep) activeStep.textContent = status.active_job ? (status.active_job.processing_step || 'running') : 'Idle';
+
+                return false;
+            } catch (error) {
+                console.warn('Queue status refresh failed', error);
+                return false;
+            }
+        }
     })();
 </script>
 {% endblock %}

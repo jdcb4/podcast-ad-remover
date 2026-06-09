@@ -20,12 +20,17 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     BASE_URL: str = "http://localhost:8000"
+    COOKIE_SECURE: bool = False
     
     # Processing
     CHECK_INTERVAL_MINUTES: int = 60
     WHISPER_MODEL: str = "base"
     LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10 MB
     LOG_BACKUP_COUNT: int = 5
+    MAX_FEED_BYTES: int = 10 * 1024 * 1024  # 10 MB
+    MAX_DOWNLOAD_BYTES: int = 1500 * 1024 * 1024  # 1.5 GB
+    MIN_FREE_SPACE_BYTES: int = 1024 * 1024 * 1024  # 1 GB
+    ALLOW_PRIVATE_FEEDS: bool = True
     
     @property
     def DB_PATH(self) -> str:

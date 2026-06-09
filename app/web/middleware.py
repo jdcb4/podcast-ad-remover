@@ -67,8 +67,10 @@ async def feed_auth_middleware(request: Request, call_next):
         expected_password_hash = settings.get('feed_auth_password')
         
         if not expected_username or not expected_password_hash:
-            # Feed auth enabled but not configured - allow access (or maybe block? safe to allow if not configured)
-            return await call_next(request)
+            return Response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                headers={'WWW-Authenticate': 'Basic realm="Podcast Feeds"'}
+            )
         
         if username != expected_username:
             return Response(

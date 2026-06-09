@@ -83,19 +83,7 @@ async def auth_middleware(request: Request, call_next):
     Middleware to handle authentication and IP allowlisting.
     """
     path = request.url.path
-    
-    # Skip auth/IP check for specific paths
-    # static: always public
-    # feeds/audio: public to world (IP check skipped), but might be protected by Feed Auth elsewhere
-    if path in ["/login", "/request-access", "/submit-access-request"] or \
-       path.startswith("/static/") or \
-       path == "/subscribe" or \
-       path.startswith("/subscribe/") or \
-       path.startswith("/feeds/") or \
-       path.startswith("/feed/") or \
-       path.startswith("/audio/"):
-        return await call_next(request)
-    
+
     # Check if auth is enabled
     with get_db_connection() as conn:
         settings = conn.execute("SELECT auth_enabled, ip_allowlist FROM app_settings WHERE id = 1").fetchone()
@@ -113,6 +101,16 @@ async def auth_middleware(request: Request, call_next):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied from your IP address"
             )
+
+    # Skip dashboard auth for public paths after applying the global IP allowlist.
+    if path in ["/login", "/request-access", "/submit-access-request"] or \
+       path.startswith("/static/") or \
+       path == "/subscribe" or \
+       path.startswith("/subscribe/") or \
+       path.startswith("/feeds/") or \
+       path.startswith("/feed/") or \
+       path.startswith("/audio/"):
+        return await call_next(request)
 
     # 2. USER AUTHENTICATION CHECK
     # Only if auth is enabled

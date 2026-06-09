@@ -53,6 +53,28 @@ Supporting modules include:
 - `app/infra/database.py`: SQLite initialization and schema evolution.
 - `app/infra/repository.py`: database access methods.
 
+### Job State
+
+Processing is coordinated through a durable SQLite `jobs` table. Episodes still keep a user-facing `episodes.status`, while workers claim due jobs transactionally and update job state as work runs, retries, completes, or is cancelled.
+
+Active job columns include:
+
+```text
+jobs(id, episode_id, type, status, priority, attempts, locked_at, locked_by, next_run_at, error, created_at, updated_at)
+```
+
+Current job statuses are:
+
+- `queued`
+- `running`
+- `retry_scheduled`
+- `rate_limited`
+- `completed`
+- `failed`
+- `cancelled`
+
+Startup migration creates a `schema_migrations` table and backs up the current database to `/data/backups/` before applying formal migrations.
+
 ## Data Layout
 
 Persistent data should be mounted at `/data`.

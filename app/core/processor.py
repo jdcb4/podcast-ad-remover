@@ -4,14 +4,16 @@ import logging
 import httpx
 import aiofiles
 import json
+import shutil
 from datetime import datetime
 from app.core.config import settings
 from app.core.models import Episode
-from app.infra.repository import EpisodeRepository, SubscriptionRepository
+from app.infra.repository import EpisodeRepository, SubscriptionRepository, JobRepository
 from app.core.ai_services import Transcriber, AdDetector, RateLimitError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
 from app.core.feed import FeedManager
+from app.core.url_utils import validate_http_url, is_audio_content_type
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,7 @@ class Processor:
     def __init__(self):
         self.ep_repo = EpisodeRepository()
         self.sub_repo = SubscriptionRepository()
+        self.job_repo = JobRepository()
         self.transcriber = Transcriber()
         self.ad_detector = AdDetector()
         self.rss_gen = RSSGenerator()
@@ -243,35 +246,25 @@ class Processor:
             if not limit or limit < 1: limit = 2
 
             # 2. Check if we have room using DATABASE count (cross-process safe)
-            currently_processing = self.ep_repo.count_processing()
+            currently_processing = self.job_repo.count_running()
             if currently_processing >= limit:
                 return
 
-            # 3. Get pending episodes
-            pending = self.ep_repo.get_pending()
-            if not pending:
+            # 3. Claim jobs in one SQLite transaction, then launch them.
+            capacity = limit - currently_processing
+            claimed = self.job_repo.claim_due(capacity)
+            if not claimed:
                 return
 
-            # 4. Launch new tasks up to limit
-            capacity = limit - currently_processing
-            for ep_dict in pending:
-                if capacity <= 0:
-                    break
-                    
+            for ep_dict in claimed:
                 ep_id = ep_dict['id']
                 
                 # Skip if already in our in-process tracking (for this process)
                 if ep_id in Processor._active_task_ids:
                     continue
-                
-                # CRITICAL: Mark as "processing" in DB BEFORE launching task
-                # This prevents other processes from picking up the same episode
-                self.ep_repo.update_status(ep_id, "processing")
-                self.ep_repo.update_progress(ep_id, "Starting...", 0)
                     
                 # Add to in-process set and launch
                 Processor._active_task_ids.add(ep_id)
-                capacity -= 1
                 
                 # Start background task
                 asyncio.create_task(self._process_single_episode_task(ep_dict))
@@ -285,6 +278,7 @@ class Processor:
             sub = self.sub_repo.get_by_id(ep.subscription_id)
             if not sub:
                 logger.error(f"Subscription {ep.subscription_id} not found for episode {ep.id}")
+                self.job_repo.fail_running_for_episode(ep_id, "Subscription not found")
                 return
 
             # Actually run the processing
@@ -359,11 +353,22 @@ class Processor:
                 if not self._check_cancellation(ep): return
                 
                 logger.info(f"Downloading {ep.title}...")
+                validate_http_url(ep.original_url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
+                free_space = shutil.disk_usage(settings.DATA_DIR).free
+                if free_space < settings.MIN_FREE_SPACE_BYTES:
+                    raise RuntimeError("Not enough free disk space to download episode")
                 
                 async with httpx.AsyncClient() as client:
                     async with client.stream("GET", ep.original_url, follow_redirects=True, timeout=300.0) as resp:
                         resp.raise_for_status()
                         total = int(resp.headers.get("Content-Length", 0))
+                        if total and total > settings.MAX_DOWNLOAD_BYTES:
+                            raise RuntimeError("Episode download exceeds configured maximum size")
+                        if total and free_space - total < settings.MIN_FREE_SPACE_BYTES:
+                            raise RuntimeError("Episode download would leave less than the configured minimum free disk space")
+                        if not is_audio_content_type(resp.headers.get("Content-Type")):
+                            raise RuntimeError(f"Episode URL did not return audio content: {resp.headers.get('Content-Type')}")
+
                         downloaded = 0
                         last_logged_percent = -1
                         last_cancel_check = datetime.now()
@@ -372,6 +377,8 @@ class Processor:
                             async for chunk in resp.aiter_bytes():
                                 await f.write(chunk)
                                 downloaded += len(chunk)
+                                if downloaded > settings.MAX_DOWNLOAD_BYTES:
+                                    raise RuntimeError("Episode download exceeds configured maximum size")
                                 
                                 # Periodic cancellation check (Time-based + Percent-based)
                                 if (datetime.now() - last_cancel_check).total_seconds() > 2.0:

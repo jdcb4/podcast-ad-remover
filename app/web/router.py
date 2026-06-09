@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.infra.repository import SubscriptionRepository, EpisodeRepository
 from app.core.feed import FeedManager
 from app.core.models import SubscriptionCreate
+from app.core.system_status import get_operation_status
 from app.web.auth import get_current_user, require_auth, require_admin, log_login_attempt, SESSION_USER_KEY
 from app.web.auth_utils import hash_password, verify_password, generate_secure_password, get_client_ip
 from app.web.rate_limiter import login_rate_limiter, check_rate_limit
@@ -30,6 +31,7 @@ def simple_markdown(text):
     if not text:
         return ""
     import re
+    import html
     # Handle both Unix and Windows line endings
     lines = text.replace('\r\n', '\n').split('\n')
     result = []
@@ -38,6 +40,7 @@ def simple_markdown(text):
     
     def apply_bold(t):
         import re
+        t = html.escape(t)
         # Convert **text** to <strong>text</strong> (Bold)
         t = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', t)
         # Convert *text* to <strong>text</strong> (User requested single star bold)
@@ -81,8 +84,6 @@ def simple_markdown(text):
     if in_list:
         flush_list()
         
-    return '\n'.join(result)
-
     return '\n'.join(result)
 
 def clean_description(text):
@@ -747,6 +748,7 @@ async def admin_queue(request: Request):
     user = get_current_user(request)
     queue = ep_repo.get_queue()
     recently_processed = ep_repo.get_recently_processed(days=3)
+    operation_status = get_operation_status()
     return templates.TemplateResponse(
         request=request,
         name="admin/queue.html",
@@ -754,11 +756,20 @@ async def admin_queue(request: Request):
             "user": user,
             "queue": queue,
             "recently_processed": recently_processed,
+            "operation_status": operation_status,
             "pending_requests_count": get_pending_requests_count(),
             "active_tab": "queue",
             "csp_nonce": get_csp_nonce(request),
         }
     )
+
+@router.get("/api/queue/status")
+async def api_queue_status(user = Depends(require_auth)):
+    return {
+        "queue": ep_repo.get_queue(),
+        "recently_processed": ep_repo.get_recently_processed(days=3),
+        "operation_status": get_operation_status(),
+    }
 
 @router.post("/admin/queue/cancel/{episode_id}")
 async def cancel_episode(episode_id: int):

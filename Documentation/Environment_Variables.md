@@ -25,3 +25,8 @@ The application requires at least one API key to function (Gemini, OpenAI, Anthr
 | `HOST` | Host to bind to | `0.0.0.0` |
 | `PORT` | Port to bind to | `8000` |
 | `BASE_URL` | Public URL for the RSS feeds | `http://localhost:8000` |
+| `COOKIE_SECURE` | Set session cookies as HTTPS-only. Use `true` behind HTTPS. | `false` |
+| `MAX_FEED_BYTES` | Maximum RSS feed fetch size in bytes. | `10485760` |
+| `MAX_DOWNLOAD_BYTES` | Maximum episode download size in bytes. | `1572864000` |
+| `MIN_FREE_SPACE_BYTES` | Minimum free disk space to preserve before/during downloads. | `1073741824` |
+| `ALLOW_PRIVATE_FEEDS` | Allow feeds/enclosures resolving to private or loopback IP ranges. Keep `true` for LAN/self-hosted feeds; set `false` for hardened public deployments. | `true` |

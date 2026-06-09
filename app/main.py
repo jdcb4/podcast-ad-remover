@@ -45,6 +45,19 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Podcast Ad Remover...")
     init_db()
     logger.info(f"Database initialized at {settings.DB_PATH}")
+    try:
+        from app.infra.database import get_db_connection
+        with get_db_connection() as conn:
+            security_row = conn.execute(
+                "SELECT auth_enabled, enable_feed_auth FROM app_settings WHERE id = 1"
+            ).fetchone()
+        default_secret = settings.SESSION_SECRET_KEY == "super-secret-session-key-change-me"
+        if security_row and default_secret and (security_row["auth_enabled"] or security_row["enable_feed_auth"]):
+            raise RuntimeError("Set SESSION_SECRET_KEY before enabling dashboard or feed authentication")
+    except RuntimeError:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating security settings on startup: {e}")
     import os
     if os.path.exists(settings.DB_PATH):
         size = os.path.getsize(settings.DB_PATH)
@@ -130,7 +143,7 @@ app.add_middleware(
     max_age=30 * 24 * 60 * 60,  # 30 days in seconds
     session_cookie="session",
     same_site="lax",  # Prevents CSRF while allowing external navigation
-    https_only=False  # Allow HTTP for local access
+    https_only=settings.COOKIE_SECURE
 )
 app.add_middleware(SecurityHeadersMiddleware)
 
