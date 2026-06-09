@@ -2,6 +2,7 @@ from fastapi import Request, HTTPException, status
 from fastapi.responses import Response
 import bcrypt
 import base64
+from app.infra.repository import FeedTokenRepository
 
 async def feed_auth_middleware(request: Request, call_next):
     """
@@ -21,6 +22,11 @@ async def feed_auth_middleware(request: Request, call_next):
     
     # Determine if we should enforce auth
     if not settings.get('enable_feed_auth'):
+        return await call_next(request)
+
+    # Preferred protected-feed mode: generated bearer tokens.
+    token = request.query_params.get('token')
+    if token and FeedTokenRepository().validate(token):
         return await call_next(request)
     
     # Check for Authorization header

@@ -55,7 +55,28 @@ FORMAL_MIGRATIONS = [
             ON CONFLICT DO NOTHING
             """,
         ],
-    )
+    ),
+    (
+        "20260609_0002_feed_tokens",
+        [
+            """
+            CREATE TABLE IF NOT EXISTS feed_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                token_hash TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL DEFAULT 'Podcast app',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used_at TIMESTAMP,
+                revoked_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_feed_tokens_user_active
+            ON feed_tokens(user_id, revoked_at)
+            """,
+        ],
+    ),
 ]
 
 
@@ -72,7 +93,7 @@ def _backup_database_if_needed(migration_ids: list[str]):
     shutil.copy2(settings.DB_PATH, backup_path)
 
 
-def _apply_formal_migrations(conn: sqlite3.Connection):
+def _apply_formal_migrations(conn: sqlite3.Connection, create_backup: bool):
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -86,7 +107,8 @@ def _apply_formal_migrations(conn: sqlite3.Connection):
         for row in cursor.execute("SELECT version FROM schema_migrations").fetchall()
     }
     pending = [(version, statements) for version, statements in FORMAL_MIGRATIONS if version not in applied]
-    _backup_database_if_needed([version for version, _ in pending])
+    if create_backup:
+        _backup_database_if_needed([version for version, _ in pending])
 
     for version, statements in pending:
         for sql in statements:
@@ -96,6 +118,7 @@ def _apply_formal_migrations(conn: sqlite3.Connection):
 
 def init_db():
     """Initialize the database with the schema."""
+    db_existed = os.path.exists(settings.DB_PATH)
     conn = sqlite3.connect(settings.DB_PATH)
     cursor = conn.cursor()
     
@@ -338,7 +361,7 @@ Transcript Context: {transcript_context}""",))
         except sqlite3.OperationalError:
             pass # Column likely exists
 
-    _apply_formal_migrations(conn)
+    _apply_formal_migrations(conn, create_backup=db_existed)
 
     conn.commit()
     conn.close()

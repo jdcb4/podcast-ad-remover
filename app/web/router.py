@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
-from app.infra.repository import SubscriptionRepository, EpisodeRepository
+from app.infra.repository import SubscriptionRepository, EpisodeRepository, FeedTokenRepository
 from app.core.feed import FeedManager
 from app.core.models import SubscriptionCreate
 from app.core.system_status import get_operation_status
@@ -131,6 +131,7 @@ templates.env.filters['clean_description'] = clean_description
 
 sub_repo = SubscriptionRepository()
 ep_repo = EpisodeRepository()
+feed_token_repo = FeedTokenRepository()
 
 # Helper to get settings
 def get_global_settings():
@@ -156,20 +157,10 @@ def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=No
     is_auth_enabled = str(auth_enabled_val).lower() in ('1', 'true', 'yes', 'on') if auth_enabled_val is not None else False
     
     if is_auth_enabled and include_auth_token:
-        if global_settings.get('auth_enabled'):
-            # Integrated Auth: Use same credentials as dashboard
-            auth_user = user_obj.username if user_obj else "admin"
-            auth_pass = request.session.get("user_pass", "")
-        else:
-            # Standalone Auth: Use manually provided feed credentials
-            auth_user = global_settings.get('feed_auth_username')
-            auth_pass = global_settings.get('feed_auth_password')
-            
-        if auth_user and auth_pass:
-            import base64
-            token = base64.b64encode(f"{auth_user}:{auth_pass}".encode()).decode()
+        token = get_or_create_feed_token(request, user_obj)
+        if token:
             separator = "&" if "?" in rss_url else "?"
-            rss_url = f"{rss_url}{separator}auth={token}"
+            rss_url = f"{rss_url}{separator}token={token}"
 
 
     return {
@@ -420,8 +411,8 @@ async def update_system_settings(
 ):
     from app.infra.database import get_db_connection
     
-    # Feed password is stored as plaintext to allow injection into links
-    # (Feed auth is a simpler security tier than app login)
+    # Standalone feed password is retained for Basic Auth compatibility.
+    # Generated podcast links now prefer feed tokens instead.
     hashed_feed_password = feed_auth_password
 
     with get_db_connection() as conn:
@@ -770,6 +761,28 @@ async def api_queue_status(user = Depends(require_auth)):
         "recently_processed": ep_repo.get_recently_processed(days=3),
         "operation_status": get_operation_status(),
     }
+
+
+def get_or_create_feed_token(request: Request, user_obj=None) -> str:
+    """Return the current session's feed token, creating one if needed."""
+    session_token = request.session.get("feed_token")
+    if session_token and feed_token_repo.validate(session_token):
+        return session_token
+
+    user_id = user_obj.id if user_obj and user_obj.id and user_obj.id > 0 else None
+    token = feed_token_repo.create(user_id=user_id, name="Generated subscription links")
+    request.session["feed_token"] = token
+    return token
+
+
+@router.post("/admin/feed-token/regenerate")
+async def regenerate_feed_token(request: Request, user = Depends(require_admin)):
+    current_token = request.session.get("feed_token")
+    if current_token:
+        feed_token_repo.revoke(current_token)
+    new_token = feed_token_repo.create(user_id=user.id if user and user.id and user.id > 0 else None, name="Generated subscription links")
+    request.session["feed_token"] = new_token
+    return RedirectResponse(url="/admin/access?success=Feed+token+regenerated", status_code=303)
 
 @router.post("/admin/queue/cancel/{episode_id}")
 async def cancel_episode(episode_id: int):
@@ -1232,19 +1245,10 @@ def _render_index(request: Request, error: str = None):
         is_auth_enabled = str(auth_enabled_val).lower() in ('1', 'true', 'yes', 'on') if auth_enabled_val is not None else False
         
         if is_auth_enabled:
-            # Determine credentials
-            if global_settings.get('auth_enabled'):
-                auth_user = user.username if user else "admin"
-                auth_pass = request.session.get("user_pass", "")
-            else:
-                auth_user = global_settings.get('feed_auth_username')
-                auth_pass = global_settings.get('feed_auth_password')
-                
-            if auth_user and auth_pass:
-                import base64
-                token = base64.b64encode(f"{auth_user}:{auth_pass}".encode()).decode()
+            token = get_or_create_feed_token(request, user)
+            if token:
                 separator = "&" if "?" in rss_url else "?"
-                rss_url = f"{rss_url}{separator}auth={token}"
+                rss_url = f"{rss_url}{separator}token={token}"
 
 
         unified_links = {
@@ -1759,19 +1763,23 @@ async def get_individual_feed(slug: str, request: Request):
     auth_enabled_val = settings.get('enable_feed_auth')
     is_auth_enabled = str(auth_enabled_val).lower() in ('1', 'true', 'yes', 'on') if auth_enabled_val is not None else False
     
-    # Extract credentials from request (header or query param)
+    # Extract credentials from request (header or legacy query param), or preferred bearer token.
     username = None
     password = None
+    audio_token = None
+    request_token = request.query_params.get('token')
+    if request_token and feed_token_repo.validate(request_token):
+        audio_token = request_token
     
     auth_header = request.headers.get('Authorization')
-    if auth_header and auth_header.startswith('Basic '):
+    if not audio_token and auth_header and auth_header.startswith('Basic '):
         try:
             encoded = auth_header.split(' ')[1]
             decoded = base64.b64decode(encoded).decode('utf-8')
             username, password = decoded.split(':', 1)
         except:
             pass
-    else:
+    elif not audio_token:
         auth_param = request.query_params.get('auth')
         if auth_param:
             try:
@@ -1787,18 +1795,22 @@ async def get_individual_feed(slug: str, request: Request):
         "Expires": "0"
     }
     
-    # If auth is enabled and we have credentials, inject token into audio URLs
-    if is_auth_enabled and username and password:
+    # If auth is enabled and we have token/credentials, inject access into audio URLs.
+    if is_auth_enabled and (audio_token or (username and password)):
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 xml_content = f.read()
             
-            token = base64.b64encode(f"{username}:{password}".encode()).decode()
+            if not audio_token:
+                audio_token = base64.b64encode(f"{username}:{password}".encode()).decode()
+                param_name = "auth"
+            else:
+                param_name = "token"
             
             def inject_auth(match):
                 url = match.group(2)
                 separator = "&" if "?" in url else "?"
-                return f'{match.group(1)}{url}{separator}auth={token}'
+                return f'{match.group(1)}{url}{separator}{param_name}={audio_token}'
 
             xml_content = re.sub(r'(enclosure\s+url=")(https?://[^"]+)', inject_auth, xml_content)
             
@@ -1818,18 +1830,24 @@ async def get_unified_feed(request: Request):
     is_auth_enabled = str(auth_enabled_val).lower() in ('1', 'true', 'yes', 'on') if auth_enabled_val is not None else False
 
     if is_auth_enabled:
-        # Check Basic Auth header OR query param
+        # Check preferred bearer token, Basic Auth header, or legacy auth query param.
         import base64
         auth_header = request.headers.get('Authorization')
         auth_token = request.query_params.get('auth')
+        feed_token = request.query_params.get('token')
         authorized = False
         username = None
         password = None
+        audio_token = None
+
+        if feed_token and feed_token_repo.validate(feed_token):
+            authorized = True
+            audio_token = feed_token
         
         encoded_creds = None
-        if auth_header and auth_header.startswith('Basic '):
+        if not authorized and auth_header and auth_header.startswith('Basic '):
             encoded_creds = auth_header.split(' ')[1]
-        elif auth_token:
+        elif not authorized and auth_token:
             encoded_creds = auth_token
             
         if encoded_creds:
@@ -1881,17 +1899,20 @@ async def get_unified_feed(request: Request):
             with open(file_path, "r", encoding="utf-8") as f:
                 xml_content = f.read()
             
-            # Inject credentials into enclosure URLs
-            # username and password are available from the Basic Auth block
-            if username and password:
-                # Use token auth: append ?auth=base64(user:pass) to audio URLs
+            # Inject feed access into enclosure URLs so podcast clients can download audio.
+            if audio_token or (username and password):
                 import re
-                token = base64.b64encode(f"{username}:{password}".encode()).decode()
+                if audio_token:
+                    token_param = "token"
+                    token_value = audio_token
+                else:
+                    token_param = "auth"
+                    token_value = base64.b64encode(f"{username}:{password}".encode()).decode()
                 
                 def inject_auth(match):
                     url = match.group(2)
                     separator = "&" if "?" in url else "?"
-                    return f'{match.group(1)}{url}{separator}auth={token}'
+                    return f'{match.group(1)}{url}{separator}{token_param}={token_value}'
 
                 # Find enclosure url="...", capture the prefix and the URL
                 xml_content = re.sub(r'(enclosure\s+url=")(https?://[^"]+)', inject_auth, xml_content)

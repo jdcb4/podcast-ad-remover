@@ -23,6 +23,7 @@ npm run verify
 This currently performs:
 
 - Python syntax compilation for `app/` and `scripts/`.
+- Python unit tests with `pytest`.
 - Tailwind CSS rebuild from `app/web/static/css/input.css` to `app/web/static/css/output.css`.
 
 ## Docker Check
@@ -56,6 +57,6 @@ The pushed tags are:
 
 ## Current Gaps
 
-- There is no Python unit or integration test suite yet.
+- Python test coverage is intentionally small and should be expanded before broad processor refactors.
 - `npm audit --audit-level=moderate` is useful, but it is not part of the default gate until the current dependency advisories are resolved.
-- There is no automated migration test against a copy of an existing `podcasts.db`; add this before making substantial database changes.
+- There is no automated migration test against a realistic copy of an existing `podcasts.db`; add this before making destructive or rename-style schema changes.

@@ -4,10 +4,12 @@
 
 - Added a toggleable public read-only subscription page at `/subscribe`.
 - Added backup-aware formal migration scaffolding and a durable SQLite jobs table.
+- Added hashed feed tokens for protected podcast feed/audio links, while keeping Basic Auth and legacy `auth` links compatible.
 - Added atomic job claiming for the processor queue.
 - Added an operation dashboard to the admin queue with active job, disk, memory/load, feed check, and retry state.
 - Added live queue status polling through `/api/queue/status`.
 - Added feed fetch and episode download guardrails for timeouts, size limits, content type, private URL policy, and free disk space.
+- Added initial pytest coverage for migrations, job claiming, feed tokens, and URL guardrails.
 - Escaped markdown summary rendering before applying the supported formatting subset.
 - Made feed authentication fail closed when enabled without credentials.
 - Applied the IP allowlist before public feed/audio/subscribe route bypasses.

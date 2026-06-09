@@ -206,17 +206,23 @@
                 </div>
             </div>
 
-            {% if settings.enable_feed_auth and settings.auth_enabled %}
+            {% if settings.enable_feed_auth %}
             <div class="bg-surface-base p-3 rounded-xl border border-white/[0.08] mt-4">
                 <p class="text-sm font-medium text-text-secondary mb-1">Example Feed URL:</p>
                 <code id="example_feed_url"
                     class="text-xs bg-surface-elevated px-2 py-1 rounded border border-white/[0.06] text-primary-400">
                     {% set display_url = app_base_url %}
                     {% if not settings.app_external_url %}{% set display_url = "https://your-public-url.com" %}{% endif %}
-                    {{ display_url }}/feeds/SLUG.xml?auth=BASE64_TOKEN
+                    {{ display_url }}/feeds/SLUG.xml?token=GENERATED_TOKEN
                 </code>
-                <p class="text-xs text-text-muted mt-2">The token is automatically generated when you copy feed links.
-                </p>
+                <p class="text-xs text-text-muted mt-2">Protected links use generated feed tokens. Existing Basic Auth
+                    and older auth links continue to work for compatibility.</p>
+                <form method="post" action="/admin/feed-token/regenerate" class="mt-3">
+                    <button type="submit" class="btn-secondary btn-sm"
+                        onclick="return confirm('Regenerate your feed token? Podcast apps using the previous token will need updated feed URLs.')">
+                        Regenerate Feed Token
+                    </button>
+                </form>
             </div>
             {% endif %}
 

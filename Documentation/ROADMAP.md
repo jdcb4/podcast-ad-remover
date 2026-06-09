@@ -5,13 +5,13 @@ This roadmap lists improvement candidates. It is not a release commitment.
 ## Reliability
 
 - Add a real Python test suite around feed parsing, episode status transitions, RSS generation, and audio route authorization.
-- Add migration tests that run against a copied `podcasts.db`.
+- Expand migration tests so they run against a copied realistic `podcasts.db`.
 - Continue expanding the durable job model with recovery tooling for orphaned work directories and richer worker lease visibility.
 
 ## Security
 
 - Require a generated `SESSION_SECRET_KEY` in production rather than falling back to the development default.
-- Consider tokenized feed and audio URLs for deployments exposed beyond a private network.
+- Add feed-token management beyond current session token regeneration, including listing and revoking old tokens.
 - Tighten admin/API authorization tests before adding more remote management features.
 
 ## Resource Usage

@@ -75,6 +75,16 @@ Current job statuses are:
 
 Startup migration creates a `schema_migrations` table and backs up the current database to `/data/backups/` before applying formal migrations.
 
+### Feed Access
+
+RSS feeds and audio files remain public when feed authentication is disabled. When feed authentication is enabled, generated dashboard links use bearer tokens:
+
+```text
+/feeds/<slug>.xml?token=<generated-token>
+```
+
+Tokens are stored as SHA-256 hashes in `feed_tokens` and can be regenerated from the admin access page. Basic Auth and the older `?auth=base64(username:password)` format are still accepted for compatibility with existing podcast-client subscriptions.
+
 ## Data Layout
 
 Persistent data should be mounted at `/data`.

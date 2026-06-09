@@ -1,5 +1,7 @@
 import sqlite3
 import socket
+import hashlib
+import secrets
 from typing import List, Optional
 from datetime import datetime
 from app.infra.database import get_db_connection
@@ -572,3 +574,52 @@ class JobRepository:
                   AND type = 'process_episode'
                   AND status = 'running'
             """, (error, episode_id))
+
+
+class FeedTokenRepository:
+    """Manage bearer tokens for protected RSS feeds and audio URLs."""
+
+    @staticmethod
+    def hash_token(token: str) -> str:
+        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    def create(self, user_id: int | None = None, name: str = "Podcast app") -> str:
+        token = secrets.token_urlsafe(32)
+        token_hash = self.hash_token(token)
+        with get_db_connection() as conn:
+            conn.execute("""
+                INSERT INTO feed_tokens (user_id, token_hash, name)
+                VALUES (?, ?, ?)
+            """, (user_id, token_hash, name))
+            conn.commit()
+        return token
+
+    def validate(self, token: str | None) -> bool:
+        if not token:
+            return False
+
+        token_hash = self.hash_token(token)
+        with get_db_connection() as conn:
+            row = conn.execute("""
+                SELECT id FROM feed_tokens
+                WHERE token_hash = ?
+                  AND revoked_at IS NULL
+            """, (token_hash,)).fetchone()
+            if not row:
+                return False
+            conn.execute(
+                "UPDATE feed_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (row["id"],),
+            )
+            conn.commit()
+            return True
+
+    def revoke(self, token: str):
+        token_hash = self.hash_token(token)
+        with get_db_connection() as conn:
+            conn.execute("""
+                UPDATE feed_tokens
+                SET revoked_at = CURRENT_TIMESTAMP
+                WHERE token_hash = ? AND revoked_at IS NULL
+            """, (token_hash,))
+            conn.commit()
