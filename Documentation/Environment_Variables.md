@@ -6,6 +6,7 @@ The application is configured via environment variables.
 The application requires at least one API key to function (Gemini, OpenAI, Anthropic, or OpenRouter). You can set these via Environment Variables (recommended for Docker) or via the Admin UI.
 
 **Note:** Settings in the **Admin UI** take priority over Environment Variables.
+Gemini direct access uses Google's OpenAI-compatible endpoint through the OpenAI Python SDK.
 
 | Variable | Description |
 |----------|-------------|

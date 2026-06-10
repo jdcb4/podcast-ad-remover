@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 
 class RateLimitError(Exception):
     """Custom exception for API rate limit errors with retry timing info."""
-    
+
     def __init__(self, message: str, is_daily_limit: bool = True, provider: str = "gemini"):
         super().__init__(message)
         self.is_daily_limit = is_daily_limit  # True = wait until midnight PT, False = short retry
         self.provider = provider
         self.original_message = message
-    
+
     def get_next_retry_time(self):
         """Calculate appropriate retry time based on limit type."""
         from datetime import datetime, timedelta
@@ -29,7 +29,7 @@ class RateLimitError(Exception):
             # Fallback for older Python
             import pytz
             ZoneInfo = lambda tz: pytz.timezone(tz)
-        
+
         if self.is_daily_limit:
             # Daily limit: retry at midnight Pacific Time + 5 min buffer
             pacific = ZoneInfo('America/Los_Angeles')
@@ -94,10 +94,10 @@ class Transcriber:
             logger.info(f"Using {compute_type} compute type for optimization.")
             if cpu_threads > 0:
                 logger.info(f"Limiting Faster-Whisper CPU threads to {cpu_threads}.")
-            
+
             import time
             start_load = time.time()
-            
+
             model_kwargs = {
                 "device": "cpu",
                 "compute_type": compute_type,
@@ -110,45 +110,45 @@ class Transcriber:
             import faster_whisper
             self.model = faster_whisper.WhisperModel(idx, **model_kwargs)
             self.model_config = desired_config
-            
+
             load_duration = time.time() - start_load
             logger.info(f"Model loaded in {load_duration:.2f}s")
 
     def transcribe(self, audio_path: str, progress_callback=None) -> Dict:
         from app.core.audio import AudioProcessor
-        
+
         runtime_settings = self._load_runtime_settings()
         self.load_model(runtime_settings)
         ffmpeg_threads = int(runtime_settings.get("ffmpeg_threads") or 0)
-        
+
         # Get total duration for progress calculation
         audio_duration = AudioProcessor.get_duration(audio_path)
         logger.info(f"Transcribing {audio_path} (Duration: {audio_duration:.2f}s)...")
-        
+
         # Determine if we should use chunked transcription
         # Threshold: 20 minutes (1200 seconds)
         chunk_threshold = 1200.0
         if audio_duration > chunk_threshold:
             logger.info("File exceeds duration threshold. Using chunked transcription.")
             return self._transcribe_chunked(audio_path, audio_duration, progress_callback, ffmpeg_threads=ffmpeg_threads)
-            
+
         # Prepare clean audio for transcription to avoid crashes with multi-stream files (MJPEG etc)
         # We use a temporary file for the clean audio
         clean_audio_path = audio_path + ".clean.wav"
         AudioProcessor.prepare_for_transcription(audio_path, clean_audio_path, ffmpeg_threads=ffmpeg_threads)
-        
+
         try:
             # faster-whisper returns a generator
             # We transcribe the CLEAN audio path
             segments_generator, info = self.model.transcribe(
-                clean_audio_path, 
+                clean_audio_path,
                 beam_size=5
             )
-            
+
             logger.info(f"Detected language: {info.language} with probability {info.language_probability}")
-            
+
             segments_result = []
-            
+
             # Helper to convert segment to dict
             def segment_to_dict(seg):
                 return {
@@ -169,18 +169,18 @@ class Transcriber:
                 if progress_callback:
                     # Progress based on segment end time
                     progress_callback(segment.end, audio_duration)
-                
+
                 # logger.info(f"Segment: {segment.start:.2f}s - {segment.end:.2f}s")
                 segments_result.append(segment_to_dict(segment))
-                
+
             result = {
                 "text": "".join([s['text'] for s in segments_result]),
                 "segments": segments_result,
                 "language": info.language
             }
-                
+
             logger.info(f"Transcription complete. Found {len(segments_result)} segments.")
-            
+
             return result
         finally:
             # Clean up temporary audio file
@@ -193,50 +193,50 @@ class Transcriber:
 
     def _transcribe_chunked(self, audio_path: str, total_duration: float, progress_callback=None, ffmpeg_threads: int = 0) -> Dict:
         from app.core.audio import AudioProcessor
-        
+
         # Chunk settings
         chunk_duration = 1200.0 # 20 mins
         overlap = 20.0 # 20s overlap
-        
+
         # Stage 1: Normalize original audio (same as single file logic)
         clean_audio_path = audio_path + ".clean.wav"
         AudioProcessor.prepare_for_transcription(audio_path, clean_audio_path, ffmpeg_threads=ffmpeg_threads)
-        
+
         chunk_paths = []
         try:
             # Stage 2: Create chunks
             chunk_paths = AudioProcessor.create_audio_chunks(clean_audio_path, chunk_duration, overlap, ffmpeg_threads=ffmpeg_threads)
             logger.info(f"Created {len(chunk_paths)} chunks for processing.")
-            
+
             all_segments = []
-            
+
             # Stage 3: Process each chunk
             for i, chunk_path in enumerate(chunk_paths):
                 logger.info(f"Processing chunk {i+1}/{len(chunk_paths)}: {chunk_path}")
-                
+
                 # Global start time for this chunk
                 # Start: (n) * (C - O)
                 global_start_time = i * (chunk_duration - overlap)
-                
+
                 # Define merge boundaries for this chunk
                 # We keep segments that START within [Boundary-Start, Boundary-End]
                 # Boundary-Start: global_start_time + overlap/2 (except first chunk)
                 # Boundary-End: global_start_time + chunk_duration - overlap/2 (except last chunk)
-                
+
                 merge_start = global_start_time + (overlap / 2.0) if i > 0 else 0.0
                 merge_end = global_start_time + chunk_duration - (overlap / 2.0) if i < (len(chunk_paths) - 1) else total_duration + 1.0
-                
+
                 logger.debug(f"Chunk {i} boundaries: {merge_start:.2f}s to {merge_end:.2f}s")
-                
+
                 # Transcribe chunk
                 segments_generator, info = self.model.transcribe(chunk_path, beam_size=5)
-                
+
                 chunk_segments_count = 0
                 for segment in segments_generator:
                     # Globalize segment timestamps
                     seg_start = segment.start + global_start_time
                     seg_end = segment.end + global_start_time
-                    
+
                     # Filter based on merge boundaries
                     if seg_start >= merge_start and seg_start < merge_end:
                         # Convert to dict and update timestamps
@@ -254,23 +254,23 @@ class Transcriber:
                         }
                         all_segments.append(seg_dict)
                         chunk_segments_count += 1
-                        
+
                         # Trigger overall progress callback
                         if progress_callback:
                             progress_callback(seg_end, total_duration)
-                            
+
                 logger.info(f"Chunk {i} complete. Added {chunk_segments_count} segments.")
-                
+
             # Final result
             result = {
                 "text": "".join([s['text'] for s in all_segments]),
                 "segments": all_segments,
                 "language": "en" # Default or detected from first chunk?
             }
-            
+
             logger.info(f"Chunked transcription complete. Found {len(all_segments)} total segments.")
             return result
-            
+
         finally:
             # Cleanup chunks and normalized file
             for p in chunk_paths:
@@ -284,10 +284,10 @@ class Transcriber:
 class LLMProvider:
     def generate(self, prompt: str) -> str:
         raise NotImplementedError
-        
+
     def list_models(self) -> List[str]:
         raise NotImplementedError
-        
+
     def test_connection(self) -> Dict:
         try:
             # Simple hello world test
@@ -296,143 +296,102 @@ class LLMProvider:
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
-class GeminiProvider(LLMProvider):
-    def __init__(self, api_keys: List[str], model_cascade: List[str]):
-        self.api_keys = api_keys
+class OpenAIProvider(LLMProvider):
+    RATE_LIMIT_PATTERNS = (
+        'resource_exhausted',
+        'quota exceeded',
+        'rate limit',
+        '429',
+        'too many requests',
+        'resourceexhausted',
+    )
+
+    def __init__(
+        self,
+        api_key: str | List[str],
+        models: List[str],
+        base_url: str = None,
+        provider_name: str = "OpenAI/Compatible",
+        model_prefixes: tuple[str, ...] | None = ("gpt-", "o1-", "chatgpt-"),
+        rate_limit_provider: str = "openai",
+    ):
+        import openai
+        self.openai = openai
+        self.api_keys = api_key if isinstance(api_key, list) else [api_key]
         self.current_key_idx = 0
-        self.cascade = model_cascade
+        self.models = models
+        self.base_url = base_url
+        self.provider_name = provider_name
+        self.model_prefixes = model_prefixes
+        self.rate_limit_provider = rate_limit_provider
+        self.is_openrouter = base_url and "openrouter" in base_url
         self._init_client()
 
     def _init_client(self):
-        from google import genai
-
         key = self.api_keys[self.current_key_idx]
-        # masking key in logs for security
         masked = key[:4] + "..." + key[-4:] if len(key) > 8 else "***"
-        logger.info(f"Gemini: Initializing client with key #{self.current_key_idx + 1} ({masked})")
-        self.client = genai.Client(api_key=key)
+        logger.info(f"{self.provider_name}: Initializing client with key #{self.current_key_idx + 1} ({masked})")
+        self.client = self.openai.OpenAI(api_key=key, base_url=self.base_url)
 
     def _rotate_key(self) -> bool:
-        """Switch to the next available API key if possible."""
         if self.current_key_idx + 1 < len(self.api_keys):
             self.current_key_idx += 1
-            logger.warning(f"Gemini: Rate limit hit. Rotating to key #{self.current_key_idx + 1}...")
+            logger.warning(f"{self.provider_name}: Rate limit hit. Rotating to key #{self.current_key_idx + 1}...")
             self._init_client()
             return True
-        logger.error("Gemini: Rate limit hit and no more keys available.")
         return False
 
+    def _is_rate_limit(self, error: Exception) -> bool:
+        error_str = str(error).lower()
+        return any(pattern in error_str for pattern in self.RATE_LIMIT_PATTERNS)
+
     def generate(self, prompt: str) -> str:
-        """
-        Generate content using the model cascade.
-        Failover logic: Try all models in cascade with current key, then rotate to next key and retry.
-        """
         last_error = None
-        
-        # Outer loop: iterate through available keys
+
         while True:
-            all_rate_limited = True  # Track if all models hit rate limits on this key
-            
-            for model_name in self.cascade:
+            all_rate_limited = True
+
+            for model in self.models:
                 try:
-                    logger.info(f"Gemini: Trying model {model_name} with key #{self.current_key_idx + 1}...")
-                    response = self.client.models.generate_content(
-                        model=model_name,
-                        contents=prompt
+                    logger.info(f"{self.provider_name}: Using model {model} with key #{self.current_key_idx + 1}...")
+                    response = self.client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": prompt}]
                     )
-                    return response.text if response.text else ""
+                    return response.choices[0].message.content or ""
                 except Exception as e:
-                    error_str = str(e).lower()
+                    logger.warning(f"{self.provider_name} model {model} failed: {e}")
                     last_error = e
-                    
-                    # Check for rate limit indicators
-                    rate_limit_patterns = [
-                        'resource_exhausted', 
-                        'quota exceeded', 
-                        'rate limit', 
-                        '429', 
-                        'too many requests',
-                        'resourceexhausted'
-                    ]
-                    is_rate_limit = any(pattern in error_str for pattern in rate_limit_patterns)
-                    
-                    if is_rate_limit:
-                        logger.warning(f"Gemini model {model_name} rate limited on key #{self.current_key_idx + 1}: {e}")
-                        # Continue to try next model in cascade with same key
-                    else:
-                        # Non-rate-limit error - this model just failed, try next model
-                        logger.warning(f"Gemini model {model_name} failed: {e}")
+                    if not self._is_rate_limit(e):
                         all_rate_limited = False
-            
-            # All models in cascade exhausted for this key
-            # If at least one model failed for non-rate-limit reasons, we've truly failed
-            # If all were rate-limited, try rotating to next key
+
+            if all_rate_limited and self._rotate_key():
+                continue
+
             if all_rate_limited:
-                if self._rotate_key():
-                    logger.info(f"Gemini: Retrying all models with key #{self.current_key_idx + 1}...")
-                    continue  # Retry the cascade with new key
-                else:
-                    # No more keys available
-                    raise RateLimitError(
-                        f"Gemini API rate limit exceeded on all keys and all models. Last error: {last_error}",
-                        is_daily_limit=True,
-                        provider="gemini"
-                    )
-            else:
-                # Some models failed for non-rate-limit reasons - don't bother rotating key
-                break
-        
-        raise Exception(f"All Gemini models failed. Last error: {last_error}")
-        
-    def list_models(self) -> List[str]:
-        models = []
-        try:
-            # New SDK lists usually return objects with .name (full resource name)
-            for m in self.client.models.list():
-                # We want mainly text generation models. 
-                # The filtering attributes in new SDK might differ.
-                # For now getting all and stripping prefix.
-                name = m.name
-                if name.startswith('models/'):
-                    name = name.replace('models/', '')
-                models.append(name)
-        except Exception as e:
-            logger.error(f"Gemini list models failed: {e}")
-        return models
-
-class OpenAIProvider(LLMProvider):
-    def __init__(self, api_key: str, models: List[str], base_url: str = None):
-        import openai
-        self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
-        self.models = models
-        self.is_openrouter = base_url and "openrouter" in base_url
-
-    def generate(self, prompt: str) -> str:
-        last_error = None
-        for model in self.models:
-            try:
-                logger.info(f"OpenAI/Compatible: Using model {model}...")
-                response = self.client.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}]
+                raise RateLimitError(
+                    f"{self.provider_name} rate limit exceeded on all keys and models. Last error: {last_error}",
+                    is_daily_limit=True,
+                    provider=self.rate_limit_provider,
                 )
-                return response.choices[0].message.content
-            except Exception as e:
-                logger.warning(f"Model {model} failed: {e}")
-                last_error = e
-        raise Exception(f"All models failed. Last error: {last_error}")
-        
+
+            raise Exception(f"All {self.provider_name} models failed. Last error: {last_error}")
+
     def list_models(self) -> List[str]:
         try:
             models = self.client.models.list()
-            model_ids = [m.id for m in models.data]
-            
-            if self.is_openrouter:
-                 return sorted(model_ids)
-            else:
-                return sorted([m for m in model_ids if m.startswith(("gpt-", "o1-", "chatgpt-"))])
+            model_ids = []
+            for model in models.data:
+                model_id = model.id
+                if model_id.startswith("models/"):
+                    model_id = model_id.replace("models/", "", 1)
+                model_ids.append(model_id)
+
+            if self.model_prefixes is None:
+                return sorted(model_ids)
+            return sorted([m for m in model_ids if m.startswith(self.model_prefixes)])
         except Exception as e:
-            logger.error(f"Failed to list models: {e}")
+            logger.error(f"{self.provider_name}: Failed to list models: {e}")
             return []
 
 class AnthropicProvider(LLMProvider):
@@ -456,7 +415,7 @@ class AnthropicProvider(LLMProvider):
                 logger.warning(f"Model {model} failed: {e}")
                 last_error = e
         raise Exception(f"All models failed. Last error: {last_error}")
-        
+
     def list_models(self) -> List[str]:
         return [
             "claude-3-5-sonnet-20241022",
@@ -467,6 +426,8 @@ class AnthropicProvider(LLMProvider):
         ]
 
 class AdDetector:
+    GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
     # Default Gemini Cascade
     DEFAULT_GEMINI_MODELS = [
         'gemini-2.5-pro',
@@ -508,7 +469,8 @@ class AdDetector:
 
     def create_provider(self, provider_type: str, api_key: str = None, model: str = None, openrouter_key: str = None) -> LLMProvider:
         """Factory to create a provider instance."""
-        
+        explicit_api_key = api_key
+
         # Resolve keys (DB Overrides Env)
         if not api_key:
             db_key = None
@@ -529,20 +491,20 @@ class AdDetector:
             elif provider_type == 'openai': db_key = self.settings.get('openai_api_key')
             elif provider_type == 'anthropic': db_key = self.settings.get('anthropic_api_key')
             elif provider_type == 'openrouter': db_key = self.settings.get('openrouter_api_key')
-            
+
             # 2. Try Env second
             env_key = None
             if provider_type == 'gemini': env_key = settings.GEMINI_API_KEY
             elif provider_type == 'openai': env_key = settings.OPENAI_API_KEY
             elif provider_type == 'anthropic': env_key = settings.ANTHROPIC_API_KEY
             elif provider_type == 'openrouter': env_key = settings.OPENROUTER_API_KEY
-            
+
             # Priority: DB > Env
             api_key = db_key if db_key else env_key
-            
+
         if not api_key:
              raise ValueError(f"No API key found for {provider_type} (Check Admin Settings or Environment Variables)")
-             
+
         # Resolve models (handle passed 'model' arg or DB settings)
         # If explicit 'model' arg is passed (e.g. from test tool), wrap it in list
         if model:
@@ -563,47 +525,65 @@ class AdDetector:
                 models_list = self._parse_model_setting(self.settings.get('openrouter_model'), self.DEFAULT_OPENROUTER_MODELS)
             else: # Gemini
                 models_list = self._parse_model_setting(self.settings.get('ai_model_cascade'), self.DEFAULT_GEMINI_MODELS)
-                
+
         if provider_type == 'openai':
-            return OpenAIProvider(api_key, models_list)
-            
+            return OpenAIProvider(api_key, models_list, provider_name="OpenAI", rate_limit_provider="openai")
+
         elif provider_type == 'anthropic':
             return AnthropicProvider(api_key, models_list)
-            
+
         elif provider_type == 'openrouter':
-            return OpenAIProvider(api_key, models_list, base_url="https://openrouter.ai/api/v1")
-            
+            return OpenAIProvider(
+                api_key,
+                models_list,
+                base_url="https://openrouter.ai/api/v1",
+                provider_name="OpenRouter",
+                model_prefixes=None,
+                rate_limit_provider="openrouter",
+            )
+
         else: # Gemini
             # For Gemini, build the full keys list from all sources
             api_keys = []
-            
+
+            if explicit_api_key:
+                api_keys.extend([k.strip() for k in explicit_api_key.split(',') if k.strip()])
+
             # 1. DB keys (gemini_api_keys JSON array)
-            db_keys_json = self.settings.get('gemini_api_keys')
-            if db_keys_json:
-                try:
-                    parsed = json.loads(db_keys_json)
-                    if isinstance(parsed, list):
-                        api_keys.extend([k for k in parsed if k and k.strip()])
-                except:
-                    pass
-            
-            # 2. Legacy single key from DB
-            legacy_key = self.settings.get('gemini_api_key')
-            if legacy_key and legacy_key not in api_keys:
-                api_keys.append(legacy_key)
-            
-            # 3. Environment variable (can be comma-separated)
-            if settings.GEMINI_API_KEY:
-                env_keys = [k.strip() for k in settings.GEMINI_API_KEY.split(',') if k.strip()]
-                for k in env_keys:
-                    if k not in api_keys:
-                        api_keys.append(k)
-            
+            if not explicit_api_key:
+                db_keys_json = self.settings.get('gemini_api_keys')
+                if db_keys_json:
+                    try:
+                        parsed = json.loads(db_keys_json)
+                        if isinstance(parsed, list):
+                            api_keys.extend([k for k in parsed if k and k.strip()])
+                    except:
+                        pass
+
+                # 2. Legacy single key from DB
+                legacy_key = self.settings.get('gemini_api_key')
+                if legacy_key and legacy_key not in api_keys:
+                    api_keys.append(legacy_key)
+
+                # 3. Environment variable (can be comma-separated)
+                if settings.GEMINI_API_KEY:
+                    env_keys = [k.strip() for k in settings.GEMINI_API_KEY.split(',') if k.strip()]
+                    for k in env_keys:
+                        if k not in api_keys:
+                            api_keys.append(k)
+
             # If still no keys, use the api_key that was resolved above
             if not api_keys:
                 api_keys = [api_key]
-                
-            return GeminiProvider(api_keys, models_list)
+
+            return OpenAIProvider(
+                api_keys,
+                models_list,
+                base_url=self.GEMINI_OPENAI_BASE_URL,
+                provider_name="Gemini",
+                model_prefixes=("gemini-",),
+                rate_limit_provider="gemini",
+            )
 
     def _get_provider(self) -> LLMProvider:
         # Use current settings
@@ -630,20 +610,20 @@ class AdDetector:
             provider = self._get_provider()
             response_text = provider.generate(prompt)
             raw_segments = self._parse_ad_response(response_text)
-            
+
             # Whitelist mode: return ALL segments (including Content) for processor to invert
             if whitelist_mode:
                 logger.info(f"Whitelist mode: returning all {len(raw_segments)} segments (including Content)")
                 return raw_segments
-            
+
             # Blacklist mode (default): Filter to only include requested types and exclude 'Content'
             removable_labels = []
             if options.get("remove_ads"): removable_labels.append("Ad")
-            if options.get("remove_promos"): 
+            if options.get("remove_promos"):
                 removable_labels.extend(["Promo", "Cross-promotion"])
             if options.get("remove_intros"): removable_labels.append("Intro")
             if options.get("remove_outros"): removable_labels.append("Outro")
-            
+
             filtered = []
             for s in raw_segments:
                 label = s.get('label', 'Ad')
@@ -651,7 +631,7 @@ class AdDetector:
                     filtered.append(s)
                 else:
                     logger.info(f"Skipping segment labeled '{label}' (Reason: {s.get('reason')})")
-            
+
             return filtered
         except Exception as e:
             logger.error(f"Ad detection failed: {e}")
@@ -662,7 +642,7 @@ class AdDetector:
         text_data = ""
         for seg in transcript['segments']:
             text_data += f"{seg['text']} "
-            
+
         # Build targets list from subscription settings
         targets = []
         if subscription_settings:
@@ -674,9 +654,9 @@ class AdDetector:
                 targets.append(self.settings.get('ad_target_intro') or 'Intro music, opening segments')
             if subscription_settings.get('remove_outros'):
                 targets.append(self.settings.get('ad_target_outro') or 'Outro music, closing segments')
-        
+
         targets_text = "\n".join(targets) if targets else "None"
-            
+
         # Build Prompt (use default if None or empty in database)
         db_template = self.settings.get('summary_prompt_template')
         template = db_template if db_template else """
@@ -693,12 +673,12 @@ class AdDetector:
         if template is None:
             template = "Summarize this: {transcript_context}"
 
-        
+
         try:
              prompt = template.format(transcript_context=text_data[:100000], targets=targets_text)
         except KeyError:
              prompt = template # Fallback
-        
+
         try:
             provider = self._get_provider()
             return provider.generate(prompt).strip()
@@ -710,15 +690,15 @@ class AdDetector:
     def _build_ad_prompt(self, options, transcript_text, whitelist_mode: bool = False):
         # Fetch targets with safety defaults
         targets = []
-        if options.get("remove_ads"): 
+        if options.get("remove_ads"):
             targets.append(self.settings.get('ad_target_sponsor') or 'Sponsor messages')
-        if options.get("remove_promos"): 
+        if options.get("remove_promos"):
             targets.append(self.settings.get('ad_target_promo') or 'Promos')
-        if options.get("remove_intros"): 
+        if options.get("remove_intros"):
             targets.append(self.settings.get('ad_target_intro') or 'Intro')
-        if options.get("remove_outros"): 
+        if options.get("remove_outros"):
             targets.append(self.settings.get('ad_target_outro') or 'Outro')
-        
+
         default_base = """
         Identify segments in the transcript that match the Targets.
         Targets: {targets}
@@ -726,11 +706,11 @@ class AdDetector:
         Return a JSON array of objects with "start", "end", "label" (Ad/Promo/Intro/Outro), and "reason" (brief explanation).
         Example: [{{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for XYZ"}}]
         """
-        
+
         base = self.settings.get('ad_prompt_base') or default_base
-        
+
         custom = f"Custom: {options.get('custom_instructions')}" if options.get('custom_instructions') else ""
-        
+
         # Whitelist mode: append instructions to also label Content segments
         whitelist_addendum = ""
         if whitelist_mode:
@@ -740,7 +720,7 @@ Every segment of the transcript must be classified. Use "Content" for any segmen
 Non-speech segments (music, jingles, silence) should NOT be labeled as Content.
 Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main discussion segment"}]
 """
-        
+
         # Use manual replacement instead of .format() to avoid breaking on JSON examples
         try:
             prompt = base.replace("{targets}", "\n".join(targets)).replace("{custom_instr}", custom)
@@ -752,16 +732,16 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
     def _parse_ad_response(self, text: str):
         text = text.strip()
         # Common markdown cleanup
-        if text.startswith("```json"): 
+        if text.startswith("```json"):
             text = text[7:]
-        elif text.startswith("```"): 
+        elif text.startswith("```"):
             text = text[3:]
-        
+
         if text.endswith("```"):
             text = text[:-3]
-            
+
         text = text.strip()
-            
+
         try:
             return self._normalize_ad_segments(json.loads(text))
         except json.JSONDecodeError:
@@ -772,7 +752,7 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                 try:
                     return self._normalize_ad_segments(json.loads(match.group(0)))
                 except: pass
-            
+
             logger.error(f"Failed to parse JSON response: {text[:200]}...")
             return []
 
@@ -833,33 +813,31 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                     if not api_key and row['gemini_api_key']:
                         api_key = row['gemini_api_key']
         except: pass
-        
+
         # Fallback to env
         if not api_key:
             api_key = settings.GEMINI_API_KEY
 
         if not api_key:
             return []
-            
+
         # Handle env variable with multiple comma-separated keys (use first one)
         if ',' in api_key:
             api_key = api_key.split(',')[0].strip()
-            
-        try:
-            from google import genai
 
-            client = genai.Client(api_key=api_key)
-            models = []
-            for m in client.models.list():
-                name = m.name
-                if name.startswith('models/'):
-                    name = name.replace('models/', '')
-                models.append(name)
-            return models
+        try:
+            return OpenAIProvider(
+                api_key,
+                [],
+                base_url=AdDetector.GEMINI_OPENAI_BASE_URL,
+                provider_name="Gemini",
+                model_prefixes=("gemini-",),
+                rate_limit_provider="gemini",
+            ).list_models()
         except Exception as e:
             logger.error(f"Failed to list Gemini models: {e}")
             return []
-            
+
     def has_valid_config(self) -> bool:
         """Check if any API provider is configured via DB or Env."""
         # Check Gemini - both new multi-key and legacy single-key fields
@@ -871,15 +849,15 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                     return True
             except:
                 pass
-        if self.settings.get('gemini_api_key') or settings.GEMINI_API_KEY: 
+        if self.settings.get('gemini_api_key') or settings.GEMINI_API_KEY:
             return True
-        
+
         # Check others
         s = self.settings
         if s.get('openai_api_key') or settings.OPENAI_API_KEY: return True
         if s.get('anthropic_api_key') or settings.ANTHROPIC_API_KEY: return True
         if s.get('openrouter_api_key') or settings.OPENROUTER_API_KEY: return True
-        
+
         return False
 
     async def validate_tts(self):
@@ -896,30 +874,30 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                     if row and row['piper_model']:
                         piper_model_file = row['piper_model']
             except: pass
-            
+
             # Ensure model exists
             await self._ensure_piper_model(piper_model_file)
-            
+
             script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "tts_worker.py"))
-            
+
             proc = await asyncio.create_subprocess_exec(
-                sys.executable, script_path, "--check", 
+                sys.executable, script_path, "--check",
                 "--model", piper_model_file,
                 "--models-dir", settings.MODELS_DIR,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            
+
             stdout, stderr = await proc.communicate()
-            
+
             if proc.returncode != 0:
                 error_msg = stderr.decode().strip()
                 logger.error(f"TTS Validation Failed: {error_msg}")
                 raise Exception(f"TTS Health Check Failed: {error_msg}")
-                
+
             logger.info("TTS Validation Passed.")
             return True
-            
+
         except Exception as e:
             logger.error(f"TTS Validation Error: {e}")
             raise e
@@ -931,13 +909,13 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
         """
         try:
             logger.info("Generating TTS (Piper in subprocess)...")
-            
+
             # Clean text for TTS (remove markdown artifacts and quotes)
             # TTS engines often struggle or speak "asterisk" or "quote" aloud
             chars_to_remove = ['"', '*', '“', '”', '‘', '’', '_', '#']
             for char in chars_to_remove:
                 text = text.replace(char, '')
-            
+
             # Fetch configured voice model
             piper_model_file = "en_GB-cori-high.onnx"
             try:
@@ -948,29 +926,29 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                         piper_model_file = row['piper_model']
             except Exception as e:
                 logger.warning(f"Failed to fetch piper setting, using default: {e}")
-            
+
             # Ensure model exists
             await self._ensure_piper_model(piper_model_file)
-            
+
             # Resolve absolute path to the worker script
             script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "tts_worker.py"))
-            
+
             # Run the worker script
             proc = await asyncio.create_subprocess_exec(
-                sys.executable, script_path, output_path, 
+                sys.executable, script_path, output_path,
                 "--model", piper_model_file,
                 "--models-dir", settings.MODELS_DIR,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            
+
             stdout, stderr = await proc.communicate(input=text.encode())
-            
+
             if proc.returncode != 0:
                 logger.error(f"TTS worker failed: {stderr.decode()}")
                 raise Exception(f"TTS worker failed with exit code {proc.returncode}")
-                
+
             logger.info("TTS generation completed.")
 
         except Exception as e:
@@ -981,29 +959,29 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
         """Ensures the piper model and its config exist locally."""
         model_dir = os.path.join(settings.MODELS_DIR, "piper")
         os.makedirs(model_dir, exist_ok=True)
-        
+
         model_path = os.path.join(model_dir, model_filename)
         config_path = model_path + ".json"
-        
+
         if os.path.exists(model_path) and os.path.exists(config_path):
             return model_path
-            
+
         logger.info(f"Piper model {model_filename} not found locally. Attempting download from HuggingFace...")
-        
+
         # Base URLs for Piper models on HuggingFace
         # We try to infer the path: lang/lang_REGION/voice/quality/filename
         # Example: en/en_US/amy/medium/en_US-amy-medium.onnx
-        
+
         parts = model_filename.replace('.onnx', '').split('-')
         if len(parts) >= 3:
             lang_region = parts[0]
             lang = lang_region.split('_')[0]
             voice = parts[1]
             quality = parts[2]
-            
+
             remote_base = f"https://huggingface.co/rhasspy/piper-voices/resolve/main/{lang}/{lang_region}/{voice}/{quality}/{model_filename}"
         else:
-            # Fallback for non-standard names? 
+            # Fallback for non-standard names?
             # Most common ones are like en_GB-cori-high
             logger.warning(f"Could not infer path for {model_filename}, trying direct link fallback")
             # We don't really have a direct link without voices.json, but let's try a common ones
@@ -1019,18 +997,18 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                 with open(model_path, "wb") as f:
                     async for chunk in response.aiter_bytes():
                         f.write(chunk)
-            
+
             # Download JSON
             logger.info(f"Downloading {model_filename}.json...")
             async with client.stream("GET", remote_base + ".json") as response:
                 if response.status_code != 200:
-                    # Clean up partial ONNX if config fails? 
+                    # Clean up partial ONNX if config fails?
                     if os.path.exists(model_path): os.remove(model_path)
                     raise Exception(f"Failed to download Piper config: HTTP {response.status_code}")
                 with open(config_path, "wb") as f:
                     async for chunk in response.aiter_bytes():
                         f.write(chunk)
-                        
+
         logger.info(f"Piper model {model_filename} downloaded successfully.")
         return model_path
 
