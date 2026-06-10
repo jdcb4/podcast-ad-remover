@@ -289,12 +289,26 @@ class Processor:
         finally:
             # Ensure ID is removed from active set
             Processor._active_task_ids.discard(ep_id)
+            try:
+                from app.core.utils import get_global_settings
+                global_settings = get_global_settings()
+                if (
+                    not Processor._active_task_ids
+                    and global_settings.get("unload_whisper_after_job")
+                    and self.job_repo.count_claimable() == 0
+                ):
+                    self.transcriber.unload_model()
+            except Exception as e:
+                logger.warning(f"Failed to unload Whisper model after job: {e}")
             # Proactively check queue again after finishing to keep pipeline full
             asyncio.create_task(self.process_queue())
 
     async def _process_episode_inner(self, ep: Episode, sub, ep_dict: dict):
         """Core multi-step processing logic for a single episode."""
         logger.info(f"Processing {ep.title}...")
+        from app.core.utils import get_global_settings
+        global_settings = get_global_settings()
+        ffmpeg_threads = int(global_settings.get("ffmpeg_threads") or 0)
         
         try:
             self.ep_repo.update_status(ep.id, "processing")
@@ -483,8 +497,6 @@ class Processor:
             }
             
             # Check whitelist mode from global settings
-            from app.core.utils import get_global_settings
-            global_settings = get_global_settings()
             whitelist_mode = bool(global_settings.get('whitelist_mode', 0))
             
             if whitelist_mode:
@@ -701,7 +713,8 @@ class Processor:
                 AudioProcessor.remove_segments, 
                 input_path, 
                 output_path, 
-                ad_segments
+                ad_segments,
+                ffmpeg_threads=ffmpeg_threads,
             )
             logger.info(f"Saved cleaned audio to {output_path}")
             
@@ -787,7 +800,8 @@ class Processor:
                         await asyncio.to_thread(
                             AudioProcessor.concat_files,
                             output_path,
-                            concat_list
+                            concat_list,
+                            ffmpeg_threads=ffmpeg_threads,
                         )
                         
                         # Cleanup

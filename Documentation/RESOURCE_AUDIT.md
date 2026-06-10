@@ -17,6 +17,22 @@ The app itself is small. The heavy parts are:
 
 Idle memory in a smoke container was about 200 MB before loading Whisper or Piper models. Processing memory and CPU will be much higher while transcribing, detecting ads, cutting audio, or generating TTS.
 
+Live measurements from the current deployment while transcription was active:
+
+```text
+podcast-ad-remover CPU: 344.68%
+podcast-ad-remover memory: 1.163 GiB / 8 GiB
+worker process RSS: about 1.0 GiB
+uvicorn process RSS: about 325 MiB
+/data total: 2.2 GB
+/data/podcasts: 1.9 GB
+/data/models: 251 MB
+```
+
+This is not evidence of runaway resource use. It is consistent with a single active Whisper transcription using about three to four CPU cores and holding the base model plus runtime working memory. The 3% CPU observed earlier is acceptable idle/background activity for this deployment.
+
+For the current maintainer's deployment, high CPU during transcription is acceptable because it finishes CPU-bound work faster. Podcast storage and the Piper model footprint are not current priorities.
+
 ## Findings
 
 ### Image Size
@@ -54,7 +70,7 @@ Disk use is dominated by persistent `/data`, not the application code:
 - `/data/models`: downloaded Whisper and Piper models.
 - `/data/backups`: migration backups.
 
-The largest ongoing growth risk is retained processed audio. The second largest is model storage, especially if users switch between multiple Whisper model sizes.
+The largest ongoing disk growth source is retained processed audio. This is worth making visible, but it is not currently a priority to shrink because the live `/data` size is reasonable for the host.
 
 ### Runtime CPU and Memory
 
@@ -67,6 +83,8 @@ Expected hotspots:
 
 The app already has a `concurrent_downloads` setting, but that is really processing concurrency. One concurrent job can still fan out into FFmpeg and Whisper internal threads. Small machines should usually use `concurrent_downloads=1`.
 
+The audit branch adds optional controls for `whisper_cpu_threads` and `ffmpeg_threads`, both defaulting to `0` for automatic/full-speed behavior. It also adds `unload_whisper_after_job`, which unloads the Faster-Whisper model once the queue is empty. That can reduce idle RAM after processing, with the tradeoff that the next transcription must reload the already-downloaded local model first. The app logs the measured reload time as `Model loaded in X.XXs`.
+
 ## Changes Made
 
 - Removed explicit `torch`, `torchvision`, and `torchaudio` install from `Dockerfile`.
@@ -77,22 +95,21 @@ The app already has a `concurrent_downloads` setting, but that is really process
 
 ## Recommended Next Steps
 
-1. Add optional image variants:
-   - `standard`: current full transcription plus Piper support.
-   - `no-tts`: remove Piper and ONNX Runtime for users who do not use audio summaries or title intros.
-   - potentially `external-transcription`: for users who do not want local Whisper.
+1. Measure Whisper reload time on the live container after enabling `Unload Whisper After Jobs`.
 2. Add UI visibility for `/data` storage by category:
    - processed audio
    - transcripts/reports
    - feeds
    - models
    - backups
-3. Add controls for:
+3. Add optional image variants only if image size becomes a real operational problem:
+   - `standard`: current full transcription plus Piper support.
+   - `no-tts`: remove Piper and ONNX Runtime for users who do not use audio summaries or title intros.
+   - potentially `external-transcription`: for users who do not want local Whisper.
+4. Add UI controls for existing download guardrails:
    - minimum free disk space
    - maximum episode download size
-   - Whisper thread count
-   - FFmpeg thread count
-4. Make cleanup safer and more visible:
+5. Make cleanup safer and more visible:
    - show retained episode count per podcast
    - show estimated disk reclaimed before deleting files
    - expose stale `.work` cleanup after staged processing is introduced

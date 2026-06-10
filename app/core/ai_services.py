@@ -5,6 +5,7 @@ import logging
 import asyncio
 import os
 import sys
+import gc
 from typing import List, Dict
 from app.core.config import settings
 import httpx
@@ -48,35 +49,68 @@ class RateLimitError(Exception):
 class Transcriber:
     def __init__(self):
         self.model = None
+        self.model_config = None
 
-    def load_model(self):
+    def _load_runtime_settings(self) -> Dict:
+        runtime = {
+            "whisper_model": "base",
+            "whisper_cpu_threads": 0,
+            "ffmpeg_threads": 0,
+        }
+        try:
+            from app.infra.database import get_db_connection
+            with get_db_connection() as conn:
+                row = conn.execute("""
+                    SELECT whisper_model, whisper_cpu_threads, ffmpeg_threads
+                    FROM app_settings WHERE id = 1
+                """).fetchone()
+                if row:
+                    runtime["whisper_model"] = row["whisper_model"] or "base"
+                    runtime["whisper_cpu_threads"] = int(row["whisper_cpu_threads"] or 0)
+                    runtime["ffmpeg_threads"] = int(row["ffmpeg_threads"] or 0)
+        except Exception as e:
+            logger.warning(f"Failed to fetch runtime settings, using defaults: {e}")
+        return runtime
+
+    def unload_model(self):
+        if self.model is None:
+            return
+        logger.info("Unloading Faster-Whisper model from memory.")
+        self.model = None
+        self.model_config = None
+        gc.collect()
+
+    def load_model(self, runtime_settings: Dict | None = None):
+        runtime_settings = runtime_settings or self._load_runtime_settings()
+        idx = runtime_settings.get("whisper_model") or "base"
+        cpu_threads = int(runtime_settings.get("whisper_cpu_threads") or 0)
+        desired_config = (idx, cpu_threads)
+        if self.model and self.model_config != desired_config:
+            logger.info("Whisper settings changed; reloading Faster-Whisper model.")
+            self.unload_model()
+
         if not self.model:
-            # Check DB for whisper model
-            idx = "base"
-            try:
-                from app.infra.database import get_db_connection
-                with get_db_connection() as conn:
-                    row = conn.execute("SELECT whisper_model FROM app_settings WHERE id = 1").fetchone()
-                    if row and row['whisper_model']:
-                        idx = row['whisper_model']
-            except Exception as e:
-                logger.warning(f"Failed to fetch whisper setting, using default: {e}")
-                
             # Use float32 for maximum compatibility and stability on CPU (especially ARM64)
             compute_type = "float32"
             logger.info(f"Loading Faster-Whisper model: {idx} (Download Root: {settings.MODELS_DIR})")
             logger.info(f"Using {compute_type} compute type for optimization.")
+            if cpu_threads > 0:
+                logger.info(f"Limiting Faster-Whisper CPU threads to {cpu_threads}.")
             
             import time
             start_load = time.time()
             
+            model_kwargs = {
+                "device": "cpu",
+                "compute_type": compute_type,
+                "download_root": settings.MODELS_DIR,
+            }
+            if cpu_threads > 0:
+                model_kwargs["cpu_threads"] = cpu_threads
+
             # Use float32 for stability
-            self.model = faster_whisper.WhisperModel(
-                idx, 
-                device="cpu", 
-                compute_type=compute_type, 
-                download_root=settings.MODELS_DIR
-            )
+            self.model = faster_whisper.WhisperModel(idx, **model_kwargs)
+            self.model_config = desired_config
             
             load_duration = time.time() - start_load
             logger.info(f"Model loaded in {load_duration:.2f}s")
@@ -84,7 +118,9 @@ class Transcriber:
     def transcribe(self, audio_path: str, progress_callback=None) -> Dict:
         from app.core.audio import AudioProcessor
         
-        self.load_model()
+        runtime_settings = self._load_runtime_settings()
+        self.load_model(runtime_settings)
+        ffmpeg_threads = int(runtime_settings.get("ffmpeg_threads") or 0)
         
         # Get total duration for progress calculation
         audio_duration = AudioProcessor.get_duration(audio_path)
@@ -95,12 +131,12 @@ class Transcriber:
         chunk_threshold = 1200.0
         if audio_duration > chunk_threshold:
             logger.info("File exceeds duration threshold. Using chunked transcription.")
-            return self._transcribe_chunked(audio_path, audio_duration, progress_callback)
+            return self._transcribe_chunked(audio_path, audio_duration, progress_callback, ffmpeg_threads=ffmpeg_threads)
             
         # Prepare clean audio for transcription to avoid crashes with multi-stream files (MJPEG etc)
         # We use a temporary file for the clean audio
         clean_audio_path = audio_path + ".clean.wav"
-        AudioProcessor.prepare_for_transcription(audio_path, clean_audio_path)
+        AudioProcessor.prepare_for_transcription(audio_path, clean_audio_path, ffmpeg_threads=ffmpeg_threads)
         
         try:
             # faster-whisper returns a generator
@@ -156,7 +192,7 @@ class Transcriber:
                 except Exception as e:
                     logger.warning(f"Failed to cleanup temp audio: {e}")
 
-    def _transcribe_chunked(self, audio_path: str, total_duration: float, progress_callback=None) -> Dict:
+    def _transcribe_chunked(self, audio_path: str, total_duration: float, progress_callback=None, ffmpeg_threads: int = 0) -> Dict:
         from app.core.audio import AudioProcessor
         
         # Chunk settings
@@ -165,12 +201,12 @@ class Transcriber:
         
         # Stage 1: Normalize original audio (same as single file logic)
         clean_audio_path = audio_path + ".clean.wav"
-        AudioProcessor.prepare_for_transcription(audio_path, clean_audio_path)
+        AudioProcessor.prepare_for_transcription(audio_path, clean_audio_path, ffmpeg_threads=ffmpeg_threads)
         
         chunk_paths = []
         try:
             # Stage 2: Create chunks
-            chunk_paths = AudioProcessor.create_audio_chunks(clean_audio_path, chunk_duration, overlap)
+            chunk_paths = AudioProcessor.create_audio_chunks(clean_audio_path, chunk_duration, overlap, ffmpeg_threads=ffmpeg_threads)
             logger.info(f"Created {len(chunk_paths)} chunks for processing.")
             
             all_segments = []

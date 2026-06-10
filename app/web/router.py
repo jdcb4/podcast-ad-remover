@@ -458,6 +458,9 @@ async def update_system_settings(
     concurrent_downloads: int = Form(2),
     retention_days: int = Form(30),
     check_interval_minutes: int = Form(60),
+    whisper_cpu_threads: int = Form(0),
+    ffmpeg_threads: int = Form(0),
+    unload_whisper_after_job: bool = Form(False),
     app_external_url: str = Form(None),
     auth_enabled: bool = Form(False),
     ip_allowlist: str = Form(None),
@@ -516,10 +519,16 @@ async def update_system_settings(
         url_changed = old_url and old_url['app_external_url'] != app_external_url
         
         # Update settings
+        whisper_cpu_threads = max(0, min(64, whisper_cpu_threads or 0))
+        ffmpeg_threads = max(0, min(64, ffmpeg_threads or 0))
+
         conn.execute("""
             UPDATE app_settings SET concurrent_downloads = ?,
                 retention_days = ?,
                 check_interval_minutes = ?,
+                whisper_cpu_threads = ?,
+                ffmpeg_threads = ?,
+                unload_whisper_after_job = ?,
                 app_external_url = ?,
                 auth_enabled = ?,
                 ip_allowlist = ?,
@@ -530,7 +539,9 @@ async def update_system_settings(
                 whitelist_mode = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
-        """, (concurrent_downloads, retention_days, check_interval_minutes, app_external_url,
+        """, (concurrent_downloads, retention_days, check_interval_minutes,
+              whisper_cpu_threads, ffmpeg_threads, 1 if unload_whisper_after_job else 0,
+              app_external_url,
               1 if auth_enabled else 0, ip_allowlist,
               1 if enable_feed_auth else 0, 
               feed_auth_username if feed_auth_username else None, 

@@ -30,3 +30,13 @@ The application requires at least one API key to function (Gemini, OpenAI, Anthr
 | `MAX_DOWNLOAD_BYTES` | Maximum episode download size in bytes. | `1572864000` |
 | `MIN_FREE_SPACE_BYTES` | Minimum free disk space to preserve before/during downloads. | `1073741824` |
 | `ALLOW_PRIVATE_FEEDS` | Allow feeds/enclosures resolving to private or loopback IP ranges. Keep `true` for LAN/self-hosted feeds; set `false` for hardened public deployments. | `true` |
+
+## Runtime Settings Stored In The Database
+
+These are configured from the Admin UI rather than environment variables:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `whisper_cpu_threads` | Faster-Whisper CPU thread cap. `0` uses the library default. | `0` |
+| `ffmpeg_threads` | FFmpeg thread cap. `0` lets FFmpeg choose automatically. | `0` |
+| `unload_whisper_after_job` | Unload the local Whisper model after the queue empties to reduce idle RAM. | `0` |

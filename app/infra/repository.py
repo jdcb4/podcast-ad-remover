@@ -472,6 +472,19 @@ class JobRepository:
             row = conn.execute("SELECT COUNT(*) AS count FROM jobs WHERE status = 'running'").fetchone()
             return row["count"] if row else 0
 
+    def count_claimable(self) -> int:
+        with get_db_connection() as conn:
+            row = conn.execute("""
+                SELECT COUNT(*) AS count
+                FROM jobs j
+                JOIN episodes e ON e.id = j.episode_id
+                WHERE j.type = 'process_episode'
+                  AND j.status IN ('queued', 'retry_scheduled', 'rate_limited')
+                  AND (j.next_run_at IS NULL OR j.next_run_at <= CURRENT_TIMESTAMP)
+                  AND e.status IN ('pending', 'failed', 'rate_limited')
+            """).fetchone()
+            return row["count"] if row else 0
+
     def claim_due(self, limit: int, worker_id: str | None = None) -> List[dict]:
         if limit <= 0:
             return []

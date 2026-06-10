@@ -7,6 +7,19 @@ logger = logging.getLogger(__name__)
 
 class AudioProcessor:
     @staticmethod
+    def _bounded_int(value, default: int = 0, minimum: int = 0, maximum: int = 64) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            return default
+        return max(minimum, min(maximum, parsed))
+
+    @staticmethod
+    def _thread_args(ffmpeg_threads: int = 0) -> List[str]:
+        threads = AudioProcessor._bounded_int(ffmpeg_threads, 0, 0, 64)
+        return ["-threads", str(threads)] if threads > 0 else []
+
+    @staticmethod
     def get_duration(file_path: str) -> float:
         """Get duration in seconds using ffprobe."""
         cmd = [
@@ -24,15 +37,26 @@ class AudioProcessor:
             return 0.0
 
     @staticmethod
-    def remove_segments(input_path: str, output_path: str, remove_segments: List[Dict[str, float]]):
+    def remove_segments(
+        input_path: str,
+        output_path: str,
+        remove_segments: List[Dict[str, float]],
+        ffmpeg_threads: int = 0,
+    ):
         """
         Remove specified segments from audio.
         Logic: Calculate 'keep' segments and concatenate them.
         """
         if not remove_segments:
-            # Just copy if no ads
             logger.info("No ads to remove, copying file.")
-            subprocess.run(["ffmpeg", "-y", "-i", input_path, "-c", "copy", output_path], check=True)
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", input_path,
+                *AudioProcessor._thread_args(ffmpeg_threads),
+                "-c", "copy",
+                output_path,
+            ]
+            subprocess.run(cmd, check=True)
             return
 
         total_duration = AudioProcessor.get_duration(input_path)
@@ -84,6 +108,7 @@ class AudioProcessor:
             "-i", input_path,
             "-filter_complex", full_filter,
             "-map", "[out]",
+            *AudioProcessor._thread_args(ffmpeg_threads),
             "-c:a", "libmp3lame",
             "-q:a", "2",
             output_path
@@ -99,7 +124,12 @@ class AudioProcessor:
             raise Exception(f"FFmpeg failed: {e.stderr}") from e
 
     @staticmethod
-    def prepend_audio(main_audio_path: str, intro_audio_path: str, output_path: str):
+    def prepend_audio(
+        main_audio_path: str,
+        intro_audio_path: str,
+        output_path: str,
+        ffmpeg_threads: int = 0,
+    ):
         """Prepend intro audio to main audio."""
         logger.info(f"Prepending {intro_audio_path} to {main_audio_path}...")
         
@@ -113,6 +143,7 @@ class AudioProcessor:
             "-i", main_audio_path,
             "-filter_complex", "[0:a]aformat=sample_rates=44100:channel_layouts=stereo[a0];[1:a]aformat=sample_rates=44100:channel_layouts=stereo[a1];[a0][a1]concat=n=2:v=0:a=1[out]",
             "-map", "[out]",
+            *AudioProcessor._thread_args(ffmpeg_threads),
             output_path
         ]
         
@@ -125,7 +156,11 @@ class AudioProcessor:
             raise
             
     @staticmethod
-    def concat_files(output_path: str, input_paths: List[str]):
+    def concat_files(
+        output_path: str,
+        input_paths: List[str],
+        ffmpeg_threads: int = 0,
+    ):
         """Concatenate multiple audio files."""
         if not input_paths:
             return
@@ -151,6 +186,7 @@ class AudioProcessor:
         cmd.extend([
             "-filter_complex", full_filter,
             "-map", "[out]",
+            *AudioProcessor._thread_args(ffmpeg_threads),
             output_path
         ])
         
@@ -162,7 +198,7 @@ class AudioProcessor:
             logger.error(f"FFmpeg stderr: {e.stderr}")
             raise Exception(f"FFmpeg concatenation failed: {e.stderr}") from e
     @staticmethod
-    def prepare_for_transcription(input_path: str, output_path: str):
+    def prepare_for_transcription(input_path: str, output_path: str, ffmpeg_threads: int = 0):
         """
         Extract a clean, normalized audio stream for transcription.
         Uses 16kHz mono as preferred by Whisper. Removes all other streams (video, cover art).
@@ -180,6 +216,7 @@ class AudioProcessor:
             "-ar", "16000",
             "-ac", "1",
             "-vn",
+            *AudioProcessor._thread_args(ffmpeg_threads),
             output_path
         ]
         
@@ -190,7 +227,7 @@ class AudioProcessor:
             logger.error(f"Failed to prepare audio for transcription: {e.stderr}")
             raise Exception(f"Audio preparation failed: {e.stderr}") from e
     @staticmethod
-    def create_audio_chunks(input_path: str, chunk_duration: float, overlap: float) -> List[str]:
+    def create_audio_chunks(input_path: str, chunk_duration: float, overlap: float, ffmpeg_threads: int = 0) -> List[str]:
         """
         Split audio into overlapping chunks.
         Returns list of paths to chunk files.
@@ -211,6 +248,7 @@ class AudioProcessor:
                 "-ss", str(start),
                 "-t", str(chunk_duration),
                 "-i", input_path,
+                *AudioProcessor._thread_args(ffmpeg_threads),
                 "-c", "copy",
                 output_chunk
             ]

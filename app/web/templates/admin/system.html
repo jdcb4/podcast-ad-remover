@@ -133,6 +133,37 @@
                 </div>
             </div>
         </div>
+
+        <div class="mt-6">
+            <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Resource Use</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Whisper CPU Threads</label>
+                    <input type="number" name="whisper_cpu_threads" value="{{ settings.whisper_cpu_threads or 0 }}"
+                        min="0" max="64" class="input">
+                    <p class="text-xs text-text-muted mt-1">0 lets Faster-Whisper use its default CPU threading.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">FFmpeg Threads</label>
+                    <input type="number" name="ffmpeg_threads" value="{{ settings.ffmpeg_threads or 0 }}"
+                        min="0" max="64" class="input">
+                    <p class="text-xs text-text-muted mt-1">0 lets FFmpeg choose automatically.</p>
+                </div>
+
+                <div class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" name="unload_whisper_after_job" id="unload_whisper_after_job"
+                            class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                            {% if settings.unload_whisper_after_job %}checked{% endif %}>
+                        <div>
+                            <label for="unload_whisper_after_job" class="text-sm font-medium text-text-secondary cursor-pointer">Unload Whisper After Jobs</label>
+                            <p class="text-xs text-text-muted mt-1">Reduces idle RAM after the queue empties. The next transcription reloads the local model first.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Network -->
