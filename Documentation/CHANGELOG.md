@@ -12,6 +12,8 @@
 - Added initial pytest coverage for migrations, job claiming, feed tokens, and URL guardrails.
 - Added a setup checklist to System Settings with admin-account creation, base URL, subscribe page, and unified feed checks.
 - Added migration backup tests for fresh and existing database initialization.
+- Reduced the production Docker image by removing unused PyTorch packages and excluding local development artifacts.
+- Added a resource audit with runtime measurement commands and follow-up recommendations.
 - Escaped markdown summary rendering before applying the supported formatting subset.
 - Made feed authentication fail closed when enabled without credentials.
 - Applied the IP allowlist before public feed/audio/subscribe route bypasses.

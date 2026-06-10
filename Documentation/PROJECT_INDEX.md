@@ -46,5 +46,6 @@ docker compose up -d --build
 - `Documentation/CHANGELOG.md`: release notes.
 - `Documentation/DECISIONS.md`: lightweight decision log.
 - `Documentation/ROADMAP.md`: improvement candidates and future direction.
+- `Documentation/RESOURCE_AUDIT.md`: image size, runtime resource findings, and live-container measurement commands.
 - `Documentation/NAMING.md`: naming conventions for code, statuses, docs, and Docker artifacts.
 - `AGENTS.md`: maintenance rules for coding agents.

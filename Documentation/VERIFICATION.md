@@ -11,6 +11,11 @@ npm ci
 ```
 
 Python dependencies are normally installed through Docker. For local Python work, install `requirements.txt` in your chosen virtual environment.
+For local verification and tests, install the development requirements:
+
+```bash
+pip install -r requirements-dev.txt
+```
 
 ## Standard Check
 

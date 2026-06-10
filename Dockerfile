@@ -1,15 +1,15 @@
 FROM python:3.11-slim
 
-# Install system dependencies (FFmpeg is required)
-RUN apt-get update && apt-get install -y ffmpeg \
-    git \
-    wget \
+# Keep Python quiet and avoid writing .pyc files into the container layer.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install runtime system dependencies. FFmpeg is required for audio processing.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-# Install CPU-only PyTorch (Save ~3GB)
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Install Python dependencies
 COPY requirements.txt .

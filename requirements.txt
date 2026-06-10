@@ -14,4 +14,3 @@ aiofiles>=23.2.0
 piper-tts==1.2.0
 bcrypt
 itsdangerous
-pytest>=8.0.0
