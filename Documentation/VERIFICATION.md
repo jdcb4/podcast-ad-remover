@@ -60,6 +60,22 @@ The pushed tags are:
 - `jdcb4/podcast-ad-remover:<version>`
 - `jdcb4/podcast-ad-remover:latest`
 
+## Experimental Docker Tags
+
+For audit or trial builds that must not update `latest` or a version tag:
+
+```bash
+npm run docker:experimental -- --push
+```
+
+By default this publishes:
+
+- `jdcb4/podcast-ad-remover:experimental`
+- `jdcb4/podcast-ad-remover:audit-work`
+- `jdcb4/podcast-ad-remover:audit-work-<git-sha>`
+
+The helper refuses `latest` and SemVer-looking tags.
+
 ## Current Gaps
 
 - Python test coverage is intentionally small and should be expanded before broad processor refactors.

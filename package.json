@@ -10,7 +10,8 @@
     "verify": "python scripts/verify.py",
     "verify:docker": "python scripts/verify.py --docker",
     "docker:build": "python scripts/publish_docker.py",
-    "docker:publish": "python scripts/publish_docker.py --push"
+    "docker:publish": "python scripts/publish_docker.py --push",
+    "docker:experimental": "python scripts/publish_experimental_docker.py"
   },
   "repository": {
     "type": "git",

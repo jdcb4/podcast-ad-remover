@@ -18,6 +18,7 @@
 - Fixed fresh Docker installs so the public app URL is not auto-set to the container's internal IP address.
 - Updated default OpenRouter models to cheaper Gemini flash/lite options.
 - Hardened ad-detection response parsing so malformed model rows are skipped instead of crashing processing.
+- Added a non-release Docker helper for publishing experimental tags without touching `latest`.
 - Escaped markdown summary rendering before applying the supported formatting subset.
 - Made feed authentication fail closed when enabled without credentials.
 - Applied the IP allowlist before public feed/audio/subscribe route bypasses.
