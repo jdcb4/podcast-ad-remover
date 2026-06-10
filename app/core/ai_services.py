@@ -1,5 +1,3 @@
-import faster_whisper
-from google import genai
 import json
 import logging
 import asyncio
@@ -109,6 +107,7 @@ class Transcriber:
                 model_kwargs["cpu_threads"] = cpu_threads
 
             # Use float32 for stability
+            import faster_whisper
             self.model = faster_whisper.WhisperModel(idx, **model_kwargs)
             self.model_config = desired_config
             
@@ -305,6 +304,8 @@ class GeminiProvider(LLMProvider):
         self._init_client()
 
     def _init_client(self):
+        from google import genai
+
         key = self.api_keys[self.current_key_idx]
         # masking key in logs for security
         masked = key[:4] + "..." + key[-4:] if len(key) > 8 else "***"
@@ -474,6 +475,11 @@ class AdDetector:
         'gemini-2.0-flash',
         'gemini-2.0-flash-lite'
     ]
+    DEFAULT_OPENROUTER_MODELS = [
+        'google/gemini-3.1-flash-lite',
+        'google/gemini-3-flash-preview',
+        'google/gemini-2.5-flash-lite',
+    ]
 
     def __init__(self):
         self.settings = self._load_settings()
@@ -554,7 +560,7 @@ class AdDetector:
             elif provider_type == 'anthropic':
                 models_list = self._parse_model_setting(self.settings.get('anthropic_model'), ['claude-3-5-sonnet-20241022'])
             elif provider_type == 'openrouter':
-                models_list = self._parse_model_setting(self.settings.get('openrouter_model'), ['google/gemini-2.0-flash-001'])
+                models_list = self._parse_model_setting(self.settings.get('openrouter_model'), self.DEFAULT_OPENROUTER_MODELS)
             else: # Gemini
                 models_list = self._parse_model_setting(self.settings.get('ai_model_cascade'), self.DEFAULT_GEMINI_MODELS)
                 
@@ -757,18 +763,53 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
         text = text.strip()
             
         try:
-            return json.loads(text)
+            return self._normalize_ad_segments(json.loads(text))
         except json.JSONDecodeError:
             # Try to find JSON array pattern
             import re
             match = re.search(r'\[.*\]', text, re.DOTALL)
             if match:
                 try:
-                    return json.loads(match.group(0))
+                    return self._normalize_ad_segments(json.loads(match.group(0)))
                 except: pass
             
             logger.error(f"Failed to parse JSON response: {text[:200]}...")
             return []
+
+    def _normalize_ad_segments(self, payload) -> List[Dict[str, float]]:
+        if isinstance(payload, dict) and isinstance(payload.get("segments"), list):
+            payload = payload["segments"]
+
+        if not isinstance(payload, list):
+            logger.warning("Ad detector response was not a JSON array.")
+            return []
+
+        normalized = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+
+            try:
+                start = float(item["start"])
+                end = float(item["end"])
+            except (KeyError, TypeError, ValueError):
+                logger.warning(f"Skipping ad segment with invalid timestamps: {item}")
+                continue
+
+            if start < 0:
+                start = 0.0
+            if end <= start:
+                logger.warning(f"Skipping ad segment with non-positive duration: {item}")
+                continue
+
+            normalized.append({
+                "start": start,
+                "end": end,
+                "label": str(item.get("label") or "Ad"),
+                "reason": str(item.get("reason") or ""),
+            })
+
+        return normalized
 
     # Static method to list Gemini models
     @staticmethod
@@ -805,11 +846,15 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
             api_key = api_key.split(',')[0].strip()
             
         try:
-            genai.configure(api_key=api_key)
+            from google import genai
+
+            client = genai.Client(api_key=api_key)
             models = []
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    models.append(m.name.replace('models/', ''))
+            for m in client.models.list():
+                name = m.name
+                if name.startswith('models/'):
+                    name = name.replace('models/', '')
+                models.append(name)
             return models
         except Exception as e:
             logger.error(f"Failed to list Gemini models: {e}")

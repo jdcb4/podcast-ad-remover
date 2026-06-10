@@ -183,7 +183,7 @@ def init_db():
         openrouter_api_key TEXT,
         openai_model TEXT DEFAULT 'gpt-4o',
         anthropic_model TEXT DEFAULT 'claude-3-5-sonnet',
-        openrouter_model TEXT DEFAULT 'google/gemini-2.0-flash-001',
+        openrouter_model TEXT DEFAULT '["google/gemini-3.1-flash-lite", "google/gemini-3-flash-preview", "google/gemini-2.5-flash-lite"]',
         app_external_url TEXT,
         
         enable_feed_auth INTEGER DEFAULT 0,
@@ -319,7 +319,7 @@ Transcript Context: {transcript_context}""",))
         "ALTER TABLE app_settings ADD COLUMN openrouter_api_key TEXT",
         "ALTER TABLE app_settings ADD COLUMN openai_model TEXT DEFAULT 'gpt-4o'",
         "ALTER TABLE app_settings ADD COLUMN anthropic_model TEXT DEFAULT 'claude-3-5-sonnet'",
-        "ALTER TABLE app_settings ADD COLUMN openrouter_model TEXT DEFAULT 'google/gemini-2.0-flash-001'",
+        "ALTER TABLE app_settings ADD COLUMN openrouter_model TEXT DEFAULT '[\"google/gemini-3.1-flash-lite\", \"google/gemini-3-flash-preview\", \"google/gemini-2.5-flash-lite\"]'",
         "ALTER TABLE episodes ADD COLUMN processing_flags TEXT",
         "ALTER TABLE app_settings ADD COLUMN gemini_api_key TEXT",
         "ALTER TABLE app_settings ADD COLUMN app_external_url TEXT",
@@ -366,6 +366,17 @@ Transcript Context: {transcript_context}""",))
             cursor.execute(sql)
         except sqlite3.OperationalError:
             pass # Column likely exists
+
+    cursor.execute("""
+        UPDATE app_settings
+        SET openrouter_model = ?
+        WHERE id = 1
+          AND (
+              openrouter_model IS NULL
+              OR openrouter_model = ''
+              OR openrouter_model = 'google/gemini-2.0-flash-001'
+          )
+    """, ('["google/gemini-3.1-flash-lite", "google/gemini-3-flash-preview", "google/gemini-2.5-flash-lite"]',))
 
     _apply_formal_migrations(conn, create_backup=db_existed)
 

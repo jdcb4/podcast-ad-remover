@@ -65,9 +65,11 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("Database file not found!")
     
-    # Auto-populate Public Application URL with detected IP if not set
+    # Auto-populate Public Application URL only when the detected value is useful
+    # outside the process. Docker containers otherwise store an internal 172.x URL.
     try:
         from app.infra.database import get_db_connection
+        from app.core.utils import DEFAULT_BASE_URL, is_running_in_container
         import socket
         
         with get_db_connection() as conn:
@@ -75,20 +77,27 @@ async def lifespan(app: FastAPI):
             current_url = row['app_external_url'] if row else None
             
             if not current_url:
-                # Detect IP
-                try:
-                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    s.connect(("8.8.8.8", 80))
-                    lan_ip = s.getsockname()[0]
-                    s.close()
-                    
-                    if lan_ip:
-                        final_url = f"http://{lan_ip}:{settings.PORT}"
-                        logger.info(f"Auto-configuring Public Application URL to: {final_url}")
-                        conn.execute("UPDATE app_settings SET app_external_url = ? WHERE id = 1", (final_url,))
-                        conn.commit()
-                except Exception as e:
-                    logger.warning(f"Could not auto-detect LAN IP: {e}")
+                if settings.BASE_URL and settings.BASE_URL != DEFAULT_BASE_URL:
+                    final_url = settings.BASE_URL.rstrip("/")
+                    logger.info(f"Configuring Public Application URL from BASE_URL: {final_url}")
+                    conn.execute("UPDATE app_settings SET app_external_url = ? WHERE id = 1", (final_url,))
+                    conn.commit()
+                elif is_running_in_container():
+                    logger.info("Public Application URL is not set; configure it in System Settings or set BASE_URL.")
+                else:
+                    try:
+                        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                        s.connect(("8.8.8.8", 80))
+                        lan_ip = s.getsockname()[0]
+                        s.close()
+
+                        if lan_ip:
+                            final_url = f"http://{lan_ip}:{settings.PORT}"
+                            logger.info(f"Auto-configuring Public Application URL to: {final_url}")
+                            conn.execute("UPDATE app_settings SET app_external_url = ? WHERE id = 1", (final_url,))
+                            conn.commit()
+                    except Exception as e:
+                        logger.warning(f"Could not auto-detect LAN IP: {e}")
     except Exception as e:
         logger.error(f"Error checking/updating app settings on startup: {e}")
     

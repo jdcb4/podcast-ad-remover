@@ -614,7 +614,7 @@ async def update_ai_settings(
     gemini_api_keys: str = Form(None),
     openai_model: str = Form("gpt-4o"),
     anthropic_model: str = Form("claude-3-5-sonnet"),
-    openrouter_model: str = Form("google/gemini-2.0-flash-001")
+    openrouter_model: str = Form('["google/gemini-3.1-flash-lite", "google/gemini-3-flash-preview", "google/gemini-2.5-flash-lite"]')
 ):
     from app.infra.database import get_db_connection
     import json

@@ -31,6 +31,8 @@ The application requires at least one API key to function (Gemini, OpenAI, Anthr
 | `MIN_FREE_SPACE_BYTES` | Minimum free disk space to preserve before/during downloads. | `1073741824` |
 | `ALLOW_PRIVATE_FEEDS` | Allow feeds/enclosures resolving to private or loopback IP ranges. Keep `true` for LAN/self-hosted feeds; set `false` for hardened public deployments. | `true` |
 
+In Docker, set `BASE_URL` or the System Settings public application URL to a host/LAN URL that podcast clients can reach. Fresh Docker installs no longer auto-save the container's internal IP address.
+
 ## Runtime Settings Stored In The Database
 
 These are configured from the Admin UI rather than environment variables:

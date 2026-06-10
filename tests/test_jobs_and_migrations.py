@@ -52,13 +52,15 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
 
     with get_db_connection() as conn:
         row = conn.execute("""
-            SELECT whisper_cpu_threads, ffmpeg_threads, unload_whisper_after_job
+            SELECT whisper_cpu_threads, ffmpeg_threads, unload_whisper_after_job, openrouter_model
             FROM app_settings WHERE id = 1
         """).fetchone()
 
     assert row["whisper_cpu_threads"] == 0
     assert row["ffmpeg_threads"] == 0
     assert row["unload_whisper_after_job"] == 0
+    assert "google/gemini-3.1-flash-lite" in row["openrouter_model"]
+    assert "google/gemini-3-flash-preview" in row["openrouter_model"]
 
 
 def test_pending_episode_creates_and_claims_job(isolated_data_dir):
