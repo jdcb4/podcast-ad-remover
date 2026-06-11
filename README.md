@@ -1,79 +1,92 @@
-# Podcast Ad Remover (AGPAR) v1.3.1
-This is an app that downloads podcasts, uses AI to remove ads, and then creates a new feed that you can consume them from. 
-I mainly vibe-coded for my own personal use and it seems to be working pretty well so I thought I would share it. I've been using it fora bout a month and had a couple of friends also using it and we're pretty hapopy with how it's going. For the most part it just works. I'm sure there are heaps of things that aren't up to a professional standard, but for running on my own homelab it has worked great. 
+# Podcast Ad Remover
 
-The Audio transcription happens locally using Whisper which can be fairly processing ehavy, but I run it on the CPU on a little N100 machine and it stil manages to work at something like 3x real speed. I do reccomend pinning it to some subset of your CPU cores because othwerwise you may well freeze the PC.
+Podcast Ad Remover is a self-hosted app for downloading podcast episodes, removing ad and promo segments, and publishing replacement RSS feeds that can be subscribed to from a normal podcast client.
 
-The ad detection uses LLMs. I use Gemini because the free tier is very generous and enough to very easuily manage the API calls this app makes. I only built in support for other models out of curiosity and I haven't tested them rigorously at all.
+It is built for homelab-style deployment: one Docker container, SQLite state under `/data`, local transcription with Whisper/faster-whisper, FFmpeg audio editing, and LLM-backed ad detection through Gemini, OpenAI, Anthropic, or OpenRouter.
 
-Screenshot: Landing page
+## Current UI
 
-<img width="794" height="602" alt="podcast-ad-remover-landing-page" src="https://github.com/user-attachments/assets/32c76c19-600b-4bc7-8bba-1a3983a82085" />
+### Dashboard
 
-Screenshot: Ad Report
+The dashboard shows subscriptions, processing state, unified feed links, saved storage, and per-podcast feed links.
 
-<img width="795" height="758" alt="podcast-ad-remover-ad-report" src="https://github.com/user-attachments/assets/82620fc0-d756-4c01-99f2-cbbb8e47a7c7" />
+![Dashboard](Documentation/screenshots/dashboard.png)
 
-![Podcast Ad Remover UI](app/web/static/img/favicon.png)
+### Episode Management
+
+Episode pages expose reprocessing, manual downloads, ignore/delete actions, AI summaries, descriptions, playback, and podcast-client subscription links.
+
+![Episode management](Documentation/screenshots/episodes.png)
+
+### Public Subscribe Page
+
+The optional `/subscribe` page is read-only and designed for people who only need to subscribe to existing feeds. It does not allow adding, editing, reprocessing, or deleting podcasts.
+
+![Public subscribe page](Documentation/screenshots/public-subscribe.png)
+
+### Operations Dashboard
+
+The admin queue shows active jobs, queued/retry states, disk usage, next feed checks, and recently processed items.
+
+![Operations dashboard](Documentation/screenshots/admin-queue.png)
 
 ## Features
 
--   **Automatic Ad Detection**: Uses state-of-the-art LLMs (Google Gemini, OpenAI GPT-4, Anthropic Claude, or OpenRouter) to intelligently identify ads, sponsor reads, and promotional segments.
--   **Audio Processing**: Uses **Whisper** for accurate transcription and **FFmpeg** for precise audio cutting.
--   **Seamless Playback**: Generates custom RSS feeds for every subscription. Add them to your favorite podcast player (Apple Podcasts, Pocket Casts, etc.) to listen ad-free.
--   **Smart Enhancements**: 
-    -   **Intro/Outro Removal**: Option to trim standard podcast intros/outros.
-    -   **Whitelist Mode**: Toggle to keep only speech content, stripping intro music, jingles, and non-speech audio.
-    -   **AI Summaries**: Generate and append spoken AI summaries to the start of episodes.
-    -   **Custom "Title Intros"**: Adds a "You're listening to..." intro for context.
--   **Robust Management**:
-    -   Processing queue with pause/resume/cancel/retry capabilities.
-    -   Manual "Reprocess" option to try different settings.
-    -   Full admin dashboard for managing subscriptions and viewing logs.
+- Podcast search and RSS subscription management.
+- Automatic episode download and retention controls.
+- Local transcription with Whisper/faster-whisper.
+- LLM-based ad, promo, intro, and outro detection.
+- FFmpeg-based audio cutting and rewritten RSS feed generation.
+- Per-podcast feeds plus a unified feed.
+- Optional AI episode summaries and spoken title intros.
+- Durable SQLite-backed processing jobs with retry and rate-limit states.
+- Admin queue/operations dashboard.
+- Optional management login.
+- Optional feed/audio authentication with generated feed tokens.
+- Optional public read-only subscribe page for frictionless podcast-client setup.
+- Resource controls for Whisper CPU threads, FFmpeg threads, and unloading Whisper after jobs.
 
 ## Quick Start
 
-### Docker Run (Fastest)
+### Docker Run
 
-Run the application directly from Docker Hub without cloning the repository:
+Run the published image and mount `/data` somewhere persistent:
 
 ```bash
 docker run -d \
   --name podcast-ad-remover \
   -p 8000:8000 \
   -v ./data:/data \
-  -e GEMINI_API_KEY=your_api_key \
+  -e SESSION_SECRET_KEY="$(openssl rand -hex 32)" \
+  -e BASE_URL="http://localhost:8000" \
+  -e GEMINI_API_KEY="your_api_key" \
   jdcb4/podcast-ad-remover:latest
 ```
 
-### Docker Compose (Build from Source)
+Open `http://localhost:8000`, then go to **Admin > AI Configuration** to confirm your provider and model settings.
 
-1.  Clone the repository.
-2.  Create a `.env` file (see `env.example`):
-    ```bash
-    cp env.example .env
-    ```
-3.  Run with Docker Compose:
-    ```bash
-    docker-compose up -d --build
-    ```
-4.  Access the web interface at `http://localhost:8000`.
-5.  Navigate to **Settings > AI Models** to configure your API key.
+Keep `SESSION_SECRET_KEY` stable once set. Changing it can invalidate browser sessions and signed feed tokens.
 
-### Getting a Free Gemini API Key
+### Docker Compose
 
-This application recommends using Google Gemini (Flash model) as it is currently free and very fast.
+For local development from source:
 
-1.  Go to [Google AI Studio](https://aistudio.google.com/app/apikey).
-2.  Sign in with your Google account.
-3.  Click **Create API key**.
-4.  Search for "Google Cloud Platform" project or create a new one if prompted.
-5.  Copy the generated key (starts with `AIza...`).
-6.  Paste this key into the application settings.
+```bash
+cp env.example .env
+docker compose up -d --build
+```
 
-### Default Gemini Fallback
+For a production-style compose file using the published image, see `docker-compose.prod.yml` and [Documentation/Deployment.md](Documentation/Deployment.md).
 
-The default Gemini model cascade is ordered for the current free-tier Flash/Lite models:
+### Unraid
+
+A dedicated Unraid template is included as `podcast-ad-remover.xml`. See [Documentation/Unraid_Deployment.md](Documentation/Unraid_Deployment.md).
+
+## AI Providers
+
+Gemini is the recommended default for most personal installs because the free tier is usually enough for this app's transcript-analysis workload. Gemini direct access uses Google's OpenAI-compatible endpoint through the OpenAI Python SDK.
+
+The default Gemini cascade is:
 
 1. `gemini-3.5-flash`
 2. `gemini-3-flash`
@@ -81,7 +94,9 @@ The default Gemini model cascade is ordered for the current free-tier Flash/Lite
 4. `gemini-2.5-flash`
 5. `gemini-2.5-flash-lite`
 
-The app tries each model in order and falls back when a model is unavailable, fails, or hits a rate limit. The current free-tier limits used for this default are:
+The app tries each configured model in order and falls back when a model is unavailable, fails, or hits a rate limit. OpenRouter uses the same order with `google/` model IDs.
+
+Current Gemini free-tier limits recorded for these defaults:
 
 | Model | Category | RPM | TPM | RPD |
 |-------|----------|-----|-----|-----|
@@ -91,23 +106,77 @@ The app tries each model in order and falls back when a model is unavailable, fa
 | Gemini 3.1 Flash Lite | Text-out models | 15 | 250K | 500 |
 | Gemini 3.5 Flash | Text-out models | 5 | 250K | 20 |
 
-If the first model is not available on your account or quota tier, the cascade should move on to the next configured model automatically.
+You can set keys in the Admin UI or with environment variables:
 
-### Unraid
+- `GEMINI_API_KEY`
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `OPENROUTER_API_KEY`
 
-A dedicated Unraid template is included (`podcast-ad-remover.xml`). Add the template to your Docker templates URL or copy it to your flash drive. See [Documentation/Unraid_Deployment.md](Documentation/Unraid_Deployment.md) for details.
+## Authentication And Feed Access
+
+The app supports separate choices for management access and podcast feed access:
+
+- Management pages can require login.
+- The public `/subscribe` page can remain available without login.
+- Feeds and audio can remain unauthenticated for the smoothest podcast-client setup.
+- Feed/audio authentication can be enabled when you want clients to use credentials or generated feed-token URLs.
+
+Protected feed URLs containing `token=` are bearer secrets. Anyone with the full URL can read that feed and download audio until the token is revoked.
+
+## Persistent Data
+
+Mount `/data` in Docker. It contains:
+
+- `/data/db/podcasts.db`
+- `/data/podcasts/`
+- `/data/feeds/`
+- `/data/models/`
+- `/data/backups/`
+- logs
+
+Database migrations are designed to preserve existing installs. Formal migrations create backups under `/data/backups/` before applying schema changes.
+
+## Verification
+
+Before completing code changes:
+
+```bash
+npm run verify
+```
+
+For Docker/release work:
+
+```bash
+npm run verify:docker
+```
+
+Experimental branch images can be published without touching `latest`:
+
+```bash
+npm run docker:experimental -- --push --tag experimental
+```
+
+Release publishing is explicit and tags both the version and `latest`:
+
+```bash
+npm run docker:publish
+```
 
 ## Documentation
 
--   [Architecture](Documentation/Architecture.md)
--   [Data Flow](Documentation/Data_Flow.md)
--   [Deployment](Documentation/Deployment.md)
--   [Environment Variables](Documentation/Environment_Variables.md)
--   [Project Index](Documentation/PROJECT_INDEX.md)
--   [Versioning](Documentation/VERSIONING.md)
--   [Verification](Documentation/VERIFICATION.md)
--   [Changelog](Documentation/CHANGELOG.md)
--   [Roadmap](Documentation/ROADMAP.md)
+- [Project Index](Documentation/PROJECT_INDEX.md)
+- [Architecture](Documentation/Architecture.md)
+- [Deployment](Documentation/Deployment.md)
+- [Environment Variables](Documentation/Environment_Variables.md)
+- [Verification](Documentation/VERIFICATION.md)
+- [Versioning](Documentation/VERSIONING.md)
+- [Changelog](Documentation/CHANGELOG.md)
+- [Decisions](Documentation/DECISIONS.md)
+- [Resource Audit](Documentation/RESOURCE_AUDIT.md)
+- [Roadmap](Documentation/ROADMAP.md)
+- [Naming](Documentation/NAMING.md)
+- [Security](SECURITY.md)
 
 ## License
 

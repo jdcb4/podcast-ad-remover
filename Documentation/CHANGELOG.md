@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Refreshed the README to match the current app state and added current UI screenshots.
 - Updated agent-maintenance guidance to list relevant root and `Documentation/` guidance files, require documentation updates alongside changes, and prefer commits after significant verified changes.
 - Updated the default Gemini and OpenRouter Gemini fallback cascades to the current Flash/Lite order.
 - Documented current Gemini free-tier RPM, TPM, and RPD limits in the README and environment documentation.
