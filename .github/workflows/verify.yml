@@ -3,7 +3,7 @@ name: Verify
 on:
   push:
     branches:
-      - main
+      - master
       - audit-work
   pull_request:
 
@@ -11,7 +11,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      DATA_DIR: ${{ runner.temp }}/podcast-ad-remover-data
+      DATA_DIR: /tmp/podcast-ad-remover-data
       SESSION_SECRET_KEY: ci-session-secret-for-verification-only
 
     steps:

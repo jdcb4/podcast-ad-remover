@@ -47,6 +47,10 @@ docker compose -f docker-compose.prod.yml up -d
 
 The repository `docker-compose.yml` is intended for local source builds and development. It bind-mounts the source tree into `/app`; do not use that file for a stable install unless you intentionally want live source edits inside the container.
 
+## Unraid
+
+The Unraid user-template XML lives at `Documentation/unraid/podcast-ad-remover.xml`. It uses the published `jdcb4/podcast-ad-remover:latest` image, maps `/data` to `/mnt/user/appdata/podcast-ad-remover`, and exposes port `8000`.
+
 ## Data Volume
 
 Mount `/data` and back it up before upgrades.

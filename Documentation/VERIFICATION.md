@@ -70,7 +70,7 @@ The helper copies the source database into a temporary data directory, runs the 
 
 ## Pull Request Check
 
-GitHub Actions runs `npm run verify` on pull requests and pushes to `main` and `audit-work`. The workflow sets `DATA_DIR` to a temporary runner directory so tests do not depend on `/data` being writable.
+GitHub Actions runs `npm run verify` on pull requests and pushes to `master` and `audit-work`. The workflow sets `DATA_DIR` to a temporary Linux runner path so tests do not depend on `/data` being writable.
 
 ## Release Publish Check
 

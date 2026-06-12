@@ -87,6 +87,7 @@ This document tracks the current audit branch findings, what was implemented, an
 - Added `npm audit --audit-level=moderate` to the standard verification gate.
 - Changed `npm test` from the old placeholder to the standard verification gate.
 - Added GitHub Actions PR verification for the standard `npm run verify` gate.
+- Removed obsolete alternate-agent root files and legacy shell helpers, moved the Unraid template under `Documentation/unraid/`, and fixed the GitHub Actions workflow trigger/configuration.
 - Added experimental Docker tagging for branch testing without updating `latest`.
 - Refactored direct Gemini access through the OpenAI-compatible provider path.
 - Moved completed-episode RSS queries into `EpisodeRepository` and added regression coverage.
@@ -119,7 +120,7 @@ These remain useful, but are not required before trialing the audit branch.
 
 Latest local checks on this branch:
 
-- `npm run verify`: passing, 113 tests.
+- `npm run verify`: passing, 124 tests.
 - `npm run verify:docker`: passing, including a local Docker image build tagged `podcast-ad-remover:verify`.
 - `npm audit --audit-level=moderate`: included in `npm run verify`, 0 vulnerabilities.
 - `docker compose -f docker-compose.prod.yml config --quiet`: passing.

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Tidied root maintenance files by removing obsolete alternate-agent pointers and legacy shell helpers, moving the Unraid template under `Documentation/unraid/`, and fixing the GitHub Actions verification trigger.
 - Added optional Apprise-backed admin notifications for access requests, new podcasts, completed episodes, and breaking processing errors.
 - Split the overloaded admin access page into User Management, Access Requests, and Feed Access pages, and fixed admin user deletion from the UI.
 - Compact admin user/login timestamps and adjust user tables/cards to avoid default horizontal scrolling.
@@ -70,7 +71,7 @@
 - Fixed npm audit findings for frontend build dependencies.
 - Added `npm audit --audit-level=moderate` to the standard verification gate.
 - Changed `npm test` to run the standard verification gate.
-- Added GitHub Actions verification for pull requests and pushes to `main`/`audit-work`.
+- Added GitHub Actions verification for pull requests and pushes to `master`/`audit-work`.
 - Added explicit pytest-asyncio loop-scope configuration and refreshed Browserslist metadata used by the CSS build.
 - Removed redundant whole-file `app.log` cleanup; log size is handled by rotating log handlers.
 - Applied the same WAL and busy-timeout SQLite connection settings during startup migrations and runtime access.

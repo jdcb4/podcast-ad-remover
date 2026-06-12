@@ -83,7 +83,7 @@ For a production-style compose file using the published image, see `docker-compo
 
 ### Unraid
 
-A dedicated Unraid template is included as `podcast-ad-remover.xml`. See [Documentation/Unraid_Deployment.md](Documentation/Unraid_Deployment.md).
+A dedicated Unraid template is included at `Documentation/unraid/podcast-ad-remover.xml`. See [Documentation/Unraid_Deployment.md](Documentation/Unraid_Deployment.md).
 
 ## AI Providers
 

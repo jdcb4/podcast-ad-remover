@@ -28,8 +28,6 @@ Treat the following root-level guidance files as having the same working status 
 - `CONTRIBUTING.md`: contributor workflow and pull request expectations.
 - `SECURITY.md`: supported security posture and reporting guidance.
 - `AUDIT.md`: historical audit notes and priorities.
-- `GEMINI.md`: Gemini-specific project guidance, if present and still accurate.
-- `CLAUDE.md`: legacy/alternate-agent guidance; use as context when it does not conflict with `AGENTS.md`.
 
 Treat the following `Documentation/` files as active guidance when they apply:
 

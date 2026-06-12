@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build: .
@@ -11,5 +9,12 @@ services:
       - ./data:/data
       - .:/app
     environment:
+      - SESSION_SECRET_KEY=replace-with-a-long-random-secret
+      - BASE_URL=http://localhost:8000
       - GEMINI_API_KEY=
+      - OPENAI_API_KEY=
+      - ANTHROPIC_API_KEY=
+      - OPENROUTER_API_KEY=
       - LOG_LEVEL=INFO
+      - COOKIE_SECURE=false
+      - TRUST_PROXY_HEADERS=false
