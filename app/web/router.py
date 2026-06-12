@@ -327,23 +327,58 @@ async def request_access_page(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="request_access.html",
-        context={}
+        context={"csp_nonce": get_csp_nonce(request)}
     )
 
 @router.post("/submit-access-request")
 async def submit_access_request(
     request: Request,
     username: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
     email: str = Form(None),
     reason: str = Form(None)
 ):
     """Handle access request submission."""
     client_ip = get_client_ip(request)
+    username = username.strip()
+
+    def render_error(message: str):
+        return templates.TemplateResponse(
+            request=request,
+            name="request_access.html",
+            context={
+                "csp_nonce": get_csp_nonce(request),
+                "error": message,
+                "username": username,
+                "email": email,
+                "reason": reason,
+            },
+            status_code=400,
+        )
+
+    if len(username) < 3:
+        return render_error("Username must be at least 3 characters.")
+    if password != confirm_password:
+        return render_error("Passwords do not match.")
+    if len(password) < 8:
+        return render_error("Password must be at least 8 characters.")
     
     with get_db_connection() as conn:
+        existing_user = conn.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+        if existing_user:
+            return render_error("Username already exists.")
+
+        existing_request = conn.execute(
+            "SELECT id FROM access_requests WHERE username = ? AND status = 'pending'",
+            (username,),
+        ).fetchone()
+        if existing_request:
+            return render_error("There is already a pending request for that username.")
+
         conn.execute(
-            "INSERT INTO access_requests (username, email, reason, ip_address) VALUES (?, ?, ?, ?)",
-            (username, email, reason, client_ip)
+            "INSERT INTO access_requests (username, email, reason, password_hash, ip_address) VALUES (?, ?, ?, ?, ?)",
+            (username, email, reason, hash_password(password), client_ip)
         )
         conn.commit()
     
@@ -352,7 +387,7 @@ async def submit_access_request(
         name="request_access.html",
         context={
             "csp_nonce": get_csp_nonce(request),
-            "success": "Your access request has been submitted. You will be notified when it is reviewed."
+            "success": "Your access request has been submitted. You can use your chosen password after an administrator approves the request."
         }
     )
 
@@ -1081,7 +1116,6 @@ async def delete_user(user_id: int, request: Request, user: dict = Depends(requi
 @router.post("/admin/access-requests/{request_id}/approve")
 async def approve_access_request(request: Request, request_id: int, admin_user = Depends(require_admin)):
     from app.infra.database import get_db_connection
-    from app.web.auth_utils import hash_password, generate_secure_password
     
     with get_db_connection() as conn:
         # Get the access request
@@ -1091,6 +1125,12 @@ async def approve_access_request(request: Request, request_id: int, admin_user =
         
         if not access_req:
             return RedirectResponse(url="/admin/access?error=Request+not+found", status_code=303)
+
+        if not access_req["password_hash"]:
+            return RedirectResponse(
+                url="/admin/access?error=Request+was+submitted+before+password+capture.+Ask+the+user+to+submit+a+new+request.",
+                status_code=303,
+            )
         
         # Check if username already exists
         existing_user = conn.execute(
@@ -1106,14 +1146,10 @@ async def approve_access_request(request: Request, request_id: int, admin_user =
             conn.commit()
             return RedirectResponse(url="/admin/access?error=Username+already+exists", status_code=303)
         
-        # Generate random password for the new user
-        temp_password = generate_secure_password()
-        password_hash = hash_password(temp_password)
-        
         # Create the new user
         conn.execute(
             "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)",
-            (access_req['username'], password_hash)
+            (access_req['username'], access_req["password_hash"])
         )
         
         # Update access request status
@@ -1123,10 +1159,10 @@ async def approve_access_request(request: Request, request_id: int, admin_user =
         )
         conn.commit()
         
-        logger.info(f"AUTH - Access request approved: {access_req['username']} - Temp password generated")
+        logger.info(f"AUTH - Access request approved: {access_req['username']}")
         
     # Redirect back to access page with success message
-    return RedirectResponse(url=f"/admin/access?approved={access_req['username']}&password={temp_password}", status_code=303)
+    return RedirectResponse(url=f"/admin/access?approved={access_req['username']}", status_code=303)
 
 # --- Admin: Deny Access Request ---
 @router.post("/admin/access-requests/{request_id}/deny")

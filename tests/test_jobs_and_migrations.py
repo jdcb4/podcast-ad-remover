@@ -50,6 +50,15 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
     assert "20260609_0001_jobs" in migrations
     assert "20260609_0002_feed_tokens" in migrations
     assert "20260612_0003_user_podcast_library" in migrations
+    assert "20260612_0004_access_request_password_hash" in migrations
+
+    with get_db_connection() as conn:
+        access_request_columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(access_requests)").fetchall()
+        }
+
+    assert "password_hash" in access_request_columns
 
 
 def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):

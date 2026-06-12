@@ -107,6 +107,12 @@ FORMAL_MIGRATIONS = [
             """,
         ],
     ),
+    (
+        "20260612_0004_access_request_password_hash",
+        [
+            "ALTER TABLE access_requests ADD COLUMN password_hash TEXT",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

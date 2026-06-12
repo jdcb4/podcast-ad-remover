@@ -86,6 +86,7 @@ class AccessRequest(BaseModel):
     username: str
     email: Optional[str] = None
     reason: Optional[str] = None
+    password_hash: Optional[str] = None
     requested_at: Optional[datetime] = None
     status: str = "pending"
     ip_address: Optional[str] = None

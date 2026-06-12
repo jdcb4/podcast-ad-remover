@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Changed access requests so users choose a password during the request; the app stores only the hash and admins no longer need to send temporary passwords.
 - Added a global podcast library plus per-user "My Podcasts" membership without duplicating podcast rows.
 - Added podcast ownership rules: admins can change any podcast settings, owners can change settings for podcasts they added, and only admins can delete the global podcast/files.
 - Added admin-visible per-podcast library-user counts alongside existing total play counts.

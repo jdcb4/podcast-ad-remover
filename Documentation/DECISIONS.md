@@ -37,3 +37,7 @@ The default Docker image remains `linux/amd64` with Piper TTS installed. Apple S
 ## 2026-06-12: Separate global podcast records from user libraries
 
 Podcast rows remain global so the app only downloads, processes, stores, and publishes one copy of each feed. User-specific interest is tracked through `user_subscriptions`. The user who first adds a podcast becomes its settings owner, but only admins can delete the global podcast and files. If an owner removes the podcast from their own library, the global podcast becomes unowned for an admin to review.
+
+## 2026-06-12: Let access-request users choose their password
+
+Access requests should not make admins copy generated passwords back to users. New requests collect a password, store only the bcrypt hash, and copy that hash into `users` if approved. Admins approve identity/access, not credentials.

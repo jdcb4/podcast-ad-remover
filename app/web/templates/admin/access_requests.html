@@ -13,17 +13,7 @@
     </svg>
     <div>
         <p class="font-medium">User <strong>{{ request.query_params.get('approved') }}</strong> approved!</p>
-        <div class="mt-2 p-3 bg-surface-base border border-emerald-500/20 rounded-lg">
-            <p class="text-xs text-text-muted mb-1 font-bold uppercase">Temporary Password:</p>
-            <div class="flex items-center gap-3">
-                <code class="text-2xl font-mono font-bold select-all">{{ request.query_params.get('password') }}</code>
-                <button
-                    onclick="navigator.clipboard.writeText('{{ request.query_params.get('password') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
-                    class="text-xs bg-surface-elevated px-2 py-1 rounded border border-white/[0.08] hover:bg-surface-hover">Copy</button>
-            </div>
-        </div>
-        <p class="text-xs text-emerald-300/80 mt-2 italic">Copy this password and share it with the user. They will be
-            required to change it immediately.</p>
+        <p class="text-sm text-emerald-300/80 mt-1">They can now sign in with the password they chose when requesting access.</p>
     </div>
 </div>
 {% endif %}

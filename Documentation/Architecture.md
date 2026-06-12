@@ -97,6 +97,10 @@ RSS feeds and audio files remain public when feed authentication is disabled. Wh
 
 Tokens are stored as SHA-256 hashes in `feed_tokens` and can be listed or revoked from the admin access page. Basic Auth and the older `?auth=base64(username:password)` format are still accepted for compatibility with existing podcast-client subscriptions.
 
+### Access Requests
+
+Users requesting dashboard access choose a password during the request. The pending `access_requests` row stores only `password_hash`; admins can approve or deny the request but do not see or transmit the user's password. On approval, the stored hash is copied into the new `users` row.
+
 ## Data Layout
 
 Persistent data should be mounted at `/data`.
