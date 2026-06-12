@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% if request.query_params.get('success') %}
+<script nonce="{{ csp_nonce }}">
+    appToast({{ request.query_params.get('success')|tojson }}, { type: 'success' });
+</script>
+{% endif %}
+
 <div class="mb-6">
     <a href="/" class="text-primary-400 hover:text-primary-300 transition-colors">&larr; Back to Subscriptions</a>
 </div>
@@ -27,17 +33,28 @@
             </div>
             {% endif %}
 
-            <!-- Mobile Delete Button (Between Image and Title) -->
+            <!-- Mobile Delete / Library Button (Between Image and Title) -->
+            {% if user and user.is_admin %}
             <button onclick="deleteSubscription({{ subscription.id }})"
                 class="md:hidden px-6 py-3 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-sm font-bold border border-red-500/20 shadow-lg -mt-4 mb-2"
-                title="Delete Show">
+                title="Delete subscription and all local files">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
                     </path>
                 </svg>
-                Delete Show
+                Delete Subscription and Files
             </button>
+            {% elif user and user.id and user.id > 0 and is_in_user_library %}
+            <form action="/subscriptions/{{ subscription.id }}/library" method="post" class="md:hidden -mt-4 mb-2">
+                <input type="hidden" name="action" value="remove">
+                <input type="hidden" name="redirect_to" value="/?view=mine">
+                <button type="submit"
+                    class="px-6 py-3 text-primary-300 hover:text-primary-200 bg-primary-500/10 hover:bg-primary-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-sm font-bold border border-primary-500/20 shadow-lg">
+                    Remove from My Podcasts
+                </button>
+            </form>
+            {% endif %}
 
             <!-- Content -->
             <div class="flex-1 min-w-0 text-center md:text-left pt-2 pb-2">
@@ -46,6 +63,27 @@
                         class="font-display text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-4 leading-tight">
                         {{ subscription.title }}
                     </h1>
+                    <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-4">
+                        {% if owner_username %}
+                        <span class="badge-neutral">Owner: {{ owner_username }}</span>
+                        {% elif user and user.is_admin %}
+                        <span class="badge-warning">Unowned</span>
+                        {% endif %}
+                        {% if user and user.is_admin %}
+                        <span class="badge-neutral">{{ user_library_count }} user{% if user_library_count != 1 %}s{% endif %}</span>
+                        <span class="badge-neutral">{{ total_listens }} play{% if total_listens != 1 %}s{% endif %}</span>
+                        {% endif %}
+                        {% if user and user.id and user.id > 0 %}
+                        <form action="/subscriptions/{{ subscription.id }}/library" method="post">
+                            <input type="hidden" name="redirect_to" value="/subscriptions/{{ subscription.id }}">
+                            <input type="hidden" name="action" value="{% if is_in_user_library %}remove{% else %}add{% endif %}">
+                            <button type="submit"
+                                class="{% if is_in_user_library %}badge-info{% else %}badge-soft{% endif %}">
+                                {% if is_in_user_library %}In My Podcasts{% else %}Add to My Podcasts{% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
                     {% if subscription.description %}
                     <div
                         class="text-text-secondary leading-relaxed max-w-2xl text-base font-medium opacity-90 line-clamp-3 md:line-clamp-4">
@@ -106,19 +144,27 @@
                             Podcast Addict
                         </a>
                     </div>
+                    {% if settings.enable_feed_auth %}
+                    <p class="basis-full text-xs text-amber-300/80 text-center md:text-left max-w-2xl">
+                        These protected subscription links include feed tokens. Treat each full URL as a bearer secret
+                        because anyone with it can read the feed and download audio until the token is revoked.
+                    </p>
+                    {% endif %}
                 </div>
             </div>
 
             <!-- Delete button (desktop only - top right) -->
+            {% if user and user.is_admin %}
             <button onclick="deleteSubscription({{ subscription.id }})"
                 class="hidden md:block absolute top-6 right-6 p-3 text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all"
-                title="Delete Show">
+                title="Delete subscription and all local files">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
                     </path>
                 </svg>
             </button>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -128,9 +174,12 @@
     <div class="flex justify-between items-center mb-4 cursor-pointer"
         onclick="document.getElementById('settings-form').classList.toggle('hidden')">
         <h3 class="font-display text-xl font-bold">Processing Settings</h3>
-        <span class="text-text-muted text-sm hover:text-text-secondary transition-colors">Toggle</span>
+        <span class="text-text-muted text-sm hover:text-text-secondary transition-colors">
+            {% if can_manage_subscription %}Toggle{% else %}View{% endif %}
+        </span>
     </div>
 
+    {% if can_manage_subscription %}
     <form id="settings-form" action="/subscriptions/{{ subscription.id }}/settings" method="POST" class="hidden">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
             <div class="space-y-6">
@@ -239,6 +288,35 @@
             <button type="submit" class="btn-primary">Save Settings</button>
         </div>
     </form>
+    {% else %}
+    <div id="settings-form" class="hidden">
+        <div class="alert-info">
+            <div>
+                <strong>Read-only settings.</strong>
+                Only admins and the podcast owner can change per-podcast processing settings.
+                You can still subscribe, refresh the show, and download episodes.
+            </div>
+        </div>
+        <dl class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-sm text-text-secondary">
+            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+                <dt>Remove ads</dt>
+                <dd>{{ "On" if subscription.remove_ads else "Off" }}</dd>
+            </div>
+            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+                <dt>Remove promos</dt>
+                <dd>{{ "On" if subscription.remove_promos else "Off" }}</dd>
+            </div>
+            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+                <dt>Auto-downloads</dt>
+                <dd>{{ subscription.retention_limit or 0 }} episode{% if (subscription.retention_limit or 0) != 1 %}s{% endif %}</dd>
+            </div>
+            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+                <dt>AI audio summary</dt>
+                <dd>{{ "On" if subscription.ai_audio_summary else "Off" }}</dd>
+            </div>
+        </dl>
+    </div>
+    {% endif %}
 </div>
 
 
@@ -806,7 +884,7 @@
                                         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
                                     </path>
                                 </svg>
-                                Delete File
+                                Ignore Episode and Remove Files
                             </button>
                         </div>
                     </div>
@@ -871,17 +949,37 @@
     let searchDebounceTimer = null;
     let isSearchMode = false;
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[char]);
+    }
+
+    function encodePathSegment(value) {
+        return encodeURIComponent(String(value ?? ''));
+    }
+
     // Episode Card Template Generator
     function createEpisodeCardHTML(ep, subscriptionSlug) {
-        const status = ep.status || 'unprocessed';
+        const allowedStatuses = ['completed', 'processing', 'ignored', 'deleted', 'failed', 'rate_limited', 'unprocessed', 'pending'];
+        const status = allowedStatuses.includes(ep.status) ? ep.status : 'unprocessed';
         const isManual = ep.is_manual_download ? 'true' : 'false';
-        const title = (ep.title || '').toLowerCase();
-        const listenCount = ep.listen_count || 0;
+        const episodeId = Number.parseInt(ep.id, 10) || 0;
+        const title = escapeHtml(ep.title || '');
+        const titleSearch = escapeHtml((ep.title || '').toLowerCase());
+        const description = escapeHtml(ep.description || '');
+        const pubDate = escapeHtml(ep.pub_date || '');
+        const listenCount = Number.parseInt(ep.listen_count, 10) || 0;
         const formatDuration = (seconds) => {
             if (!seconds) return '-';
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = seconds % 60;
-            const h = Math.floor(seconds / 3600);
+            const totalSeconds = Number.parseInt(seconds, 10) || 0;
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            const h = Math.floor(totalSeconds / 3600);
             if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
             return `${m}:${s.toString().padStart(2, '0')}`;
         };
@@ -906,11 +1004,12 @@
         // Action buttons
         let actionButtons = '';
         if (status === 'completed' && ep.local_filename) {
-            const filename = ep.local_filename.split('/').pop();
-            const guid = (ep.guid || '').replace(/\//g, '_').replace(/ /g, '_');
-            actionButtons = `<a href="/audio/${subscriptionSlug}/${guid}/${filename}" target="_blank" onclick="trackListen(${ep.id})" class="p-2 bg-primary-500 rounded-full text-white hover:bg-primary-400 hover:scale-105 transition-all shadow-lg" title="Play"><svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></a>`;
+            const filename = String(ep.local_filename).split(/[\\/]/).pop();
+            const guid = String(ep.guid || '').replace(/\//g, '_').replace(/ /g, '_');
+            const audioHref = `/audio/${encodePathSegment(subscriptionSlug)}/${encodePathSegment(guid)}/${encodePathSegment(filename)}`;
+            actionButtons = `<a href="${audioHref}" target="_blank" onclick="trackListen(${episodeId})" class="p-2 bg-primary-500 rounded-full text-white hover:bg-primary-400 hover:scale-105 transition-all shadow-lg" title="Play"><svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></a>`;
         } else if (status === 'unprocessed' || status === 'ignored') {
-            actionButtons = `<button onclick="downloadEpisode(${ep.id})" class="p-2 text-text-muted hover:text-white hover:bg-white/10 rounded-full transition-colors" title="Download"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>`;
+            actionButtons = `<button onclick="downloadEpisode(${episodeId})" class="p-2 text-text-muted hover:text-white hover:bg-white/10 rounded-full transition-colors" title="Download"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>`;
         }
 
         const hasTranscript = ep.transcript_path ? 'true' : 'false';
@@ -919,32 +1018,32 @@
         return `
         <div class="episode-card card flex flex-col relative overflow-visible group transition-all duration-300 h-full border hover:border-white/10"
             data-status="${status}" data-manual="${isManual}"
-            data-title="${title}" data-date="${ep.pub_date}" data-listen-count="${listenCount}"
-            id="card-${ep.id}">
+            data-title="${titleSearch}" data-date="${pubDate}" data-listen-count="${listenCount}"
+            id="card-${episodeId}">
             <div class="checkbox-wrapper absolute top-4 left-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation();">
-                <input type="checkbox" name="episode_ids" value="${ep.id}" class="h-5 w-5 rounded border-white/20 bg-surface-elevated text-primary-500 focus:ring-primary-500 cursor-pointer shadow-lg episode-checkbox" onchange="updateBatchActions()">
+                <input type="checkbox" name="episode_ids" value="${episodeId}" class="h-5 w-5 rounded border-white/20 bg-surface-elevated text-primary-500 focus:ring-primary-500 cursor-pointer shadow-lg episode-checkbox" onchange="updateBatchActions()">
             </div>
-            <div class="flex-1 p-4 flex flex-col cursor-pointer relative" onclick="toggleDescription('${ep.id}')">
+            <div class="flex-1 p-4 flex flex-col cursor-pointer relative" onclick="toggleDescription('${episodeId}')">
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex items-center gap-2 text-[11px] font-bold tracking-wider text-text-muted uppercase">
-                        <span class="date-relative" data-date="${ep.pub_date}">${ep.pub_date}</span>
+                        <span class="date-relative" data-date="${pubDate}">${pubDate}</span>
                         <span class="text-white/10 dot-separator">•</span>
-                        <span>${formatDuration(ep.duration)}</span>
+                        <span>${escapeHtml(formatDuration(ep.duration))}</span>
                     </div>
                 </div>
-                <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors" title="${ep.title}">
+                <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors" title="${title}">
                     ${statusBadge}
-                    <span class="block mt-5">${ep.title}${playsBadge}</span>
+                    <span class="block mt-5">${title}${playsBadge}</span>
                 </h3>
                 <div class="mb-4 text-sm leading-relaxed text-text-secondary cursor-pointer group/ep-desc relative" onclick="this.classList.toggle('expanded'); event.stopPropagation();">
-                    ${ep.description ? `<div class="py-1 px-1"><div class="line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out text-text-secondary/90">${ep.description}</div></div>` : ''}
+                    ${description ? `<div class="py-1 px-1"><div class="line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out text-text-secondary/90">${description}</div></div>` : ''}
                 </div>
             </div>
             <div class="px-4 py-3 flex justify-between items-center bg-surface-base/95 md:bg-surface-base/30 md:backdrop-blur-sm" onclick="event.stopPropagation();">
                 <div class="flex items-center gap-2 list-actions">
                     ${actionButtons}
                     <div class="relative inline-block text-left">
-                        <button onclick="showActionSheet(event, ${ep.id}, ${hasTranscript}, ${hasReport})" class="p-2 text-text-muted hover:text-white transition-colors rounded-full hover:bg-white/10" title="More">
+                        <button onclick="showActionSheet(event, ${episodeId}, ${hasTranscript}, ${hasReport})" class="p-2 text-text-muted hover:text-white transition-colors rounded-full hover:bg-white/10" title="More">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"></path></svg>
                         </button>
                     </div>
@@ -1172,7 +1271,7 @@
         const ids = Array.from(document.querySelectorAll('.episode-checkbox:checked')).map(cb => cb.value);
         if (ids.length === 0) return;
 
-        if (!confirm(`Reprocess ${ids.length} episode(s)?`)) return;
+        if (!await appConfirm(`Reprocess ${ids.length} episode(s)?`)) return;
 
         for (const id of ids) {
             try {
@@ -1189,7 +1288,7 @@
         const ids = Array.from(document.querySelectorAll('.episode-checkbox:checked')).map(cb => cb.value);
         if (ids.length === 0) return;
 
-        if (!confirm(`Delete ${ids.length} episode(s)? This will mark them as ignored.`)) return;
+        if (!await appConfirm(`Delete ${ids.length} episode(s)? This will mark them as ignored.`, { danger: true })) return;
 
         for (const id of ids) {
             try {
@@ -1312,24 +1411,24 @@
     });
 
     async function deleteEpisode(id) {
-        if (!confirm('Are you sure you want to permanently delete this episode and all its files?')) return;
+        if (!await appConfirm('Ignore this episode and remove its local files? The episode record stays ignored so it is not downloaded again automatically.', { danger: true })) return;
         const btn = document.getElementById(`btn-delete-${id}`);
         const originalText = btn.innerHTML;
         btn.disabled = true; btn.innerHTML = 'Deleting...';
         try {
             const response = await fetch(`/api/episodes/${id}`, { method: 'DELETE' });
             if (response.ok) window.location.reload();
-            else { alert('Failed to delete episode.'); btn.disabled = false; btn.innerHTML = originalText; }
-        } catch (e) { alert('Error deleting episode.'); btn.disabled = false; btn.innerHTML = originalText; }
+            else { appToast('Failed to delete episode.', { type: 'error' }); btn.disabled = false; btn.innerHTML = originalText; }
+        } catch (e) { appToast('Error deleting episode.', { type: 'error' }); btn.disabled = false; btn.innerHTML = originalText; }
     }
 
     async function downloadEpisode(id) {
-        if (!confirm('Download this episode manually?')) return;
+        if (!await appConfirm('Download this episode manually and queue it for processing?')) return;
         try {
             const resp = await fetch(`/episodes/${id}/download`, { method: 'POST' });
-            if (resp.ok) { alert('Download queued!'); location.reload(); }
-            else alert('Failed to queue download.');
-        } catch (e) { alert('Error starting download.'); }
+            if (resp.ok) { appToast('Download queued.', { type: 'success' }); setTimeout(() => location.reload(), 700); }
+            else appToast('Failed to queue download.', { type: 'error' });
+        } catch (e) { appToast('Error starting download.', { type: 'error' }); }
     }
 
     function showActionSheet(e, episodeId, hasTranscript, hasReport) {
@@ -1363,7 +1462,7 @@
         }
         html += `<button onclick="closeActionSheet(); deleteEpisode(${episodeId})" class="w-full text-left px-4 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-            Delete File
+            Ignore Episode and Remove Files
         </button>`;
 
         content.innerHTML = html;
@@ -1381,27 +1480,29 @@
     }
 
     async function checkNow(id) {
-        if (!confirm('Check for new episodes now?')) return;
+        if (!await appConfirm('Check for new episodes now?')) return;
         await fetch(`/api/subscriptions/${id}/check`, { method: 'POST' });
-        alert('Check triggered!'); location.reload();
+        appToast('Feed check triggered.', { type: 'success' });
+        setTimeout(() => location.reload(), 700);
     }
 
     async function processEpisode(id, skipTranscription) {
         const action = skipTranscription ? "Reprocess (Keep Transcript)" : "Full Reprocess";
-        if (!confirm(`${action}: Are you sure?`)) return;
+        if (!await appConfirm(`${action}: this will queue the episode again using the current processing settings. Continue?`)) return;
         const url = `/api/episodes/${id}/reprocess` + (skipTranscription ? "?skip_transcription=true" : "");
         try {
             const response = await fetch(url, { method: 'POST' });
             if (response.ok) {
+                appToast('Processing queued. The page will refresh shortly.', { type: 'success', timeout: 7000 });
                 // Wait 20 seconds for system to queue the episode before refreshing
                 setTimeout(() => location.reload(), 20000);
             }
-            else alert(`Failed to trigger processing: ${response.status}`);
-        } catch (e) { alert('Error starting processing.'); }
+            else appToast(`Failed to trigger processing: ${response.status}`, { type: 'error' });
+        } catch (e) { appToast('Error starting processing.', { type: 'error' }); }
     }
 
     async function cancelEpisode(id) {
-        if (!confirm('Cancel processing?')) return;
+        if (!await appConfirm('Cancel processing and ignore this episode? Local files for this episode will be removed.', { danger: true })) return;
         await fetch(`/api/episodes/${id}/cancel`, { method: 'POST' });
         location.reload();
     }
@@ -1415,10 +1516,10 @@
     }
 
     async function deleteSubscription(id) {
-        if (!confirm('Delete this subscription? All episodes and files will be removed.')) return;
+        if (!await appConfirm('Delete this subscription and all local files for its episodes? This removes the subscription from the app.', { danger: true })) return;
         const res = await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
         if (res.ok) window.location.href = '/';
-        else alert('Failed to delete subscription');
+        else appToast('Failed to delete subscription.', { type: 'error' });
     }
 
     {% if has_processing.value %}

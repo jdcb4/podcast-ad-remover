@@ -17,20 +17,41 @@
             will review your
             request.</p>
 
+        {% if error %}
+        <div class="alert-error mb-6">
+            <p class="text-sm">{{ error }}</p>
+        </div>
+        {% endif %}
+
         <form method="post" action="/submit-access-request" class="space-y-4">
             <div>
                 <label class="block text-sm font-medium text-text-secondary mb-2">Username</label>
-                <input type="text" name="username" required class="input w-full focus:ring-2 focus:ring-primary-500/50">
+                <input type="text" name="username" required value="{{ username or '' }}"
+                    class="input w-full focus:ring-2 focus:ring-primary-500/50">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Password</label>
+                <input type="password" name="password" required minlength="8" autocomplete="new-password"
+                    class="input w-full focus:ring-2 focus:ring-primary-500/50">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Confirm Password</label>
+                <input type="password" name="confirm_password" required minlength="8" autocomplete="new-password"
+                    class="input w-full focus:ring-2 focus:ring-primary-500/50">
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-text-secondary mb-2">Email (optional)</label>
-                <input type="email" name="email" class="input w-full focus:ring-2 focus:ring-primary-500/50">
+                <input type="email" name="email" value="{{ email or '' }}"
+                    class="input w-full focus:ring-2 focus:ring-primary-500/50">
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-text-secondary mb-2">Reason (optional)</label>
-                <textarea name="reason" rows="3" class="input w-full focus:ring-2 focus:ring-primary-500/50"></textarea>
+                <textarea name="reason" rows="3"
+                    class="input w-full focus:ring-2 focus:ring-primary-500/50">{{ reason or '' }}</textarea>
             </div>
 
             <button type="submit" class="btn-primary w-full justify-center">

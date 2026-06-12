@@ -1,0 +1,103 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="font-display text-2xl font-bold">Notifications</h2>
+        <p class="text-sm text-text-muted mt-1">Send optional admin alerts through Apprise-compatible services.</p>
+    </div>
+
+    <div class="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
+        <p class="text-sm text-amber-200 font-medium">Notification URLs are secrets.</p>
+        <p class="text-xs text-amber-100/80 mt-1">
+            Many Apprise URLs include tokens, passwords, or webhooks. Only enter URLs you trust, and avoid sharing screenshots of this page.
+        </p>
+    </div>
+
+    <form method="post" action="/admin/notifications/update" class="space-y-6">
+        <div class="rounded-xl border border-white/[0.08] bg-surface-base p-5">
+            <div class="flex items-start gap-3">
+                <input type="checkbox" name="notifications_enabled" id="notifications_enabled"
+                    class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                    {% if settings.notifications_enabled %}checked{% endif %}>
+                <div>
+                    <label for="notifications_enabled" class="text-sm font-medium text-text-secondary cursor-pointer">Enable Notifications</label>
+                    <p class="text-xs text-text-muted mt-1">Off by default. When off, no notification events are sent.</p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-text-secondary mb-2">Apprise URLs</label>
+            <textarea name="notification_urls" rows="6" class="input font-mono text-xs"
+                placeholder="ntfy://ntfy.sh/my-topic&#10;pover://user-key@app-token&#10;discord://webhook-id/webhook-token">{{ settings.notification_urls or '' }}</textarea>
+            <p class="text-xs text-text-muted mt-2">
+                Add one Apprise URL per line. Blank lines and lines beginning with <code>#</code> are ignored.
+                Common options include ntfy, Gotify, Pushover, Discord, Telegram, Slack, email/SMTP, and webhooks.
+            </p>
+        </div>
+
+        <div>
+            <h3 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Events</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" name="notify_access_requests"
+                        class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        {% if settings.notify_access_requests %}checked{% endif %}>
+                    <span>
+                        <span class="block text-sm font-medium text-text-secondary">User Access Requested</span>
+                        <span class="block text-xs text-text-muted mt-1">A visitor submits a dashboard access request.</span>
+                    </span>
+                </label>
+
+                <label class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" name="notify_new_podcasts"
+                        class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        {% if settings.notify_new_podcasts %}checked{% endif %}>
+                    <span>
+                        <span class="block text-sm font-medium text-text-secondary">New Podcast Added</span>
+                        <span class="block text-xs text-text-muted mt-1">A new global podcast is added to the library.</span>
+                    </span>
+                </label>
+
+                <label class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" name="notify_episode_downloads"
+                        class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        {% if settings.notify_episode_downloads %}checked{% endif %}>
+                    <span>
+                        <span class="block text-sm font-medium text-text-secondary">Episode Available</span>
+                        <span class="block text-xs text-text-muted mt-1">An episode finishes processing and feeds are regenerated.</span>
+                    </span>
+                </label>
+
+                <label class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" name="notify_breaking_errors"
+                        class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        {% if settings.notify_breaking_errors %}checked{% endif %}>
+                    <span>
+                        <span class="block text-sm font-medium text-text-secondary">Breaking Errors</span>
+                        <span class="block text-xs text-text-muted mt-1">A processing task exhausts retries or the background worker hits a top-level error.</span>
+                    </span>
+                </label>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-white/[0.08]">
+            <p class="text-xs text-text-muted">Use the test button after saving changes.</p>
+            <button type="submit" class="btn-primary">Save Notification Settings</button>
+        </div>
+    </form>
+
+    <form method="post" action="/admin/notifications/test" class="rounded-xl border border-white/[0.08] bg-surface-base p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <h3 class="font-medium">Test Current Configuration</h3>
+                <p class="text-xs text-text-muted mt-1">Sends a single test alert using the saved settings above.</p>
+            </div>
+            <button type="submit" class="btn-secondary">Send Test Notification</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

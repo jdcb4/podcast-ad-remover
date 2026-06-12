@@ -13,7 +13,6 @@ env.bak/
 venv.bak/
 
 # Data & Media (Docker mounts)
-# Data & Media (Docker mounts)
 data/
 public/
 app/models/piper/

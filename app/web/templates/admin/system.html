@@ -3,6 +3,99 @@
 {% block title %}System Settings{% endblock %}
 
 {% block admin_content %}
+{% if setup_status %}
+<div class="mb-8 rounded-xl border border-white/[0.08] bg-surface-base p-5">
+    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+        <div>
+            <h2 class="font-display text-2xl font-bold">Setup Checklist</h2>
+            <p class="text-sm text-text-muted mt-1">Confirm access, base URLs, and feed visibility before relying on podcast-client subscriptions.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            {% if setup_status.has_admin %}
+            <span class="badge-success">Admin account ready</span>
+            {% else %}
+            <span class="badge-warning">No admin account</span>
+            {% endif %}
+            {% if setup_status.feed_auth_enabled %}
+            <span class="badge-info">Feeds protected</span>
+            {% else %}
+            <span class="badge-neutral">Feeds public</span>
+            {% endif %}
+            {% if setup_status.public_subscribe_enabled %}
+            <span class="badge-success">Subscribe page public</span>
+            {% else %}
+            <span class="badge-neutral">Subscribe page off</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if setup_status.security_warnings %}
+    <div class="mt-5 space-y-2">
+        {% for warning in setup_status.security_warnings %}
+        <div class="alert-warning">
+            <div>
+                <p class="font-medium">Security setting needs attention</p>
+                <p class="text-sm text-text-secondary mt-1">{{ warning }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not setup_status.has_admin %}
+    <form method="post" action="/admin/setup/admin-user" class="mt-5 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
+        <h3 class="font-semibold text-amber-300 mb-3">Create Admin Account</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Username</label>
+                <input type="text" name="username" value="admin" required class="input">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Password</label>
+                <input type="password" name="password" minlength="8" required class="input">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Confirm Password</label>
+                <input type="password" name="confirm_password" minlength="8" required class="input">
+            </div>
+        </div>
+        <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <button type="submit" class="btn-primary btn-sm">Create Admin and Enable Login</button>
+            <p class="text-xs text-text-muted">This turns dashboard authentication on. Public podcast subscriptions remain controlled separately below.</p>
+        </div>
+    </form>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+        <div class="rounded-lg border border-white/[0.06] bg-surface-elevated p-4">
+            <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Base URL</p>
+            <code class="text-xs text-primary-400 break-all">{{ setup_status.base_url }}</code>
+            <div class="mt-3">
+                <a href="{{ setup_status.health_url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">Test Health URL</a>
+            </div>
+        </div>
+        <div class="rounded-lg border border-white/[0.06] bg-surface-elevated p-4">
+            <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Subscribe Page</p>
+            <code class="text-xs text-primary-400 break-all">{{ setup_status.subscribe_url }}</code>
+            <div class="mt-3">
+                <a href="{{ setup_status.subscribe_url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">Open Subscribe Page</a>
+            </div>
+        </div>
+        <div class="rounded-lg border border-white/[0.06] bg-surface-elevated p-4">
+            <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Unified Feed</p>
+            <code class="text-xs text-primary-400 break-all">{{ setup_status.unified_feed_url }}</code>
+            <p class="text-xs text-text-muted mt-2">
+                {% if setup_status.feed_auth_enabled %}
+                Podcast apps need a protected feed link or Basic Auth credentials.
+                {% else %}
+                Podcast apps can subscribe without authentication.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <form method="post" action="/admin/system/update" class="space-y-6">
     <h2 class="font-display text-2xl font-bold mb-6">System Settings</h2>
 
@@ -38,18 +131,33 @@
             </div>
         </div>
 
-        <!-- Whitelist Mode Toggle -->
-        <div class="mt-4 p-4 rounded-lg border border-white/[0.08] bg-white/[0.02]">
-            <div class="flex items-center gap-3">
-                <input type="checkbox" name="whitelist_mode" id="whitelist_mode"
-                    class="w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
-                    {% if settings.whitelist_mode %}checked{% endif %}>
+        <div class="mt-6">
+            <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Resource Use</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                    <label for="whitelist_mode" class="text-sm font-medium text-text-secondary cursor-pointer">Whitelist Mode</label>
-                    <p class="text-xs text-text-muted mt-0.5">
-                        Instead of removing ad segments (blacklist), keep <strong>only</strong> content segments (whitelist).
-                        This removes non-speech audio like intro music and jingles between segments.
-                    </p>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Whisper CPU Threads</label>
+                    <input type="number" name="whisper_cpu_threads" value="{{ settings.whisper_cpu_threads or 0 }}"
+                        min="0" max="64" class="input">
+                    <p class="text-xs text-text-muted mt-1">0 lets Faster-Whisper use its default CPU threading.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">FFmpeg Threads</label>
+                    <input type="number" name="ffmpeg_threads" value="{{ settings.ffmpeg_threads or 0 }}"
+                        min="0" max="64" class="input">
+                    <p class="text-xs text-text-muted mt-1">0 lets FFmpeg choose automatically.</p>
+                </div>
+
+                <div class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" name="unload_whisper_after_job" id="unload_whisper_after_job"
+                            class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                            {% if settings.unload_whisper_after_job %}checked{% endif %}>
+                        <div>
+                            <label for="unload_whisper_after_job" class="text-sm font-medium text-text-secondary cursor-pointer">Unload Whisper After Jobs</label>
+                            <p class="text-xs text-text-muted mt-1">Reduces idle RAM after the queue empties. The next transcription reloads the local model first.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -73,6 +181,7 @@
         <!-- Hidden fields to preserve Auth/Access settings -->
         <input type="hidden" name="auth_enabled" value="{% if settings.auth_enabled %}on{% endif %}">
         <input type="hidden" name="enable_feed_auth" value="{% if settings.enable_feed_auth %}on{% endif %}">
+        <input type="hidden" name="public_subscribe_page_enabled" value="{% if settings.public_subscribe_page_enabled %}on{% endif %}">
         <input type="hidden" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}">
         <input type="hidden" name="feed_auth_username" value="{{ settings.feed_auth_username or '' }}">
 

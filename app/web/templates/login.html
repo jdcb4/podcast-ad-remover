@@ -27,6 +27,14 @@
                 </div>
             </div>
             <a href="/admin/system" class="btn-primary w-full">Go to Settings</a>
+            {% if public_subscribe_page_enabled %}
+            <p class="text-sm text-text-secondary text-center mt-6">
+                Don't have an account?
+                <a href="/subscribe" class="text-primary-400 hover:text-primary-300 transition-colors">
+                    Browse and subscribe here
+                </a>
+            </p>
+            {% endif %}
 
             {% else %}
 
@@ -73,9 +81,17 @@
                 <button type="submit" class="btn-primary w-full">Sign In</button>
             </form>
 
-            <div class="mt-6 text-center">
+            <div class="mt-6 space-y-3 text-center">
                 <a href="/request-access"
                     class="text-sm text-primary-400 hover:text-primary-300 transition-colors">Request Access →</a>
+                {% if public_subscribe_page_enabled %}
+                <p class="text-sm text-text-secondary">
+                    Don't have an account?
+                    <a href="/subscribe" class="text-primary-400 hover:text-primary-300 transition-colors">
+                        Browse and subscribe here
+                    </a>
+                </p>
+                {% endif %}
             </div>
 
             {% endif %}

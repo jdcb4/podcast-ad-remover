@@ -48,7 +48,7 @@ SessionMiddleware(
     max_age=30 * 24 * 60 * 60,  # 30 days
     session_cookie="session",
     same_site="lax",  # Prevents CSRF
-    https_only=True  # In production only
+    https_only=settings.COOKIE_SECURE
 )
 ```
 
@@ -151,11 +151,14 @@ LOG_LEVEL=INFO
    ```bash
    python -c "import secrets; print(secrets.token_urlsafe(32))"
    ```
+   Set this as `SESSION_SECRET_KEY` before enabling dashboard or feed authentication. The app warns in System Settings and refuses to enable those modes while the default session secret is still configured.
 
 3. **Configure HTTPS**
    - Use reverse proxy (nginx/traefik)
    - Enable SSL/TLS certificates
-   - Session cookies will automatically use Secure flag
+   - Set `COOKIE_SECURE=true` when users access the app through HTTPS
+   - Set `TRUST_PROXY_HEADERS=true` only if the reverse proxy strips incoming client-supplied `CF-Connecting-IP`, `X-Forwarded-For`, and `X-Real-IP` headers before forwarding requests
+   - Set `BASE_URL` or the System Settings public application URL to the browser-facing origin used for authenticated management access
 
 4. **Verify Security Headers**
    ```bash

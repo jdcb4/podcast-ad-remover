@@ -1,0 +1,19 @@
+services:
+  app:
+    image: jdcb4/podcast-ad-remover:latest
+    container_name: podcast-ad-remover
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      - BASE_URL=http://your-server-ip:8000
+      - SESSION_SECRET_KEY=replace-with-a-long-random-secret
+      - LOG_LEVEL=INFO
+      - COOKIE_SECURE=false
+      - TRUST_PROXY_HEADERS=false
+      - GEMINI_API_KEY=
+      - OPENAI_API_KEY=
+      - ANTHROPIC_API_KEY=
+      - OPENROUTER_API_KEY=

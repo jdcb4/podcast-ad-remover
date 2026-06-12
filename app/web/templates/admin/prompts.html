@@ -53,7 +53,6 @@
     const form = document.getElementById('prompts-form');
     const saveBtn = document.getElementById('save-btn');
     const resetBtn = document.getElementById('reset-btn');
-    const alertContainer = document.getElementById('alert-container');
 
     const requiredVars = {
         'ad_prompt_base': ['{targets}', '{custom_instr}'],
@@ -61,9 +60,7 @@
     };
 
     function showAlert(message, type = 'error') {
-        const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
-        alertContainer.innerHTML = `<div class="${alertClass} mb-4">${message}</div>`;
-        setTimeout(() => alertContainer.innerHTML = '', 5000);
+        appToast(message, { type });
     }
 
     function validatePrompts(formData) {
@@ -105,7 +102,7 @@
     });
 
     resetBtn.addEventListener('click', async () => {
-        if (!confirm('Reset all prompts to defaults? This cannot be undone.')) return;
+        if (!await appConfirm('Reset all prompts to defaults? This cannot be undone.', { danger: true })) return;
         resetBtn.disabled = true;
         resetBtn.textContent = 'Resetting...';
 

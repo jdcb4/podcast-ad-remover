@@ -20,6 +20,36 @@ Core stack:
 3. Inspect the current implementation before assuming a documented behavior is still true.
 4. Keep user data compatibility as a default requirement. Existing installs use `/data/db/podcasts.db` and `/data` media folders.
 
+## Additional Agent Guidance
+
+Treat the following root-level guidance files as having the same working status as this file when they are relevant to the task:
+
+- `README.md`: user-facing overview, quick start, and documentation index.
+- `CONTRIBUTING.md`: contributor workflow and pull request expectations.
+- `SECURITY.md`: supported security posture and reporting guidance.
+- `AUDIT.md`: historical audit notes and priorities.
+
+Treat the following `Documentation/` files as active guidance when they apply:
+
+- `Documentation/PROJECT_INDEX.md`: first stop for project layout and verification commands.
+- `Documentation/Architecture.md`: system architecture and major module responsibilities.
+- `Documentation/Data_Flow.md`: processing pipeline behavior.
+- `Documentation/Deployment.md` and `Documentation/Unraid_Deployment.md`: Docker, compose, and Unraid deployment expectations.
+- `Documentation/Environment_Variables.md`: environment configuration and database-backed runtime settings.
+- `Documentation/VERSIONING.md`: version bump and release-tag rules.
+- `Documentation/VERIFICATION.md`: required local, Docker, and release checks.
+- `Documentation/CHANGELOG.md`: unreleased and released change history.
+- `Documentation/DECISIONS.md`: active decision log.
+- `Documentation/Design_Decisions.md`: historical context only; prefer `Documentation/DECISIONS.md` for current choices.
+- `Documentation/RESOURCE_AUDIT.md`: resource measurements and tuning guidance.
+- `Documentation/ROADMAP.md`: current priorities and deferred work.
+- `Documentation/NAMING.md`: naming conventions.
+- `Documentation/AUDIT_STATUS.md`: current audit-branch state and deferred audit items.
+
+Update relevant documentation as part of the same change. For user-visible behavior, consider `README.md`, `Documentation/CHANGELOG.md`, `Documentation/DECISIONS.md`, `Documentation/PROJECT_INDEX.md`, `Documentation/VERIFICATION.md`, and the area-specific documentation before finishing.
+
+Commit after each significant coherent change, once verification appropriate to that change has passed. Keep commits scoped and descriptive. Do not commit secrets, local data, downloaded media, generated models, or throwaway test artifacts.
+
 ## Hard Rules
 
 - Do not delete, rewrite, or reset existing `/data` content as part of a code change.

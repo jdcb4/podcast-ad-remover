@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>podcast-ad-remover</Name>
+  <Repository>jdcb4/podcast-ad-remover:latest</Repository>
+  <Registry>https://hub.docker.com/r/jdcb4/podcast-ad-remover</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/jdcb4/podcast-ad-remover/issues</Support>
+  <Project>https://github.com/jdcb4/podcast-ad-remover</Project>
+  <Overview>Podcast Ad Remover 1.3.1 - self-hosted podcast processing for downloading episodes, removing ads or promos with local transcription and LLM analysis, and publishing replacement RSS feeds for podcast clients.&#xD;
+&#xD;
+Features:&#xD;
+- Local Whisper/faster-whisper transcription and FFmpeg audio cutting.&#xD;
+- Gemini, OpenAI, Anthropic, and OpenRouter provider support.&#xD;
+- Per-podcast and unified RSS feeds.&#xD;
+- Optional management login, feed tokens, public subscribe page, and admin notifications.&#xD;
+- Persistent SQLite database and media storage under /data.&#xD;
+  </Overview>
+  <Category>MediaApp:Audio</Category>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/jdcb4/podcast-ad-remover/master/Documentation/unraid/podcast-ad-remover.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/jdcb4/podcast-ad-remover/master/app/web/static/favicon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Description>Podcast Ad Remover downloads podcasts, removes ads with local transcription and LLM analysis, then publishes clean RSS feeds.</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>8000</HostPort>
+        <ContainerPort>8000</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/podcast-ad-remover</HostDir>
+      <ContainerDir>/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+    <Variable>
+      <Value/>
+      <Name>SESSION_SECRET_KEY</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>http://[IP]:[PORT:8000]</Value>
+      <Name>BASE_URL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>false</Value>
+      <Name>COOKIE_SECURE</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>false</Value>
+      <Name>TRUST_PROXY_HEADERS</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>GEMINI_API_KEY</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OPENAI_API_KEY</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>ANTHROPIC_API_KEY</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value/>
+      <Name>OPENROUTER_API_KEY</Name>
+      <Mode/>
+    </Variable>
+  </Environment>
+  <Config Name="Web UI Port" Target="8000" Default="8000" Mode="tcp" Description="Port for the Web UI and generated RSS/audio links." Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="Internal Data" Target="/data" Default="/mnt/user/appdata/podcast-ad-remover" Mode="rw" Description="SQLite database, downloaded podcast files, generated feeds, models, backups, and logs." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/podcast-ad-remover</Config>
+  <Config Name="Session Secret Key" Target="SESSION_SECRET_KEY" Default="" Mode="" Description="Stable random secret used for signed sessions and optional authentication. Generate a long value before enabling dashboard or feed authentication." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Base URL" Target="BASE_URL" Default="http://[IP]:[PORT:8000]" Mode="" Description="Public URL that podcast clients can reach. Use your LAN URL for local installs or an HTTPS reverse-proxy URL for remote access." Type="Variable" Display="always" Required="false" Mask="false">http://[IP]:[PORT:8000]</Config>
+  <Config Name="Secure Cookies" Target="COOKIE_SECURE" Default="false" Mode="" Description="Set to true only when users access the app through HTTPS." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="Trust Proxy Headers" Target="TRUST_PROXY_HEADERS" Default="false" Mode="" Description="Set to true only behind a trusted reverse proxy that strips client-supplied forwarding headers." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="Gemini API Key" Target="GEMINI_API_KEY" Default="" Mode="" Description="Google Gemini API key. Optional if configured later in Admin &gt; AI Settings &gt; Text Analysis. Multiple keys can be comma-separated." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="OpenAI API Key" Target="OPENAI_API_KEY" Default="" Mode="" Description="OpenAI API key. Optional if configured later in Admin &gt; AI Settings &gt; Text Analysis." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Anthropic API Key" Target="ANTHROPIC_API_KEY" Default="" Mode="" Description="Anthropic API key. Optional if configured later in Admin &gt; AI Settings &gt; Text Analysis." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="OpenRouter API Key" Target="OPENROUTER_API_KEY" Default="" Mode="" Description="OpenRouter API key. Optional if configured later in Admin &gt; AI Settings &gt; Text Analysis." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+</Container>

@@ -42,39 +42,43 @@
             </div>
 
             <nav class="space-y-1">
-                <a href="/admin/queue"
-                    class="{% if active_tab == 'queue' %}nav-link-active{% else %}nav-link{% endif %}"
+                <p class="px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-muted">AI Settings</p>
+
+                <a href="/admin/ai/transcription"
+                    class="{% if active_tab == 'ai_transcription' %}nav-link-active{% else %}nav-link{% endif %}"
                     onclick="closeAdminDrawer()">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                            d="M12 18.5a3.5 3.5 0 003.5-3.5V7a3.5 3.5 0 10-7 0v8a3.5 3.5 0 003.5 3.5zM5 11v4a7 7 0 0014 0v-4M12 22v-3">
                         </path>
                     </svg>
-                    Processing Queue
+                    Transcription
                 </a>
 
-                <a href="/admin/system"
-                    class="{% if active_tab == 'system' %}nav-link-active{% else %}nav-link{% endif %}"
+                <a href="/admin/ai/voice"
+                    class="{% if active_tab == 'ai_voice' %}nav-link-active{% else %}nav-link{% endif %}"
                     onclick="closeAdminDrawer()">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                            d="M11 5L6 9H3v6h3l5 4V5zm7 4a4 4 0 010 6m2-9a8 8 0 010 12">
                         </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                     </svg>
-                    System Settings
+                    Voice and TTS
                 </a>
 
-                <a href="/admin/ai" class="{% if active_tab == 'ai' %}nav-link-active{% else %}nav-link{% endif %}"
+                <a href="/admin/ai/text-analysis"
+                    class="{% if active_tab == 'ai_text' %}nav-link-active{% else %}nav-link{% endif %}"
                     onclick="closeAdminDrawer()">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                            d="M9 12h6m-6 4h6M7 4h6l4 4v12H7V4z">
                         </path>
                     </svg>
-                    AI Configuration
+                    Text Analysis
                 </a>
+
+                <div class="border-t border-white/[0.06] my-4"></div>
+                <p class="px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-muted">Podcast Preferences</p>
 
                 <a href="/admin/global-subscription-settings"
                     class="{% if active_tab == 'global_subs' %}nav-link-active{% else %}nav-link{% endif %}"
@@ -99,6 +103,42 @@
                 </a>
 
                 <div class="border-t border-white/[0.06] my-4"></div>
+                <p class="px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-muted">System</p>
+
+                <a href="/admin/system"
+                    class="{% if active_tab == 'system' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    System Settings
+                </a>
+
+                <a href="/admin/queue"
+                    class="{% if active_tab == 'queue' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                    Processing Queue
+                </a>
+
+                <a href="/admin/notifications"
+                    class="{% if active_tab == 'notifications' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9">
+                        </path>
+                    </svg>
+                    Notifications
+                </a>
 
                 <a href="/admin/logs" class="{% if active_tab == 'logs' %}nav-link-active{% else %}nav-link{% endif %}"
                     onclick="closeAdminDrawer()">
@@ -107,15 +147,29 @@
                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
                         </path>
                     </svg>
-                    System Logs
+                    Logs
                 </a>
 
-                <a href="/admin/access"
-                    class="{% if active_tab == 'access' %}nav-link-active{% else %}nav-link{% endif %}"
+                <div class="border-t border-white/[0.06] my-4"></div>
+                <p class="px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-muted">User Management</p>
+
+                <a href="/admin/users"
+                    class="{% if active_tab == 'users' %}nav-link-active{% else %}nav-link{% endif %}"
                     onclick="closeAdminDrawer()">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                            d="M5.121 17.804A8.969 8.969 0 0112 15c2.21 0 4.236.8 5.879 2.129M15 11a3 3 0 10-6 0 3 3 0 006 0z">
+                        </path>
+                    </svg>
+                    Users
+                </a>
+
+                <a href="/admin/access-requests"
+                    class="{% if active_tab == 'access_requests' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-4-6a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z">
                         </path>
                     </svg>
                     Access Requests
@@ -124,6 +178,18 @@
                         pending_requests_count }}</span>
                     {% endif %}
                 </a>
+
+                <a href="/admin/feed-access"
+                    class="{% if active_tab == 'feed_access' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6.18 15.64a2.18 2.18 0 012.18 2.18C8.36 19 7.38 20 6.18 20C5 20 4 19 4 17.82a2.18 2.18 0 012.18-2.18M4 4.44A15.56 15.56 0 0119.56 20h-2.83A12.73 12.73 0 004 7.27V4.44m0 5.66A9.9 9.9 0 0113.9 20h-2.83A7.07 7.07 0 004 12.93V10.1z">
+                        </path>
+                    </svg>
+                    Feed Access
+                </a>
+
             </nav>
         </div>
     </aside>
@@ -156,6 +222,17 @@
                 }
             }, 5000);
         </script>
+        {% endif %}
+
+        {% if request.query_params.get('error') %}
+        <div class="alert-error mb-6 animate-fade-in" role="alert">
+            <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clip-rule="evenodd" />
+            </svg>
+            <span>{{ request.query_params.get('error') }}</span>
+        </div>
         {% endif %}
 
         <div class="max-w-6xl">

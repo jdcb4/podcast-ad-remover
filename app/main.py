@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import asyncio
 import logging
 
-from app.core.config import settings
+from app.core.config import is_default_session_secret, settings
 from app.infra.database import init_db
 from app.core.processor import Processor
 
@@ -39,12 +39,32 @@ for logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
 
 logger = logging.getLogger(__name__)
 
+
+def validate_startup_security_settings() -> None:
+    """Fail closed when optional auth is enabled without a real session secret."""
+    from app.infra.database import get_db_connection
+
+    with get_db_connection() as conn:
+        security_row = conn.execute(
+            "SELECT auth_enabled, enable_feed_auth FROM app_settings WHERE id = 1"
+        ).fetchone()
+
+    if security_row and is_default_session_secret() and (security_row["auth_enabled"] or security_row["enable_feed_auth"]):
+        raise RuntimeError("Set SESSION_SECRET_KEY before enabling dashboard or feed authentication")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Podcast Ad Remover...")
     init_db()
     logger.info(f"Database initialized at {settings.DB_PATH}")
+    try:
+        validate_startup_security_settings()
+    except RuntimeError:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating security settings on startup: {e}")
     import os
     if os.path.exists(settings.DB_PATH):
         size = os.path.getsize(settings.DB_PATH)
@@ -52,9 +72,11 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("Database file not found!")
     
-    # Auto-populate Public Application URL with detected IP if not set
+    # Auto-populate Public Application URL only when the detected value is useful
+    # outside the process. Docker containers otherwise store an internal 172.x URL.
     try:
         from app.infra.database import get_db_connection
+        from app.core.utils import DEFAULT_BASE_URL, is_running_in_container
         import socket
         
         with get_db_connection() as conn:
@@ -62,20 +84,27 @@ async def lifespan(app: FastAPI):
             current_url = row['app_external_url'] if row else None
             
             if not current_url:
-                # Detect IP
-                try:
-                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    s.connect(("8.8.8.8", 80))
-                    lan_ip = s.getsockname()[0]
-                    s.close()
-                    
-                    if lan_ip:
-                        final_url = f"http://{lan_ip}:{settings.PORT}"
-                        logger.info(f"Auto-configuring Public Application URL to: {final_url}")
-                        conn.execute("UPDATE app_settings SET app_external_url = ? WHERE id = 1", (final_url,))
-                        conn.commit()
-                except Exception as e:
-                    logger.warning(f"Could not auto-detect LAN IP: {e}")
+                if settings.BASE_URL and settings.BASE_URL != DEFAULT_BASE_URL:
+                    final_url = settings.BASE_URL.rstrip("/")
+                    logger.info(f"Configuring Public Application URL from BASE_URL: {final_url}")
+                    conn.execute("UPDATE app_settings SET app_external_url = ? WHERE id = 1", (final_url,))
+                    conn.commit()
+                elif is_running_in_container():
+                    logger.info("Public Application URL is not set; configure it in System Settings or set BASE_URL.")
+                else:
+                    try:
+                        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                        s.connect(("8.8.8.8", 80))
+                        lan_ip = s.getsockname()[0]
+                        s.close()
+
+                        if lan_ip:
+                            final_url = f"http://{lan_ip}:{settings.PORT}"
+                            logger.info(f"Auto-configuring Public Application URL to: {final_url}")
+                            conn.execute("UPDATE app_settings SET app_external_url = ? WHERE id = 1", (final_url,))
+                            conn.commit()
+                    except Exception as e:
+                        logger.warning(f"Could not auto-detect LAN IP: {e}")
     except Exception as e:
         logger.error(f"Error checking/updating app settings on startup: {e}")
     
@@ -130,7 +159,7 @@ app.add_middleware(
     max_age=30 * 24 * 60 * 60,  # 30 days in seconds
     session_cookie="session",
     same_site="lax",  # Prevents CSRF while allowing external navigation
-    https_only=False  # Allow HTTP for local access
+    https_only=settings.COOKIE_SECURE
 )
 app.add_middleware(SecurityHeadersMiddleware)
 

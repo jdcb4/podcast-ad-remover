@@ -1,19 +1,40 @@
 import sqlite3
+import socket
+import hashlib
+import secrets
 from typing import List, Optional
 from datetime import datetime
 from app.infra.database import get_db_connection
 from app.core.models import SubscriptionCreate, Subscription, Episode
 
 class SubscriptionRepository:
-    def create(self, sub: SubscriptionCreate, title: str, slug: str, image_url: str = None, description: str = None, retention_limit: int = 1) -> Subscription:
+    def create(
+        self,
+        sub: SubscriptionCreate,
+        title: str,
+        slug: str,
+        image_url: str = None,
+        description: str = None,
+        retention_limit: int = 1,
+        owner_user_id: int | None = None,
+    ) -> Subscription:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             try:
                 cursor.execute(
-                    "INSERT INTO subscriptions (feed_url, title, slug, image_url, description, retention_limit) VALUES (?, ?, ?, ?, ?, ?)",
-                    (sub.feed_url, title, slug, image_url, description, retention_limit)
+                    """
+                    INSERT INTO subscriptions
+                        (feed_url, title, slug, image_url, description, retention_limit, owner_user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (sub.feed_url, title, slug, image_url, description, retention_limit, owner_user_id)
                 )
                 sub_id = cursor.lastrowid
+                if owner_user_id and owner_user_id > 0:
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO user_subscriptions (user_id, subscription_id) VALUES (?, ?)",
+                        (owner_user_id, sub_id),
+                    )
                 conn.commit()
                 return self.get_by_id(sub_id)
             except sqlite3.IntegrityError:
@@ -26,10 +47,71 @@ class SubscriptionRepository:
                 return Subscription.model_validate(dict(row))
             return None
 
-    def get_all(self) -> List[Subscription]:
+    def get_all(self, user_id: int | None = None, only_user: bool = False) -> List[Subscription]:
         with get_db_connection() as conn:
-            rows = conn.execute("SELECT * FROM subscriptions").fetchall()
+            if only_user and user_id and user_id > 0:
+                rows = conn.execute(
+                    """
+                    SELECT s.*
+                    FROM subscriptions s
+                    JOIN user_subscriptions us ON us.subscription_id = s.id
+                    WHERE us.user_id = ?
+                    ORDER BY s.title COLLATE NOCASE
+                    """,
+                    (user_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute("SELECT * FROM subscriptions ORDER BY title COLLATE NOCASE").fetchall()
             return [Subscription.model_validate(dict(row)) for row in rows]
+
+    def add_to_user_library(self, user_id: int | None, subscription_id: int) -> bool:
+        if not user_id or user_id <= 0:
+            return False
+        with get_db_connection() as conn:
+            cursor = conn.execute(
+                "INSERT OR IGNORE INTO user_subscriptions (user_id, subscription_id) VALUES (?, ?)",
+                (user_id, subscription_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def remove_from_user_library(self, user_id: int | None, subscription_id: int) -> bool:
+        if not user_id or user_id <= 0:
+            return False
+        with get_db_connection() as conn:
+            cursor = conn.execute(
+                "DELETE FROM user_subscriptions WHERE user_id = ? AND subscription_id = ?",
+                (user_id, subscription_id),
+            )
+            conn.execute(
+                "UPDATE subscriptions SET owner_user_id = NULL WHERE id = ? AND owner_user_id = ?",
+                (subscription_id, user_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def is_in_user_library(self, user_id: int | None, subscription_id: int) -> bool:
+        if not user_id or user_id <= 0:
+            return False
+        with get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM user_subscriptions WHERE user_id = ? AND subscription_id = ?",
+                (user_id, subscription_id),
+            ).fetchone()
+            return row is not None
+
+    def get_owner_username(self, subscription_id: int) -> str | None:
+        with get_db_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT u.username
+                FROM subscriptions s
+                JOIN users u ON u.id = s.owner_user_id
+                WHERE s.id = ?
+                """,
+                (subscription_id,),
+            ).fetchone()
+            return row["username"] if row else None
 
     def get_by_url(self, url: str) -> Optional[Subscription]:
         with get_db_connection() as conn:
@@ -48,6 +130,7 @@ class SubscriptionRepository:
     def delete(self, id: int):
         with get_db_connection() as conn:
             conn.execute("DELETE FROM episodes WHERE subscription_id = ?", (id,))
+            conn.execute("DELETE FROM user_subscriptions WHERE subscription_id = ?", (id,))
             conn.execute("DELETE FROM subscriptions WHERE id = ?", (id,))
             conn.commit()
 
@@ -76,10 +159,12 @@ class EpisodeRepository:
         """Returns True if created, False if already exists."""
         with get_db_connection() as conn:
             try:
-                conn.execute("""
+                cursor = conn.execute("""
                     INSERT INTO episodes (subscription_id, guid, title, pub_date, original_url, duration, description, status, file_size)
                     VALUES (:subscription_id, :guid, :title, :pub_date, :original_url, :duration, :description, :status, :file_size)
                 """, episode)
+                if episode.get("status") == "pending":
+                    _enqueue_job(conn, cursor.lastrowid)
                 conn.commit()
                 return True
             except sqlite3.IntegrityError:
@@ -100,18 +185,34 @@ class EpisodeRepository:
         with get_db_connection() as conn:
             # Get full processing queue with details (including rate_limited)
             rows = conn.execute("""
-                SELECT e.*, s.title as podcast_title 
+                SELECT e.*,
+                       s.title as podcast_title,
+                       j.id as job_id,
+                       j.status as job_status,
+                       j.attempts as job_attempts,
+                       j.locked_at as job_locked_at,
+                       j.locked_by as job_locked_by,
+                       j.next_run_at as job_next_run_at,
+                       j.error as job_error
                 FROM episodes e
                 JOIN subscriptions s ON e.subscription_id = s.id
+                LEFT JOIN jobs j ON j.episode_id = e.id
+                    AND j.type = 'process_episode'
+                    AND j.status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
                 WHERE e.status IN ('processing', 'pending', 'rate_limited')
                 OR (e.status = 'failed' AND e.next_retry_at IS NOT NULL)
                 ORDER BY 
-                    CASE e.status 
+                    CASE COALESCE(j.status, e.status)
+                        WHEN 'running' THEN 1
                         WHEN 'processing' THEN 1 
+                        WHEN 'queued' THEN 2
                         WHEN 'pending' THEN 2 
+                        WHEN 'retry_scheduled' THEN 3
                         WHEN 'rate_limited' THEN 3
                         ELSE 4 
                     END,
+                    COALESCE(j.priority, 100) ASC,
+                    COALESCE(j.next_run_at, e.next_retry_at, e.pub_date) ASC,
                     e.id ASC
             """).fetchall()
             return [dict(row) for row in rows]
@@ -142,6 +243,36 @@ class EpisodeRepository:
         with get_db_connection() as conn:
             rows = conn.execute("SELECT * FROM episodes WHERE subscription_id = ?", (subscription_id,)).fetchall()
             return [Episode.model_validate(dict(row)) for row in rows]
+
+    def get_completed_by_subscription(self, subscription_id: int) -> List[dict]:
+        with get_db_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM episodes
+                WHERE subscription_id = ?
+                  AND status = 'completed'
+                ORDER BY pub_date DESC
+                """,
+                (subscription_id,),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def get_completed_with_subscription_info(self) -> List[dict]:
+        with get_db_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT e.*,
+                       s.title AS podcast_title,
+                       s.slug AS podcast_slug,
+                       s.image_url AS podcast_image
+                FROM episodes e
+                JOIN subscriptions s ON e.subscription_id = s.id
+                WHERE e.status = 'completed'
+                ORDER BY e.pub_date DESC
+                """
+            ).fetchall()
+            return [dict(row) for row in rows]
 
     def get_by_subscription_paginated(self, subscription_id: int, limit: int = 20, offset: int = 0, search: str = None) -> list:
         """Get episodes for a subscription with pagination, ordered by pub_date descending.
@@ -194,6 +325,7 @@ class EpisodeRepository:
                     ai_summary = NULL
                 WHERE id = ?
             """, (processing_flags, id))
+            JobRepository().cancel_active_for_episode(id, conn=conn)
             conn.commit()
 
     def requeue_stuck(self):
@@ -208,6 +340,16 @@ class EpisodeRepository:
                     next_retry_at = NULL
                 WHERE status = 'processing'
             """)
+            conn.execute("""
+                UPDATE jobs
+                SET status = 'retry_scheduled',
+                    locked_at = NULL,
+                    locked_by = NULL,
+                    error = 'Interrupted by system restart',
+                    next_run_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE status = 'running'
+            """)
             conn.commit()
 
     def update_retry(self, id: int, retry_count: int, next_retry_at: datetime, error: str):
@@ -220,6 +362,7 @@ class EpisodeRepository:
                     error_message = ? 
                 WHERE id = ?
             """, (retry_count, next_retry_at, error, id))
+            _schedule_retry_job(conn, id, next_retry_at, error)
             conn.commit()
 
     def update_rate_limited(self, id: int, next_retry_at: datetime, error: str):
@@ -233,6 +376,7 @@ class EpisodeRepository:
                     processing_step = 'Waiting for API quota reset'
                 WHERE id = ?
             """, (next_retry_at, error, id))
+            _schedule_retry_job(conn, id, next_retry_at, error, status="rate_limited")
             conn.commit()
 
     def update_status(self, id: int, status: str, error: str = None, filename: str = None, file_size: int = None):
@@ -241,6 +385,12 @@ class EpisodeRepository:
                 "UPDATE episodes SET status = ?, error_message = ?, local_filename = ?, file_size = ?, processed_at = ?, next_retry_at = NULL WHERE id = ?",
                 (status, error, filename, file_size, datetime.now() if status == 'completed' else None, id)
             )
+            if status == "pending":
+                _enqueue_job(conn, id)
+            elif status == "completed":
+                JobRepository().complete_for_episode(id, conn=conn)
+            elif status == "failed":
+                JobRepository().fail_running_for_episode(id, error or "Processing failed", conn=conn)
             conn.commit()
 
     def update_progress(self, id: int, step: str, progress: int, transcript_path: str = None, ad_report_path: str = None, report_path: str = None):
@@ -280,17 +430,24 @@ class EpisodeRepository:
         """Update status of an episode by GUID, optionally only if current status matches condition."""
         with get_db_connection() as conn:
             if condition_status:
-                conn.execute("""
+                cursor = conn.execute("""
                     UPDATE episodes 
                     SET status = ? 
                     WHERE subscription_id = ? AND guid = ? AND (status = ? or status = 'pending_manual')
                 """, (status, subscription_id, guid, condition_status))
             else:
-                conn.execute("""
+                cursor = conn.execute("""
                     UPDATE episodes 
                     SET status = ? 
                     WHERE subscription_id = ? AND guid = ?
                 """, (status, subscription_id, guid))
+            if status == "pending" and cursor.rowcount:
+                row = conn.execute(
+                    "SELECT id FROM episodes WHERE subscription_id = ? AND guid = ?",
+                    (subscription_id, guid),
+                ).fetchone()
+                if row:
+                    _enqueue_job(conn, row["id"])
             conn.commit()
 
     def delete(self, id: int):
@@ -345,4 +502,324 @@ class EpisodeRepository:
                     processing_step = NULL
                 WHERE id = ?
             """, (id,))
+            JobRepository().cancel_active_for_episode(id, conn=conn)
             conn.commit()
+
+
+def _enqueue_job(conn: sqlite3.Connection, episode_id: int, job_type: str = "process_episode", priority: int = 100):
+    existing = conn.execute("""
+        SELECT id FROM jobs
+        WHERE episode_id = ?
+          AND type = ?
+          AND status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
+        LIMIT 1
+    """, (episode_id, job_type)).fetchone()
+
+    if existing:
+        conn.execute("""
+            UPDATE jobs
+            SET status = CASE WHEN status = 'running' THEN status ELSE 'queued' END,
+                priority = ?,
+                next_run_at = CURRENT_TIMESTAMP,
+                error = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (priority, existing["id"]))
+        return existing["id"]
+
+    cursor = conn.execute("""
+        INSERT INTO jobs (episode_id, type, status, priority, next_run_at)
+        VALUES (?, ?, 'queued', ?, CURRENT_TIMESTAMP)
+    """, (episode_id, job_type, priority))
+    return cursor.lastrowid
+
+
+def _schedule_retry_job(
+    conn: sqlite3.Connection,
+    episode_id: int,
+    next_run_at: datetime,
+    error: str,
+    status: str = "retry_scheduled",
+):
+    existing = conn.execute("""
+        SELECT id FROM jobs
+        WHERE episode_id = ?
+          AND type = 'process_episode'
+          AND status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
+        LIMIT 1
+    """, (episode_id,)).fetchone()
+
+    if existing:
+        conn.execute("""
+            UPDATE jobs
+            SET status = ?,
+                locked_at = NULL,
+                locked_by = NULL,
+                next_run_at = ?,
+                error = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (status, next_run_at, error, existing["id"]))
+        return
+
+    conn.execute("""
+        INSERT INTO jobs (episode_id, type, status, next_run_at, error)
+        VALUES (?, 'process_episode', ?, ?, ?)
+    """, (episode_id, status, next_run_at, error))
+
+
+class JobRepository:
+    """SQLite-backed processing jobs with transaction-based claiming."""
+
+    DEFAULT_STALE_AFTER_MINUTES = 24 * 60
+
+    def enqueue(self, episode_id: int, job_type: str = "process_episode", priority: int = 100):
+        with get_db_connection() as conn:
+            job_id = _enqueue_job(conn, episode_id, job_type, priority)
+            conn.commit()
+            return job_id
+
+    def count_running(self) -> int:
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT COUNT(*) AS count FROM jobs WHERE status = 'running'").fetchone()
+            return row["count"] if row else 0
+
+    def count_claimable(self) -> int:
+        with get_db_connection() as conn:
+            row = conn.execute("""
+                SELECT COUNT(*) AS count
+                FROM jobs j
+                JOIN episodes e ON e.id = j.episode_id
+                WHERE j.type = 'process_episode'
+                  AND j.status IN ('queued', 'retry_scheduled', 'rate_limited')
+                  AND (j.next_run_at IS NULL OR j.next_run_at <= CURRENT_TIMESTAMP)
+                  AND e.status IN ('pending', 'failed', 'rate_limited')
+            """).fetchone()
+            return row["count"] if row else 0
+
+    def claim_due(self, limit: int, worker_id: str | None = None) -> List[dict]:
+        if limit <= 0:
+            return []
+
+        worker_id = worker_id or socket.gethostname()
+        with get_db_connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            rows = conn.execute("""
+                SELECT j.id AS job_id,
+                       j.attempts AS job_attempts,
+                       e.*
+                FROM jobs j
+                JOIN episodes e ON e.id = j.episode_id
+                WHERE j.type = 'process_episode'
+                  AND j.status IN ('queued', 'retry_scheduled', 'rate_limited')
+                  AND (j.next_run_at IS NULL OR j.next_run_at <= CURRENT_TIMESTAMP)
+                  AND e.status IN ('pending', 'failed', 'rate_limited')
+                ORDER BY j.priority ASC, j.created_at ASC
+                LIMIT ?
+            """, (limit,)).fetchall()
+
+            job_ids = [row["job_id"] for row in rows]
+            for job_id in job_ids:
+                conn.execute("""
+                    UPDATE jobs
+                    SET status = 'running',
+                        attempts = attempts + 1,
+                        locked_at = CURRENT_TIMESTAMP,
+                        locked_by = ?,
+                        error = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (worker_id, job_id))
+
+            for row in rows:
+                conn.execute("""
+                    UPDATE episodes
+                    SET status = 'processing',
+                        processing_step = 'queued',
+                        progress = 0,
+                        error_message = NULL
+                    WHERE id = ?
+                """, (row["id"],))
+
+            conn.commit()
+            return [dict(row) for row in rows]
+
+    def recover_stale_running(self, max_age_minutes: int | None = None) -> int:
+        """Return stale running jobs to the queue after a worker crash or restart."""
+        max_age_minutes = max_age_minutes or self.DEFAULT_STALE_AFTER_MINUTES
+        stale_modifier = f"-{int(max_age_minutes)} minutes"
+
+        with get_db_connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            rows = conn.execute("""
+                SELECT j.id AS job_id, j.episode_id
+                FROM jobs j
+                JOIN episodes e ON e.id = j.episode_id
+                WHERE j.type = 'process_episode'
+                  AND j.status = 'running'
+                  AND e.status = 'processing'
+                  AND (
+                    j.locked_at IS NULL
+                    OR j.locked_at <= datetime(CURRENT_TIMESTAMP, ?)
+                  )
+            """, (stale_modifier,)).fetchall()
+
+            if not rows:
+                conn.commit()
+                return 0
+
+            job_ids = [row["job_id"] for row in rows]
+            episode_ids = [row["episode_id"] for row in rows]
+
+            conn.executemany("""
+                UPDATE jobs
+                SET status = 'queued',
+                    locked_at = NULL,
+                    locked_by = NULL,
+                    next_run_at = CURRENT_TIMESTAMP,
+                    error = 'Recovered stale running job after worker interruption',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, [(job_id,) for job_id in job_ids])
+
+            conn.executemany("""
+                UPDATE episodes
+                SET status = 'pending',
+                    processing_step = 'retry scheduled after worker interruption',
+                    progress = 0
+                WHERE id = ?
+            """, [(episode_id,) for episode_id in episode_ids])
+
+            conn.commit()
+            return len(rows)
+
+    def complete_for_episode(self, episode_id: int, conn: sqlite3.Connection | None = None):
+        if conn is None:
+            with get_db_connection() as own_conn:
+                self.complete_for_episode(episode_id, conn=own_conn)
+                own_conn.commit()
+            return
+
+        conn.execute("""
+                UPDATE jobs
+                SET status = 'completed',
+                    locked_at = NULL,
+                    locked_by = NULL,
+                    error = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE episode_id = ?
+                  AND type = 'process_episode'
+                  AND status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
+            """, (episode_id,))
+
+    def cancel_active_for_episode(self, episode_id: int, conn: sqlite3.Connection | None = None):
+        if conn is None:
+            with get_db_connection() as own_conn:
+                self.cancel_active_for_episode(episode_id, conn=own_conn)
+                own_conn.commit()
+            return
+
+        conn.execute("""
+                UPDATE jobs
+                SET status = 'cancelled',
+                    locked_at = NULL,
+                    locked_by = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE episode_id = ?
+                  AND type = 'process_episode'
+                  AND status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
+            """, (episode_id,))
+
+    def fail_running_for_episode(self, episode_id: int, error: str, conn: sqlite3.Connection | None = None):
+        if conn is None:
+            with get_db_connection() as own_conn:
+                self.fail_running_for_episode(episode_id, error, conn=own_conn)
+                own_conn.commit()
+            return
+
+        conn.execute("""
+                UPDATE jobs
+                SET status = 'failed',
+                    locked_at = NULL,
+                    locked_by = NULL,
+                    error = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE episode_id = ?
+                  AND type = 'process_episode'
+                  AND status = 'running'
+            """, (error, episode_id))
+
+
+class FeedTokenRepository:
+    """Manage bearer tokens for protected RSS feeds and audio URLs."""
+
+    @staticmethod
+    def hash_token(token: str) -> str:
+        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    def create(self, user_id: int | None = None, name: str = "Podcast app") -> str:
+        token = secrets.token_urlsafe(32)
+        token_hash = self.hash_token(token)
+        with get_db_connection() as conn:
+            conn.execute("""
+                INSERT INTO feed_tokens (user_id, token_hash, name)
+                VALUES (?, ?, ?)
+            """, (user_id, token_hash, name))
+            conn.commit()
+        return token
+
+    def list_active(self) -> list[dict]:
+        with get_db_connection() as conn:
+            rows = conn.execute("""
+                SELECT ft.id,
+                       ft.user_id,
+                       ft.name,
+                       ft.created_at,
+                       ft.last_used_at,
+                       u.username
+                FROM feed_tokens ft
+                LEFT JOIN users u ON u.id = ft.user_id
+                WHERE ft.revoked_at IS NULL
+                ORDER BY ft.created_at DESC
+            """).fetchall()
+            return [dict(row) for row in rows]
+
+    def validate(self, token: str | None) -> bool:
+        if not token:
+            return False
+
+        token_hash = self.hash_token(token)
+        with get_db_connection() as conn:
+            row = conn.execute("""
+                SELECT id FROM feed_tokens
+                WHERE token_hash = ?
+                  AND revoked_at IS NULL
+            """, (token_hash,)).fetchone()
+            if not row:
+                return False
+            conn.execute(
+                "UPDATE feed_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (row["id"],),
+            )
+            conn.commit()
+            return True
+
+    def revoke(self, token: str):
+        token_hash = self.hash_token(token)
+        with get_db_connection() as conn:
+            conn.execute("""
+                UPDATE feed_tokens
+                SET revoked_at = CURRENT_TIMESTAMP
+                WHERE token_hash = ? AND revoked_at IS NULL
+            """, (token_hash,))
+            conn.commit()
+
+    def revoke_by_id(self, token_id: int) -> bool:
+        with get_db_connection() as conn:
+            result = conn.execute("""
+                UPDATE feed_tokens
+                SET revoked_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND revoked_at IS NULL
+            """, (token_id,))
+            conn.commit()
+            return result.rowcount > 0

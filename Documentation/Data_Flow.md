@@ -2,11 +2,12 @@
 
 ## 1. Subscription & Polling
 1.  **User** adds a Podcast RSS URL via Web UI.
-2.  **System** saves subscription to `subscriptions` table.
-3.  **Scheduler** wakes up (e.g., every hour) and iterates active subscriptions.
-4.  **Feed Manager** fetches the remote RSS feed.
-5.  **System** compares remote episodes with `episodes` table (by GUID).
-6.  **System** queues new episodes for processing.
+2.  **System** saves one global podcast row to `subscriptions`, or reuses the existing global row if the feed is already known.
+3.  **System** adds the podcast to the user's `user_subscriptions` list. New podcasts record the first adding user as `subscriptions.owner_user_id`.
+4.  **Scheduler** wakes up (e.g., every hour) and iterates active subscriptions.
+5.  **Feed Manager** fetches the remote RSS feed.
+6.  **System** compares remote episodes with `episodes` table (by GUID).
+7.  **System** queues new episodes for processing.
 
 ## 2. Episode Processing Pipeline
 For each queued episode:
@@ -39,3 +40,5 @@ For each queued episode:
 3.  **System** serves the static XML file.
 4.  **Player** requests an episode.
 5.  **System** serves the processed audio file from the stored episode path.
+
+The public feed/audio path is not tied to a logged-in account by default. Admin-visible podcast stats can show how many user libraries include each podcast and the existing aggregate episode play count. Per-user download attribution would require token-attributed audio access logging and is not currently part of the data flow.

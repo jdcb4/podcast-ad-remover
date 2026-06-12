@@ -4,14 +4,22 @@ import logging
 import httpx
 import aiofiles
 import json
+import shutil
 from datetime import datetime
+from pathlib import Path
 from app.core.config import settings
 from app.core.models import Episode
-from app.infra.repository import EpisodeRepository, SubscriptionRepository
+from app.infra.repository import EpisodeRepository, SubscriptionRepository, JobRepository
 from app.core.ai_services import Transcriber, AdDetector, RateLimitError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
 from app.core.feed import FeedManager
+from app.core.notifications import (
+    EVENT_BREAKING_ERROR,
+    EVENT_EPISODE_DOWNLOAD,
+    send_notification_async,
+)
+from app.core.url_utils import validate_http_url, validate_redirect_target, is_audio_content_type
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +30,84 @@ class Processor:
     def __init__(self):
         self.ep_repo = EpisodeRepository()
         self.sub_repo = SubscriptionRepository()
+        self.job_repo = JobRepository()
         self.transcriber = Transcriber()
         self.ad_detector = AdDetector()
         self.rss_gen = RSSGenerator()
+
+    def _remove_episode_directory(self, episode_dir: str, action: str) -> bool:
+        """Remove an episode directory only if it is contained by PODCASTS_DIR."""
+        target = Path(episode_dir).resolve()
+        podcasts_root = Path(settings.PODCASTS_DIR).resolve()
+
+        try:
+            target.relative_to(podcasts_root)
+        except ValueError:
+            logger.error(f"Refusing to {action} outside podcast storage: {target}")
+            return False
+
+        if not target.exists():
+            return True
+        if not target.is_dir():
+            logger.warning(f"Refusing to {action} non-directory episode path: {target}")
+            return False
+
+        shutil.rmtree(target)
+        logger.info(f"{action.capitalize()} episode directory: {target}")
+        return True
+
+    def _remove_file_if_exists(self, path: str, action: str) -> None:
+        """Remove a single file and log failures without masking the original error."""
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+        except OSError as e:
+            logger.warning(f"Failed to remove {action} file {path}: {e}")
+
+    def _cleanup_stale_temporary_files(self, max_age_hours: int = 24) -> int:
+        """Remove stale processor temp files that are safe to recreate."""
+        podcasts_root = Path(settings.PODCASTS_DIR).resolve()
+        if not podcasts_root.exists():
+            return 0
+
+        cutoff = datetime.now().timestamp() - (max_age_hours * 60 * 60)
+        removed = 0
+        for path in podcasts_root.rglob("*"):
+            if not path.is_file():
+                continue
+            if not (path.name.endswith(".part") or path.name.endswith(".tmp.mp3")):
+                continue
+            try:
+                path.relative_to(podcasts_root)
+                if path.stat().st_mtime >= cutoff:
+                    continue
+                path.unlink()
+                removed += 1
+            except OSError as e:
+                logger.warning(f"Failed to remove stale temporary file {path}: {e}")
+            except ValueError:
+                logger.warning(f"Refusing to remove temporary file outside podcast storage: {path}")
+        return removed
+
+    def _validate_download_response(self, original_url: str, final_url: str, headers, free_space: int) -> int:
+        """Validate response metadata before writing episode audio to disk."""
+        validate_redirect_target(original_url, final_url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
+
+        content_length_header = headers.get("Content-Length", 0)
+        try:
+            total = int(content_length_header or 0)
+        except (TypeError, ValueError):
+            logger.warning(f"Ignoring invalid Content-Length for {original_url}: {content_length_header}")
+            total = 0
+
+        if total and total > settings.MAX_DOWNLOAD_BYTES:
+            raise RuntimeError("Episode download exceeds configured maximum size")
+        if total and free_space - total < settings.MIN_FREE_SPACE_BYTES:
+            raise RuntimeError("Episode download would leave less than the configured minimum free disk space")
+        if not is_audio_content_type(headers.get("Content-Type")):
+            raise RuntimeError(f"Episode URL did not return audio content: {headers.get('Content-Type')}")
+
+        return total
 
     async def check_feeds(self, subscription_id: int = None, limit: int = 5):
         """Check subscriptions for new episodes."""
@@ -95,9 +178,7 @@ class Processor:
         
         if os.path.exists(episode_dir):
             try:
-                import shutil
-                shutil.rmtree(episode_dir)
-                logger.info(f"Deleted episode directory: {episode_dir}")
+                self._remove_episode_directory(episode_dir, "delete")
             except Exception as e:
                 logger.warning(f"Failed to delete episode directory {episode_dir}: {e}")
 
@@ -219,6 +300,108 @@ class Processor:
             if seg['start'] < end and seg['end'] > start:
                 text.append(seg['text'])
         return " ".join(text).strip()
+
+    @staticmethod
+    def _normalize_segment(segment: dict, total_duration: float | None = None) -> dict | None:
+        try:
+            start = float(segment["start"])
+            end = float(segment["end"])
+        except (KeyError, TypeError, ValueError):
+            logger.warning(f"Skipping malformed segment: {segment}")
+            return None
+
+        if total_duration is not None:
+            start = max(0.0, min(total_duration, start))
+            end = max(0.0, min(total_duration, end))
+
+        if end <= start:
+            logger.warning(f"Skipping empty segment: {segment}")
+            return None
+
+        normalized = segment.copy()
+        normalized["start"] = start
+        normalized["end"] = end
+        return normalized
+
+    @staticmethod
+    def _merge_remove_segments(segments: list[dict], merge_gap: float = 10.0) -> list[dict]:
+        normalized_segments = [
+            normalized
+            for segment in segments
+            if (normalized := Processor._normalize_segment(segment)) is not None
+        ]
+
+        merged_segments = []
+        for segment in sorted(normalized_segments, key=lambda item: item["start"]):
+            if merged_segments and segment["start"] - merged_segments[-1]["end"] < merge_gap:
+                old_end = merged_segments[-1]["end"]
+                merged_segments[-1]["end"] = max(merged_segments[-1]["end"], segment["end"])
+                logger.info(
+                    f"Merged segment {segment['start']}-{segment['end']} into "
+                    f"{merged_segments[-1]['start']}-{merged_segments[-1]['end']}"
+                )
+                if merged_segments[-1]["end"] == old_end:
+                    logger.info("Contained segment did not extend the merged remove window")
+            else:
+                merged_segments.append(segment.copy())
+
+        return merged_segments
+
+    @staticmethod
+    def _invert_content_segments(content_segments: list[dict], total_duration: float) -> list[dict]:
+        normalized_content = [
+            normalized
+            for segment in content_segments
+            if (normalized := Processor._normalize_segment(segment, total_duration=total_duration)) is not None
+        ]
+        inverted_remove = []
+        current_time = 0.0
+
+        for content in sorted(normalized_content, key=lambda item: item["start"]):
+            if content["start"] > current_time:
+                inverted_remove.append({
+                    "start": current_time,
+                    "end": content["start"],
+                    "label": "Non-Content",
+                    "reason": "Not labeled as content (whitelist mode)",
+                })
+            current_time = max(current_time, content["end"])
+
+        if current_time < total_duration:
+            inverted_remove.append({
+                "start": current_time,
+                "end": total_duration,
+                "label": "Non-Content",
+                "reason": "Trailing non-content (whitelist mode)",
+            })
+
+        return inverted_remove
+
+    @staticmethod
+    def _prepare_remove_segments(
+        ad_segments: list[dict],
+        whitelist_mode: bool,
+        total_duration: float | None = None,
+    ) -> list[dict]:
+        if whitelist_mode:
+            content_segments = [s for s in ad_segments if s.get("label") == "Content"]
+            non_content_segments = [s for s in ad_segments if s.get("label") != "Content"]
+
+            if not content_segments:
+                logger.warning("Whitelist mode: No Content segments found! Falling back to blacklist mode.")
+                ad_segments = non_content_segments
+            elif total_duration and total_duration > 0:
+                logger.info(
+                    f"Whitelist mode: {len(content_segments)} Content segments, "
+                    f"{len(non_content_segments)} non-content segments"
+                )
+                ad_segments = Processor._invert_content_segments(content_segments, total_duration)
+                logger.info(f"Whitelist mode: inverted to {len(ad_segments)} remove segments")
+            else:
+                logger.warning("Whitelist mode: Could not determine duration; keeping episode uncut.")
+                ad_segments = []
+
+        return Processor._merge_remove_segments(ad_segments)
     
     async def regenerate_all_feeds(self):
         """Regenerate all RSS feeds to ensure they use current base URL."""
@@ -242,36 +425,30 @@ class Processor:
             limit = db_settings.get('concurrent_downloads', 2)
             if not limit or limit < 1: limit = 2
 
+            recovered_jobs = self.job_repo.recover_stale_running()
+            if recovered_jobs:
+                logger.warning(f"Recovered {recovered_jobs} stale running processing job(s)")
+
             # 2. Check if we have room using DATABASE count (cross-process safe)
-            currently_processing = self.ep_repo.count_processing()
+            currently_processing = self.job_repo.count_running()
             if currently_processing >= limit:
                 return
 
-            # 3. Get pending episodes
-            pending = self.ep_repo.get_pending()
-            if not pending:
+            # 3. Claim jobs in one SQLite transaction, then launch them.
+            capacity = limit - currently_processing
+            claimed = self.job_repo.claim_due(capacity)
+            if not claimed:
                 return
 
-            # 4. Launch new tasks up to limit
-            capacity = limit - currently_processing
-            for ep_dict in pending:
-                if capacity <= 0:
-                    break
-                    
+            for ep_dict in claimed:
                 ep_id = ep_dict['id']
                 
                 # Skip if already in our in-process tracking (for this process)
                 if ep_id in Processor._active_task_ids:
                     continue
-                
-                # CRITICAL: Mark as "processing" in DB BEFORE launching task
-                # This prevents other processes from picking up the same episode
-                self.ep_repo.update_status(ep_id, "processing")
-                self.ep_repo.update_progress(ep_id, "Starting...", 0)
                     
                 # Add to in-process set and launch
                 Processor._active_task_ids.add(ep_id)
-                capacity -= 1
                 
                 # Start background task
                 asyncio.create_task(self._process_single_episode_task(ep_dict))
@@ -285,6 +462,13 @@ class Processor:
             sub = self.sub_repo.get_by_id(ep.subscription_id)
             if not sub:
                 logger.error(f"Subscription {ep.subscription_id} not found for episode {ep.id}")
+                self.job_repo.fail_running_for_episode(ep_id, "Subscription not found")
+                await send_notification_async(
+                    EVENT_BREAKING_ERROR,
+                    "Episode processing failed",
+                    f"Episode {ep.id} could not be processed because its podcast no longer exists.",
+                    severity="error",
+                )
                 return
 
             # Actually run the processing
@@ -292,15 +476,35 @@ class Processor:
             
         except Exception as e:
             logger.error(f"Fatal error in episode task {ep_id}: {e}")
+            await send_notification_async(
+                EVENT_BREAKING_ERROR,
+                "Episode task crashed",
+                f"Episode task {ep_id} crashed before it could finish: {e}",
+                severity="error",
+            )
         finally:
             # Ensure ID is removed from active set
             Processor._active_task_ids.discard(ep_id)
+            try:
+                from app.core.utils import get_global_settings
+                global_settings = get_global_settings()
+                if (
+                    not Processor._active_task_ids
+                    and global_settings.get("unload_whisper_after_job")
+                    and self.job_repo.count_claimable() == 0
+                ):
+                    self.transcriber.unload_model()
+            except Exception as e:
+                logger.warning(f"Failed to unload Whisper model after job: {e}")
             # Proactively check queue again after finishing to keep pipeline full
             asyncio.create_task(self.process_queue())
 
     async def _process_episode_inner(self, ep: Episode, sub, ep_dict: dict):
         """Core multi-step processing logic for a single episode."""
         logger.info(f"Processing {ep.title}...")
+        from app.core.utils import get_global_settings
+        global_settings = get_global_settings()
+        ffmpeg_threads = int(global_settings.get("ffmpeg_threads") or 0)
         
         try:
             self.ep_repo.update_status(ep.id, "processing")
@@ -359,34 +563,59 @@ class Processor:
                 if not self._check_cancellation(ep): return
                 
                 logger.info(f"Downloading {ep.title}...")
+                validate_http_url(ep.original_url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
+                free_space = shutil.disk_usage(settings.DATA_DIR).free
+                if free_space < settings.MIN_FREE_SPACE_BYTES:
+                    raise RuntimeError("Not enough free disk space to download episode")
                 
-                async with httpx.AsyncClient() as client:
-                    async with client.stream("GET", ep.original_url, follow_redirects=True, timeout=300.0) as resp:
-                        resp.raise_for_status()
-                        total = int(resp.headers.get("Content-Length", 0))
-                        downloaded = 0
-                        last_logged_percent = -1
-                        last_cancel_check = datetime.now()
-                        
-                        async with aiofiles.open(input_path, "wb") as f:
-                            async for chunk in resp.aiter_bytes():
-                                await f.write(chunk)
-                                downloaded += len(chunk)
-                                
-                                # Periodic cancellation check (Time-based + Percent-based)
-                                if (datetime.now() - last_cancel_check).total_seconds() > 2.0:
-                                     if not self._check_cancellation(ep): return
-                                     last_cancel_check = datetime.now()
+                temp_input_path = f"{input_path}.part"
+                self._remove_file_if_exists(temp_input_path, "stale partial download")
 
-                                if total > 0:
-                                    percent = int((downloaded / total) * 100)
-                                    # Update DB every 5% 
-                                    if percent % 5 == 0 and percent != last_logged_percent:
-                                        self.ep_repo.update_progress(ep.id, "downloading", percent)
-                                        logger.info(f"Downloading {ep.title}: {percent}%")
-                                        last_logged_percent = percent
+                async with httpx.AsyncClient() as client:
+                    try:
+                        async with client.stream("GET", ep.original_url, follow_redirects=True, timeout=300.0) as resp:
+                            resp.raise_for_status()
+                            total = self._validate_download_response(
+                                ep.original_url,
+                                str(resp.url),
+                                resp.headers,
+                                free_space,
+                            )
+
+                            downloaded = 0
+                            last_logged_percent = -1
+                            last_cancel_check = datetime.now()
+
+                            async with aiofiles.open(temp_input_path, "wb") as f:
+                                async for chunk in resp.aiter_bytes():
+                                    await f.write(chunk)
+                                    downloaded += len(chunk)
+                                    if downloaded > settings.MAX_DOWNLOAD_BYTES:
+                                        raise RuntimeError("Episode download exceeds configured maximum size")
+
+                                    # Periodic cancellation check (Time-based + Percent-based)
+                                    if (datetime.now() - last_cancel_check).total_seconds() > 2.0:
+                                         if not self._check_cancellation(ep):
+                                             self._remove_file_if_exists(temp_input_path, "partial download")
+                                             return
+                                         last_cancel_check = datetime.now()
+
+                                    if total > 0:
+                                        percent = int((downloaded / total) * 100)
+                                        # Update DB every 5%
+                                        if percent % 5 == 0 and percent != last_logged_percent:
+                                            self.ep_repo.update_progress(ep.id, "downloading", percent)
+                                            logger.info(f"Downloading {ep.title}: {percent}%")
+                                            last_logged_percent = percent
+                    except Exception:
+                        self._remove_file_if_exists(temp_input_path, "partial download")
+                        raise
                 
-                if not self._check_cancellation(ep): return # Check after download
+                if not self._check_cancellation(ep):
+                    self._remove_file_if_exists(temp_input_path, "partial download")
+                    return # Check after download
+
+                os.replace(temp_input_path, input_path)
 
                 file_size_mb = os.path.getsize(input_path) / (1024 * 1024)
                 logger.info(f"Download complete: {file_size_mb:.2f} MB")
@@ -476,8 +705,6 @@ class Processor:
             }
             
             # Check whitelist mode from global settings
-            from app.core.utils import get_global_settings
-            global_settings = get_global_settings()
             whitelist_mode = bool(global_settings.get('whitelist_mode', 0))
             
             if whitelist_mode:
@@ -490,64 +717,9 @@ class Processor:
             if not self._check_cancellation(ep): return
 
             logger.info(f"Found {len(ad_segments)} segments: {ad_segments}")
-            
-            # Whitelist mode: invert logic - extract Content segments, remove everything else
-            if whitelist_mode:
-                content_segments = [s for s in ad_segments if s.get('label') == 'Content']
-                non_content_segments = [s for s in ad_segments if s.get('label') != 'Content']
-                
-                if not content_segments:
-                    # Safety fallback: if AI didn't return any Content labels, fall back to blacklist
-                    logger.warning("Whitelist mode: No Content segments found! Falling back to blacklist mode.")
-                    # Use the non-content segments as removable (same as blacklist)
-                    ad_segments = non_content_segments
-                else:
-                    logger.info(f"Whitelist mode: {len(content_segments)} Content segments, {len(non_content_segments)} non-content segments")
-                    
-                    # Get total duration to calculate inversion
-                    total_duration = AudioProcessor.get_duration(input_path)
-                    
-                    # Sort content segments by start time
-                    content_sorted = sorted(content_segments, key=lambda x: x['start'])
-                    
-                    # Invert: everything NOT covered by a Content segment becomes a "remove" segment
-                    inverted_remove = []
-                    current_time = 0.0
-                    
-                    for cs in content_sorted:
-                        if cs['start'] > current_time:
-                            inverted_remove.append({
-                                'start': current_time,
-                                'end': cs['start'],
-                                'label': 'Non-Content',
-                                'reason': 'Not labeled as content (whitelist mode)'
-                            })
-                        current_time = max(current_time, cs['end'])
-                    
-                    # Handle trailing non-content after last Content segment
-                    if current_time < total_duration:
-                        inverted_remove.append({
-                            'start': current_time,
-                            'end': total_duration,
-                            'label': 'Non-Content',
-                            'reason': 'Trailing non-content (whitelist mode)'
-                        })
-                    
-                    logger.info(f"Whitelist mode: inverted to {len(inverted_remove)} remove segments")
-                    ad_segments = inverted_remove
-            
-            # Merge ad segments with gaps < 10 seconds
-            merged_segments = []
-            for segment in sorted(ad_segments, key=lambda x: x['start']):
-                if merged_segments and segment['start'] - merged_segments[-1]['end'] < 10:
-                    # Merge with previous segment
-                    merged_segments[-1]['end'] = segment['end']
-                    # Keep the label/reason of the first segment or combine? Let's keep first for simplicity
-                    logger.info(f"Merged segment {segment['start']}-{segment['end']} into {merged_segments[-1]['start']}-{merged_segments[-1]['end']}")
-                else:
-                    merged_segments.append(segment.copy())
-            
-            ad_segments = merged_segments
+
+            total_duration = AudioProcessor.get_duration(input_path) if whitelist_mode else None
+            ad_segments = self._prepare_remove_segments(ad_segments, whitelist_mode, total_duration=total_duration)
             logger.info(f"After merging: {len(ad_segments)} ad segments")
             
             # Enrich with Text
@@ -694,7 +866,8 @@ class Processor:
                 AudioProcessor.remove_segments, 
                 input_path, 
                 output_path, 
-                ad_segments
+                ad_segments,
+                ffmpeg_threads=ffmpeg_threads,
             )
             logger.info(f"Saved cleaned audio to {output_path}")
             
@@ -780,7 +953,8 @@ class Processor:
                         await asyncio.to_thread(
                             AudioProcessor.concat_files,
                             output_path,
-                            concat_list
+                            concat_list,
+                            ffmpeg_threads=ffmpeg_threads,
                         )
                         
                         # Cleanup
@@ -811,6 +985,12 @@ class Processor:
             self.rss_gen.generate_unified_feed()
             
             logger.info(f"Successfully processed {ep.title}")
+            await send_notification_async(
+                EVENT_EPISODE_DOWNLOAD,
+                "Episode available",
+                f"{ep.title} from {sub.title} finished processing and is available in the feed.",
+                severity="success",
+            )
 
         except RateLimitError as e:
             # Special handling for API rate limits - wait until quota resets
@@ -847,6 +1027,12 @@ class Processor:
             else:
                 logger.error(f"Max retries reached for {ep.title}")
                 self.ep_repo.update_status(ep.id, "failed", error=str(e))
+                await send_notification_async(
+                    EVENT_BREAKING_ERROR,
+                    "Episode processing failed",
+                    f"{ep.title} from {sub.title} failed after all retry attempts: {e}",
+                    severity="error",
+                )
 
     def _check_cancellation(self, ep: Episode) -> bool:
         """
@@ -875,14 +1061,12 @@ class Processor:
             episode_dir = settings.get_episode_dir(sub.slug, episode_slug)
             
             if os.path.exists(episode_dir):
-                import shutil
-                shutil.rmtree(episode_dir)
-                logger.info(f"Cleaned up episode directory: {episode_dir}")
+                self._remove_episode_directory(episode_dir, "clean up")
         except Exception as e:
             logger.error(f"Cleanup failed: {e}")
 
     async def cleanup_old_logs(self):
-        """Clean up logs older than 30 days."""
+        """Clean up old login-attempt rows; log files are handled by rotation."""
         from datetime import datetime, timedelta
         from app.infra.database import get_db_connection
         
@@ -898,37 +1082,12 @@ class Processor:
                     logger.info(f"Cleaned up {result.rowcount} old login attempts")
                 conn.commit()
                 
-            # Clean up app.log file - keep only lines from last 30 days
-            log_path = os.path.join(settings.DATA_DIR, "app.log")
-            if os.path.exists(log_path):
-                cutoff_date = datetime.now() - timedelta(days=30)
-                cutoff_str = cutoff_date.strftime('%Y-%m-%d')
-                
-                with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
-                    lines = f.readlines()
-                
-                original_count = len(lines)
-                # Keep lines that start with a date >= cutoff, or lines without date prefix
-                kept_lines = []
-                for line in lines:
-                    try:
-                        # Log format: "2025-12-21 17:34:24,050 - ..."
-                        if len(line) >= 10 and line[4] == '-' and line[7] == '-':
-                            line_date = line[:10]
-                            if line_date >= cutoff_str:
-                                kept_lines.append(line)
-                        else:
-                            kept_lines.append(line)  # Keep non-dated lines
-                    except:
-                        kept_lines.append(line)
-                
-                if len(kept_lines) < original_count:
-                    with open(log_path, 'w', encoding='utf-8') as f:
-                        f.writelines(kept_lines)
-                    logger.info(f"Cleaned up {original_count - len(kept_lines)} old log lines")
-        
             # Clean up empty episode folders
             try:
+                removed_temp_files = self._cleanup_stale_temporary_files()
+                if removed_temp_files > 0:
+                    logger.info(f"Cleaned up {removed_temp_files} stale temporary processor files")
+
                 podcasts_dir = os.path.join(settings.DATA_DIR, "podcasts")
                 if os.path.exists(podcasts_dir):
                     deleted_folders = 0
@@ -1050,6 +1209,12 @@ class Processor:
                 
             except Exception as e:
                 logger.error(f"Error in background processor loop: {e}")
+                await send_notification_async(
+                    EVENT_BREAKING_ERROR,
+                    "Background processor error",
+                    f"The background processor loop hit an unrecovered error: {e}",
+                    severity="error",
+                )
                 
             # Short sleep to be responsive to new queue items (e.g. Manual Download/Reprocess)
             await asyncio.sleep(10)

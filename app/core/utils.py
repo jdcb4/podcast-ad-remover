@@ -1,6 +1,13 @@
 import re
 import os
 
+DEFAULT_BASE_URL = "http://localhost:8000"
+
+
+def is_running_in_container() -> bool:
+    return os.path.exists("/.dockerenv") or os.environ.get("container") is not None
+
+
 def sanitize_filename(filename: str) -> str:
     """
     Sanitize a filename to prevent path traversal and remove illegal characters.
@@ -65,16 +72,21 @@ def get_app_base_url(global_settings: dict, request=None) -> str:
     
     if external_url and external_url.strip():
         return external_url.rstrip("/")
-    
-    # If no external URL is configured, PREFER the LAN IP address.
+
+    if request:
+        return str(request.base_url).rstrip("/")
+
+    if settings.BASE_URL and settings.BASE_URL != DEFAULT_BASE_URL:
+        return settings.BASE_URL.rstrip("/")
+
+    if is_running_in_container():
+        return settings.BASE_URL.rstrip("/")
+
+    # Bare-metal fallback only. In Docker this is usually the container IP.
     lan_ip = get_lan_ip()
     
     if lan_ip and lan_ip != "localhost":
         return f"http://{lan_ip}:{settings.PORT}"
-
-    # Fallback to request URL or settings BASE_URL
-    if request:
-        return str(request.base_url).rstrip("/")
     
     return settings.BASE_URL.rstrip("/")
 

@@ -3,13 +3,17 @@ __pycache__
 *.pyo
 *.pyd
 .Python
+.agent/
 env/
 venv/
+.venv/
 .env
 .git
 .gitignore
 .vscode
 .idea
+node_modules/
+npm-debug.log
 data/
 downloads/
 transcripts/
@@ -17,5 +21,6 @@ audio/
 feeds/
 Documentation/
 scripts/
+tests/
 *.log
 debugfiles/

@@ -100,23 +100,34 @@
     let countdown = refreshInterval;
     let intervalId = null;
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[char]);
+    }
+
     function highlightLog(line) {
+        const escapedLine = escapeHtml(line);
         if (line.includes('Application startup') || line.includes('Started server') || line.includes('running on')) {
-            return `<span class="log-startup">${line}</span>`;
+            return `<span class="log-startup">${escapedLine}</span>`;
         }
         if (line.includes('Shutting down') || line.includes('shutdown') || line.includes('Finished server')) {
-            return `<span class="log-shutdown">${line}</span>`;
+            return `<span class="log-shutdown">${escapedLine}</span>`;
         }
         if (line.includes('ERROR')) {
-            return `<span class="log-error">${line}</span>`;
+            return `<span class="log-error">${escapedLine}</span>`;
         }
         if (line.includes('WARNING')) {
-            return `<span class="log-warning">${line}</span>`;
+            return `<span class="log-warning">${escapedLine}</span>`;
         }
         if (line.includes('AUTH')) {
-            return `<span class="log-auth">${line}</span>`;
+            return `<span class="log-auth">${escapedLine}</span>`;
         }
-        return line;
+        return escapedLine;
     }
 
     function filterLogs() {

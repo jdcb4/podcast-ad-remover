@@ -36,30 +36,82 @@
 </div>
 {% endmacro %}
 
-<h3 class="font-display text-xl font-bold mb-6">AI Configuration</h3>
+{% set page_titles = {
+    'ai_transcription': 'Transcription',
+    'ai_voice': 'Voice And TTS',
+    'ai_text': 'Text Analysis'
+} %}
+
+<h3 class="font-display text-xl font-bold mb-6">{{ page_titles.get(ai_section, 'Text Analysis') }}</h3>
 
 <form action="/admin/ai/update" method="POST" id="aiForm">
+    <input type="hidden" name="redirect_to" value="{{ request.url.path }}">
+    {% if ai_section != 'ai_transcription' %}
+    <input type="hidden" name="whisper_model" value="{{ settings.whisper_model or 'base' }}">
+    {% endif %}
+    {% if ai_section != 'ai_voice' %}
+    <input type="hidden" name="piper_model" value="{{ settings.piper_model or 'en_GB-cori-high.onnx' }}">
+    <input type="hidden" name="tts_provider" value="{{ settings.tts_provider or 'piper' }}">
+    <input type="hidden" name="gemini_tts_voice" value="{{ settings.gemini_tts_voice or 'Orus' }}">
+    <input type="hidden" name="gemini_tts_model_cascade" value="{{ settings.gemini_tts_model_cascade or '[&quot;gemini-3.1-flash-tts-preview&quot;, &quot;gemini-2.5-flash-preview-tts&quot;]' }}">
+    {% endif %}
+    {% if ai_section != 'ai_text' %}
+    <input type="hidden" name="active_ai_provider" value="{{ settings.active_ai_provider or 'gemini' }}">
+    <input type="hidden" name="ai_model_cascade" value="{{ settings.ai_model_cascade or '[&quot;gemini-3.5-flash&quot;, &quot;gemini-3-flash&quot;, &quot;gemini-3.1-flash-lite&quot;, &quot;gemini-2.5-flash&quot;, &quot;gemini-2.5-flash-lite&quot;]' }}">
+    <input type="hidden" name="gemini_api_keys" value="{{ settings.gemini_api_keys or '[]' }}">
+    <input type="hidden" name="openai_api_key" value="{{ settings.openai_api_key or '' }}">
+    <input type="hidden" name="anthropic_api_key" value="{{ settings.anthropic_api_key or '' }}">
+    <input type="hidden" name="openrouter_api_key" value="{{ settings.openrouter_api_key or '' }}">
+    <input type="hidden" name="openai_model" value="{{ settings.openai_model or 'gpt-4o' }}">
+    <input type="hidden" name="anthropic_model" value="{{ settings.anthropic_model or 'claude-3-5-sonnet' }}">
+    <input type="hidden" name="openrouter_model" value="{{ settings.openrouter_model or '[&quot;google/gemini-3.5-flash&quot;, &quot;google/gemini-3-flash&quot;, &quot;google/gemini-3.1-flash-lite&quot;, &quot;google/gemini-2.5-flash&quot;, &quot;google/gemini-2.5-flash-lite&quot;]' }}">
+    {% endif %}
     <div class="space-y-8">
-        <!-- Models -->
+        <!-- Transcription -->
+        {% if ai_section == 'ai_transcription' %}
         <div>
-            <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Core Models</h4>
-            <div class="grid grid-cols-1 gap-6">
-                <!-- Whisper -->
+            <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Transcription</h4>
+            <label class="block text-sm font-medium text-text-secondary mb-2">Whisper Model</label>
+            <select name="whisper_model" class="select">
+                {% for model in ['tiny', 'base', 'small', 'medium', 'large'] %}
+                <option value="{{ model }}" {% if settings.whisper_model==model %}selected{% endif %}>
+                    {{ model|title }} {% if model == 'base' %}(Default){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <!-- Voice Provider -->
+        {% if ai_section == 'ai_voice' %}
+        <div>
+            <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Voice And TTS</h4>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Whisper Model
-                        (Transcription)</label>
-                    <select name="whisper_model" class="select">
-                        {% for model in ['tiny', 'base', 'small', 'medium', 'large'] %}
-                        <option value="{{ model }}" {% if settings.whisper_model==model %}selected{% endif %}>
-                            {{ model|title }} {% if model == 'base' %}(Default){% endif %}
+                    <label class="block text-sm font-medium text-text-secondary mb-2">TTS Provider</label>
+                    <select name="tts_provider" class="select">
+                        <option value="piper" {% if (settings.tts_provider or 'piper')=='piper' %}selected{% endif %}>
+                            Piper (Local, Default)
+                        </option>
+                        <option value="gemini" {% if settings.tts_provider=='gemini' %}selected{% endif %}>
+                            Gemini TTS
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Gemini TTS Voice</label>
+                    <select name="gemini_tts_voice" class="select">
+                        {% for voice in ['Orus', 'Enceladus', 'Laomedeia'] %}
+                        <option value="{{ voice }}" {% if (settings.gemini_tts_voice or 'Orus')==voice %}selected{% endif %}>
+                            {{ voice }} {% if voice == 'Orus' %}(Default){% endif %}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- Piper -->
-                <div>
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Piper Voice (TTS)</label>
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Piper Voice</label>
                     <select name="piper_model" class="select">
                         <option value="en_GB-cori-high.onnx" {% if settings.piper_model=='en_GB-cori-high.onnx'
                             %}selected{% endif %}>Cori (High Quality) - UK English</option>
@@ -72,11 +124,16 @@
                     </select>
                 </div>
             </div>
+            <p class="text-xs text-text-muted mt-3">Gemini TTS uses the saved Gemini API keys. Current free-tier limits for each configured TTS model are 3 RPM, 10K TPM, and 10 RPD.</p>
+            {{ shuttle_ui('gemini_tts', 'Gemini TTS Model Cascade', 'gemini_tts_model_cascade',
+            settings.gemini_tts_model_cascade | tojson) }}
         </div>
+        {% endif %}
 
         <!-- AI Provider Selection -->
+        {% if ai_section == 'ai_text' %}
         <div>
-            <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">AI Provider</h4>
+            <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Text Analysis Provider</h4>
             <select name="active_ai_provider" id="providerSelect" class="select mb-4"
                 onchange="toggleProviderSettings()">
                 <option value="gemini" {% if settings.active_ai_provider=='gemini' %}selected{% endif %}>Google Gemini
@@ -169,6 +226,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <div class="flex justify-end pt-4 border-t border-white/[0.08]">
             <button type="submit" class="btn-primary">Save Configuration</button>
@@ -181,11 +239,22 @@
 
 <script nonce="{{ csp_nonce }}">
     const DEFAULTS = {
-        'gemini': ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
+        'gemini': ['gemini-3.5-flash', 'gemini-3-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'],
+        'gemini_tts': ['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'],
         'openai': ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
         'anthropic': ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
-        'openrouter': ['google/gemini-2.0-flash-001', 'meta-llama/llama-3-70b-instruct', 'anthropic/claude-3-opus']
+        'openrouter': ['google/gemini-3.5-flash', 'google/gemini-3-flash', 'google/gemini-3.1-flash-lite', 'google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite']
     };
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[char]);
+    }
 
     class ShuttleManager {
         constructor() { this.states = {}; }
@@ -229,13 +298,14 @@
         render(provider, availableList, selectedList) {
             const availEl = document.getElementById(`${provider}_available`);
             const selEl = document.getElementById(`${provider}_selected`);
+            if (!availEl || !selEl) return;
 
             availEl.innerHTML = '';
             availableList.forEach(m => {
                 const div = document.createElement('div');
                 div.className = 'text-xs p-2 rounded-lg cursor-pointer hover:bg-primary-500/10 bg-surface-base border border-white/[0.06] flex justify-between items-center group';
                 div.onclick = () => this.add(provider, m);
-                div.innerHTML = `<span>${m}</span><span class="text-primary-400 font-bold opacity-0 group-hover:opacity-100">+</span>`;
+                div.innerHTML = `<span>${escapeHtml(m)}</span><span class="text-primary-400 font-bold opacity-0 group-hover:opacity-100">+</span>`;
                 availEl.appendChild(div);
             });
 
@@ -244,16 +314,20 @@
                 const div = document.createElement('div');
                 div.className = 'text-xs p-2 rounded-lg cursor-move bg-primary-500/10 border border-primary-500/20 flex justify-between items-center';
                 div.innerHTML = `
-                    <div class="flex items-center gap-2"><span class="text-text-muted">⋮⋮</span><span>${m}</span></div>
-                    <button type="button" onclick="shuttleManager.remove('${provider}', '${m}')" class="text-red-400/50 hover:text-red-400 font-bold">×</button>
+                    <div class="flex items-center gap-2"><span class="text-text-muted">⋮⋮</span><span>${escapeHtml(m)}</span></div>
+                    <button type="button" class="text-red-400/50 hover:text-red-400 font-bold">×</button>
                 `;
+                div.querySelector('button').onclick = () => this.remove(provider, m);
                 selEl.appendChild(div);
             });
         }
 
         add(provider, model) {
             const state = this.states[provider];
-            if (state.selected.length >= 10) { alert("Max 10 models."); return; }
+            if (state.selected.length >= 10) {
+                appToast("Max 10 models.", { type: 'warning' });
+                return;
+            }
             state.selected.push(model);
             this.sync(provider);
         }
@@ -265,11 +339,13 @@
         }
 
         updateInput(provider) {
-            document.getElementById(`${provider}_input`).value = JSON.stringify(this.states[provider].selected);
+            const input = document.getElementById(`${provider}_input`);
+            if (input) input.value = JSON.stringify(this.states[provider].selected);
         }
 
         initSortable(provider) {
             const el = document.getElementById(`${provider}_selected`);
+            if (!el) return;
             new Sortable(el, {
                 animation: 150,
                 ghostClass: 'bg-primary-500/20',
@@ -290,18 +366,19 @@
                     const state = this.states[provider];
                     data.models.forEach(m => { if (!state.allKnown.includes(m)) state.allKnown.push(m); });
                     this.sync(provider);
-                    alert(`Refreshed ${provider}. Found ${data.models.length} models.`);
-                } else { alert('Error: ' + data.error); }
-            } catch (e) { alert(e); }
+                    appToast(`Refreshed ${provider}. Found ${data.models.length} models.`, { type: 'success' });
+                } else { appToast('Error: ' + data.error, { type: 'error' }); }
+            } catch (e) { appToast(String(e), { type: 'error' }); }
         }
 
-        reset(provider) {
+        async reset(provider) {
             const defs = DEFAULTS[provider];
             if (defs) {
-                if (!confirm(`Reset ${provider} model list to system defaults?\n\nDefaults: ${defs.join(', ')}`)) return;
+                if (!await appConfirm(`Reset ${provider} model list to system defaults?\n\nDefaults: ${defs.join(', ')}`)) return;
                 this.states[provider].selected = [...defs];
                 defs.forEach(m => { if (!this.states[provider].allKnown.includes(m)) this.states[provider].allKnown.push(m); });
                 this.sync(provider);
+                appToast(`Reset ${provider} model list.`, { type: 'success' });
             }
         }
     }
@@ -309,6 +386,7 @@
     const shuttleManager = new ShuttleManager();
 
     function toggleProviderSettings() {
+        if (!document.getElementById('providerSelect')) return;
         const val = document.getElementById('providerSelect').value;
         document.querySelectorAll('.provider-section').forEach(el => el.classList.add('hidden'));
         const active = document.getElementById(val + 'Settings');
@@ -316,10 +394,14 @@
     }
     toggleProviderSettings();
 
+    {% if ai_section == 'ai_text' %}
     shuttleManager.init('gemini', {{ settings.ai_model_cascade | tojson }});
     shuttleManager.init('openai', {{ settings.openai_model | tojson }});
     shuttleManager.init('anthropic', {{ settings.anthropic_model | tojson }});
     shuttleManager.init('openrouter', {{ settings.openrouter_model | tojson }});
+    {% elif ai_section == 'ai_voice' %}
+    shuttleManager.init('gemini_tts', {{ settings.gemini_tts_model_cascade | tojson }});
+    {% endif %}
 
     // Gemini Multi-Key Manager
     class GeminiKeyManager {
@@ -369,11 +451,13 @@
         updateInput() {
             // Filter empty keys and update hidden input
             const validKeys = this.keys.filter(k => k && k.trim());
-            document.getElementById('gemini_api_keys_input').value = JSON.stringify(validKeys);
+            const input = document.getElementById('gemini_api_keys_input');
+            if (input) input.value = JSON.stringify(validKeys);
         }
 
         render() {
             const container = document.getElementById('gemini_keys_container');
+            if (!container) return;
             container.innerHTML = '';
 
             this.keys.forEach((key, index) => {
@@ -418,6 +502,7 @@
     const geminiKeyManager = new GeminiKeyManager({{ settings.gemini_api_keys | tojson if settings.gemini_api_keys else '[]' }});
 
     async function testConnection() {
+        if (!document.getElementById('providerSelect')) return;
         const provider = document.getElementById('providerSelect').value;
         const out = document.getElementById('testOutput');
         out.classList.remove('hidden');

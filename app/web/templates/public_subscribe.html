@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-8">
+    <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+            <h1 class="font-display text-3xl sm:text-4xl font-bold">Subscribe</h1>
+            <p class="mt-2 text-text-secondary max-w-2xl">
+                Choose an existing ad-reduced feed and add it to your podcast app.
+            </p>
+        </div>
+        {% if user and user.is_admin %}
+        <a href="/" class="btn-secondary">Manage podcasts</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if feed_auth_enabled %}
+<div class="alert-info mb-8">
+    <div>
+        <p class="font-medium">Podcast feeds are protected.</p>
+        <p class="text-sm text-text-secondary mt-1">
+            Your podcast app may ask for the feed username and password when you subscribe.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+{% if unified_links %}
+<section class="mb-8 border-l-4 border-primary-500 bg-surface-elevated rounded-xl p-5">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h2 class="font-display text-xl font-bold">All podcasts</h2>
+            <p class="text-sm text-text-secondary mt-1">Subscribe once to receive every available feed.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ unified_links.direct }}" class="badge-soft">Direct RSS</a>
+            <a href="{{ unified_links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
+            <a href="/subscribe/apple?url={{ unified_links.apple | urlencode }}" class="badge-soft">Apple</a>
+            <a href="{{ unified_links.overcast }}" class="badge-soft">Overcast</a>
+            <a href="{{ unified_links.castbox }}" class="badge-soft">Castbox</a>
+            <a href="{{ unified_links.podcast_addict }}" class="badge-soft">Podcast Addict</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+    <input type="search" id="public-podcast-search" class="input sm:max-w-md"
+        placeholder="Filter podcasts..." aria-label="Filter podcasts">
+    <span id="public-podcast-count" class="text-sm text-text-muted">{{ subscriptions|length }} podcasts</span>
+</div>
+
+<section id="public-podcast-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    {% for item in subscriptions %}
+    <article class="podcast-card public-podcast-card" data-title="{{ item.sub.title|lower }}">
+        {% if item.sub.image_url %}
+        <div class="podcast-artwork">
+            <img src="{{ item.sub.image_url }}" alt="{{ item.sub.title }}" loading="lazy">
+        </div>
+        {% endif %}
+
+        <div class="podcast-content p-5">
+            <h2 class="font-display text-lg font-bold mb-2">{{ item.sub.title }}</h2>
+            {% if item.sub.description %}
+            <p class="text-sm text-text-secondary line-clamp-3 mb-4">
+                {{ item.sub.description | striptags | truncate(160) }}
+            </p>
+            {% endif %}
+
+            <div class="flex flex-wrap items-center gap-2 mb-4">
+                <span class="badge-neutral">{{ item.episode_count }} episode{% if item.episode_count != 1 %}s{% endif %}</span>
+                {% if item.latest_episode %}
+                <span class="badge-soft">Latest: {{ item.latest_episode.pub_date|string|truncate(10, True, '') }}</span>
+                {% endif %}
+            </div>
+
+            {% if item.episode_count > 0 %}
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ item.links.direct }}" class="badge-soft">Direct RSS</a>
+                <a href="{{ item.links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
+                <a href="/subscribe/apple?url={{ item.links.apple | urlencode }}" class="badge-soft">Apple</a>
+                <a href="{{ item.links.overcast }}" class="badge-soft">Overcast</a>
+                <a href="{{ item.links.castbox }}" class="badge-soft">Castbox</a>
+                <a href="{{ item.links.podcast_addict }}" class="badge-soft">Podcast Addict</a>
+            </div>
+            {% else %}
+            <p class="text-sm text-text-muted italic">Feed links will appear after the first episode is processed.</p>
+            {% endif %}
+        </div>
+    </article>
+    {% else %}
+    <div class="col-span-full text-center py-20 rounded-xl border border-dashed border-white/[0.1]">
+        <h2 class="font-display text-2xl font-bold text-text-secondary mb-2">No podcasts available</h2>
+        <p class="text-text-muted">The owner has not added any podcast feeds yet.</p>
+    </div>
+    {% endfor %}
+</section>
+
+<script nonce="{{ csp_nonce }}">
+    (function () {
+        const search = document.getElementById('public-podcast-search');
+        const cards = Array.from(document.querySelectorAll('.public-podcast-card'));
+        const count = document.getElementById('public-podcast-count');
+        if (!search || !count) return;
+
+        search.addEventListener('input', function () {
+            const term = this.value.trim().toLowerCase();
+            let visible = 0;
+            cards.forEach(card => {
+                const match = !term || (card.dataset.title || '').includes(term);
+                card.style.display = match ? '' : 'none';
+                if (match) visible++;
+            });
+            count.textContent = visible + ' podcast' + (visible === 1 ? '' : 's');
+        });
+    })();
+</script>
+{% endblock %}

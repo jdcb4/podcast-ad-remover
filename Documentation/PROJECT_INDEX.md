@@ -8,6 +8,8 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - FFmpeg for audio cutting and concatenation.
 - Whisper/faster-whisper for local transcription.
 - Gemini, OpenAI, Anthropic, and OpenRouter for LLM-based segment detection.
+- Piper or Gemini TTS for optional spoken title intros and audio summaries.
+- Apprise for optional admin notifications.
 - Tailwind CSS compiled with npm.
 - Docker for normal deployment.
 
@@ -19,7 +21,8 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/web/`: web routes, templates, authentication helpers, and static files.
 - `app/api/`: subscription and audio endpoints.
 - `Documentation/`: architecture, deployment, release, and maintenance docs.
-- `scripts/`: verification and Docker release helpers.
+- `Documentation/unraid/podcast-ad-remover.xml`: Unraid Docker template.
+- `scripts/`: verification, migration dry-run, and Docker release helpers.
 - `Dockerfile` and `docker-compose.yml`: container build and local compose configuration.
 
 ## Common Commands
@@ -31,6 +34,7 @@ npm run verify
 npm run verify:docker
 npm run docker:build
 npm run docker:publish
+npm run docker:experimental:arm64
 docker compose up -d --build
 ```
 
@@ -44,7 +48,9 @@ docker compose up -d --build
 - `Documentation/VERSIONING.md`: version bump and Docker tag rules.
 - `Documentation/VERIFICATION.md`: checks to run before merging or releasing.
 - `Documentation/CHANGELOG.md`: release notes.
+- `Documentation/AUDIT_STATUS.md`: current audit branch findings, implementation status, and deferred work.
 - `Documentation/DECISIONS.md`: lightweight decision log.
 - `Documentation/ROADMAP.md`: improvement candidates and future direction.
+- `Documentation/RESOURCE_AUDIT.md`: image size, runtime resource findings, and live-container measurement commands.
 - `Documentation/NAMING.md`: naming conventions for code, statuses, docs, and Docker artifacts.
 - `AGENTS.md`: maintenance rules for coding agents.

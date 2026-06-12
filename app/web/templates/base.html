@@ -132,6 +132,150 @@
         }
     </script>
 
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+    <div id="app-dialog-overlay" class="app-dialog-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="app-dialog-title">
+        <div class="app-dialog">
+            <h2 id="app-dialog-title" class="app-dialog-title">Confirm action</h2>
+            <p id="app-dialog-message" class="app-dialog-message"></p>
+            <div id="app-dialog-prompt-wrap" class="mt-4 hidden">
+                <input id="app-dialog-input" class="input" type="text">
+            </div>
+            <div class="app-dialog-actions">
+                <button id="app-dialog-cancel" type="button" class="btn-secondary btn-sm">Cancel</button>
+                <button id="app-dialog-confirm" type="button" class="btn-primary btn-sm">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <script nonce="{{ csp_nonce }}">
+        (function () {
+            const toastRegion = document.getElementById('toast-region');
+            const dialogOverlay = document.getElementById('app-dialog-overlay');
+            const dialogTitle = document.getElementById('app-dialog-title');
+            const dialogMessage = document.getElementById('app-dialog-message');
+            const dialogPromptWrap = document.getElementById('app-dialog-prompt-wrap');
+            const dialogInput = document.getElementById('app-dialog-input');
+            const dialogCancel = document.getElementById('app-dialog-cancel');
+            const dialogConfirm = document.getElementById('app-dialog-confirm');
+
+            const toastTitles = {
+                success: 'Success',
+                error: 'Needs attention',
+                warning: 'Check this',
+                info: 'Notice'
+            };
+
+            function removeToast(toast) {
+                if (!toast || toast.classList.contains('toast-removing')) return;
+                toast.classList.add('toast-removing');
+                setTimeout(() => toast.remove(), 160);
+            }
+
+            window.appToast = function (message, options = {}) {
+                const type = ['success', 'error', 'warning', 'info'].includes(options.type) ? options.type : 'info';
+                const toast = document.createElement('div');
+                toast.className = `toast-card toast-${type}`;
+                toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+
+                const icon = document.createElement('span');
+                icon.className = 'toast-icon';
+                icon.setAttribute('aria-hidden', 'true');
+
+                const body = document.createElement('div');
+                const title = document.createElement('p');
+                title.className = 'toast-title';
+                title.textContent = options.title || toastTitles[type];
+                const text = document.createElement('p');
+                text.className = 'toast-message';
+                text.textContent = String(message || '');
+                body.append(title, text);
+
+                const close = document.createElement('button');
+                close.type = 'button';
+                close.className = 'toast-close';
+                close.setAttribute('aria-label', 'Dismiss notification');
+                close.textContent = 'x';
+                close.addEventListener('click', () => removeToast(toast));
+
+                toast.append(icon, body, close);
+                toastRegion.appendChild(toast);
+
+                const timeout = Number.isFinite(options.timeout) ? options.timeout : 4500;
+                if (timeout > 0) setTimeout(() => removeToast(toast), timeout);
+                return toast;
+            };
+
+            function openDialog(options = {}) {
+                return new Promise((resolve) => {
+                    const mode = options.mode || 'confirm';
+                    const isPrompt = mode === 'prompt';
+                    dialogTitle.textContent = options.title || (isPrompt ? 'Input required' : 'Confirm action');
+                    dialogMessage.textContent = options.message || '';
+                    dialogConfirm.textContent = options.confirmText || (isPrompt ? 'Save' : 'Continue');
+                    dialogCancel.textContent = options.cancelText || 'Cancel';
+                    dialogConfirm.className = options.danger ? 'btn-danger btn-sm' : 'btn-primary btn-sm';
+                    dialogPromptWrap.classList.toggle('hidden', !isPrompt);
+                    dialogInput.type = options.inputType || 'text';
+                    dialogInput.value = options.defaultValue || '';
+                    dialogOverlay.classList.remove('hidden');
+
+                    const previousFocus = document.activeElement;
+
+                    function cleanup(value) {
+                        dialogOverlay.classList.add('hidden');
+                        dialogConfirm.removeEventListener('click', onConfirm);
+                        dialogCancel.removeEventListener('click', onCancel);
+                        dialogOverlay.removeEventListener('click', onOverlay);
+                        document.removeEventListener('keydown', onKeydown);
+                        if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+                        resolve(value);
+                    }
+
+                    function onConfirm() {
+                        cleanup(isPrompt ? dialogInput.value : true);
+                    }
+
+                    function onCancel() {
+                        cleanup(isPrompt ? null : false);
+                    }
+
+                    function onOverlay(event) {
+                        if (event.target === dialogOverlay) onCancel();
+                    }
+
+                    function onKeydown(event) {
+                        if (event.key === 'Escape') onCancel();
+                        if (event.key === 'Enter' && (isPrompt || event.target !== dialogCancel)) onConfirm();
+                    }
+
+                    dialogConfirm.addEventListener('click', onConfirm);
+                    dialogCancel.addEventListener('click', onCancel);
+                    dialogOverlay.addEventListener('click', onOverlay);
+                    document.addEventListener('keydown', onKeydown);
+                    setTimeout(() => (isPrompt ? dialogInput : dialogConfirm).focus(), 0);
+                });
+            }
+
+            window.appConfirm = function (message, options = {}) {
+                return openDialog({ ...options, message, mode: 'confirm' });
+            };
+
+            window.appPrompt = function (message, options = {}) {
+                return openDialog({ ...options, message, mode: 'prompt' });
+            };
+
+            window.appConfirmSubmit = function (form, message, options = {}) {
+                window.appConfirm(message, options).then((confirmed) => {
+                    if (confirmed && form) {
+                        form.submit();
+                    }
+                });
+                return false;
+            };
+        })();
+    </script>
+
     <main class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
         {% block content %}{% endblock %}
     </main>

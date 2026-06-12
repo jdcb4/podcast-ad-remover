@@ -12,6 +12,7 @@ import logging
 
 from app.core.config import settings
 from app.infra.repository import EpisodeRepository, SubscriptionRepository
+from app.web.auth_utils import get_client_ip
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -66,6 +67,26 @@ def _is_first_byte_request(request: Request) -> bool:
     return False
 
 
+def _resolve_audio_file_path(path: str) -> Path:
+    """Resolve an audio request path and require it to stay inside PODCASTS_DIR."""
+    podcasts_root = Path(settings.PODCASTS_DIR).resolve()
+    file_path = (podcasts_root / path).resolve(strict=False)
+
+    try:
+        file_path.relative_to(podcasts_root)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not file_path.exists():
+        logger.warning(f"Audio file not found: {file_path}")
+        raise HTTPException(status_code=404, detail="Audio file not found")
+
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Not a file")
+
+    return file_path
+
+
 @router.get("/audio/{path:path}")
 async def serve_audio(path: str, request: Request):
     """
@@ -74,21 +95,7 @@ async def serve_audio(path: str, request: Request):
     Path format: {subscription_slug}/{episode_guid}/{filename}
     or: {subscription_slug}/{filename}
     """
-    # Build full file path
-    file_path = Path(settings.PODCASTS_DIR) / path
-    
-    if not file_path.exists():
-        logger.warning(f"Audio file not found: {file_path}")
-        raise HTTPException(status_code=404, detail="Audio file not found")
-    
-    if not file_path.is_file():
-        raise HTTPException(status_code=404, detail="Not a file")
-    
-    # Security: ensure file is within PODCASTS_DIR
-    try:
-        file_path.resolve().relative_to(Path(settings.PODCASTS_DIR).resolve())
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Access denied")
+    file_path = _resolve_audio_file_path(path)
     
     # Track listen if this is a first-byte request
     if _is_first_byte_request(request):
@@ -109,11 +116,7 @@ async def serve_audio(path: str, request: Request):
                     # Find episode by filename
                     episode = ep_repo.get_by_subscription_and_filename(sub.id, filename)
                     if episode:
-                        # Get client IP
-                        client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
-                        if "," in client_ip:
-                            client_ip = client_ip.split(",")[0].strip()
-                        
+                        client_ip = get_client_ip(request)
                         # Deduplicated listen count
                         if _should_count_listen(client_ip, episode.id):
                             ep_repo.increment_listen_count(episode.id)

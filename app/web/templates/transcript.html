@@ -67,7 +67,9 @@
     function copyTranscript() {
         const text = document.getElementById('transcript-content').innerText;
         navigator.clipboard.writeText(text).then(() => {
-            alert('Transcript copied to clipboard!');
+            appToast('Transcript copied to clipboard.', { type: 'success' });
+        }).catch(() => {
+            appToast('Failed to copy transcript.', { type: 'error' });
         });
     }
 </script>

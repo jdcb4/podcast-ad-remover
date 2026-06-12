@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 
 from app.infra.database import get_db_connection
-from app.web.auth_utils import get_client_ip, is_ip_allowed, verify_password
+from app.web.auth_utils import get_client_ip, is_ip_allowed, is_same_origin_request, verify_password
 from app.core.models import User
 
 logger = logging.getLogger(__name__)
@@ -83,20 +83,12 @@ async def auth_middleware(request: Request, call_next):
     Middleware to handle authentication and IP allowlisting.
     """
     path = request.url.path
-    
-    # Skip auth/IP check for specific paths
-    # static: always public
-    # feeds/audio: public to world (IP check skipped), but might be protected by Feed Auth elsewhere
-    if path in ["/login", "/request-access", "/submit-access-request"] or \
-       path.startswith("/static/") or \
-       path.startswith("/feeds/") or \
-       path.startswith("/feed/") or \
-       path.startswith("/audio/"):
-        return await call_next(request)
-    
+
     # Check if auth is enabled
     with get_db_connection() as conn:
-        settings = conn.execute("SELECT auth_enabled, ip_allowlist FROM app_settings WHERE id = 1").fetchone()
+        settings = conn.execute(
+            "SELECT auth_enabled, ip_allowlist, app_external_url FROM app_settings WHERE id = 1"
+        ).fetchone()
     
     if not settings:
         return await call_next(request)
@@ -111,6 +103,16 @@ async def auth_middleware(request: Request, call_next):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied from your IP address"
             )
+
+    # Skip dashboard auth for public paths after applying the global IP allowlist.
+    if path in ["/login", "/request-access", "/submit-access-request"] or \
+       path.startswith("/static/") or \
+       path == "/subscribe" or \
+       path.startswith("/subscribe/") or \
+       path.startswith("/feeds/") or \
+       path.startswith("/feed/") or \
+       path.startswith("/audio/"):
+        return await call_next(request)
 
     # 2. USER AUTHENTICATION CHECK
     # Only if auth is enabled
@@ -129,6 +131,14 @@ async def auth_middleware(request: Request, call_next):
             
             logger.info(f"AUTH - Unauthorized access attempt: {client_ip} - Path: {path}")
             return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+
+        if not is_same_origin_request(request, settings["app_external_url"]):
+            client_ip = get_client_ip(request)
+            logger.warning(f"AUTH - Cross-origin unsafe request blocked: {client_ip} - Path: {path}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cross-origin management requests are not allowed"
+            )
         
         # Check if password change is required
         with get_db_connection() as conn:

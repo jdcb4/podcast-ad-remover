@@ -3,51 +3,60 @@ import logging
 from datetime import datetime
 from email.utils import format_datetime
 from xml.etree.ElementTree import Element, SubElement, tostring
-from xml.dom import minidom
 import html
 from app.core.config import settings
 from app.infra.repository import SubscriptionRepository, EpisodeRepository
 
 logger = logging.getLogger(__name__)
 
+
+def _safe_cdata(text: str) -> str:
+    """Return CDATA content safe for XML serialization."""
+    return f"<![CDATA[{html.unescape(text or '').replace(']]>', ']]]]><![CDATA[>')}]]>"
+
+
+def _serialize_rss(rss: Element) -> str:
+    xml_str = tostring(rss, encoding='unicode')
+    xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
+    return (
+        xml_str
+        .replace('&lt;![CDATA[', '<![CDATA[')
+        .replace(']]&gt;', ']]>')
+        .replace(']]]]><![CDATA[&gt;', ']]]]><![CDATA[>')
+    )
+
+
+def _get_feed_base_url(global_settings: dict) -> str:
+    external_url = global_settings.get("app_external_url")
+    if external_url and external_url.strip():
+        return external_url.rstrip("/")
+
+    base_url = settings.BASE_URL.rstrip("/")
+    if "localhost" in base_url or "127.0.0.1" in base_url:
+        from app.core.utils import get_lan_ip
+        import re
+
+        lan_ip = get_lan_ip()
+        if lan_ip and lan_ip != "localhost":
+            return re.sub(r"(https?://)(localhost|127\.0\.0\.1)", rf"\g<1>{lan_ip}", base_url)
+    return base_url
+
+
 class RSSGenerator:
     def __init__(self):
         self.sub_repo = SubscriptionRepository()
-        self.ep_repo = EpisodeRepository() # We might need a get_by_subscription method
+        self.ep_repo = EpisodeRepository()
 
     def generate_feed(self, subscription_id: int):
         sub = self.sub_repo.get_by_id(subscription_id)
         if not sub:
             return
             
-        # Get base URL from settings
         from app.core.utils import get_global_settings
-        from app.core.utils import get_lan_ip
         global_settings = get_global_settings()
-        external_url = global_settings.get("app_external_url")
-        
-        # Use placeholder if no external URL is set
-        if external_url and external_url.strip():
-            base_url = external_url.rstrip("/")
-        else:
-            # Check if we're on localhost and can use LAN IP
-            base_url = settings.BASE_URL.rstrip("/")
-            if "localhost" in base_url or "127.0.0.1" in base_url:
-                lan_ip = get_lan_ip()
-                if lan_ip and lan_ip != "localhost":
-                    import re
-                    # Use \g<1> to avoid ambiguity when lan_ip starts with digits (e.g. "192" would be interpreted as \1192)
-                    base_url = re.sub(r"(https?://)(localhost|127\.0\.0\.1)", rf"\g<1>{lan_ip}", base_url)
+        base_url = _get_feed_base_url(global_settings)
 
-        # Get processed episodes
-        # TODO: Add get_processed_by_subscription to EpisodeRepository
-        # For now, let's assume we have a list of dicts
-        from app.infra.database import get_db_connection
-        with get_db_connection() as conn:
-            episodes = conn.execute(
-                "SELECT * FROM episodes WHERE subscription_id = ? AND status = 'completed' ORDER BY pub_date DESC", 
-                (subscription_id,)
-            ).fetchall()
+        episodes = self.ep_repo.get_completed_by_subscription(subscription_id)
             
         rss = Element('rss', version='2.0', **{'xmlns:itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'})
         channel = SubElement(rss, 'channel')
@@ -114,19 +123,14 @@ class RSSGenerator:
             if not description:
                 description = f"Original: {ep['original_url']}\n\nProcessed by Podcast Ad Remover."
             
-            # Use CDATA for HTML support and to prevent double-escaping
-            # We unescape first in case the source was already escaped in the DB
-            clean_description = html.unescape(description)
             desc_element = SubElement(item, 'description')
-            desc_element.text = f"<![CDATA[{clean_description}]]>"
+            desc_element.text = _safe_cdata(description)
 
 
 
         # Save to file - use basic tostring to avoid minidom.toprettyxml() URL corruption bug
         # minidom.toprettyxml() has a bug that corrupts URLs like "http://192" into "O2"
-        xml_str = tostring(rss, encoding='unicode')
-        xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
-        xml_str = xml_str.replace('&lt;![CDATA[', '<![CDATA[').replace(']]&gt;', ']]>')
+        xml_str = _serialize_rss(rss)
         
         output_path = os.path.join(settings.FEEDS_DIR, f"{sub.slug}.xml")
         
@@ -138,37 +142,11 @@ class RSSGenerator:
     def generate_unified_feed(self):
         """Generate a single RSS feed containing all episodes from all subscriptions."""
         
-        # Get base URL from settings (reuse logic from generate_feed)
         from app.core.utils import get_global_settings
-        from app.core.utils import get_lan_ip
         global_settings = get_global_settings()
-        external_url = global_settings.get("app_external_url")
-        
-        #  Use placeholder if no external URL is set
-        if external_url and external_url.strip():
-            base_url = external_url.rstrip("/")
-        else:
-            # Check if we're on localhost and can use LAN IP
-            base_url = settings.BASE_URL.rstrip("/")
-            if "localhost" in base_url or "127.0.0.1" in base_url:
-                lan_ip = get_lan_ip()
-                if lan_ip and lan_ip != "localhost":
-                    import re
-                    # Use \g<1> to avoid ambiguity when lan_ip starts with digits (e.g. "192" would be interpreted as \1192)
-                    base_url = re.sub(r"(https?://)(localhost|127\.0\.0\.1)", rf"\g<1>{lan_ip}", base_url)
-        
+        base_url = _get_feed_base_url(global_settings)
 
-
-        # Query all completed episodes with subscription info
-        from app.infra.database import get_db_connection
-        with get_db_connection() as conn:
-            episodes = conn.execute("""
-                SELECT e.*, s.title as podcast_title, s.slug as podcast_slug, s.image_url as podcast_image 
-                FROM episodes e 
-                JOIN subscriptions s ON e.subscription_id = s.id 
-                WHERE e.status = 'completed' 
-                ORDER BY e.pub_date DESC
-            """).fetchall()
+        episodes = self.ep_repo.get_completed_with_subscription_info()
 
         rss = Element('rss', version='2.0', **{'xmlns:itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'})
         channel = SubElement(rss, 'channel')
@@ -227,16 +205,12 @@ class RSSGenerator:
                 itunes_ep_image = SubElement(item, 'itunes:image')
                 itunes_ep_image.set('href', ep['podcast_image'])
 
-            # Use CDATA for HTML support and to prevent double-escaping
-            clean_description = html.unescape(description)
             desc_element = SubElement(item, 'description')
-            desc_element.text = f"<![CDATA[{clean_description}]]>"
+            desc_element.text = _safe_cdata(description)
 
         # Save to file - use basic tostring to avoid minidom.toprettyxml() URL corruption bug
         # minidom.toprettyxml() has a bug that corrupts URLs like "http://192" into "O2"
-        xml_str = tostring(rss, encoding='unicode')
-        xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
-        xml_str = xml_str.replace('&lt;![CDATA[', '<![CDATA[').replace(']]&gt;', ']]>')
+        xml_str = _serialize_rss(rss)
         
         output_path = os.path.join(settings.FEEDS_DIR, "unified.xml")
         

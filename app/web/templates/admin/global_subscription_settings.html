@@ -39,6 +39,20 @@
                 </label>
             </div>
 
+            <div class="p-4 rounded-lg border border-white/[0.08] bg-white/[0.02]">
+                <div class="flex items-start gap-3">
+                    <input type="checkbox" name="whitelist_mode" id="whitelist_mode"
+                        class="mt-1 h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500"
+                        {% if settings.whitelist_mode %}checked{% endif %}>
+                    <div>
+                        <label for="whitelist_mode" class="text-sm font-medium text-text-secondary cursor-pointer">Whitelist Mode</label>
+                        <p class="text-xs text-text-muted mt-1">
+                            Keep only model-labelled content segments instead of removing model-labelled ads/promos.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <div class="pt-4 border-t border-white/[0.08]">
                 <h4 class="font-semibold mb-3">Default Retention Policy</h4>
                 <div class="space-y-4">
