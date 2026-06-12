@@ -154,6 +154,7 @@ def test_sensitive_admin_routes_have_route_level_admin_dependency():
         "retry_episode",
         "revoke_feed_token",
         "update_global_subscription_settings",
+        "delete_user_post",
         "approve_access_request",
         "deny_access_request",
         "update_user_username",
@@ -200,6 +201,15 @@ def test_management_api_routes_have_route_level_auth_dependency():
         assert "Depends(require_auth)" in match.group(1), f"{handler} lacks route-level auth dependency"
 
 
+def test_user_management_delete_uses_post_route():
+    router_source = Path("app/web/router.py").read_text(encoding="utf-8")
+    users_template = Path("app/web/templates/admin/users.html").read_text(encoding="utf-8")
+
+    assert '@router.post("/admin/users/{user_id}/delete")' in router_source
+    assert 'action="/admin/users/{{ active_user.id }}/delete"' in users_template
+    assert 'action="/admin/users/delete/' not in users_template
+
+
 def test_login_page_offers_public_subscribe_link_when_enabled():
     template_source = Path("app/web/templates/login.html").read_text(encoding="utf-8")
     router_source = Path("app/web/router.py").read_text(encoding="utf-8")
@@ -212,12 +222,12 @@ def test_login_page_offers_public_subscribe_link_when_enabled():
 
 
 def test_protected_feed_links_warn_that_tokens_are_bearer_secrets():
-    access_template = Path("app/web/templates/admin/access_requests.html").read_text(encoding="utf-8")
+    feed_access_template = Path("app/web/templates/admin/feed_access.html").read_text(encoding="utf-8")
     index_template = Path("app/web/templates/index.html").read_text(encoding="utf-8")
     episodes_template = Path("app/web/templates/episodes.html").read_text(encoding="utf-8")
     router_source = Path("app/web/router.py").read_text(encoding="utf-8")
 
-    for template_source in [access_template, index_template, episodes_template]:
+    for template_source in [feed_access_template, index_template, episodes_template]:
         assert "bearer secret" in template_source
         assert "until the token is revoked" in template_source
 

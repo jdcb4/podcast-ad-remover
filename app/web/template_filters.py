@@ -1,5 +1,6 @@
 import html
 import re
+from datetime import datetime
 
 
 def simple_markdown(text):
@@ -85,3 +86,25 @@ def clean_description(text):
 
     result = " ".join(cleaned_lines)
     return re.sub(r"\s+", " ", result).strip()
+
+
+def compact_datetime(value):
+    """Render SQLite/Python timestamps compactly for admin tables."""
+    if not value:
+        return "Never"
+
+    dt = value
+    if isinstance(value, str):
+        normalized = value.replace("T", " ").split(".")[0]
+        try:
+            dt = datetime.fromisoformat(normalized)
+        except ValueError:
+            return value[:16]
+
+    if not isinstance(dt, datetime):
+        return str(value)
+
+    now = datetime.now()
+    if dt.year == now.year:
+        return dt.strftime("%d %b %H:%M")
+    return dt.strftime("%d %b %Y")

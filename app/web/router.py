@@ -9,6 +9,7 @@ from app.core.url_utils import validate_http_url
 from app.web.auth import get_current_user, require_auth, require_admin, log_login_attempt, SESSION_USER_KEY
 from app.web.auth_utils import hash_password, verify_feed_password, verify_password, generate_secure_password, get_client_ip
 from app.web.rate_limiter import login_rate_limiter, check_rate_limit
+from app.web.template_filters import compact_datetime
 from app.web.template_filters import clean_description as safe_clean_description
 from app.web.template_filters import simple_markdown as safe_simple_markdown
 from app.infra.database import get_db_connection
@@ -33,6 +34,7 @@ def get_csp_nonce(request: Request) -> str:
 
 templates.env.filters['simple_markdown'] = safe_simple_markdown
 templates.env.filters['clean_description'] = safe_clean_description
+templates.env.filters['compact_datetime'] = compact_datetime
 
 sub_repo = SubscriptionRepository()
 ep_repo = EpisodeRepository()
@@ -866,15 +868,15 @@ async def regenerate_feed_token(request: Request, user = Depends(require_admin))
         feed_token_repo.revoke(current_token)
     new_token = feed_token_repo.create(user_id=user.id if user and user.id and user.id > 0 else None, name="Generated subscription links")
     request.session["feed_token"] = new_token
-    return RedirectResponse(url="/admin/access?success=Feed+token+regenerated", status_code=303)
+    return RedirectResponse(url="/admin/feed-access?success=Feed+token+regenerated", status_code=303)
 
 
 @router.post("/admin/feed-token/{token_id}/revoke")
 async def revoke_feed_token(token_id: int, admin_user = Depends(require_admin)):
     revoked = feed_token_repo.revoke_by_id(token_id)
     if not revoked:
-        return RedirectResponse(url="/admin/access?error=Feed+token+not+found", status_code=303)
-    return RedirectResponse(url="/admin/access?success=Feed+token+revoked", status_code=303)
+        return RedirectResponse(url="/admin/feed-access?error=Feed+token+not+found", status_code=303)
+    return RedirectResponse(url="/admin/feed-access?success=Feed+token+revoked", status_code=303)
 
 @router.post("/admin/queue/cancel/{episode_id}")
 async def cancel_episode(episode_id: int, admin_user = Depends(require_admin)):
@@ -1007,51 +1009,92 @@ async def apple_subscribe_page(request: Request, url: str):
         }
     )
 
-@router.get("/admin/access", response_class=HTMLResponse)
-async def admin_access(request: Request):
-    from app.infra.database import get_db_connection
-    from datetime import datetime, timedelta
-    
-    # Load settings and user
+def _admin_context(request: Request, active_tab: str) -> dict:
     settings = get_global_settings()
-    user = get_current_user(request)
-    
-    # Load pending access requests
+    return {
+        "csp_nonce": get_csp_nonce(request),
+        "user": get_current_user(request),
+        "active_tab": active_tab,
+        "settings": settings,
+        "app_base_url": get_app_base_url(settings, request),
+        "pending_requests_count": get_pending_requests_count(),
+    }
+
+
+def _recent_login_history() -> list[dict]:
+    from datetime import datetime, timedelta
+
     with get_db_connection() as conn:
-        pending_requests = conn.execute(
-            "SELECT * FROM access_requests WHERE status = 'pending' ORDER BY requested_at DESC"
-        ).fetchall()
-        
-        # Load login history for last 30 days
         thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
-        login_history = conn.execute(
+        rows = conn.execute(
             """SELECT * FROM login_attempts 
                WHERE timestamp > ? 
                ORDER BY timestamp DESC 
                LIMIT 100""",
             (thirty_days_ago,)
         ).fetchall()
-        
-        # Load active users
-        active_users = conn.execute(
-            "SELECT * FROM users ORDER BY created_at DESC"
+        return [dict(row) for row in rows]
+
+
+def _active_users() -> list[dict]:
+    with get_db_connection() as conn:
+        rows = conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()
+        return [dict(row) for row in rows]
+
+
+def _pending_access_requests() -> list[dict]:
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM access_requests WHERE status = 'pending' ORDER BY requested_at DESC"
         ).fetchall()
+        return [dict(row) for row in rows]
+
+
+@router.get("/admin/access", response_class=RedirectResponse)
+async def admin_access_legacy_redirect():
+    return RedirectResponse(url="/admin/access-requests", status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/admin/users", response_class=HTMLResponse)
+async def admin_users(request: Request):
+    context = _admin_context(request, "users")
+    context.update({
+        "active_users": _active_users(),
+        "login_history": _recent_login_history(),
+    })
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/users.html",
+        context=context,
+    )
+
+
+@router.get("/admin/access-requests", response_class=HTMLResponse)
+async def admin_access_requests(request: Request):
+    context = _admin_context(request, "access_requests")
+    context.update({
+        "pending_requests": _pending_access_requests(),
+    })
     
     return templates.TemplateResponse(
         request=request,
         name="admin/access_requests.html",
-        context={
-            "csp_nonce": get_csp_nonce(request),
-            "user": user,
-            "active_tab": "access",
-            "settings": settings,
-            "app_base_url": get_app_base_url(settings, request),
-            "pending_requests": [dict(row) for row in pending_requests],
-            "active_users": [dict(row) for row in active_users],
-            "active_feed_tokens": feed_token_repo.list_active(),
-            "login_history": [dict(row) for row in login_history],
-            "pending_requests_count": get_pending_requests_count(),
-        }
+        context=context,
+    )
+
+
+@router.get("/admin/feed-access", response_class=HTMLResponse)
+async def admin_feed_access(request: Request):
+    context = _admin_context(request, "feed_access")
+    context.update({
+        "active_feed_tokens": feed_token_repo.list_active(),
+    })
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/feed_access.html",
+        context=context,
     )
 
 @router.post("/admin/users/{user_id}/password")
@@ -1065,7 +1108,7 @@ async def admin_change_user_password(
     # Prevent changing own password via this route (use /change-password instead)
     if user_id == admin_user.id:
         return RedirectResponse(
-            url="/admin/access?error=Use+My+Profile+to+change+your+own+password", 
+            url="/admin/users?error=Use+My+Profile+to+change+your+own+password",
             status_code=status.HTTP_303_SEE_OTHER
         )
 
@@ -1078,7 +1121,7 @@ async def admin_change_user_password(
         user = conn.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
         if not user:
             return RedirectResponse(
-                url="/admin/access?error=User+not+found", 
+                url="/admin/users?error=User+not+found",
                 status_code=status.HTTP_303_SEE_OTHER
             )
             
@@ -1089,7 +1132,7 @@ async def admin_change_user_password(
         conn.commit()
     
     return RedirectResponse(
-        url=f"/admin/access?success=Password+updated+for+{user['username']}", 
+        url=f"/admin/users?success=Password+updated+for+{user['username']}",
         status_code=status.HTTP_303_SEE_OTHER
     )
 
@@ -1098,7 +1141,7 @@ async def delete_user(user_id: int, request: Request, user: dict = Depends(requi
     # Check admin
     if user.id == user_id:
         return RedirectResponse(
-            url="/admin/access?error=Cannot delete your own account", 
+            url="/admin/users?error=Cannot+delete+your+own+account",
             status_code=status.HTTP_303_SEE_OTHER
         )
 
@@ -1108,9 +1151,14 @@ async def delete_user(user_id: int, request: Request, user: dict = Depends(requi
         conn.commit()
     
     return RedirectResponse(
-        url="/admin/access?success=User deleted successfully", 
+        url="/admin/users?success=User+deleted+successfully",
         status_code=status.HTTP_303_SEE_OTHER
     )
+
+
+@router.post("/admin/users/{user_id}/delete")
+async def delete_user_post(user_id: int, request: Request, user: dict = Depends(require_admin)):
+    return await delete_user(user_id, request, user)
 
 # --- Admin: Approve Access Request ---
 @router.post("/admin/access-requests/{request_id}/approve")
@@ -1124,11 +1172,11 @@ async def approve_access_request(request: Request, request_id: int, admin_user =
         ).fetchone()
         
         if not access_req:
-            return RedirectResponse(url="/admin/access?error=Request+not+found", status_code=303)
+            return RedirectResponse(url="/admin/access-requests?error=Request+not+found", status_code=303)
 
         if not access_req["password_hash"]:
             return RedirectResponse(
-                url="/admin/access?error=Request+was+submitted+before+password+capture.+Ask+the+user+to+submit+a+new+request.",
+                url="/admin/access-requests?error=Request+was+submitted+before+password+capture.+Ask+the+user+to+submit+a+new+request.",
                 status_code=303,
             )
         
@@ -1144,7 +1192,7 @@ async def approve_access_request(request: Request, request_id: int, admin_user =
                 (request_id,)
             )
             conn.commit()
-            return RedirectResponse(url="/admin/access?error=Username+already+exists", status_code=303)
+            return RedirectResponse(url="/admin/access-requests?error=Username+already+exists", status_code=303)
         
         # Create the new user
         conn.execute(
@@ -1162,7 +1210,7 @@ async def approve_access_request(request: Request, request_id: int, admin_user =
         logger.info(f"AUTH - Access request approved: {access_req['username']}")
         
     # Redirect back to access page with success message
-    return RedirectResponse(url=f"/admin/access?approved={access_req['username']}", status_code=303)
+    return RedirectResponse(url=f"/admin/access-requests?approved={access_req['username']}", status_code=303)
 
 # --- Admin: Deny Access Request ---
 @router.post("/admin/access-requests/{request_id}/deny")
@@ -1176,7 +1224,7 @@ async def deny_access_request(request: Request, request_id: int, admin_user = De
         ).fetchone()
         
         if not access_req:
-            return RedirectResponse(url="/admin/access?error=Request+not+found", status_code=303)
+            return RedirectResponse(url="/admin/access-requests?error=Request+not+found", status_code=303)
         
         # Update access request status to denied
         conn.execute(
@@ -1187,7 +1235,7 @@ async def deny_access_request(request: Request, request_id: int, admin_user = De
         
         logger.info(f"AUTH - Access request denied: {access_req['username']}")
         
-    return RedirectResponse(url="/admin/access?denied=1", status_code=303)
+    return RedirectResponse(url="/admin/access-requests?denied=1", status_code=303)
 
 # --- Admin: Update User Username ---
 @router.post("/admin/users/{user_id}/username")
@@ -1201,11 +1249,11 @@ async def update_user_username(
         # Check if username already exists
         existing = conn.execute("SELECT id FROM users WHERE username = ? AND id != ?", (username, user_id)).fetchone()
         if existing:
-            return RedirectResponse(url="/admin/access?error=Username already exists", status_code=303)
+            return RedirectResponse(url="/admin/users?error=Username+already+exists", status_code=303)
             
         conn.execute("UPDATE users SET username = ? WHERE id = ?", (username, user_id))
         conn.commit()
-    return RedirectResponse(url="/admin/access", status_code=303)
+    return RedirectResponse(url="/admin/users", status_code=303)
 
 # --- Admin: Update Request Username ---
 @router.post("/admin/access-requests/{request_id}/username")
@@ -1218,7 +1266,7 @@ async def update_request_username(
     with get_db_connection() as conn:
         conn.execute("UPDATE access_requests SET username = ? WHERE id = ?", (username, request_id))
         conn.commit()
-    return RedirectResponse(url="/admin/access", status_code=303)
+    return RedirectResponse(url="/admin/access-requests", status_code=303)
 
 # Helper to render index with consistent data
 def _render_index(request: Request, error: str = None):

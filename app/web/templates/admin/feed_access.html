@@ -1,0 +1,176 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Feed Access{% endblock %}
+
+{% block admin_content %}
+<div class="mb-8">
+    <h2 class="font-display text-2xl font-bold">Feed Access</h2>
+    <p class="text-sm text-text-muted mt-1">Control public subscription pages, RSS feed access, and feed tokens.</p>
+</div>
+
+<form method="post" action="/admin/system/update" onsubmit="return validateFeedAuth(this)">
+    <div class="space-y-6">
+        <label class="flex items-center cursor-pointer">
+            <input type="checkbox" name="public_subscribe_page_enabled" id="public_subscribe_page_enabled"
+                {% if settings.public_subscribe_page_enabled %}checked{% endif %}
+                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+            <span class="ml-3 font-medium">Enable public read-only subscription page</span>
+        </label>
+        <div class="bg-surface-base p-3 rounded-xl border border-white/[0.08]">
+            <p class="text-sm text-text-secondary">
+                Public page: <a href="/subscribe" class="text-primary-400 hover:text-primary-300">/subscribe</a>.
+                Visitors can subscribe to existing podcast feeds from this page, but cannot add, edit, reprocess, or delete anything.
+            </p>
+        </div>
+
+        <label class="flex items-center cursor-pointer">
+            <input type="checkbox" name="enable_feed_auth" id="enable_feed_auth" {% if settings.enable_feed_auth %}checked{% endif %}
+                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+            <span class="ml-3 font-medium">Require authentication for RSS feeds and audio files</span>
+        </label>
+
+        <div id="feed_auth_container" style="display: {% if settings.enable_feed_auth %}block{% else %}none{% endif %}">
+            <div id="feed_auth_integrated" class="alert-info mb-4"
+                style="display: {% if settings.auth_enabled %}flex{% else %}none{% endif %}">
+                <strong>User authentication is enabled.</strong> Podcast apps can use dashboard user credentials, or generated token links.
+            </div>
+
+            <div id="feed_auth_standalone" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"
+                style="display: {% if not settings.auth_enabled %}grid{% else %}none{% endif %}">
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Feed Username</label>
+                    <input type="text" name="feed_auth_username" id="feed_username"
+                        value="{{ settings.feed_auth_username or '' }}" placeholder="feeduser" class="input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Feed Password</label>
+                    <input type="password" name="feed_auth_password" id="feed_password"
+                        placeholder="{% if settings.feed_auth_password %}Leave blank to keep current{% else %}Enter password{% endif %}"
+                        class="input">
+                </div>
+                <p class="md:col-span-2 text-xs text-text-muted">
+                    Since dashboard authentication is disabled, protected feeds need a standalone username and password.
+                </p>
+            </div>
+        </div>
+
+        {% if settings.enable_feed_auth %}
+        <div class="bg-surface-base p-3 rounded-xl border border-white/[0.08]">
+            <p class="text-sm font-medium text-text-secondary mb-1">Example protected feed URL</p>
+            <code id="example_feed_url"
+                class="block overflow-x-auto text-xs bg-surface-elevated px-2 py-1 rounded border border-white/[0.06] text-primary-400">
+                {% set display_url = app_base_url %}
+                {% if not settings.app_external_url %}{% set display_url = "https://your-public-url.com" %}{% endif %}
+                {{ display_url }}/feeds/SLUG.xml?token=GENERATED_TOKEN
+            </code>
+            <p class="text-xs text-text-muted mt-2">Protected links use generated feed tokens. Treat any URL containing
+                <code class="bg-surface-elevated px-1 rounded">token=</code> as a bearer secret until the token is revoked.
+                Basic Auth and older auth links continue to work for compatibility.</p>
+        </div>
+        {% endif %}
+
+        <p class="text-xs text-text-muted">
+            Leave feed authentication off for the smoothest podcast-client setup. Turn it on when you want podcast apps to authenticate before reading feeds or downloading audio.
+        </p>
+
+        <input type="hidden" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 3 }}">
+        <input type="hidden" name="retention_days" value="{{ settings.retention_days or 30 }}">
+        <input type="hidden" name="check_interval_minutes" value="{{ settings.check_interval_minutes or 60 }}">
+        <input type="hidden" name="app_external_url" value="{{ settings.app_external_url or '' }}">
+        <input type="hidden" name="auth_enabled" value="{% if settings.auth_enabled %}on{% endif %}">
+        <input type="hidden" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}">
+        <input type="hidden" name="whitelist_mode" value="{% if settings.whitelist_mode %}on{% endif %}">
+        <input type="hidden" name="redirect_to" value="/admin/feed-access">
+    </div>
+
+    <div class="flex justify-end pt-4 border-t border-white/[0.08] mt-6">
+        <button type="submit" class="btn-primary">Save Feed Access</button>
+    </div>
+</form>
+
+<section class="mt-10">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+        <div>
+            <h3 class="font-display text-xl font-bold">Feed Tokens</h3>
+            <p class="text-sm text-text-muted mt-1">Tokens are used in protected subscription links.</p>
+        </div>
+        {% if settings.enable_feed_auth %}
+        <form method="post" action="/admin/feed-token/regenerate">
+            <button type="submit" class="btn-secondary btn-sm"
+                onclick="return appConfirmSubmit(this.form, 'Regenerate your feed token? Podcast apps using the previous token will need updated feed URLs.')">
+                Regenerate Feed Token
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="rounded-xl border border-white/[0.06] overflow-hidden">
+        <table class="table-dark w-full table-fixed">
+            <thead>
+                <tr>
+                    <th class="w-[30%]">Name</th>
+                    <th class="w-[20%]">Owner</th>
+                    <th class="w-[20%]">Created</th>
+                    <th class="w-[20%]">Last Used</th>
+                    <th class="w-[10%] text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for token in active_feed_tokens %}
+                <tr>
+                    <td class="font-medium truncate">{{ token.name }}</td>
+                    <td class="text-text-secondary truncate">{{ token.username or 'Shared' }}</td>
+                    <td class="text-text-secondary">{{ token.created_at | compact_datetime }}</td>
+                    <td class="text-text-secondary">{{ token.last_used_at | compact_datetime }}</td>
+                    <td class="text-right">
+                        <form method="post" action="/admin/feed-token/{{ token.id }}/revoke" class="inline">
+                            <button type="submit" class="text-red-400 hover:text-red-300 font-medium"
+                                onclick="return appConfirmSubmit(this.form, 'Revoke this feed token? Podcast apps using it will need updated feed URLs.', { danger: true })">
+                                Revoke
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not active_feed_tokens %}
+        <div class="text-center py-8">
+            <p class="text-text-muted text-sm">No active feed tokens yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<script nonce="{{ csp_nonce }}">
+    const authEnabled = {{ 'true' if settings.auth_enabled else 'false' }};
+    const feedAuthCheckbox = document.getElementById('enable_feed_auth');
+    const feedAuthContainer = document.getElementById('feed_auth_container');
+    const feedAuthIntegrated = document.getElementById('feed_auth_integrated');
+    const feedAuthStandalone = document.getElementById('feed_auth_standalone');
+
+    function updateFeedAuthVisibility() {
+        if (!feedAuthCheckbox || !feedAuthContainer) return;
+        feedAuthContainer.style.display = feedAuthCheckbox.checked ? 'block' : 'none';
+        if (!feedAuthCheckbox.checked) return;
+        if (feedAuthIntegrated) feedAuthIntegrated.style.display = authEnabled ? 'flex' : 'none';
+        if (feedAuthStandalone) feedAuthStandalone.style.display = authEnabled ? 'none' : 'grid';
+    }
+
+    function validateFeedAuth(form) {
+        if (!feedAuthCheckbox || !feedAuthCheckbox.checked || authEnabled) return true;
+        const user = document.getElementById('feed_username').value.trim();
+        const pass = document.getElementById('feed_password').value;
+        const hasExistingPass = document.getElementById('feed_password').placeholder.includes("Leave blank");
+        if (!user || (!pass && !hasExistingPass)) {
+            appToast("Standalone feed protection requires both a username and password. Protection has been disabled.", { type: 'warning', timeout: 7000 });
+            feedAuthCheckbox.checked = false;
+            updateFeedAuthVisibility();
+        }
+        return true;
+    }
+
+    if (feedAuthCheckbox) feedAuthCheckbox.addEventListener('change', updateFeedAuthVisibility);
+    updateFeedAuthVisibility();
+</script>
+{% endblock %}

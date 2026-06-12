@@ -3,17 +3,11 @@
 {% block title %}Access Requests{% endblock %}
 
 {% block admin_content %}
-<!-- Feedback Banners -->
 {% if request.query_params.get('approved') %}
 <div class="alert-success mb-6">
-    <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-            clip-rule="evenodd" />
-    </svg>
     <div>
-        <p class="font-medium">User <strong>{{ request.query_params.get('approved') }}</strong> approved!</p>
-        <p class="text-sm text-emerald-300/80 mt-1">They can now sign in with the password they chose when requesting access.</p>
+        <p class="font-medium">User <strong>{{ request.query_params.get('approved') }}</strong> approved.</p>
+        <p class="text-sm text-emerald-300/80 mt-1">They can now sign in with the password they chose.</p>
     </div>
 </div>
 {% endif %}
@@ -24,485 +18,112 @@
 </div>
 {% endif %}
 
-{% if request.query_params.get('error') %}
-<div class="alert-error mb-6">
-    <p class="font-medium">{{ request.query_params.get('error') }}</p>
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+    <div>
+        <h2 class="font-display text-2xl font-bold">Access Requests</h2>
+        <p class="text-sm text-text-muted mt-1">Review pending requests from people who want dashboard access.</p>
+    </div>
+    <a href="/request-access" class="btn-secondary btn-sm">Open Request Form</a>
+</div>
+
+{% if pending_requests %}
+<div class="hidden md:block rounded-xl border border-white/[0.06] overflow-hidden">
+    <table class="table-dark w-full table-fixed">
+        <thead>
+            <tr>
+                <th class="w-[22%]">Username</th>
+                <th class="w-[24%]">Email</th>
+                <th class="w-[18%]">Requested</th>
+                <th class="w-[18%]">IP</th>
+                <th class="w-[18%] text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in pending_requests %}
+            <tr>
+                <td class="font-medium truncate">
+                    <button class="hover:text-primary-400 transition-colors truncate max-w-full"
+                        onclick="editRequestUsername('{{ req.id }}', '{{ req.username }}')">
+                        {{ req.username }}
+                    </button>
+                </td>
+                <td class="text-text-secondary truncate">{{ req.email or '-' }}</td>
+                <td class="text-text-secondary">{{ req.requested_at | compact_datetime }}</td>
+                <td class="text-text-secondary truncate">{{ req.ip_address }}</td>
+                <td class="text-right">
+                    <form method="post" action="/admin/access-requests/{{ req.id }}/approve" class="inline">
+                        <button type="submit" class="text-emerald-400 hover:text-emerald-300 font-medium mr-3">Approve</button>
+                    </form>
+                    <form method="post" action="/admin/access-requests/{{ req.id }}/deny" class="inline">
+                        <button type="submit" class="text-red-400 hover:text-red-300 font-medium">Deny</button>
+                    </form>
+                </td>
+            </tr>
+            {% if req.reason %}
+            <tr>
+                <td colspan="5" class="text-sm text-text-secondary bg-surface-base">
+                    <strong>Reason:</strong> {{ req.reason }}
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="md:hidden space-y-3">
+    {% for req in pending_requests %}
+    <div class="rounded-xl border border-white/[0.08] bg-surface-base p-4">
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+                <button class="font-semibold hover:text-primary-400 truncate max-w-full"
+                    onclick="editRequestUsername('{{ req.id }}', '{{ req.username }}')">
+                    {{ req.username }}
+                </button>
+                <p class="text-xs text-text-muted">{{ req.email or 'No email' }}</p>
+            </div>
+            <span class="badge-neutral">{{ req.requested_at | compact_datetime }}</span>
+        </div>
+        {% if req.reason %}
+        <p class="text-sm text-text-secondary mt-3">{{ req.reason }}</p>
+        {% endif %}
+        <p class="text-xs text-text-muted mt-2">{{ req.ip_address }}</p>
+        <div class="flex gap-3 mt-4">
+            <form method="post" action="/admin/access-requests/{{ req.id }}/approve">
+                <button type="submit" class="btn-secondary btn-sm text-emerald-300">Approve</button>
+            </form>
+            <form method="post" action="/admin/access-requests/{{ req.id }}/deny">
+                <button type="submit" class="btn-secondary btn-sm text-red-300">Deny</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-12 rounded-xl border border-dashed border-white/[0.1]">
+    <p class="text-text-muted">No pending access requests</p>
 </div>
 {% endif %}
 
-<!-- User Authentication Settings -->
-<div class="mb-8">
-    <h2 class="font-display text-2xl font-bold mb-6">User Authentication</h2>
-
-    <form method="post" action="/admin/system/update">
-        <div class="space-y-6">
-            <label class="flex items-center cursor-pointer">
-                <input type="checkbox" name="auth_enabled" id="auth_enabled" {% if settings.auth_enabled %}checked{%
-                    endif %}
-                    class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
-                <span class="ml-3 font-medium">Enable User Authentication</span>
-            </label>
-
-            <div id="auth_settings" style="display: {% if settings.auth_enabled %}block{% else %}none{% endif %}">
-                <label class="block text-sm font-medium text-text-secondary mb-2">IP Allowlist (optional)</label>
-                <input type="text" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}"
-                    placeholder="192.168.1.100, 10.0.0.0/24" class="input">
-                <p class="text-xs text-text-muted mt-1">Comma-separated list of IPs or CIDR ranges allowed to access the app. Leave
-                    blank to allow all IPs.</p>
-            </div>
-
-            {% if not settings.auth_enabled %}
-            <div class="alert-info">
-                When you enable authentication, a default <code class="bg-surface-base px-1 rounded">admin</code> user
-                will be created with a secure random password. You'll see the password on the login page.
-            </div>
-            {% endif %}
-
-            <input type="hidden" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 3 }}">
-            <input type="hidden" name="retention_days" value="{{ settings.retention_days or 30 }}">
-            <input type="hidden" name="check_interval_minutes" value="{{ settings.check_interval_minutes or 60 }}">
-            <input type="hidden" name="app_external_url" value="{{ settings.app_external_url or '' }}">
-            <input type="hidden" name="enable_feed_auth" value="{% if settings.enable_feed_auth %}on{% endif %}">
-            <input type="hidden" name="public_subscribe_page_enabled" value="{% if settings.public_subscribe_page_enabled %}on{% endif %}">
-            <input type="hidden" name="feed_auth_username" value="{{ settings.feed_auth_username or '' }}">
-            <input type="hidden" name="whitelist_mode" value="{% if settings.whitelist_mode %}on{% endif %}">
-        </div>
-
-        <div class="flex justify-end pt-4 border-t border-white/[0.08] mt-6">
-            <button type="submit" class="btn-primary">Save Changes</button>
-        </div>
-    </form>
-
-    <script nonce="{{ csp_nonce }}">
-        document.getElementById('auth_enabled').addEventListener('change', function () {
-            document.getElementById('auth_settings').style.display = this.checked ? 'block' : 'none';
+<script nonce="{{ csp_nonce }}">
+    async function editRequestUsername(id, currentName) {
+        const newName = await appPrompt("Enter new username:", {
+            title: 'Change request username',
+            defaultValue: currentName,
+            confirmText: 'Save'
         });
-    </script>
-</div>
-
-<!-- Active Users -->
-<div class="mb-8">
-    <h2 class="font-display text-2xl font-bold mb-6">Active Users</h2>
-
-    <div class="overflow-x-auto rounded-xl border border-white/[0.06]">
-        <table class="table-dark">
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>Role</th>
-                    <th>Created At</th>
-                    <th>Last Login</th>
-                    <th class="text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for active_user in active_users %}
-                <tr>
-                    <td class="whitespace-nowrap font-medium">
-                        <span class="cursor-pointer hover:text-primary-400 transition-colors"
-                            onclick="editUsername('{{ active_user.id }}', 'user', '{{ active_user.username }}')">
-                            {{ active_user.username }}
-                        </span>
-                    </td>
-                    <td class="whitespace-nowrap">
-                        {% if active_user.is_admin %}
-                        <span class="badge-info">Admin</span>
-                        {% else %}
-                        <span class="badge-neutral">User</span>
-                        {% endif %}
-                    </td>
-                    <td class="whitespace-nowrap text-text-secondary">{{ active_user.created_at }}</td>
-                    <td class="whitespace-nowrap text-text-secondary">{{ active_user.last_login or 'Never' }}</td>
-                    <td class="whitespace-nowrap text-right">
-                        {% if user.id != active_user.id %}
-                        <!-- Change Password -->
-                        <button onclick="changeUserPassword('{{ active_user.id }}', '{{ active_user.username }}')"
-                            class="text-primary-400 hover:text-primary-300 font-medium mr-3">
-                            Change Password
-                        </button>
-                        
-                        <form method="post" action="/admin/users/delete/{{ active_user.id }}"
-                            onsubmit="return appConfirmSubmit(this, 'Are you sure you want to delete this user?', { danger: true });"
-                            style="display:inline">
-                            <button type="submit" class="text-red-400 hover:text-red-300 font-medium">Delete</button>
-                        </form>
-                        {% else %}
-                        <span class="text-text-muted cursor-not-allowed">Delete</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% if not active_users %}
-        <div class="text-center py-8">
-            <p class="text-text-muted">No users found.</p>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Podcast Subscription Access -->
-<div class="mb-8">
-    <h2 class="font-display text-2xl font-bold mb-6">Podcast Subscription Access</h2>
-
-    <form method="post" action="/admin/system/update" onsubmit="return validateFeedAuth(this)">
-        <div class="space-y-6">
-            <label class="flex items-center cursor-pointer">
-                <input type="checkbox" name="public_subscribe_page_enabled" id="public_subscribe_page_enabled"
-                    {% if settings.public_subscribe_page_enabled %}checked{% endif %}
-                    class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
-                <span class="ml-3 font-medium">Enable public read-only subscription page</span>
-            </label>
-            <div class="bg-surface-base p-3 rounded-xl border border-white/[0.08]">
-                <p class="text-sm text-text-secondary">
-                    Public page: <a href="/subscribe" class="text-primary-400 hover:text-primary-300">/subscribe</a>.
-                    Visitors can subscribe to existing podcast feeds from this page, but cannot add, edit, reprocess, or delete anything.
-                </p>
-            </div>
-
-            <label class="flex items-center cursor-pointer">
-                <input type="checkbox" name="enable_feed_auth" id="enable_feed_auth" {% if settings.enable_feed_auth
-                    %}checked{% endif %}
-                    class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
-                <span class="ml-3 font-medium">Require authentication for RSS feeds and audio files</span>
-            </label>
-
-            <div id="feed_auth_container"
-                style="display: {% if settings.enable_feed_auth %}block{% else %}none{% endif %}">
-                <div id="feed_auth_integrated" class="alert-info mb-4"
-                    style="display: {% if settings.auth_enabled %}flex{% else %}none{% endif %}">
-                    <strong>User authentication is enabled.</strong> Podcast apps will require the same username and
-                    Password that you use to log in.
-                </div>
-
-                <div id="feed_auth_standalone" class="grid grid-cols-2 gap-4 mb-4"
-                    style="display: {% if not settings.auth_enabled %}grid{% else %}none{% endif %}">
-                    <div>
-                        <label class="block text-sm font-medium text-text-secondary mb-2">Feed Username</label>
-                        <input type="text" name="feed_auth_username" id="feed_username"
-                            value="{{ settings.feed_auth_username or '' }}" placeholder="feeduser" class="input">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-text-secondary mb-2">Feed Password</label>
-                        <input type="password" name="feed_auth_password" id="feed_password"
-                            placeholder="{% if settings.feed_auth_password %}Leave blank to keep current{% else %}Enter password{% endif %}"
-                            class="input">
-                    </div>
-                    <div class="col-span-2">
-                        <p class="text-xs text-text-muted">Since User Authentication is disabled, you must set a
-                            specific username and password for your feeds.</p>
-                    </div>
-                </div>
-            </div>
-
-            {% if settings.enable_feed_auth %}
-            <div class="bg-surface-base p-3 rounded-xl border border-white/[0.08] mt-4">
-                <p class="text-sm font-medium text-text-secondary mb-1">Example Feed URL:</p>
-                <code id="example_feed_url"
-                    class="text-xs bg-surface-elevated px-2 py-1 rounded border border-white/[0.06] text-primary-400">
-                    {% set display_url = app_base_url %}
-                    {% if not settings.app_external_url %}{% set display_url = "https://your-public-url.com" %}{% endif %}
-                    {{ display_url }}/feeds/SLUG.xml?token=GENERATED_TOKEN
-                </code>
-                <p class="text-xs text-text-muted mt-2">Protected links use generated feed tokens. Treat any URL
-                    containing <code class="bg-surface-elevated px-1 rounded">token=</code> as a bearer secret: anyone
-                    with that full URL can read the protected feed and download audio until the token is revoked.
-                    Existing Basic Auth and older auth links continue to work for compatibility.</p>
-                <form method="post" action="/admin/feed-token/regenerate" class="mt-3">
-                    <button type="submit" class="btn-secondary btn-sm"
-                        onclick="return appConfirmSubmit(this.form, 'Regenerate your feed token? Podcast apps using the previous token will need updated feed URLs.')">
-                        Regenerate Feed Token
-                    </button>
-                </form>
-                <div class="mt-4 overflow-x-auto rounded-lg border border-white/[0.06]">
-                    <table class="table-dark">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Owner</th>
-                                <th>Created</th>
-                                <th>Last Used</th>
-                                <th class="text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for token in active_feed_tokens %}
-                            <tr>
-                                <td class="whitespace-nowrap font-medium">{{ token.name }}</td>
-                                <td class="whitespace-nowrap text-text-secondary">{{ token.username or 'Shared' }}</td>
-                                <td class="whitespace-nowrap text-text-secondary">{{ token.created_at }}</td>
-                                <td class="whitespace-nowrap text-text-secondary">{{ token.last_used_at or 'Never' }}</td>
-                                <td class="whitespace-nowrap text-right">
-                                    <form method="post" action="/admin/feed-token/{{ token.id }}/revoke" style="display:inline">
-                                        <button type="submit" class="text-red-400 hover:text-red-300 font-medium"
-                                            onclick="return appConfirmSubmit(this.form, 'Revoke this feed token? Podcast apps using it will need updated feed URLs.', { danger: true })">
-                                            Revoke
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% if not active_feed_tokens %}
-                    <div class="text-center py-4">
-                        <p class="text-text-muted text-sm">No active feed tokens yet.</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            <p class="text-xs text-text-muted mt-4">
-                Leave feed authentication off for the smoothest podcast-client setup. Turn it on when you want podcast
-                apps to prompt for credentials before reading feeds or downloading audio.
-            </p>
-
-            <input type="hidden" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 3 }}">
-            <input type="hidden" name="retention_days" value="{{ settings.retention_days or 30 }}">
-            <input type="hidden" name="check_interval_minutes" value="{{ settings.check_interval_minutes or 60 }}">
-            <input type="hidden" name="app_external_url" value="{{ settings.app_external_url or '' }}">
-            <input type="hidden" name="auth_enabled" value="{% if settings.auth_enabled %}on{% endif %}">
-            <input type="hidden" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}">
-            <input type="hidden" name="whitelist_mode" value="{% if settings.whitelist_mode %}on{% endif %}">
-            <input type="hidden" name="redirect_to" value="/admin/access">
-        </div>
-
-        <div class="flex justify-end pt-4 border-t border-white/[0.08] mt-6">
-            <button type="submit" class="btn-primary">Save Changes</button>
-        </div>
-    </form>
-
-    <script nonce="{{ csp_nonce }}">
-        const authEnabledCheckbox = document.getElementById('auth_enabled');
-        const feedAuthCheckbox = document.getElementById('enable_feed_auth');
-        const feedAuthContainer = document.getElementById('feed_auth_container');
-        const feedAuthIntegrated = document.getElementById('feed_auth_integrated');
-        const feedAuthStandalone = document.getElementById('feed_auth_standalone');
-        const authSettingsIP = document.getElementById('auth_settings');
-
-        function updateVisibility() {
-            if (authSettingsIP) authSettingsIP.style.display = authEnabledCheckbox.checked ? 'block' : 'none';
-            if (feedAuthCheckbox.checked) {
-                feedAuthContainer.style.display = 'block';
-                if (authEnabledCheckbox.checked) {
-                    feedAuthIntegrated.style.display = 'flex';
-                    feedAuthStandalone.style.display = 'none';
-                } else {
-                    feedAuthIntegrated.style.display = 'none';
-                    feedAuthStandalone.style.display = 'grid';
-                }
-            } else {
-                feedAuthContainer.style.display = 'none';
-            }
+        if (newName && newName !== currentName) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/admin/access-requests/${id}/username`;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'username';
+            input.value = newName;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
         }
-
-        function validateFeedAuth(form) {
-            const isFeedAuthEnabled = document.getElementById('enable_feed_auth').checked;
-            const isGlobalAuthEnabled = authEnabledCheckbox.checked;
-            if (isFeedAuthEnabled && !isGlobalAuthEnabled) {
-                const user = document.getElementById('feed_username').value.trim();
-                const pass = document.getElementById('feed_password').value;
-                const hasExistingPass = document.getElementById('feed_password').placeholder.includes("Leave blank");
-                if (!user || (!pass && !hasExistingPass)) {
-                    appToast("Stand-alone Feed Protection requires both a Username and Password. Protection has been automatically disabled.", { type: 'warning', timeout: 7000 });
-                    document.getElementById('enable_feed_auth').checked = false;
-                    updateVisibility();
-                    return true;
-                }
-            }
-            return true;
-        }
-
-        if (authEnabledCheckbox) authEnabledCheckbox.addEventListener('change', updateVisibility);
-        if (feedAuthCheckbox) feedAuthCheckbox.addEventListener('change', updateVisibility);
-        updateVisibility();
-
-        async function editUsername(id, type, currentName) {
-            const newName = await appPrompt("Enter new username:", {
-                title: 'Change username',
-                defaultValue: currentName,
-                confirmText: 'Save'
-            });
-            if (newName && newName !== currentName) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = type === 'user' ? `/admin/users/${id}/username` : `/admin/access-requests/${id}/username`;
-                const input = document.createElement('input');
-                input.type = 'hidden'; input.name = 'username'; input.value = newName;
-                form.appendChild(input); document.body.appendChild(form); form.submit();
-            }
-        }
-    </script>
-    <script nonce="{{ csp_nonce }}">
-        // ... previous scripts ...
-
-        async function changeUserPassword(userId, username) {
-            const newPassword = await appPrompt(`Enter new password for ${username}:`, {
-                title: 'Change password',
-                inputType: 'password',
-                confirmText: 'Continue'
-            });
-            if (newPassword) {
-                // Confirm action
-                if (!await appConfirm(`Change password for ${username}?`, { danger: true })) {
-                    return;
-                }
-                
-                // Create and submit form dynamically
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = `/admin/users/${userId}/password`;
-                
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'password';
-                input.value = newPassword;
-                
-                form.appendChild(input);
-                document.body.appendChild(form);
-                form.submit();
-            }
-        }
-    </script>
-</div>
-
-<!-- Access Requests Table -->
-<div class="mb-8">
-    <h2 class="font-display text-2xl font-bold mb-6">Access Requests</h2>
-
-    {% if pending_requests %}
-    <div class="overflow-x-auto rounded-xl border border-white/[0.06]">
-        <table class="table-dark">
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Requested At</th>
-                    <th>IP Address</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for req in pending_requests %}
-                <tr>
-                    <td class="whitespace-nowrap font-medium">
-                        <span class="cursor-pointer hover:text-primary-400"
-                            onclick="editUsername('{{ req.id }}', 'request', '{{ req.username }}')">
-                            {{ req.username }}
-                        </span>
-                    </td>
-                    <td class="whitespace-nowrap text-text-secondary">{{ req.email or '-' }}</td>
-                    <td class="whitespace-nowrap text-text-secondary">{{ req.requested_at }}</td>
-                    <td class="whitespace-nowrap text-text-secondary">{{ req.ip_address }}</td>
-                    <td class="whitespace-nowrap">
-                        <form method="post" action="/admin/access-requests/{{ req.id }}/approve" style="display:inline">
-                            <button type="submit"
-                                class="text-emerald-400 hover:text-emerald-300 mr-3 font-medium">Approve</button>
-                        </form>
-                        <form method="post" action="/admin/access-requests/{{ req.id }}/deny" style="display:inline">
-                            <button type="submit" class="text-red-400 hover:text-red-300 font-medium">Deny</button>
-                        </form>
-                    </td>
-                </tr>
-                {% if req.reason %}
-                <tr>
-                    <td colspan="5" class="px-6 py-2 text-sm text-text-secondary bg-surface-base">
-                        <strong>Reason:</strong> {{ req.reason }}
-                    </td>
-                </tr>
-                {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div class="text-center py-12 rounded-xl border border-dashed border-white/[0.1]">
-        <p class="text-text-muted">No pending access requests</p>
-    </div>
-    {% endif %}
-</div>
-
-<!-- Login History Table -->
-<div>
-    <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
-        <h2 class="font-display text-2xl font-bold">Login History <span
-                class="text-sm font-normal text-text-muted">(last 30 days)</span></h2>
-        <input type="text" id="login-filter" placeholder="Search logins..."
-            class="px-4 py-2 rounded-xl bg-surface-elevated border border-white/[0.1] text-white placeholder:text-text-muted focus:border-primary-500 outline-none max-w-xs">
-    </div>
-
-    {% if login_history %}
-    <div class="w-full overflow-x-auto rounded-xl border border-white/[0.06]"
-        style="max-height: 500px; overflow-y: auto;">
-        <table class="table-dark w-full" id="login-table">
-            <thead class="sticky top-0 bg-surface-elevated z-10">
-                <tr>
-                    <th class="cursor-pointer hover:text-primary-400" onclick="sortTable(0)">Status ↕</th>
-                    <th class="cursor-pointer hover:text-primary-400" onclick="sortTable(1)">Username ↕</th>
-                    <th class="cursor-pointer hover:text-primary-400" onclick="sortTable(2)">IP Address ↕</th>
-                    <th class="cursor-pointer hover:text-primary-400" onclick="sortTable(3)">Timestamp ↕</th>
-                </tr>
-            </thead>
-            <tbody id="login-tbody">
-                {% for login in login_history %}
-                <tr class="login-row {% if not login.success %}bg-red-500/10 hover:bg-red-500/20{% endif %}">
-                    <td class="whitespace-nowrap">
-                        {% if login.success %}
-                        <span class="badge-success">✓ Success</span>
-                        {% else %}
-                        <span class="badge-error">✗ Failed</span>
-                        {% endif %}
-                    </td>
-                    <td class="whitespace-nowrap font-medium">{{ login.username or 'unknown' }}</td>
-                    <td class="whitespace-nowrap text-text-secondary">{{ login.ip_address }}</td>
-                    <td class="whitespace-nowrap text-text-secondary">{{ login.timestamp }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div class="mt-2 text-xs text-text-muted" id="login-count">Showing {{ login_history|length }} entries</div>
-
-    <script nonce="{{ csp_nonce }}">
-        // Search filter
-        document.getElementById('login-filter').addEventListener('input', function (e) {
-            const filter = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('.login-row');
-            let count = 0;
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                const match = text.includes(filter);
-                row.style.display = match ? '' : 'none';
-                if (match) count++;
-            });
-            document.getElementById('login-count').textContent = `Showing ${count} entries`;
-        });
-
-        // Sort table
-        let sortDirection = {};
-        function sortTable(colIndex) {
-            const table = document.getElementById('login-table');
-            const tbody = document.getElementById('login-tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-
-            sortDirection[colIndex] = !sortDirection[colIndex];
-            const dir = sortDirection[colIndex] ? 1 : -1;
-
-            rows.sort((a, b) => {
-                const aText = a.cells[colIndex].textContent.trim();
-                const bText = b.cells[colIndex].textContent.trim();
-                return aText.localeCompare(bText) * dir;
-            });
-
-            rows.forEach(row => tbody.appendChild(row));
-        }
-    </script>
-    {% else %}
-    <div class="text-center py-12 rounded-xl border border-dashed border-white/[0.1]">
-        <p class="text-text-muted">No login history recorded</p>
-    </div>
-    {% endif %}
-</div>
+    }
+</script>
 {% endblock %}

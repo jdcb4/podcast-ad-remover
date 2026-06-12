@@ -95,7 +95,7 @@ RSS feeds and audio files remain public when feed authentication is disabled. Wh
 /feeds/<slug>.xml?token=<generated-token>
 ```
 
-Tokens are stored as SHA-256 hashes in `feed_tokens` and can be listed or revoked from the admin access page. Basic Auth and the older `?auth=base64(username:password)` format are still accepted for compatibility with existing podcast-client subscriptions.
+Tokens are stored as SHA-256 hashes in `feed_tokens` and can be listed or revoked from the admin Feed Access page. Basic Auth and the older `?auth=base64(username:password)` format are still accepted for compatibility with existing podcast-client subscriptions.
 
 ### Access Requests
 

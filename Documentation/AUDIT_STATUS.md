@@ -45,7 +45,7 @@ This document tracks the current audit branch findings, what was implemented, an
 
 - Added optional feed/audio authentication with generated feed tokens while keeping legacy Basic Auth and query links compatible.
 - URL-encoded injected feed access parameters in RSS enclosure URLs and shared the logic between individual and unified feeds.
-- Added feed-token visibility and revocation from the admin access page.
+- Added feed-token visibility and revocation from the admin Feed Access page.
 - Added UI warnings that protected feed URLs containing generated tokens are bearer secrets until revoked.
 - Kept public feed and subscribe access available when feed auth is disabled.
 - Added `TRUST_PROXY_HEADERS` so reverse proxy headers are ignored by default and only trusted when explicitly enabled.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Split the overloaded admin access page into User Management, Access Requests, and Feed Access pages, and fixed admin user deletion from the UI.
+- Compact admin user/login timestamps and adjust user tables/cards to avoid default horizontal scrolling.
 - Changed access requests so users choose a password during the request; the app stores only the hash and admins no longer need to send temporary passwords.
 - Added a global podcast library plus per-user "My Podcasts" membership without duplicating podcast rows.
 - Added podcast ownership rules: admins can change any podcast settings, owners can change settings for podcasts they added, and only admins can delete the global podcast/files.

@@ -1,0 +1,273 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}User Management{% endblock %}
+
+{% block admin_content %}
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-8">
+    <div>
+        <h2 class="font-display text-2xl font-bold">User Management</h2>
+        <p class="text-sm text-text-muted mt-1">Manage dashboard users, login protection, and recent login activity.</p>
+    </div>
+    <a href="/admin/access-requests" class="btn-secondary btn-sm">
+        Pending requests
+        {% if pending_requests_count > 0 %}
+        <span class="badge-error ml-1">{{ pending_requests_count }}</span>
+        {% endif %}
+    </a>
+</div>
+
+<section class="mb-8">
+    <h3 class="font-display text-xl font-bold mb-4">Authentication</h3>
+    <form method="post" action="/admin/system/update">
+        <div class="space-y-5">
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox" name="auth_enabled" id="auth_enabled" {% if settings.auth_enabled %}checked{% endif %}
+                    class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                <span class="ml-3 font-medium">Require login for management pages</span>
+            </label>
+
+            <div id="auth_settings" style="display: {% if settings.auth_enabled %}block{% else %}none{% endif %}">
+                <label class="block text-sm font-medium text-text-secondary mb-2">IP allowlist</label>
+                <input type="text" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}"
+                    placeholder="192.168.1.100, 10.0.0.0/24" class="input">
+                <p class="text-xs text-text-muted mt-1">Comma-separated IPs or CIDR ranges. Leave blank to allow all IPs.</p>
+            </div>
+
+            {% if not settings.auth_enabled %}
+            <div class="alert-info">
+                Enabling authentication will create a default admin account only if no admin exists.
+            </div>
+            {% endif %}
+
+            <input type="hidden" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 3 }}">
+            <input type="hidden" name="retention_days" value="{{ settings.retention_days or 30 }}">
+            <input type="hidden" name="check_interval_minutes" value="{{ settings.check_interval_minutes or 60 }}">
+            <input type="hidden" name="app_external_url" value="{{ settings.app_external_url or '' }}">
+            <input type="hidden" name="enable_feed_auth" value="{% if settings.enable_feed_auth %}on{% endif %}">
+            <input type="hidden" name="public_subscribe_page_enabled" value="{% if settings.public_subscribe_page_enabled %}on{% endif %}">
+            <input type="hidden" name="feed_auth_username" value="{{ settings.feed_auth_username or '' }}">
+            <input type="hidden" name="whitelist_mode" value="{% if settings.whitelist_mode %}on{% endif %}">
+            <input type="hidden" name="redirect_to" value="/admin/users">
+        </div>
+
+        <div class="flex justify-end pt-4 border-t border-white/[0.08] mt-6">
+            <button type="submit" class="btn-primary">Save Authentication</button>
+        </div>
+    </form>
+</section>
+
+<section class="mb-8">
+    <h3 class="font-display text-xl font-bold mb-4">Active Users</h3>
+
+    <div class="hidden md:block rounded-xl border border-white/[0.06] overflow-hidden">
+        <table class="table-dark w-full table-fixed">
+            <thead>
+                <tr>
+                    <th class="w-[28%]">User</th>
+                    <th class="w-[13%]">Role</th>
+                    <th class="w-[18%]">Created</th>
+                    <th class="w-[18%]">Last Login</th>
+                    <th class="w-[23%] text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for active_user in active_users %}
+                <tr>
+                    <td class="font-medium truncate">
+                        <button class="hover:text-primary-400 transition-colors truncate max-w-full"
+                            onclick="editUsername('{{ active_user.id }}', '{{ active_user.username }}')">
+                            {{ active_user.username }}
+                        </button>
+                    </td>
+                    <td>
+                        {% if active_user.is_admin %}
+                        <span class="badge-info">Admin</span>
+                        {% else %}
+                        <span class="badge-neutral">User</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-text-secondary">{{ active_user.created_at | compact_datetime }}</td>
+                    <td class="text-text-secondary">{{ active_user.last_login | compact_datetime }}</td>
+                    <td class="text-right">
+                        {% if user.id != active_user.id %}
+                        <button onclick="changeUserPassword('{{ active_user.id }}', '{{ active_user.username }}')"
+                            class="text-primary-400 hover:text-primary-300 font-medium mr-3">Password</button>
+                        <form method="post" action="/admin/users/{{ active_user.id }}/delete"
+                            onsubmit="return appConfirmSubmit(this, 'Delete this user account?', { danger: true });"
+                            class="inline">
+                            <button type="submit" class="text-red-400 hover:text-red-300 font-medium">Delete</button>
+                        </form>
+                        {% else %}
+                        <span class="text-text-muted">Current user</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="md:hidden space-y-3">
+        {% for active_user in active_users %}
+        <div class="rounded-xl border border-white/[0.08] bg-surface-base p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <button class="font-semibold hover:text-primary-400 truncate max-w-full"
+                        onclick="editUsername('{{ active_user.id }}', '{{ active_user.username }}')">
+                        {{ active_user.username }}
+                    </button>
+                    <p class="text-xs text-text-muted">Created {{ active_user.created_at | compact_datetime }}</p>
+                    <p class="text-xs text-text-muted">Last login {{ active_user.last_login | compact_datetime }}</p>
+                </div>
+                {% if active_user.is_admin %}
+                <span class="badge-info">Admin</span>
+                {% else %}
+                <span class="badge-neutral">User</span>
+                {% endif %}
+            </div>
+            <div class="flex gap-3 mt-4">
+                {% if user.id != active_user.id %}
+                <button onclick="changeUserPassword('{{ active_user.id }}', '{{ active_user.username }}')"
+                    class="btn-secondary btn-sm">Password</button>
+                <form method="post" action="/admin/users/{{ active_user.id }}/delete"
+                    onsubmit="return appConfirmSubmit(this, 'Delete this user account?', { danger: true });">
+                    <button type="submit" class="btn-secondary btn-sm text-red-300">Delete</button>
+                </form>
+                {% else %}
+                <span class="text-sm text-text-muted">Current user</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not active_users %}
+    <div class="text-center py-8 rounded-xl border border-dashed border-white/[0.1]">
+        <p class="text-text-muted">No users found.</p>
+    </div>
+    {% endif %}
+</section>
+
+<section>
+    <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+        <h3 class="font-display text-xl font-bold">Login History <span
+                class="text-sm font-normal text-text-muted">(last 30 days)</span></h3>
+        <input type="text" id="login-filter" placeholder="Search logins..."
+            class="px-4 py-2 rounded-xl bg-surface-elevated border border-white/[0.1] text-white placeholder:text-text-muted focus:border-primary-500 outline-none max-w-xs">
+    </div>
+
+    {% if login_history %}
+    <div class="rounded-xl border border-white/[0.06] overflow-auto max-h-[500px]">
+        <table class="table-dark w-full table-fixed" id="login-table">
+            <thead class="sticky top-0 bg-surface-elevated z-10">
+                <tr>
+                    <th class="w-[18%] cursor-pointer hover:text-primary-400" onclick="sortTable(0)">Status</th>
+                    <th class="w-[26%] cursor-pointer hover:text-primary-400" onclick="sortTable(1)">Username</th>
+                    <th class="w-[26%] cursor-pointer hover:text-primary-400" onclick="sortTable(2)">IP</th>
+                    <th class="w-[30%] cursor-pointer hover:text-primary-400" onclick="sortTable(3)">Time</th>
+                </tr>
+            </thead>
+            <tbody id="login-tbody">
+                {% for login in login_history %}
+                <tr class="login-row {% if not login.success %}bg-red-500/10 hover:bg-red-500/20{% endif %}">
+                    <td>
+                        {% if login.success %}
+                        <span class="badge-success">Success</span>
+                        {% else %}
+                        <span class="badge-error">Failed</span>
+                        {% endif %}
+                    </td>
+                    <td class="font-medium truncate">{{ login.username or 'unknown' }}</td>
+                    <td class="text-text-secondary truncate">{{ login.ip_address }}</td>
+                    <td class="text-text-secondary">{{ login.timestamp | compact_datetime }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-2 text-xs text-text-muted" id="login-count">Showing {{ login_history|length }} entries</div>
+    {% else %}
+    <div class="text-center py-12 rounded-xl border border-dashed border-white/[0.1]">
+        <p class="text-text-muted">No login history recorded</p>
+    </div>
+    {% endif %}
+</section>
+
+<script nonce="{{ csp_nonce }}">
+    const authEnabledCheckbox = document.getElementById('auth_enabled');
+    const authSettingsIP = document.getElementById('auth_settings');
+    if (authEnabledCheckbox && authSettingsIP) {
+        authEnabledCheckbox.addEventListener('change', function () {
+            authSettingsIP.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+
+    async function editUsername(id, currentName) {
+        const newName = await appPrompt("Enter new username:", {
+            title: 'Change username',
+            defaultValue: currentName,
+            confirmText: 'Save'
+        });
+        if (newName && newName !== currentName) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/admin/users/${id}/username`;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'username';
+            input.value = newName;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    async function changeUserPassword(userId, username) {
+        const newPassword = await appPrompt(`Enter new password for ${username}:`, {
+            title: 'Change password',
+            inputType: 'password',
+            confirmText: 'Continue'
+        });
+        if (!newPassword) return;
+        if (!await appConfirm(`Change password for ${username}?`, { danger: true })) return;
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/users/${userId}/password`;
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'password';
+        input.value = newPassword;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    const loginFilter = document.getElementById('login-filter');
+    if (loginFilter) {
+        loginFilter.addEventListener('input', function (e) {
+            const filter = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('.login-row');
+            let count = 0;
+            rows.forEach(row => {
+                const match = row.textContent.toLowerCase().includes(filter);
+                row.style.display = match ? '' : 'none';
+                if (match) count++;
+            });
+            const loginCount = document.getElementById('login-count');
+            if (loginCount) loginCount.textContent = `Showing ${count} entries`;
+        });
+    }
+
+    let sortDirection = {};
+    function sortTable(colIndex) {
+        const tbody = document.getElementById('login-tbody');
+        if (!tbody) return;
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        sortDirection[colIndex] = !sortDirection[colIndex];
+        const dir = sortDirection[colIndex] ? 1 : -1;
+        rows.sort((a, b) => a.cells[colIndex].textContent.trim().localeCompare(b.cells[colIndex].textContent.trim()) * dir);
+        rows.forEach(row => tbody.appendChild(row));
+    }
+</script>
+{% endblock %}
