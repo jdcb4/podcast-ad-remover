@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     MAX_FEED_BYTES: int = 10 * 1024 * 1024  # 10 MB
     MAX_DOWNLOAD_BYTES: int = 1500 * 1024 * 1024  # 1.5 GB
     MIN_FREE_SPACE_BYTES: int = 1024 * 1024 * 1024  # 1 GB
+    FFMPEG_TIMEOUT_SECONDS: int = 7200  # 2 hours per FFmpeg operation
     ALLOW_PRIVATE_FEEDS: bool = True
     
     @property

@@ -379,8 +379,16 @@ def test_stale_running_job_is_recovered_and_claimable(isolated_data_dir):
         ).lastrowid
         conn.execute(
             """
-            INSERT INTO jobs (episode_id, type, status, attempts, locked_at, locked_by)
-            VALUES (?, 'process_episode', 'running', 1, datetime(CURRENT_TIMESTAMP, '-2 days'), 'dead-worker')
+            INSERT INTO jobs (episode_id, type, status, attempts, locked_at, locked_by, updated_at)
+            VALUES (
+                ?,
+                'process_episode',
+                'running',
+                1,
+                datetime(CURRENT_TIMESTAMP, '-2 days'),
+                'dead-worker',
+                datetime(CURRENT_TIMESTAMP, '-2 days')
+            )
             """,
             (episode_id,),
         )
@@ -433,6 +441,193 @@ def test_recent_running_job_is_not_recovered(isolated_data_dir):
     assert job_repo.recover_stale_running(max_age_minutes=60) == 0
     assert job_repo.count_running() == 1
     assert job_repo.count_claimable() == 0
+
+
+def test_running_job_with_recent_heartbeat_is_not_recovered(isolated_data_dir):
+    init_db()
+    with get_db_connection() as conn:
+        subscription_id = conn.execute(
+            "INSERT INTO subscriptions (feed_url, title, slug) VALUES (?, ?, ?)",
+            ("https://example.com/feed.xml", "Example", "example"),
+        ).lastrowid
+        episode_id = conn.execute(
+            """
+            INSERT INTO episodes (subscription_id, guid, title, original_url, status, processing_step, progress)
+            VALUES (?, ?, ?, ?, 'processing', 'transcribing', 42)
+            """,
+            (subscription_id, "heartbeat-episode", "Heartbeat Episode", "https://example.com/heartbeat.mp3"),
+        ).lastrowid
+        conn.execute(
+            """
+            INSERT INTO jobs (episode_id, type, status, attempts, locked_at, locked_by, updated_at)
+            VALUES (?, 'process_episode', 'running', 1, datetime(CURRENT_TIMESTAMP, '-2 days'), 'active-worker', CURRENT_TIMESTAMP)
+            """,
+            (episode_id,),
+        )
+        conn.commit()
+
+    job_repo = JobRepository()
+
+    assert job_repo.recover_stale_running(max_age_minutes=60) == 0
+    assert job_repo.count_running() == 1
+    assert job_repo.count_claimable() == 0
+
+
+def test_running_job_progress_updates_heartbeat(isolated_data_dir):
+    init_db()
+    with get_db_connection() as conn:
+        subscription_id = conn.execute(
+            "INSERT INTO subscriptions (feed_url, title, slug) VALUES (?, ?, ?)",
+            ("https://example.com/feed.xml", "Example", "example"),
+        ).lastrowid
+        episode_id = conn.execute(
+            """
+            INSERT INTO episodes (subscription_id, guid, title, original_url, status)
+            VALUES (?, ?, ?, ?, 'processing')
+            """,
+            (subscription_id, "progress-episode", "Progress Episode", "https://example.com/progress.mp3"),
+        ).lastrowid
+        conn.execute(
+            """
+            INSERT INTO jobs (episode_id, type, status, attempts, locked_at, locked_by, updated_at)
+            VALUES (?, 'process_episode', 'running', 1, datetime(CURRENT_TIMESTAMP, '-2 days'), 'active-worker', datetime(CURRENT_TIMESTAMP, '-2 days'))
+            """,
+            (episode_id,),
+        )
+        conn.commit()
+
+    EpisodeRepository().update_progress(episode_id, "transcribing", 25)
+
+    with get_db_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT updated_at > datetime(CURRENT_TIMESTAMP, '-1 minute') AS heartbeat_is_recent
+            FROM jobs
+            WHERE episode_id = ?
+            """,
+            (episode_id,),
+        ).fetchone()
+
+    assert row["heartbeat_is_recent"] == 1
+
+
+def test_inconsistent_running_job_does_not_block_capacity(isolated_data_dir):
+    init_db()
+    with get_db_connection() as conn:
+        subscription_id = conn.execute(
+            "INSERT INTO subscriptions (feed_url, title, slug) VALUES (?, ?, ?)",
+            ("https://example.com/feed.xml", "Example", "example"),
+        ).lastrowid
+        episode_id = conn.execute(
+            """
+            INSERT INTO episodes (subscription_id, guid, title, original_url, status, processing_step, progress)
+            VALUES (?, ?, ?, ?, 'completed', 'completed', 100)
+            """,
+            (subscription_id, "orphan-episode", "Orphan Episode", "https://example.com/orphan.mp3"),
+        ).lastrowid
+        conn.execute(
+            """
+            INSERT INTO jobs (episode_id, type, status, attempts, locked_at, locked_by)
+            VALUES (?, 'process_episode', 'running', 1, datetime(CURRENT_TIMESTAMP, '-1 minute'), 'dead-worker')
+            """,
+            (episode_id,),
+        )
+        conn.commit()
+
+    job_repo = JobRepository()
+
+    assert job_repo.count_running() == 0
+    assert job_repo.recover_stale_running(max_age_minutes=60) == 1
+
+    with get_db_connection() as conn:
+        job = conn.execute("SELECT status, locked_at, locked_by, error FROM jobs").fetchone()
+
+    assert job["status"] == "completed"
+    assert job["locked_at"] is None
+    assert job["locked_by"] is None
+    assert "inconsistent" in job["error"]
+
+
+def test_pending_episode_without_active_job_is_repaired(isolated_data_dir):
+    init_db()
+    with get_db_connection() as conn:
+        subscription_id = conn.execute(
+            "INSERT INTO subscriptions (feed_url, title, slug) VALUES (?, ?, ?)",
+            ("https://example.com/feed.xml", "Example", "example"),
+        ).lastrowid
+        episode_id = conn.execute(
+            """
+            INSERT INTO episodes (subscription_id, guid, title, original_url, status)
+            VALUES (?, ?, ?, ?, 'pending')
+            """,
+            (subscription_id, "missing-job", "Missing Job Episode", "https://example.com/missing.mp3"),
+        ).lastrowid
+        conn.execute(
+            """
+            INSERT INTO jobs (episode_id, type, status)
+            VALUES (?, 'process_episode', 'cancelled')
+            """,
+            (episode_id,),
+        )
+        conn.commit()
+
+    job_repo = JobRepository()
+
+    assert job_repo.count_claimable() == 0
+    assert job_repo.repair_missing_active_jobs() == 1
+    assert job_repo.count_claimable() == 1
+
+    with get_db_connection() as conn:
+        active_job = conn.execute(
+            """
+            SELECT status
+            FROM jobs
+            WHERE episode_id = ?
+              AND type = 'process_episode'
+              AND status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
+            """,
+            (episode_id,),
+        ).fetchone()
+
+    assert active_job["status"] == "queued"
+
+
+def test_failed_episode_without_retry_job_is_repaired(isolated_data_dir):
+    init_db()
+    with get_db_connection() as conn:
+        subscription_id = conn.execute(
+            "INSERT INTO subscriptions (feed_url, title, slug) VALUES (?, ?, ?)",
+            ("https://example.com/feed.xml", "Example", "example"),
+        ).lastrowid
+        episode_id = conn.execute(
+            """
+            INSERT INTO episodes (subscription_id, guid, title, original_url, status, next_retry_at)
+            VALUES (?, ?, ?, ?, 'failed', CURRENT_TIMESTAMP)
+            """,
+            (subscription_id, "missing-retry", "Missing Retry Episode", "https://example.com/retry.mp3"),
+        ).lastrowid
+        conn.commit()
+
+    job_repo = JobRepository()
+
+    assert job_repo.count_claimable() == 0
+    assert job_repo.repair_missing_active_jobs() == 1
+    assert job_repo.count_claimable() == 1
+
+    with get_db_connection() as conn:
+        active_job = conn.execute(
+            """
+            SELECT status, error
+            FROM jobs
+            WHERE episode_id = ?
+              AND type = 'process_episode'
+              AND status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
+            """,
+            (episode_id,),
+        ).fetchone()
+
+    assert active_job["status"] == "retry_scheduled"
+    assert "Recreated missing" in active_job["error"]
 
 
 def test_pending_status_creates_job_and_reset_cancels_without_deleting_episode(isolated_data_dir):

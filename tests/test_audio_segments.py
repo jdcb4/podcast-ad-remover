@@ -1,3 +1,5 @@
+import subprocess
+
 from app.core.audio import AudioProcessor
 
 
@@ -29,6 +31,7 @@ def test_remove_segments_uses_calculated_keep_segments_in_filter(monkeypatch):
 
     def fake_run(cmd, **kwargs):
         captured["cmd"] = cmd
+        captured["kwargs"] = kwargs
 
     monkeypatch.setattr(AudioProcessor, "get_duration", staticmethod(lambda path: 100.0))
     monkeypatch.setattr("app.core.audio.subprocess.run", fake_run)
@@ -53,3 +56,18 @@ def test_remove_segments_uses_calculated_keep_segments_in_filter(monkeypatch):
     assert "concat=n=2:v=0:a=1" in filter_complex
     assert "-threads" in captured["cmd"]
     assert "2" in captured["cmd"]
+    assert captured["kwargs"]["timeout"] == 7200
+
+
+def test_ffmpeg_timeout_is_reported(monkeypatch):
+    def fake_run(cmd, **kwargs):
+        raise subprocess.TimeoutExpired(cmd, kwargs["timeout"], stderr="still running")
+
+    monkeypatch.setattr("app.core.audio.subprocess.run", fake_run)
+
+    try:
+        AudioProcessor._run_ffmpeg(["ffmpeg", "-version"], "FFmpeg test")
+    except TimeoutError as e:
+        assert "FFmpeg test timed out" in str(e)
+    else:
+        raise AssertionError("Expected timeout to be reported")

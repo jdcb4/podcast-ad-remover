@@ -2,10 +2,39 @@ import subprocess
 import logging
 import os
 from typing import List, Dict
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 class AudioProcessor:
+    @staticmethod
+    def _timeout_seconds() -> int:
+        try:
+            timeout = int(settings.FFMPEG_TIMEOUT_SECONDS)
+        except (TypeError, ValueError):
+            timeout = 7200
+        return max(30, timeout)
+
+    @staticmethod
+    def _run_ffmpeg(cmd: List[str], action: str, *, check: bool = True):
+        timeout = AudioProcessor._timeout_seconds()
+        try:
+            return subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=check,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as e:
+            logger.error(f"{action} timed out after {timeout}s")
+            stderr = e.stderr or ""
+            if stderr:
+                logger.error(f"FFmpeg stderr before timeout: {stderr}")
+            raise TimeoutError(f"{action} timed out after {timeout}s") from e
+
     @staticmethod
     def _bounded_int(value, default: int = 0, minimum: int = 0, maximum: int = 64) -> int:
         try:
@@ -64,7 +93,7 @@ class AudioProcessor:
             file_path
         ]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+            result = AudioProcessor._run_ffmpeg(cmd, "FFprobe duration check")
             return float(result.stdout.strip())
         except Exception as e:
             logger.error(f"Failed to get duration: {e}")
@@ -90,7 +119,7 @@ class AudioProcessor:
                 "-c", "copy",
                 output_path,
             ]
-            subprocess.run(cmd, check=True)
+            AudioProcessor._run_ffmpeg(cmd, "FFmpeg copy")
             return
 
         total_duration = AudioProcessor.get_duration(input_path)
@@ -134,7 +163,7 @@ class AudioProcessor:
         
         logger.info("Running FFmpeg...")
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+            AudioProcessor._run_ffmpeg(cmd, "FFmpeg ad removal")
             logger.info("FFmpeg completed successfully.")
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg failed with exit code {e.returncode}")
@@ -166,7 +195,7 @@ class AudioProcessor:
         ]
         
         try:
-            subprocess.run(cmd, check=True)
+            AudioProcessor._run_ffmpeg(cmd, "FFmpeg prepend")
             logger.info(f"Successfully prepended audio to {output_path}")
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to prepend audio: {e}")
@@ -208,7 +237,7 @@ class AudioProcessor:
         ])
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+            AudioProcessor._run_ffmpeg(cmd, "FFmpeg concatenation")
             logger.info(f"Successfully concatenated files to {output_path}")
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to concatenate files: {e.returncode}")
@@ -238,7 +267,7 @@ class AudioProcessor:
         ]
         
         try:
-            subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+            AudioProcessor._run_ffmpeg(cmd, "FFmpeg audio preparation")
             logger.info("Normalized audio prepared.")
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to prepare audio for transcription: {e.stderr}")
@@ -271,7 +300,7 @@ class AudioProcessor:
             ]
             
             try:
-                subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+                AudioProcessor._run_ffmpeg(cmd, f"FFmpeg chunk creation {chunk_idx}")
                 chunks.append(output_chunk)
                 logger.info(f"Created chunk {chunk_idx}: {start}s to {start + chunk_duration}s")
             except subprocess.CalledProcessError as e:

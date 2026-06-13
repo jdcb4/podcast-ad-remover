@@ -68,6 +68,7 @@ Current free-tier limits recorded for Gemini TTS:
 | `MAX_FEED_BYTES` | Maximum RSS feed fetch size in bytes. | `10485760` |
 | `MAX_DOWNLOAD_BYTES` | Maximum episode download size in bytes. | `1572864000` |
 | `MIN_FREE_SPACE_BYTES` | Minimum free disk space to preserve before/during downloads. | `1073741824` |
+| `FFMPEG_TIMEOUT_SECONDS` | Maximum time allowed for one FFmpeg or FFprobe operation before the episode fails/retries instead of holding the queue indefinitely. | `7200` |
 | `ALLOW_PRIVATE_FEEDS` | Allow feeds/enclosures resolving to private or loopback IP ranges. Keep `true` for LAN/self-hosted feeds; set `false` for hardened public deployments. | `true` |
 
 In Docker, set `BASE_URL` or the System Settings public application URL to a host/LAN URL that podcast clients can reach. Fresh Docker installs no longer auto-save the container's internal IP address.

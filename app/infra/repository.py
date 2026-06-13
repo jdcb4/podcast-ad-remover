@@ -414,6 +414,13 @@ class EpisodeRepository:
             
             sql = f"UPDATE episodes SET {', '.join(updates)} WHERE id = ?"
             conn.execute(sql, params)
+            conn.execute("""
+                UPDATE jobs
+                SET updated_at = CURRENT_TIMESTAMP
+                WHERE episode_id = ?
+                  AND type = 'process_episode'
+                  AND status = 'running'
+            """, (id,))
             conn.commit()
 
     def update_description(self, id: int, description: str):
@@ -571,7 +578,7 @@ def _schedule_retry_job(
 class JobRepository:
     """SQLite-backed processing jobs with transaction-based claiming."""
 
-    DEFAULT_STALE_AFTER_MINUTES = 24 * 60
+    DEFAULT_STALE_AFTER_MINUTES = 180
 
     def enqueue(self, episode_id: int, job_type: str = "process_episode", priority: int = 100):
         with get_db_connection() as conn:
@@ -581,7 +588,13 @@ class JobRepository:
 
     def count_running(self) -> int:
         with get_db_connection() as conn:
-            row = conn.execute("SELECT COUNT(*) AS count FROM jobs WHERE status = 'running'").fetchone()
+            row = conn.execute("""
+                SELECT COUNT(*) AS count
+                FROM jobs j
+                JOIN episodes e ON e.id = j.episode_id
+                WHERE j.status = 'running'
+                  AND e.status = 'processing'
+            """).fetchone()
             return row["count"] if row else 0
 
     def count_claimable(self) -> int:
@@ -596,6 +609,44 @@ class JobRepository:
                   AND e.status IN ('pending', 'failed', 'rate_limited')
             """).fetchone()
             return row["count"] if row else 0
+
+    def repair_missing_active_jobs(self) -> int:
+        """Recreate claimable jobs for episodes that are queue-visible but lack an active job row."""
+        with get_db_connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            rows = conn.execute("""
+                SELECT e.id, e.status, e.next_retry_at
+                FROM episodes e
+                WHERE (
+                    e.status = 'pending'
+                    OR (
+                        e.status IN ('failed', 'rate_limited')
+                        AND e.next_retry_at IS NOT NULL
+                    )
+                )
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM jobs j
+                    WHERE j.episode_id = e.id
+                      AND j.type = 'process_episode'
+                      AND j.status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
+                )
+            """).fetchall()
+
+            for row in rows:
+                if row["status"] == "pending":
+                    _enqueue_job(conn, row["id"])
+                else:
+                    _schedule_retry_job(
+                        conn,
+                        row["id"],
+                        row["next_retry_at"],
+                        "Recreated missing processing job",
+                        status="rate_limited" if row["status"] == "rate_limited" else "retry_scheduled",
+                    )
+
+            conn.commit()
+            return len(rows)
 
     def claim_due(self, limit: int, worker_id: str | None = None) -> List[dict]:
         if limit <= 0:
@@ -651,6 +702,27 @@ class JobRepository:
 
         with get_db_connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            inconsistent_rows = conn.execute("""
+                SELECT j.id AS job_id, j.episode_id, e.status AS episode_status
+                FROM jobs j
+                JOIN episodes e ON e.id = j.episode_id
+                WHERE j.type = 'process_episode'
+                  AND j.status = 'running'
+                  AND e.status != 'processing'
+            """).fetchall()
+
+            for row in inconsistent_rows:
+                replacement_status = "completed" if row["episode_status"] == "completed" else "cancelled"
+                conn.execute("""
+                    UPDATE jobs
+                    SET status = ?,
+                        locked_at = NULL,
+                        locked_by = NULL,
+                        error = 'Cleared inconsistent running job state',
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (replacement_status, row["job_id"]))
+
             rows = conn.execute("""
                 SELECT j.id AS job_id, j.episode_id
                 FROM jobs j
@@ -659,12 +731,12 @@ class JobRepository:
                   AND j.status = 'running'
                   AND e.status = 'processing'
                   AND (
-                    j.locked_at IS NULL
-                    OR j.locked_at <= datetime(CURRENT_TIMESTAMP, ?)
+                    COALESCE(j.updated_at, j.locked_at) IS NULL
+                    OR COALESCE(j.updated_at, j.locked_at) <= datetime(CURRENT_TIMESTAMP, ?)
                   )
             """, (stale_modifier,)).fetchall()
 
-            if not rows:
+            if not rows and not inconsistent_rows:
                 conn.commit()
                 return 0
 
@@ -691,7 +763,7 @@ class JobRepository:
             """, [(episode_id,) for episode_id in episode_ids])
 
             conn.commit()
-            return len(rows)
+            return len(rows) + len(inconsistent_rows)
 
     def complete_for_episode(self, episode_id: int, conn: sqlite3.Connection | None = None):
         if conn is None:

@@ -425,9 +425,13 @@ class Processor:
             limit = db_settings.get('concurrent_downloads', 2)
             if not limit or limit < 1: limit = 2
 
+            repaired_jobs = self.job_repo.repair_missing_active_jobs()
+            if repaired_jobs:
+                logger.warning(f"Recreated {repaired_jobs} missing processing job(s) for queued episode(s)")
+
             recovered_jobs = self.job_repo.recover_stale_running()
             if recovered_jobs:
-                logger.warning(f"Recovered {recovered_jobs} stale running processing job(s)")
+                logger.warning(f"Recovered or cleared {recovered_jobs} stalled processing job(s)")
 
             # 2. Check if we have room using DATABASE count (cross-process safe)
             currently_processing = self.job_repo.count_running()
