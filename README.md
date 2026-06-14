@@ -34,7 +34,7 @@ The admin queue shows active jobs, queued/retry states, disk usage, next feed ch
 
 - Podcast search and RSS subscription management.
 - Global podcast library with per-user My Podcasts lists and one shared copy of each podcast.
-- Podcast ownership rules for per-podcast settings, with admin-only global deletion.
+- Podcast ownership rules for per-podcast settings, with admin owner reassignment and admin-only global deletion.
 - Automatic episode download and retention controls.
 - Local transcription with Whisper/faster-whisper.
 - LLM-based ad, promo, intro, and outro detection.

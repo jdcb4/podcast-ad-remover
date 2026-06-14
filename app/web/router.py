@@ -1834,6 +1834,31 @@ async def update_user_library_membership(
     separator = "&" if "?" in target else "?"
     return RedirectResponse(url=f"{target}{separator}success={quote(message)}", status_code=303)
 
+
+@router.post("/subscriptions/{id}/owner")
+async def update_subscription_owner(
+    id: int,
+    owner_user_id: str = Form(""),
+    admin_user = Depends(require_admin),
+):
+    owner_user_id = owner_user_id.strip()
+    new_owner_id = None
+    if owner_user_id:
+        try:
+            new_owner_id = int(owner_user_id)
+        except ValueError:
+            return RedirectResponse(url=f"/subscriptions/{id}?error=Invalid+owner", status_code=303)
+        if new_owner_id <= 0:
+            return RedirectResponse(url=f"/subscriptions/{id}?error=Invalid+owner", status_code=303)
+
+    updated = sub_repo.set_owner(id, new_owner_id)
+    if not updated:
+        return RedirectResponse(url=f"/subscriptions/{id}?error=Owner+or+podcast+not+found", status_code=303)
+
+    message = "Podcast owner updated" if new_owner_id else "Podcast owner cleared"
+    return RedirectResponse(url=f"/subscriptions/{id}?success={quote(message)}", status_code=303)
+
+
 @router.get("/subscriptions/{id}", response_class=HTMLResponse)
 async def view_subscription(request: Request, id: int):
     sub = sub_repo.get_by_id(id)
@@ -1890,6 +1915,7 @@ async def view_subscription(request: Request, id: int):
             "can_manage_subscription": _can_manage_subscription(user, sub),
             "owner_username": sub_repo.get_owner_username(sub.id),
             "user_library_count": user_library_count,
+            "active_users": _active_users() if user and user.is_admin else [],
             "basename": lambda p: p.split('/')[-1] if p else '',
             "format_duration": format_duration,
             "total_listens": total_listens,

@@ -6,6 +6,11 @@
     appToast({{ request.query_params.get('success')|tojson }}, { type: 'success' });
 </script>
 {% endif %}
+{% if request.query_params.get('error') %}
+<script nonce="{{ csp_nonce }}">
+    appToast({{ request.query_params.get('error')|tojson }}, { type: 'error' });
+</script>
+{% endif %}
 
 <div class="mb-6">
     <a href="/" class="text-primary-400 hover:text-primary-300 transition-colors">&larr; Back to Subscriptions</a>
@@ -169,6 +174,25 @@
     </div>
 </div>
 </div>
+
+{% if user and user.is_admin %}
+<div class="card mb-6">
+    <form action="/subscriptions/{{ subscription.id }}/owner" method="POST" class="flex flex-col md:flex-row md:items-end gap-4">
+        <div class="flex-1">
+            <label class="block text-sm font-medium text-text-secondary mb-2" for="owner_user_id">Podcast Owner</label>
+            <select id="owner_user_id" name="owner_user_id" class="select">
+                <option value="" {% if not subscription.owner_user_id %}selected{% endif %}>Unowned</option>
+                {% for active_user in active_users %}
+                <option value="{{ active_user.id }}" {% if subscription.owner_user_id==active_user.id %}selected{% endif %}>
+                    {{ active_user.username }}{% if active_user.is_admin %} (admin){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn-primary md:w-auto">Update Owner</button>
+    </form>
+</div>
+{% endif %}
 
 <div class="card mb-6">
     <div class="flex justify-between items-center mb-4 cursor-pointer"

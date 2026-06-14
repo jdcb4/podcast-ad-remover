@@ -156,6 +156,7 @@ def test_sensitive_admin_routes_have_route_level_admin_dependency():
         "retry_episode",
         "revoke_feed_token",
         "update_global_subscription_settings",
+        "update_subscription_owner",
         "delete_user_post",
         "approve_access_request",
         "deny_access_request",

@@ -363,6 +363,79 @@ def test_subscription_owner_is_member_and_removal_releases_ownership(isolated_da
     assert repo.is_in_user_library(user_id, sub.id) is False
 
 
+def test_admin_owner_reassignment_adds_new_owner_to_library(isolated_data_dir):
+    init_db()
+    repo = SubscriptionRepository()
+
+    with get_db_connection() as conn:
+        first_user_id = conn.execute(
+            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)",
+            ("first-owner", "hash"),
+        ).lastrowid
+        second_user_id = conn.execute(
+            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)",
+            ("second-owner", "hash"),
+        ).lastrowid
+        conn.commit()
+
+    sub = repo.create(
+        SubscriptionCreate(feed_url="https://example.com/reassign.xml"),
+        "Reassigned Show",
+        "reassigned-show",
+        owner_user_id=first_user_id,
+    )
+
+    updated = repo.set_owner(sub.id, second_user_id)
+    reassigned = repo.get_by_id(sub.id)
+
+    assert updated is True
+    assert reassigned.owner_user_id == second_user_id
+    assert repo.is_in_user_library(second_user_id, sub.id) is True
+    assert repo.is_in_user_library(first_user_id, sub.id) is True
+
+
+def test_admin_can_clear_subscription_owner(isolated_data_dir):
+    init_db()
+    repo = SubscriptionRepository()
+
+    with get_db_connection() as conn:
+        user_id = conn.execute(
+            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)",
+            ("owner", "hash"),
+        ).lastrowid
+        conn.commit()
+
+    sub = repo.create(
+        SubscriptionCreate(feed_url="https://example.com/clear-owner.xml"),
+        "Clear Owner Show",
+        "clear-owner-show",
+        owner_user_id=user_id,
+    )
+
+    updated = repo.set_owner(sub.id, None)
+    cleared = repo.get_by_id(sub.id)
+
+    assert updated is True
+    assert cleared.owner_user_id is None
+    assert repo.is_in_user_library(user_id, sub.id) is True
+
+
+def test_owner_reassignment_rejects_unknown_user(isolated_data_dir):
+    init_db()
+    repo = SubscriptionRepository()
+
+    sub = repo.create(
+        SubscriptionCreate(feed_url="https://example.com/unknown-owner.xml"),
+        "Unknown Owner Show",
+        "unknown-owner-show",
+    )
+
+    updated = repo.set_owner(sub.id, 999)
+
+    assert updated is False
+    assert repo.get_by_id(sub.id).owner_user_id is None
+
+
 def test_stale_running_job_is_recovered_and_claimable(isolated_data_dir):
     init_db()
     with get_db_connection() as conn:

@@ -73,7 +73,7 @@ user_subscriptions(user_id, subscription_id, added_at)
 
 The dashboard defaults logged-in users to a "My Podcasts" view backed by `user_subscriptions`, with a Library view for all global podcasts. Adding an existing podcast from search or the Library only adds that global podcast to the user's list.
 
-`subscriptions.owner_user_id` records the user who first added a podcast. Admins can change settings for any podcast. The owner can change settings for their podcast while they own it. Other users can view, subscribe, refresh, and trigger downloads, but cannot change per-podcast settings. Only admins can delete the global podcast and local files; when an owner removes a podcast from their own list, the podcast becomes unowned instead.
+`subscriptions.owner_user_id` records the user who first added a podcast. Admins can reassign or clear a podcast owner and can change settings for any podcast. Assigning a new owner also adds that podcast to the new owner's My Podcasts list. The owner can change settings for their podcast while they own it. Other users can view, subscribe, refresh, and trigger downloads, but cannot change per-podcast settings. Only admins can delete the global podcast and local files; when an owner removes a podcast from their own list, the podcast becomes unowned instead.
 
 ### Job State
 

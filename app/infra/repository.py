@@ -113,6 +113,32 @@ class SubscriptionRepository:
             ).fetchone()
             return row["username"] if row else None
 
+    def set_owner(self, subscription_id: int, owner_user_id: int | None) -> bool:
+        with get_db_connection() as conn:
+            if owner_user_id is not None:
+                user = conn.execute(
+                    "SELECT id FROM users WHERE id = ?",
+                    (owner_user_id,),
+                ).fetchone()
+                if not user:
+                    return False
+
+            result = conn.execute(
+                "UPDATE subscriptions SET owner_user_id = ? WHERE id = ?",
+                (owner_user_id, subscription_id),
+            )
+            if result.rowcount == 0:
+                return False
+
+            if owner_user_id is not None:
+                conn.execute(
+                    "INSERT OR IGNORE INTO user_subscriptions (user_id, subscription_id) VALUES (?, ?)",
+                    (owner_user_id, subscription_id),
+                )
+
+            conn.commit()
+            return True
+
     def get_by_url(self, url: str) -> Optional[Subscription]:
         with get_db_connection() as conn:
             row = conn.execute("SELECT * FROM subscriptions WHERE feed_url = ?", (url,)).fetchone()
