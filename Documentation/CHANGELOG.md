@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.5.1 - 2026-06-14
+
 - Added a Direct link subscription option beside the podcast-client app links while keeping the existing RSS feed link.
 - Centralized podcast-client subscription link generation, fixed URL encoding for tokenized feeds, and moved lower-confidence app schemes to local best-effort instruction pages.
 
