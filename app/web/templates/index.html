@@ -184,7 +184,7 @@
         </div>
         <div class="flex flex-wrap gap-3 justify-center md:justify-start items-center">
             <a href="{{ unified_links.direct }}" class="badge-soft hover:glow-primary"
-                style="padding: 0 16px; height: 24px; line-height: 24px;">Direct</a>
+                style="padding: 0 16px; height: 24px; line-height: 24px;">Direct link</a>
             <a href="{{ unified_links.pocket_casts }}" class="badge-soft"
                 style="padding: 0 16px; height: 24px; line-height: 24px;">Pocket Casts</a>
             <a href="/subscribe/apple?url={{ unified_links.apple | urlencode }}" class="badge-soft"
@@ -341,6 +341,7 @@
             <!-- Client Badges -->
             {% if item.episode_count > 0 %}
             <div class="podcast-badges flex flex-wrap gap-2 mb-4">
+                <a href="{{ item.links.direct }}" target="_blank" class="badge-soft">Direct link</a>
                 <a href="{{ item.links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
                 <a href="/subscribe/apple?url={{ item.links.apple | urlencode }}" class="badge-soft">Apple</a>
                 <a href="{{ item.links.overcast }}" class="badge-soft">Overcast</a>

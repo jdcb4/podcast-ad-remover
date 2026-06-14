@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a Direct link subscription option beside the podcast-client app links while keeping the existing RSS feed link.
+
 ## 1.5.0 - 2026-06-14
 
 - Fixed GitHub Actions verification by installing the async pytest plugin in CI and updating the workflow to Node 24-compatible GitHub action versions.

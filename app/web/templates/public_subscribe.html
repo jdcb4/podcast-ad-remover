@@ -34,7 +34,7 @@
             <p class="text-sm text-text-secondary mt-1">Subscribe once to receive every available feed.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{{ unified_links.direct }}" class="badge-soft">Direct RSS</a>
+            <a href="{{ unified_links.direct }}" class="badge-soft">Direct link</a>
             <a href="{{ unified_links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
             <a href="/subscribe/apple?url={{ unified_links.apple | urlencode }}" class="badge-soft">Apple</a>
             <a href="{{ unified_links.overcast }}" class="badge-soft">Overcast</a>
@@ -77,7 +77,7 @@
 
             {% if item.episode_count > 0 %}
             <div class="flex flex-wrap gap-2">
-                <a href="{{ item.links.direct }}" class="badge-soft">Direct RSS</a>
+                <a href="{{ item.links.direct }}" class="badge-soft">Direct link</a>
                 <a href="{{ item.links.pocket_casts }}" class="badge-soft">Pocket Casts</a>
                 <a href="/subscribe/apple?url={{ item.links.apple | urlencode }}" class="badge-soft">Apple</a>
                 <a href="{{ item.links.overcast }}" class="badge-soft">Overcast</a>
