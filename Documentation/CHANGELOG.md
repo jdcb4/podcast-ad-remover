@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.6.0 - 2026-06-17
+
 - Added an optional token-protected AI REST API under `/api/v1`, with scoped admin-managed tokens, SQLite-backed rate limits, OpenAPI discovery, and System Settings controls.
 
 ## 1.5.2 - 2026-06-14
