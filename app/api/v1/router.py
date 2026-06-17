@@ -2,7 +2,7 @@ import json
 import os
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, status
 from fastapi.openapi.utils import get_openapi
 
 from app.api.v1.dependencies import ensure_ai_api_enabled, get_api_settings, require_scopes
@@ -91,13 +91,14 @@ async def api_capabilities(api_settings: dict = Depends(ensure_ai_api_enabled)):
 
 
 @router.get("/openapi.json")
-async def api_openapi(request: Request, _api_settings: dict = Depends(ensure_ai_api_enabled)):
-    routes = [route for route in request.app.routes if getattr(route, "path", "").startswith("/api/v1")]
+async def api_openapi(_api_settings: dict = Depends(ensure_ai_api_enabled)):
+    schema_app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
+    schema_app.include_router(router, prefix="/api/v1")
     return get_openapi(
         title="Podcast Ad Remover AI API",
         version="v1",
         description="Opt-in REST API for AI agents and automation clients.",
-        routes=routes,
+        routes=schema_app.routes,
     )
 
 
@@ -194,9 +195,10 @@ async def create_subscription(
     request_body: SubscriptionCreateRequest,
     principal: ApiPrincipal = Depends(require_scopes(["write"])),
 ):
-    validation_error = validate_http_url(request_body.feed_url)
-    if validation_error:
-        raise HTTPException(status_code=400, detail=validation_error)
+    try:
+        validate_http_url(request_body.feed_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     existing = sub_repo.get_by_url(request_body.feed_url)
     if existing:

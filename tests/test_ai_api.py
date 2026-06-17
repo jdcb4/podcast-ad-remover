@@ -133,3 +133,79 @@ def test_ai_api_rate_limiter_recovers_after_window_changes(isolated_data_dir, mo
     assert repo.check_and_increment("token:1", 1, 60, "minute")[0] is True
     assert repo.check_and_increment("token:1", 1, 60, "minute")[0] is False
     assert repo.check_and_increment("token:1", 1, 60, "minute")[0] is True
+
+
+def test_ai_api_openapi_schema_includes_v1_paths(isolated_data_dir):
+    init_db()
+    enable_ai_api()
+    client = make_client()
+
+    response = client.get("/api/v1/openapi.json")
+
+    assert response.status_code == 200
+    paths = response.json()["paths"]
+    assert "/api/v1/subscriptions" in paths
+    assert "/api/v1/subscriptions/{subscription_id}/episodes" in paths
+    assert "/api/v1/episodes/{episode_id}/reprocess" in paths
+
+
+def test_create_subscription_accepts_valid_http_url_and_returns_existing_on_duplicate(
+    isolated_data_dir,
+    monkeypatch,
+):
+    init_db()
+    enable_ai_api()
+    token = ApiTokenRepository().create("Writer", scopes=["read", "write"])
+    client = make_client()
+    checked = []
+
+    class FakeProcessor:
+        async def check_feeds(self, subscription_id=None, limit=5):
+            checked.append({"subscription_id": subscription_id, "limit": limit})
+
+    async def fake_send_notification_async(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "app.api.v1.router.FeedManager.parse_feed",
+        staticmethod(lambda url: ("NASA Podcast", "nasa-podcast", "https://example.com/art.jpg", "Space notes")),
+    )
+    monkeypatch.setattr("app.api.v1.router._processor", lambda: FakeProcessor())
+    monkeypatch.setattr("app.api.v1.router.send_notification_async", fake_send_notification_async)
+
+    payload = {
+        "feed_url": "https://feeds.megaphone.fm/NATIONALAERONAUTICSANDSPACEADMINISTRATION8162188566",
+        "initial_count": 0,
+    }
+
+    created = client.post("/api/v1/subscriptions", headers=auth_header(token), json=payload)
+    duplicate = client.post("/api/v1/subscriptions", headers=auth_header(token), json=payload)
+    listed = client.get("/api/v1/subscriptions", headers=auth_header(token))
+
+    assert created.status_code == 200
+    assert created.json()["title"] == "NASA Podcast"
+    assert created.json()["feed_url"] == payload["feed_url"]
+    assert created.json()["slug"] == "nasa-podcast"
+    assert created.json()["is_active"] is True
+    assert checked == [{"subscription_id": created.json()["id"], "limit": 0}]
+
+    assert duplicate.status_code == 200
+    assert duplicate.json()["id"] == created.json()["id"]
+    assert listed.status_code == 200
+    assert [sub["feed_url"] for sub in listed.json()] == [payload["feed_url"]]
+
+
+def test_create_subscription_rejects_invalid_url(isolated_data_dir):
+    init_db()
+    enable_ai_api()
+    token = ApiTokenRepository().create("Writer", scopes=["write"])
+    client = make_client()
+
+    response = client.post(
+        "/api/v1/subscriptions",
+        headers=auth_header(token),
+        json={"feed_url": "file:///etc/passwd", "initial_count": 0},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Only HTTP and HTTPS URLs are supported"

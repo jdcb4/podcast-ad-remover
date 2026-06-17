@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed AI API subscription creation so valid HTTP/HTTPS feed URLs are accepted instead of treated as validation errors.
+- Made the AI API OpenAPI endpoint generate its schema directly from the v1 router so `/api/v1/openapi.json` includes all v1 paths.
 - Expanded the AI API documentation into a user guide with workflows, endpoint behavior, request bodies, and response examples.
 
 ## 1.6.0 - 2026-06-17
