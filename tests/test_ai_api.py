@@ -242,7 +242,7 @@ def test_create_subscription_rejects_invalid_url(isolated_data_dir):
     assert response.json()["detail"] == "Only HTTP and HTTPS URLs are supported"
 
 
-def test_linked_user_token_reads_only_user_library(isolated_data_dir):
+def test_linked_user_token_reads_entire_library(isolated_data_dir):
     init_db()
     enable_ai_api()
     first_user_id = create_user("first")
@@ -264,12 +264,12 @@ def test_linked_user_token_reads_only_user_library(isolated_data_dir):
 
     listed = client.get("/api/v1/subscriptions", headers=auth_header(token))
     allowed = client.get(f"/api/v1/subscriptions/{first_sub.id}", headers=auth_header(token))
-    denied = client.get(f"/api/v1/subscriptions/{second_sub.id}", headers=auth_header(token))
+    other = client.get(f"/api/v1/subscriptions/{second_sub.id}", headers=auth_header(token))
 
     assert listed.status_code == 200
-    assert [sub["id"] for sub in listed.json()] == [first_sub.id]
+    assert {sub["id"] for sub in listed.json()} == {first_sub.id, second_sub.id}
     assert allowed.status_code == 200
-    assert denied.status_code == 404
+    assert other.status_code == 200
 
 
 def test_linked_user_token_can_update_owned_subscription_only(isolated_data_dir):
@@ -305,7 +305,46 @@ def test_linked_user_token_can_update_owned_subscription_only(isolated_data_dir)
 
     assert owned.status_code == 200
     assert owned.json()["status"] == "updated"
-    assert other.status_code == 404
+    assert other.status_code == 403
+    assert other.json()["detail"] == "Only admins and the podcast owner can change podcast settings"
+
+
+def test_linked_user_token_can_process_owned_subscription_only(isolated_data_dir, monkeypatch):
+    init_db()
+    enable_ai_api()
+    checked = []
+
+    class FakeProcessor:
+        async def check_feeds(self, subscription_id=None, limit=5):
+            checked.append(subscription_id)
+
+    monkeypatch.setattr("app.api.v1.router._processor", lambda: FakeProcessor())
+
+    first_user_id = create_user("first")
+    second_user_id = create_user("second")
+    first_sub = create_subscription(
+        "https://example.com/first.xml",
+        "First Show",
+        "first-show",
+        owner_user_id=first_user_id,
+    )
+    second_sub = create_subscription(
+        "https://example.com/second.xml",
+        "Second Show",
+        "second-show",
+        owner_user_id=second_user_id,
+    )
+    token = ApiTokenRepository().create("First processor", scopes=["process"], user_id=first_user_id)
+    client = make_client()
+
+    owned = client.post(f"/api/v1/subscriptions/{first_sub.id}/check", headers=auth_header(token))
+    other = client.post(f"/api/v1/subscriptions/{second_sub.id}/check", headers=auth_header(token))
+
+    assert owned.status_code == 200
+    assert owned.json()["status"] == "check_triggered"
+    assert checked == [first_sub.id]
+    assert other.status_code == 403
+    assert other.json()["detail"] == "Only admins and the podcast owner can manage this podcast"
 
 
 def test_admin_linked_token_can_read_all_and_use_admin_scope(isolated_data_dir):

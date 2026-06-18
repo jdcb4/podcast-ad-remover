@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Added direct admin user creation from User Management.
-- Changed new AI API token creation to require selecting the dashboard user the token acts as, and made linked API tokens use that user's library/admin permissions.
+- Changed new AI API token creation to require selecting the dashboard user the token acts as, while allowing linked tokens to browse the global library and limiting non-admin management actions to podcasts owned by that user.
 - Added `scripts/link_api_token_user.py` to list and link existing API tokens to users without recreating the token.
 
 ## 1.6.1 - 2026-06-17

@@ -33,12 +33,12 @@ API tokens are different from feed tokens:
 - API tokens control management and automation actions.
 - Feed tokens only allow podcast clients to read protected feeds/audio.
 - API token hashes are stored in SQLite; the full token is never stored.
-- New API tokens must be linked to a dashboard user. API reads and actions are treated as that user.
+- New API tokens must be linked to a dashboard user. API management actions are treated as that user.
 
 Linked-token access rules:
 
-- Tokens linked to normal users see only that user's podcast library.
-- Tokens linked to normal users can change settings only for podcasts owned by that user.
+- Tokens linked to normal users can browse the full podcast library, matching the dashboard's global library view.
+- Tokens linked to normal users can change settings or trigger processing only for podcasts owned by that user.
 - Tokens linked to admin users can see and manage the global library.
 - The `admin` scope only exposes system status when the token is linked to an admin user.
 - Legacy unlinked tokens keep the older global behavior until you migrate or revoke them.
@@ -115,7 +115,7 @@ GET /api/v1/subscriptions
 
 Required scope: `read`
 
-Outcome: returns the podcast library the token can see.
+Outcome: returns the global podcast library.
 
 ### Let an AI summarize available episodes for a podcast
 
@@ -299,7 +299,7 @@ GET /api/v1/subscriptions
 
 Required scope: `read`
 
-Use this to list podcasts. If a token is associated with a user, only that user's library is returned. Shared/admin tokens return the global library.
+Use this to list podcasts. Linked user tokens, linked admin tokens, and legacy unlinked tokens all return the global library.
 
 Example response:
 
@@ -539,6 +539,7 @@ Outcome:
 - If the feed already exists, the existing subscription is returned.
 - If the token is linked to a user, the existing show is added to that user's library.
 - If it is new, the feed is parsed, saved, a new-podcast notification is sent, and initial feed checking starts.
+- Linked normal-user tokens can later manage the subscription only if they own it.
 
 Response: a subscription object.
 
@@ -568,6 +569,8 @@ Required scope: `write`
 
 Use this when a user asks an assistant to change how a podcast is processed.
 
+Linked normal-user tokens can update only podcasts owned by that user. Linked admin tokens and legacy unlinked tokens can update any podcast.
+
 All fields are optional. Omitted fields keep their current values.
 
 Response:
@@ -593,6 +596,8 @@ POST /api/v1/subscriptions/{subscription_id}/check
 Required scope: `process`
 
 Use this when a user asks "refresh this show" or "check for new episodes."
+
+Linked normal-user tokens can trigger processing only for podcasts owned by that user. The same ownership rule applies to episode download, reprocess, cancel, and ignore actions.
 
 Response:
 
