@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+    <channel>
+        <atom:link href="https://feed.testing.org/feed/rss.aspx?feed=test" rel="self" type="application/rss+xml" />
+        <image>
+            <url>https://www.test.org/images/test.png</url>
+            <title>The Test</title>
+            <link>https://www.test.org</link>
+            <width>144</width>
+            <height>144</height>
+        </image>
+        <title>The Test</title>
+        <description>Test failing podcast</description>
+        <link>https://www.test.org/podcast/test</link>
+        <docs>https://blogs.law.harvard.edu/tech/rss</docs>
+        <language>en-us</language>
+        <managingEditor>test@test.org</managingEditor>
+        <lastBuildDate>Wed, 19 Oct 2016 11:22:00 -0400</lastBuildDate>
+        <pubDate>Wed, 19 Oct 2016 17:02:29 -0400</pubDate>
+        <ttl>60</ttl>
+        <webMaster>test@test.org</webMaster>
+        <itunes:author>Tester Test</itunes:author>
+        <itunes:new-feed-url>https://feed.test.org/feed/rss.aspx?feed=test</itunes:new-feed-url>
+        <itunes:owner>
+            <itunes:name>Tester Test</itunes:name>
+            <itunes:email>test@test.org</itunes:email>
+        </itunes:owner>
+        <itunes:image href="https://www.test.org/images/test.png" />
+        <itunes:keywords>test</itunes:keywords>
+        <itunes:subtitle>Test</itunes:subtitle>
+        <itunes:summary>Test</itunes:summary>
+        <itunes:category text="Science" />
+        <itunes:explicit>no</itunes:explicit>
+        <item>
+            <title>Test 1 OK</title>
+            <description>Regular working item</description>
+            <enclosure url="https://traffic.libsyn.com/secure/test/test-01.mp3" length="129939533" type="audio/mpeg" />
+            <pubDate>Sat, 20 Jun 2026 10:00:00 -0400</pubDate>
+            <guid>https://www.test.org/podcast/test/1</guid>
+        </item>
+        <item>
+            <title>Test 2 Bad length</title>
+            <description>Broken Item, length contains a string</description>
+            <enclosure url="https://traffic.libsyn.com/secure/test/test-02.mp3" length="https://traffic.libsyn.com/secure/test/test" type="audio/mpeg" />
+            <pubDate>Sat, 21 Mar 2026 10:00:00 -0400</pubDate>
+            <guid>https://www.test.org/podcast/test/2</guid>
+        </item>
+    </channel>
+</rss>

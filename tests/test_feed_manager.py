@@ -2,6 +2,7 @@ import pytest
 
 from app.core.config import settings
 from app.core.feed import FeedManager
+from pathlib import Path
 
 
 class FakeStreamResponse:
@@ -107,3 +108,38 @@ def test_parse_feed_and_episodes_from_sample_rss(monkeypatch):
         }
     ]
     assert episodes[0]["pub_date"].year == 2024
+
+
+def test_parse_problematic_feed_reproduces_issue(monkeypatch):
+    """
+    Test to reproduce and debug the specific parsing issue with a known problematic feed.
+    """
+    # 1. Resolve the path to your saved XML file and read its bytes
+    # This assumes the 'test_data' folder is in the same directory as this test file.
+    current_dir = Path(__file__).parent
+    feed_path = current_dir / "test_data" / "problematic_feed.xml"
+
+    # Sanity check to ensure the file exists so the test doesn't fail for the wrong reason
+    assert feed_path.exists(), f"Could not find test feed at {feed_path}"
+
+    mock_xml_content = feed_path.read_bytes()
+
+    # 2. Mock _fetch_feed to return the local file's content
+    monkeypatch.setattr(FeedManager, "_fetch_feed", staticmethod(lambda url: mock_xml_content))
+
+    # 3. Call the parsing logic
+    # If the bug causes an unhandled exception, the test will fail right here,
+    # giving you a clean traceback to debug.
+    try:
+        title, slug, image_url, description = FeedManager.parse_feed("https://fake-url.com/feed.xml")
+        episodes = FeedManager.parse_episodes("https://fake-url.com/feed.xml")
+
+        # 4. Add assertions based on what *should* happen when the bug is fixed.
+        # For now, you can just assert that the data isn't completely empty,
+        # or place a breakpoint() here to inspect the variables.
+        assert title is not None, "Title should be parsed"
+        assert len(episodes) > 0, "Should have parsed at least one episode"
+
+    except ValueError as e:
+        # If the bug raises a specific ValueError (like d.bozo), it will get caught here.
+        pytest.fail(f"FeedManager raised an unexpected ValueError: {e}")
