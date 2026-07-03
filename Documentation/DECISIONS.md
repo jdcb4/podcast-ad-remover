@@ -53,3 +53,23 @@ Piper remains the default because it is local, offline, and does not consume API
 ## 2026-06-17: Keep the AI API opt-in and token-scoped
 
 The AI-facing integration surface is a REST API under `/api/v1`, disabled by default and protected by admin-managed bearer tokens. API tokens are separate from feed tokens, use explicit scopes, and have SQLite-backed rate limits so the feature fits the existing single-container SQLite deployment model.
+
+## 2026-07-03: Support transcript chunking for long episodes
+
+Long podcast transcripts can exceed model context limits. The app now splits transcripts into configurable chunks with overlap for AI analysis. Chunking settings (`chunk_num_chunks`, `chunk_overlap_percent`) are stored in `app_settings` and applied during ad detection. Results from chunks are merged with overlap handling to avoid duplicate or missing segments.
+
+## 2026-07-03: Make reason field optional in ad detection prompts
+
+Including a reason field for each detected segment increases token usage and processing time. The `include_reason` setting allows disabling the reason field while still receiving segment boundaries and labels. This is useful for cost-sensitive deployments or when detailed explanations are not needed.
+
+## 2026-07-03: Support custom OpenAI endpoints for local LLMs
+
+Users running local LLM deployments (e.g., Ollama, LocalAI) or using alternative OpenAI-compatible providers can now configure a custom `openai_base_url`. The model refresh logic passes the custom base URL and API key to fetch available models, and the OpenAI client uses the custom endpoint for all requests.
+
+## 2026-07-03: Add per-podcast download order control
+
+Episode processing order can now be controlled per-podcast with `download_order` (newest first or oldest first). This is useful for podcasts where users prefer to process from the beginning chronologically rather than the default newest-first behavior. A global default is also available in `app_settings`.
+
+## 2026-07-03: Add Whisper compute type configuration
+
+Whisper compute type can now be configured (`float32`, `float16`, `int8`) for resource tuning. This allows users to trade accuracy for reduced memory usage on resource-constrained systems.

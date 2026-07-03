@@ -161,24 +161,26 @@ class SubscriptionRepository:
             conn.execute("DELETE FROM subscriptions WHERE id = ?", (id,))
             conn.commit()
 
-    def update_settings(self, id: int, remove_ads: bool, remove_promos: bool, remove_intros: bool, remove_outros: bool, custom_instructions: str, append_summary: bool, append_title_intro: bool, ai_rewrite_description: bool, ai_audio_summary: bool, retention_days: int = 30, manual_retention_days: int = 14, retention_limit: int = 1):
+    def update_settings(self, id: int, remove_ads: bool, remove_promos: bool, remove_intros: bool, remove_outros: bool, custom_instructions: str, append_summary: bool, append_title_intro: bool, ai_rewrite_description: bool, ai_audio_summary: bool, feed_url: str, retention_days: int = 30, manual_retention_days: int = 14, retention_limit: int = 1, download_order: str = "newest"):
         with get_db_connection() as conn:
             conn.execute("""
-                UPDATE subscriptions 
-                SET remove_ads = ?, 
-                    remove_promos = ?, 
-                    remove_intros = ?, 
-                    remove_outros = ?, 
+                UPDATE subscriptions
+                SET remove_ads = ?,
+                    remove_promos = ?,
+                    remove_intros = ?,
+                    remove_outros = ?,
                     custom_instructions = ?,
                     append_summary = ?,
                     append_title_intro = ?,
                     ai_rewrite_description = ?,
                     ai_audio_summary = ?,
+                    feed_url = ?,
                     retention_days = ?,
                     manual_retention_days = ?,
-                    retention_limit = ?
+                    retention_limit = ?,
+                    download_order = ?
                 WHERE id = ?
-            """, (remove_ads, remove_promos, remove_intros, remove_outros, custom_instructions, append_summary, append_title_intro, ai_rewrite_description, ai_audio_summary, retention_days, manual_retention_days, retention_limit, id))
+            """, (remove_ads, remove_promos, remove_intros, remove_outros, custom_instructions, append_summary, append_title_intro, ai_rewrite_description, ai_audio_summary, feed_url, retention_days, manual_retention_days, retention_limit, download_order, id))
             conn.commit()
 
 class EpisodeRepository:

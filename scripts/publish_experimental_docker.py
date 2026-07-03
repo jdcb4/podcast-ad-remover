@@ -65,12 +65,25 @@ def default_tags() -> list[str]:
     return ["experimental", "audit-work", f"audit-work-{sha}"]
 
 
+def check_buildx_available() -> bool:
+    """Check if docker buildx is available."""
+    try:
+        result = subprocess.run(
+            [executable("docker"), "buildx", "version"],
+            capture_output=True,
+            text=True,
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build or publish non-release Docker tags.")
     parser.add_argument("--push", action="store_true", help="Push tags to Docker Hub.")
     parser.add_argument("--skip-verify", action="store_true", help="Skip verification checks.")
     parser.add_argument("--repository", default=DEFAULT_REPOSITORY, help="Docker image repository.")
-    parser.add_argument("--platform", default="linux/amd64", help="Docker build platform.")
+    parser.add_argument("--platform", default="linux/amd64", help="Docker build platform (requires buildx).")
     parser.add_argument("--tag", action="append", dest="tags", help="Non-release tag to build. Repeatable.")
     parser.add_argument("--build-arg", action="append", default=[], help="Docker build argument. Repeatable.")
     parser.add_argument("--no-tts", action="store_true", help="Skip Piper TTS dependencies for images where Piper is unavailable.")
@@ -82,13 +95,23 @@ def main() -> int:
     if not args.skip_verify:
         run([sys.executable, "scripts/verify.py"], "Pre-build verification")
 
-    command = [
-        executable("docker"),
-        "buildx",
-        "build",
-        "--platform",
-        args.platform,
-    ]
+    buildx_available = check_buildx_available()
+    use_buildx = buildx_available and args.platform != "linux/amd64"
+
+    if use_buildx:
+        command = [
+            executable("docker"),
+            "buildx",
+            "build",
+            "--platform",
+            args.platform,
+        ]
+        command.append("--push" if args.push else "--load")
+    else:
+        if not buildx_available and args.platform != "linux/amd64":
+            print(f"Warning: docker buildx not available, ignoring --platform {args.platform}")
+        command = [executable("docker"), "build"]
+
     build_args = list(args.build_arg)
     if args.no_tts:
         build_args.append("INSTALL_TTS=0")
@@ -96,7 +119,6 @@ def main() -> int:
         command.extend(["--build-arg", build_arg])
     for full_tag in full_tags:
         command.extend(["-t", full_tag])
-    command.append("--push" if args.push else "--load")
     command.append(".")
 
     run(command, "Docker experimental publish" if args.push else "Docker experimental build")

@@ -61,6 +61,7 @@ class Transcriber:
     def _load_runtime_settings(self) -> Dict:
         runtime = {
             "whisper_model": "base",
+            "whisper_compute_type": "float32",
             "whisper_cpu_threads": 0,
             "ffmpeg_threads": 0,
         }
@@ -68,11 +69,12 @@ class Transcriber:
             from app.infra.database import get_db_connection
             with get_db_connection() as conn:
                 row = conn.execute("""
-                    SELECT whisper_model, whisper_cpu_threads, ffmpeg_threads
+                    SELECT whisper_model, whisper_compute_type, whisper_cpu_threads, ffmpeg_threads
                     FROM app_settings WHERE id = 1
                 """).fetchone()
                 if row:
                     runtime["whisper_model"] = row["whisper_model"] or "base"
+                    runtime["whisper_compute_type"] = row["whisper_compute_type"] or "float32"
                     runtime["whisper_cpu_threads"] = int(row["whisper_cpu_threads"] or 0)
                     runtime["ffmpeg_threads"] = int(row["ffmpeg_threads"] or 0)
         except Exception as e:
@@ -90,15 +92,14 @@ class Transcriber:
     def load_model(self, runtime_settings: Dict | None = None):
         runtime_settings = runtime_settings or self._load_runtime_settings()
         idx = runtime_settings.get("whisper_model") or "base"
+        compute_type = runtime_settings.get("whisper_compute_type") or "float32"
         cpu_threads = int(runtime_settings.get("whisper_cpu_threads") or 0)
-        desired_config = (idx, cpu_threads)
+        desired_config = (idx, cpu_threads, compute_type)
         if self.model and self.model_config != desired_config:
             logger.info("Whisper settings changed; reloading Faster-Whisper model.")
             self.unload_model()
 
         if not self.model:
-            # Use float32 for maximum compatibility and stability on CPU (especially ARM64)
-            compute_type = "float32"
             logger.info(f"Loading Faster-Whisper model: {idx} (Download Root: {settings.MODELS_DIR})")
             logger.info(f"Using {compute_type} compute type for optimization.")
             if cpu_threads > 0:
@@ -115,7 +116,6 @@ class Transcriber:
             if cpu_threads > 0:
                 model_kwargs["cpu_threads"] = cpu_threads
 
-            # Use float32 for stability
             import faster_whisper
             self.model = faster_whisper.WhisperModel(idx, **model_kwargs)
             self.model_config = desired_config
@@ -568,7 +568,10 @@ class AdDetector:
                 models_list = self._parse_model_setting(self.settings.get('ai_model_cascade'), self.DEFAULT_GEMINI_MODELS)
 
         if provider_type == 'openai':
-            return OpenAIProvider(api_key, models_list, provider_name="OpenAI", rate_limit_provider="openai")
+            base_url = self.settings.get('openai_base_url')
+            # Disable model prefix filtering for custom endpoints (local LLMs)
+            model_prefixes = None if base_url else ("gpt-", "o1-", "chatgpt-")
+            return OpenAIProvider(api_key, models_list, base_url=base_url, provider_name="OpenAI", model_prefixes=model_prefixes, rate_limit_provider="openai")
 
         elif provider_type == 'anthropic':
             return AnthropicProvider(api_key, models_list)
@@ -638,45 +641,70 @@ class AdDetector:
                 "remove_ads": True, "remove_promos": True, "remove_intros": False, "remove_outros": False, "custom_instructions": None
             }
 
-        # Prepare transcript text
-        text_data = ""
-        for seg in transcript['segments']:
-            text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
+        # Load chunking settings from database with defaults
+        num_chunks = self.settings.get('chunk_num_chunks') or 10
+        overlap_percent = (self.settings.get('chunk_overlap_percent') or 25) / 100.0  # Convert percent to decimal
 
-        # Build Prompt
-        prompt = self._build_ad_prompt(options, text_data, whitelist_mode=whitelist_mode)
+        # Chunk the transcript using configured settings
+        chunks = self._chunk_transcript(transcript, num_chunks=num_chunks, overlap_percent=overlap_percent)
+        
+        if not chunks:
+            logger.warning("No chunks created from transcript, returning empty results")
+            return []
 
-        # Execute
-        try:
-            provider = self._get_provider()
-            response_text = provider.generate(prompt)
-            raw_segments = self._parse_ad_response(response_text)
+        logger.info(f"Processing {len(chunks)} transcript chunks for ad detection")
 
-            # Whitelist mode: return ALL segments (including Content) for processor to invert
-            if whitelist_mode:
-                logger.info(f"Whitelist mode: returning all {len(raw_segments)} segments (including Content)")
-                return raw_segments
+        # Process each chunk
+        chunk_results = []
+        provider = self._get_provider()
+        
+        for i, chunk in enumerate(chunks):
+            logger.info(f"Processing chunk {i+1}/{len(chunks)}")
+            
+            # Prepare transcript text for this chunk
+            text_data = ""
+            for seg in chunk['segments']:
+                text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
 
-            # Blacklist mode (default): Filter to only include requested types and exclude 'Content'
-            removable_labels = []
-            if options.get("remove_ads"): removable_labels.append("Ad")
-            if options.get("remove_promos"):
-                removable_labels.extend(["Promo", "Cross-promotion"])
-            if options.get("remove_intros"): removable_labels.append("Intro")
-            if options.get("remove_outros"): removable_labels.append("Outro")
+            # Build Prompt
+            prompt = self._build_ad_prompt(options, text_data, whitelist_mode=whitelist_mode)
 
-            filtered = []
-            for s in raw_segments:
-                label = s.get('label', 'Ad')
-                if label in removable_labels:
-                    filtered.append(s)
-                else:
-                    logger.info(f"Skipping segment labeled '{label}' (Reason: {s.get('reason')})")
+            # Execute
+            try:
+                response_text = provider.generate(prompt)
+                raw_segments = self._parse_ad_response(response_text)
+                chunk_results.append(raw_segments)
+                logger.info(f"Chunk {i+1} detected {len(raw_segments)} segments")
+            except Exception as e:
+                logger.error(f"Ad detection failed for chunk {i+1}: {e}")
+                # Continue with other chunks even if one fails
+                chunk_results.append([])
 
-            return filtered
-        except Exception as e:
-            logger.error(f"Ad detection failed: {e}")
-            raise e
+        # Merge results from all chunks
+        merged_segments = self._merge_ad_results(chunk_results)
+
+        # Whitelist mode: return ALL segments (including Content) for processor to invert
+        if whitelist_mode:
+            logger.info(f"Whitelist mode: returning all {len(merged_segments)} segments (including Content)")
+            return merged_segments
+
+        # Blacklist mode (default): Filter to only include requested types and exclude 'Content'
+        removable_labels = []
+        if options.get("remove_ads"): removable_labels.append("Ad")
+        if options.get("remove_promos"):
+            removable_labels.extend(["Promo", "Cross-promotion"])
+        if options.get("remove_intros"): removable_labels.append("Intro")
+        if options.get("remove_outros"): removable_labels.append("Outro")
+
+        filtered = []
+        for s in merged_segments:
+            label = s.get('label', 'Ad')
+            if label in removable_labels:
+                filtered.append(s)
+            else:
+                logger.info(f"Skipping segment labeled '{label}' (Reason: {s.get('reason')})")
+
+        return filtered
 
     def generate_summary(self, transcript: Dict, podcast_name: str, episode_title: str, pub_date: str, subscription_settings: Dict = None) -> str:
         self.settings = self._load_settings()
@@ -740,13 +768,27 @@ class AdDetector:
         if options.get("remove_outros"):
             targets.append(self.settings.get('ad_target_outro') or 'Outro')
 
-        default_base = """
-        Identify segments in the transcript that match the Targets.
-        Targets: {targets}
-        {custom_instr}
-        Return a JSON array of objects with "start", "end", "label" (Ad/Promo/Intro/Outro), and "reason" (brief explanation).
-        Example: [{{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for XYZ"}}]
-        """
+        # Check if reason should be included in prompt
+        include_reason = self.settings.get('include_reason')
+        if include_reason is None:
+            include_reason = 1  # Default to enabled
+
+        if include_reason:
+            default_base = """
+            Identify segments in the transcript that match the Targets.
+            Targets: {targets}
+            {custom_instr}
+            Return a JSON array of objects with "start", "end", "label" (Ad/Promo/Intro/Outro), and "reason" (brief explanation).
+            Example: [{{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for XYZ"}}]
+            """
+        else:
+            default_base = """
+            Identify segments in the transcript that match the Targets.
+            Targets: {targets}
+            {custom_instr}
+            Return a JSON array of objects with "start", "end", and "label" (Ad/Promo/Intro/Outro).
+            Example: [{{"start": 0.0, "end": 10.0, "label": "Ad"}}]
+            """
 
         base = self.settings.get('ad_prompt_base') or default_base
 
@@ -755,11 +797,19 @@ class AdDetector:
         # Whitelist mode: append instructions to also label Content segments
         whitelist_addendum = ""
         if whitelist_mode:
-            whitelist_addendum = """
+            if include_reason:
+                whitelist_addendum = """
 IMPORTANT: You MUST also label ALL substantive speech/content segments with label "Content".
 Every segment of the transcript must be classified. Use "Content" for any segment containing substantive speech, interviews, reporting, or discussion that is NOT an ad, promo, intro, or outro.
 Non-speech segments (music, jingles, silence) should NOT be labeled as Content.
 Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main discussion segment"}]
+"""
+            else:
+                whitelist_addendum = """
+IMPORTANT: You MUST also label ALL substantive speech/content segments with label "Content".
+Every segment of the transcript must be classified. Use "Content" for any segment containing substantive speech, interviews, reporting, or discussion that is NOT an ad, promo, intro, or outro.
+Non-speech segments (music, jingles, silence) should NOT be labeled as Content.
+Example: [{"start": 10.0, "end": 300.0, "label": "Content"}]
 """
 
         # Use manual replacement instead of .format() to avoid breaking on JSON examples
@@ -770,7 +820,111 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
              logger.warning(f"Prompt formatting failed: {e}")
              return base + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
 
+    def _chunk_transcript(self, transcript: Dict, num_chunks: int = 10, overlap_percent: float = 0.25) -> List[Dict]:
+        """Split transcript into chunks with overlap for AI analysis."""
+        segments = transcript['segments']
+        total_segments = len(segments)
+        
+        if total_segments == 0:
+            return []
+        
+        # Calculate chunk size with overlap
+        # Each chunk should have overlap_percent overlap with adjacent chunks
+        # If we have N chunks, we need to distribute segments such that:
+        # - Chunk i starts at position i * (chunk_size - overlap_size)
+        # - Each chunk has chunk_size segments
+        # - Overlap between chunks is overlap_percent of chunk_size
+        
+        chunk_size = int((total_segments / num_chunks) / (1 - overlap_percent))
+        overlap_size = int(chunk_size * overlap_percent)
+        
+        # Ensure minimum chunk size
+        chunk_size = max(chunk_size, 10)
+        overlap_size = max(overlap_size, 2)
+        
+        chunks = []
+        for i in range(num_chunks):
+            # Calculate start and end indices for this chunk
+            start_idx = i * (chunk_size - overlap_size)
+            end_idx = start_idx + chunk_size
+            
+            # Adjust for last chunk to include all remaining segments
+            if i == num_chunks - 1:
+                end_idx = total_segments
+            
+            # Ensure indices are within bounds
+            start_idx = max(0, min(start_idx, total_segments - 1))
+            end_idx = max(start_idx + 1, min(end_idx, total_segments))
+            
+            # Extract chunk segments
+            chunk_segments = segments[start_idx:end_idx]
+            
+            # Create chunk transcript dict
+            chunk = {
+                'segments': chunk_segments,
+                'language': transcript.get('language', 'en'),
+                'chunk_index': i,
+                'total_chunks': num_chunks,
+                'global_start_idx': start_idx,
+                'global_end_idx': end_idx
+            }
+            
+            chunks.append(chunk)
+            logger.debug(f"Chunk {i+1}/{num_chunks}: segments {start_idx}-{end_idx} ({len(chunk_segments)} segments)")
+        
+        return chunks
+
+    def _merge_ad_results(self, chunk_results: List[List[Dict]], total_duration: float = None) -> List[Dict]:
+        """Merge ad detection results from multiple chunks, handling overlaps."""
+        all_segments = []
+        
+        for chunk_idx, chunk_ads in enumerate(chunk_results):
+            for seg in chunk_ads:
+                # Add chunk info for debugging
+                seg['chunk_index'] = chunk_idx
+                all_segments.append(seg)
+        
+        # Sort by start time
+        all_segments.sort(key=lambda x: x['start'])
+        
+        # Merge overlapping segments
+        merged = []
+        for seg in all_segments:
+            if not merged:
+                merged.append(seg)
+            else:
+                last = merged[-1]
+                # If segments overlap significantly (>50%), merge them
+                overlap_start = max(seg['start'], last['end'])
+                overlap_end = min(seg['end'], last['start'])
+                
+                # Calculate overlap percentage
+                if seg['start'] < last['end'] and seg['end'] > last['start']:
+                    # Segments overlap
+                    # Merge if overlap is significant or if they have the same label
+                    if seg.get('label') == last.get('label'):
+                        # Merge by extending the end time
+                        last['end'] = max(last['end'], seg['end'])
+                        # Only merge reasons if they exist and are non-empty
+                        if last.get('reason') or seg.get('reason'):
+                            last['reason'] = f"{last['reason'] or ''} (merged with: {seg['reason'] or ''})"
+                        logger.debug(f"Merged overlapping segments: {seg['start']}-{seg['end']} into {last['start']}-{last['end']}")
+                    else:
+                        # Different labels, keep both
+                        merged.append(seg)
+                else:
+                    # No overlap, keep as is
+                    merged.append(seg)
+        
+        # Remove chunk_index from final results
+        for seg in merged:
+            seg.pop('chunk_index', None)
+        
+        logger.info(f"Merged {len(all_segments)} chunk results into {len(merged)} final segments")
+        return merged
+
     def _parse_ad_response(self, text: str):
+        logger.info(f"Parsing ad response: {text}")
         text = text.strip()
         # Common markdown cleanup
         if text.startswith("```json"):

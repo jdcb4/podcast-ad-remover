@@ -128,6 +128,11 @@ class Processor:
                 # Fetch ALL episodes
                 episodes = FeedManager.parse_episodes(sub.feed_url)
                 
+                # Check if download order is set to 'oldest' and reverse list if necessary
+                if getattr(sub, 'download_order', None) == 'oldest':
+                    logger.info(f"Reversing episode list for {sub.title}: processing oldest first.")
+                    episodes.reverse()
+
                 for i, ep_data in enumerate(episodes):
                     ep_data['subscription_id'] = sub.id
                     

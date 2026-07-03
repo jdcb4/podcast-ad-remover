@@ -95,6 +95,20 @@
                     </div>
                 </div>
             </div>
+
+            <div class="pt-4 border-t border-white/[0.08]">
+                <h4 class="font-semibold mb-3">Default Download Order</h4>
+                <div>
+                    <label class="block text-sm text-text-secondary mb-2">Episode Download Order</label>
+                    <select name="default_download_order" class="select">
+                        <option value="newest" {% if (settings.default_download_order is none or
+                            settings.default_download_order=='newest') %}selected{% endif %}>Newest First (Default)
+                        </option>
+                        <option value="oldest" {% if settings.default_download_order=='oldest' %}selected{% endif %}>
+                            Oldest First</option>
+                    </select>
+                </div>
+            </div>
         </div>
 
         <!-- Features -->

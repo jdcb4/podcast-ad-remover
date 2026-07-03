@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.core.models import Episode
+from app.core.models import Episode, Subscription
 
 
 def test_episode_model_keeps_retry_manual_and_listen_fields():
@@ -37,3 +37,29 @@ def test_episode_model_keeps_retry_manual_and_listen_fields():
     assert episode.next_retry_at == next_retry
     assert episode.is_manual_download is True
     assert episode.listen_count == 7
+
+
+def test_subscription_model_includes_download_order():
+    """Test that Subscription model includes download_order field with default."""
+    subscription = Subscription.model_validate({
+        "id": 1,
+        "feed_url": "https://example.com/feed.xml",
+        "title": "Test Podcast",
+        "is_active": True,
+        "created_at": datetime.now(),
+    })
+
+    # Default should be 'newest'
+    assert subscription.download_order == "newest"
+
+    # Test explicit value
+    subscription_oldest = Subscription.model_validate({
+        "id": 2,
+        "feed_url": "https://example.com/feed2.xml",
+        "title": "Test Podcast 2",
+        "is_active": True,
+        "created_at": datetime.now(),
+        "download_order": "oldest",
+    })
+
+    assert subscription_oldest.download_order == "oldest"

@@ -142,5 +142,102 @@ def test_check_feeds_with_zero_limit_skips_initial_downloads(mock_feed_manager, 
     assert call_args['status'] == 'unprocessed'
 
 
+@patch("app.core.processor.FeedManager")
+def test_check_feeds_respects_download_order_newest(mock_feed_manager, mock_processor):
+    """Test that download_order='newest' processes episodes in default order (newest first)."""
+    mock_sub = MagicMock()
+    mock_sub.id = 1
+    mock_sub.feed_url = "https://example.com/feed"
+    mock_sub.retention_limit = 2
+    mock_sub.download_order = "newest"
+    mock_processor.sub_repo.get_all.return_value = [mock_sub]
+
+    # Feed returns episodes in newest-first order (typical RSS behavior)
+    episodes = [
+        {'title': 'Episode 3', 'guid': 'guid-3'},
+        {'title': 'Episode 2', 'guid': 'guid-2'},
+        {'title': 'Episode 1', 'guid': 'guid-1'},
+    ]
+    mock_feed_manager.parse_episodes.return_value = episodes
+
+    asyncio.run(mock_processor.check_feeds())
+
+    # Should process in the order returned by feed (newest first)
+    assert mock_processor.ep_repo.create_or_ignore.call_count == 3
+
+    # First 2 should be pending, rest unprocessed
+    call_1_args = mock_processor.ep_repo.create_or_ignore.call_args_list[0][0][0]
+    call_2_args = mock_processor.ep_repo.create_or_ignore.call_args_list[1][0][0]
+    call_3_args = mock_processor.ep_repo.create_or_ignore.call_args_list[2][0][0]
+
+    assert call_1_args['title'] == 'Episode 3'
+    assert call_1_args['status'] == 'pending'
+    assert call_2_args['title'] == 'Episode 2'
+    assert call_2_args['status'] == 'pending'
+    assert call_3_args['title'] == 'Episode 1'
+    assert call_3_args['status'] == 'unprocessed'
+
+
+@patch("app.core.processor.FeedManager")
+def test_check_feeds_respects_download_order_oldest(mock_feed_manager, mock_processor):
+    """Test that download_order='oldest' reverses episode list to process oldest first."""
+    mock_sub = MagicMock()
+    mock_sub.id = 1
+    mock_sub.feed_url = "https://example.com/feed"
+    mock_sub.retention_limit = 2
+    mock_sub.download_order = "oldest"
+    mock_processor.sub_repo.get_all.return_value = [mock_sub]
+
+    # Feed returns episodes in newest-first order (typical RSS behavior)
+    episodes = [
+        {'title': 'Episode 3', 'guid': 'guid-3'},
+        {'title': 'Episode 2', 'guid': 'guid-2'},
+        {'title': 'Episode 1', 'guid': 'guid-1'},
+    ]
+    mock_feed_manager.parse_episodes.return_value = episodes
+
+    asyncio.run(mock_processor.check_feeds())
+
+    # Should process in reversed order (oldest first)
+    assert mock_processor.ep_repo.create_or_ignore.call_count == 3
+
+    # First 2 (oldest) should be pending, rest unprocessed
+    call_1_args = mock_processor.ep_repo.create_or_ignore.call_args_list[0][0][0]
+    call_2_args = mock_processor.ep_repo.create_or_ignore.call_args_list[1][0][0]
+    call_3_args = mock_processor.ep_repo.create_or_ignore.call_args_list[2][0][0]
+
+    assert call_1_args['title'] == 'Episode 1'  # Oldest
+    assert call_1_args['status'] == 'pending'
+    assert call_2_args['title'] == 'Episode 2'
+    assert call_2_args['status'] == 'pending'
+    assert call_3_args['title'] == 'Episode 3'  # Newest
+    assert call_3_args['status'] == 'unprocessed'
+
+
+@patch("app.core.processor.FeedManager")
+def test_check_feeds_defaults_to_newest_when_not_set(mock_feed_manager, mock_processor):
+    """Test that missing download_order defaults to 'newest' behavior."""
+    mock_sub = MagicMock()
+    mock_sub.id = 1
+    mock_sub.feed_url = "https://example.com/feed"
+    mock_sub.retention_limit = 2
+    # download_order not set (should default to newest)
+    mock_processor.sub_repo.get_all.return_value = [mock_sub]
+
+    episodes = [
+        {'title': 'Episode 3', 'guid': 'guid-3'},
+        {'title': 'Episode 2', 'guid': 'guid-2'},
+        {'title': 'Episode 1', 'guid': 'guid-1'},
+    ]
+    mock_feed_manager.parse_episodes.return_value = episodes
+
+    asyncio.run(mock_processor.check_feeds())
+
+    # Should process in default order (newest first)
+    call_1_args = mock_processor.ep_repo.create_or_ignore.call_args_list[0][0][0]
+    assert call_1_args['title'] == 'Episode 3'
+    assert call_1_args['status'] == 'pending'
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

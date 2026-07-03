@@ -717,6 +717,7 @@ async def admin_ai_text_analysis(request: Request):
 async def update_ai_settings(
     request: Request,
     whisper_model: str = Form("base"),
+    whisper_compute_type: str = Form("float32"),
     ai_model_cascade: str = Form(...),
     piper_model: str = Form("en_GB-cori-high.onnx"),
     tts_provider: str = Form("piper"),
@@ -724,12 +725,16 @@ async def update_ai_settings(
     gemini_tts_model_cascade: str = Form('["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]'),
     active_ai_provider: str = Form("gemini"),
     openai_api_key: str = Form(None),
+    openai_base_url: str = Form(None),
     anthropic_api_key: str = Form(None),
     openrouter_api_key: str = Form(None),
     gemini_api_keys: str = Form(None),
     openai_model: str = Form("gpt-4o"),
     anthropic_model: str = Form("claude-3-5-sonnet"),
     openrouter_model: str = Form('["google/gemini-3.5-flash", "google/gemini-3-flash", "google/gemini-3.1-flash-lite", "google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"]'),
+    chunk_num_chunks: int = Form(10),
+    chunk_overlap_percent: int = Form(25),
+    include_reason: int = Form(None),
     redirect_to: str = Form("/admin/ai/text-analysis"),
     admin_user = Depends(require_admin)
 ):
@@ -751,6 +756,20 @@ async def update_ai_settings(
         tts_provider = "piper"
     if gemini_tts_voice not in {"Orus", "Enceladus", "Laomedeia"}:
         gemini_tts_voice = "Orus"
+    if whisper_compute_type not in {"int8", "int8_float16", "float16", "bfloat16", "float32"}:
+        whisper_compute_type = "float32"
+
+    # Validate chunking parameters
+    if chunk_num_chunks < 2 or chunk_num_chunks > 50:
+        chunk_num_chunks = 10
+    if chunk_overlap_percent < 0 or chunk_overlap_percent > 75:
+        chunk_overlap_percent = 25
+
+    # Handle checkbox: if not sent (None), it's unchecked (0). If sent, it's checked (1)
+    if include_reason is None:
+        include_reason = 0
+    else:
+        include_reason = 1
     
     # Validate gemini_api_keys is valid JSON array
     if gemini_api_keys:
@@ -765,8 +784,9 @@ async def update_ai_settings(
 
     with get_db_connection() as conn:
         conn.execute("""
-            UPDATE app_settings 
+            UPDATE app_settings
             SET whisper_model = ?,
+                whisper_compute_type = ?,
                 ai_model_cascade = ?,
                 piper_model = ?,
                 tts_provider = ?,
@@ -774,20 +794,25 @@ async def update_ai_settings(
                 gemini_tts_model_cascade = ?,
                 active_ai_provider = ?,
                 openai_api_key = ?,
+                openai_base_url = ?,
                 anthropic_api_key = ?,
                 openrouter_api_key = ?,
                 gemini_api_keys = ?,
                 openai_model = ?,
                 anthropic_model = ?,
                 openrouter_model = ?,
+                chunk_num_chunks = ?,
+                chunk_overlap_percent = ?,
+                include_reason = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
         """, (
-            whisper_model, ai_model_cascade, piper_model,
+            whisper_model, whisper_compute_type, ai_model_cascade, piper_model,
             tts_provider, gemini_tts_voice, gemini_tts_model_cascade,
             active_ai_provider,
-            openai_api_key, anthropic_api_key, openrouter_api_key, gemini_api_keys,
-            openai_model, anthropic_model, openrouter_model
+            openai_api_key, openai_base_url, anthropic_api_key, openrouter_api_key, gemini_api_keys,
+            openai_model, anthropic_model, openrouter_model,
+            chunk_num_chunks, chunk_overlap_percent, include_reason
         ))
         conn.commit()
     return RedirectResponse(url=_safe_local_redirect(redirect_to, "/admin/ai/text-analysis"), status_code=303)
@@ -817,16 +842,29 @@ async def test_ai_connection(
         }
 
 @router.get("/admin/ai/refresh/{provider}")
-async def refresh_models(provider: str, admin_user = Depends(require_admin)):
+async def refresh_models(
+    provider: str,
+    api_key: str = None,
+    base_url: str = None,
+    admin_user = Depends(require_admin)
+):
     try:
-        from app.core.ai_services import AdDetector
+        from app.core.ai_services import AdDetector, OpenAIProvider
         if provider == "gemini_tts":
             return {"models": AdDetector.DEFAULT_GEMINI_TTS_MODELS}
         detector = AdDetector()
-        # Create provider using saved settings (implies user must save key first usually, 
-        # but we could allow passing key in query param if we wanted to be fancy. 
-        # For now, rely on saved settings for Auth to keep it simple).
-        prov_instance = detector.create_provider(provider) 
+        # Create provider using provided credentials or fall back to saved settings
+        prov_instance = detector.create_provider(provider, api_key=api_key)
+        # Override base_url and model_prefixes if provided (for OpenAI with custom endpoint)
+        if base_url and provider == 'openai' and isinstance(prov_instance, OpenAIProvider):
+            # Reinitialize client with custom base_url and disable model prefix filtering
+            import openai
+            key = prov_instance.api_keys[0] if prov_instance.api_keys else api_key
+            # Some local LLMs don't require API keys, use empty string if none provided
+            if not key:
+                key = "sk-placeholder"  # OpenAI SDK requires a non-empty key
+            prov_instance.client = openai.OpenAI(api_key=key, base_url=base_url)
+            prov_instance.model_prefixes = None  # Disable filtering for local LLMs
         models = prov_instance.list_models()
         return {"models": models}
     except Exception as e:
@@ -1752,30 +1790,32 @@ async def update_global_subscription_settings(
     default_retention_days: int = Form(30),
     default_manual_retention_days: int = Form(14),
     default_custom_instructions: str = Form(None),
+    default_download_order: str = Form("newest"),
     whitelist_mode: bool = Form(False),
     admin_user = Depends(require_admin)
 ):
     with get_db_connection() as conn:
         conn.execute("""
-            UPDATE app_settings 
-            SET default_remove_ads = ?, 
-                default_remove_promos = ?, 
-                default_remove_intros = ?, 
-                default_remove_outros = ?, 
+            UPDATE app_settings
+            SET default_remove_ads = ?,
+                default_remove_promos = ?,
+                default_remove_intros = ?,
+                default_remove_outros = ?,
                 default_ai_rewrite_description = ?,
-                default_ai_audio_summary = ?, 
+                default_ai_audio_summary = ?,
                 default_append_title_intro = ?,
                 default_retention_limit = ?,
                 default_retention_days = ?,
                 default_manual_retention_days = ?,
                 default_custom_instructions = ?,
+                default_download_order = ?,
                 whitelist_mode = ?
             WHERE id = 1
         """, (
             default_remove_ads, default_remove_promos, default_remove_intros, default_remove_outros,
             default_ai_rewrite_description, default_ai_audio_summary, default_append_title_intro,
             default_retention_limit, default_retention_days, default_manual_retention_days,
-            default_custom_instructions, 1 if whitelist_mode else 0
+            default_custom_instructions, default_download_order, 1 if whitelist_mode else 0
         ))
         conn.commit()
         
@@ -1791,24 +1831,31 @@ async def add_subscription(
     user = Depends(require_auth),
 ):
     try:
+        print(f"Adding feed: feed_url: {feed_url}")
         validate_http_url(feed_url, allow_private=runtime_settings.ALLOW_PRIVATE_FEEDS)
-
+        print(f"Validated url: {feed_url}")
         # Check if exists (quick DB check)
         existing = sub_repo.get_by_url(feed_url)
         if existing:
+            print(f"Feed already exists in DB: {existing.id}")
             added = sub_repo.add_to_user_library(_real_user_id(user), existing.id)
             message = "Podcast added to My Podcasts from the library" if added else "Podcast is already in My Podcasts"
             return RedirectResponse(url=f"/?view=mine&success={quote(message)}", status_code=303)
         
         # Create subscription with placeholder data
         # Fetch global defaults first
+        print(f"Feed doesn't already exists in DB.")
         with get_db_connection() as conn:
             app_settings = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
-            
+
+        print(f"app_settings: {app_settings}")
+
         # Use user-provided initial_count (from UI dropdown) as retention limit
         # The UI defaults this dropdown to the global default setting already.
         retention_limit = initial_count
-        
+
+        print(f"About to create Subscription")
+
         sub_create = SubscriptionCreate(feed_url=feed_url)
         new_sub = sub_repo.create(
             sub_create,
@@ -1819,7 +1866,9 @@ async def add_subscription(
             retention_limit=retention_limit,
             owner_user_id=_real_user_id(user),
         )
-        
+
+        print(f"Created new sub: {new_sub}")
+
         # Apply other global defaults immediately
         sub_repo.update_settings(
             new_sub.id,
@@ -1832,25 +1881,32 @@ async def add_subscription(
             append_title_intro=bool(app_settings['default_append_title_intro']),
             ai_rewrite_description=bool(app_settings['default_ai_rewrite_description']),
             ai_audio_summary=bool(app_settings['default_ai_audio_summary']),
+            feed_url=feed_url,
             retention_days=app_settings['default_retention_days'] or 30,
             manual_retention_days=app_settings['default_manual_retention_days'] or 14,
-            retention_limit=retention_limit
+            retention_limit=retention_limit,
+            download_order=app_settings.get('default_download_order', 'newest')
         )
 
         
         # All heavy lifting happens in background
+        print(f"About to setup subscription async: new_sub.id: {new_sub.id}")
         async def setup_subscription(sub_id: int, url: str, limit: int):
             from app.core.processor import Processor
             from app.core.feed import FeedManager
             from app.infra.database import get_db_connection
             
             try:
+                print(f"About to parse the feed: url:{url}")
                 # Parse feed (network call)
                 title, slug, image_url, description = FeedManager.parse_feed(url)
-                
+
+                print(f"Parsed feed: title:{title}, slug:{slug}, image_url:{image_url}, description:{description}")
+
                 # Update subscription with real data
                 # Keep the settings we just set! Only update metadata.
                 with get_db_connection() as conn:
+                    print(f"About to add feed details to DB")
                     conn.execute("""
                         UPDATE subscriptions 
                         SET title = ?, slug = ?, image_url = ?, description = ?
@@ -1858,13 +1914,17 @@ async def add_subscription(
                     """, (title, slug, image_url, description, sub_id))
                     conn.commit()
 
+                print(f"About to send notification")
+
                 await send_notification_async(
                     EVENT_NEW_PODCAST,
                     "Podcast added",
                     f"{title} was added to the global podcast library.",
                     severity="success",
                 )
-                
+
+                print(f"About to check feed and process queue")
+
                 # Now check feeds and process queue
                 proc = Processor()
                 await proc.check_feeds(subscription_id=sub_id, limit=limit)
@@ -2051,9 +2111,11 @@ async def update_settings(
     append_title_intro: bool = Form(False),
     ai_rewrite_description: bool = Form(False),
     ai_audio_summary: bool = Form(False),
+    feed_url: str = Form(None),
     retention_days: int = Form(30),
     manual_retention_days: int = Form(14),
     retention_limit: int = Form(1),
+    download_order: str = Form("newest"),
     user = Depends(require_auth),
 ):
     sub = sub_repo.get_by_id(id)
@@ -2063,19 +2125,21 @@ async def update_settings(
         raise HTTPException(status_code=403, detail="Only admins and the podcast owner can change podcast settings")
 
     sub_repo.update_settings(
-        id, 
-        remove_ads, 
-        remove_promos, 
-        remove_intros, 
-        remove_outros, 
-        custom_instructions, 
-        append_summary, 
+        id,
+        remove_ads,
+        remove_promos,
+        remove_intros,
+        remove_outros,
+        custom_instructions,
+        append_summary,
         append_title_intro,
         ai_rewrite_description,
         ai_audio_summary,
+        feed_url,
         retention_days,
         manual_retention_days,
-        retention_limit
+        retention_limit,
+        download_order
     )
     
     # Trigger processing if any ads/promos settings were changed

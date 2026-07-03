@@ -48,6 +48,7 @@ class SubscriptionSettingsUpdate(BaseModel):
     append_title_intro: bool | None = None
     ai_rewrite_description: bool | None = None
     ai_audio_summary: bool | None = None
+    feed_url: str | None = None
     retention_days: int | None = Field(default=None, ge=0)
     manual_retention_days: int | None = Field(default=None, ge=0)
     retention_limit: int | None = Field(default=None, ge=0)
