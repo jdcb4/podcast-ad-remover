@@ -2,6 +2,7 @@ import os
 import logging
 from datetime import datetime
 from email.utils import format_datetime
+from uuid import uuid4
 from xml.etree.ElementTree import Element, SubElement, tostring
 from app.core.config import settings
 from app.infra.repository import SubscriptionRepository, EpisodeRepository
@@ -9,8 +10,33 @@ from app.infra.repository import SubscriptionRepository, EpisodeRepository
 logger = logging.getLogger(__name__)
 
 
+class _CDATA(str):
+    """Mark element text that must be serialized as an XML CDATA section."""
+
+
+def _cdata(text: str) -> _CDATA:
+    return _CDATA(text or "")
+
+
 def _serialize_rss(rss: Element) -> str:
-    xml_str = tostring(rss, encoding='unicode')
+    replacements = []
+    try:
+        for element in rss.iter():
+            if isinstance(element.text, _CDATA):
+                original = element.text
+                token = f"PODCAST_AD_REMOVER_CDATA_{uuid4().hex}"
+                replacements.append((element, original, token))
+                element.text = token
+
+        xml_str = tostring(rss, encoding='unicode')
+    finally:
+        for element, original, _token in replacements:
+            element.text = original
+
+    for _element, original, token in replacements:
+        safe_text = str(original).replace("]]>", "]]]]><![CDATA[>")
+        xml_str = xml_str.replace(token, f"<![CDATA[{safe_text}]]>")
+
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
 
 
@@ -112,7 +138,7 @@ class RSSGenerator:
                 description = f"Original: {ep['original_url']}\n\nProcessed by Podcast Ad Remover."
             
             desc_element = SubElement(item, 'description')
-            desc_element.text = description
+            desc_element.text = _cdata(description)
 
 
 
@@ -194,7 +220,7 @@ class RSSGenerator:
                 itunes_ep_image.set('href', ep['podcast_image'])
 
             desc_element = SubElement(item, 'description')
-            desc_element.text = description
+            desc_element.text = _cdata(description)
 
         # Save to file - use basic tostring to avoid minidom.toprettyxml() URL corruption bug
         # minidom.toprettyxml() has a bug that corrupts URLs like "http://192" into "O2"

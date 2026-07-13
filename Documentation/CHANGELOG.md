@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Fixed generated RSS episode descriptions so source HTML formatting and links render correctly instead of appearing as literal tags.
+- Fixed generated RSS episode descriptions so source HTML is emitted in genuine CDATA sections and formatting and links render correctly across podcast clients instead of appearing as literal tags.
 
 ## 1.7.0 - 2026-06-18
 
