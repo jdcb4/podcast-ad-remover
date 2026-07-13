@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed generated RSS episode descriptions so source HTML formatting and links render correctly instead of appearing as literal tags.
+
 ## 1.7.0 - 2026-06-18
 
 - Added direct admin user creation from User Management.

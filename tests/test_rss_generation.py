@@ -1,29 +1,36 @@
-from xml.etree.ElementTree import Element, SubElement
+from xml.etree.ElementTree import Element, SubElement, fromstring
 
 import app.core.utils as utils
 from app.core.config import settings
-from app.core.rss_gen import _get_feed_base_url, _safe_cdata, _serialize_rss
+from app.core.rss_gen import _get_feed_base_url, _serialize_rss
 
 
-def test_safe_cdata_splits_embedded_cdata_terminator():
-    rendered = _safe_cdata("before ]]> after")
-
-    assert rendered == "<![CDATA[before ]]]]><![CDATA[> after]]>"
-
-
-def test_safe_cdata_unescapes_existing_entities():
-    assert _safe_cdata("Tom &amp; Jerry") == "<![CDATA[Tom & Jerry]]>"
-
-
-def test_serialize_rss_preserves_safe_cdata_sections():
+def test_serialize_rss_round_trips_html_description():
+    description = (
+        '<p>Hosted by <a href="https://example.com">Example</a></p>'
+        '<p>Tom &amp; Jerry&nbsp;</p>'
+    )
     rss = Element("rss")
     item = SubElement(rss, "item")
-    SubElement(item, "description").text = _safe_cdata("before ]]> after")
+    SubElement(item, "description").text = description
+
+    xml = _serialize_rss(rss)
+    parsed_description = fromstring(xml).findtext("./item/description")
+
+    assert parsed_description == description
+    assert "<![CDATA[" not in xml
+    assert "&lt;p&gt;Hosted by" in xml
+
+
+def test_serialize_rss_safely_round_trips_cdata_terminator_text():
+    rss = Element("rss")
+    item = SubElement(rss, "item")
+    SubElement(item, "description").text = "before ]]> after"
 
     xml = _serialize_rss(rss)
 
-    assert "<![CDATA[before ]]]]><![CDATA[> after]]>" in xml
-    assert "&lt;![CDATA[" not in xml
+    assert fromstring(xml).findtext("./item/description") == "before ]]> after"
+    assert "]]&gt;" in xml
 
 
 def test_feed_base_url_prefers_configured_external_url():
