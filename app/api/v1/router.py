@@ -295,6 +295,7 @@ async def update_subscription_settings(
         updates.get("append_title_intro", sub.append_title_intro),
         updates.get("ai_rewrite_description", sub.ai_rewrite_description),
         updates.get("ai_audio_summary", sub.ai_audio_summary),
+        updates.get("feed_url", sub.feed_url),
         updates.get("retention_days", sub.retention_days or 30),
         updates.get("manual_retention_days", sub.manual_retention_days or 14),
         updates.get("retention_limit", sub.retention_limit or 1),

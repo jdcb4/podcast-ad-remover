@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased
+## 1.7.1 - 2026-07-03
+
+- Fixed feed parsing to handle podcast episodes that return string values in the enclosure length field instead of integers, which would previously crash the feed processor.
+- Added unit tests for feed manager parsing, including a test case for the string length field issue.
+- Added processor feed integration tests covering feed checking and episode creation.
+- Added transcript chunking for AI analysis to handle long episodes, with configurable number of chunks and overlap percentage.
+- Added option to disable reason field in ad detection prompts to reduce token usage and processing time.
+- Added per-podcast and global download order settings (newest first or oldest first) for episode processing.
+- Added custom OpenAI base URL configuration for local LLM support and alternative OpenAI-compatible endpoints.
+- Added Whisper compute type configuration (float32, float16, int8) for resource tuning.
+- Added feed URL override capability in subscription settings for feed migration scenarios.
+- Improved AI settings UI with transcript chunking controls, reason toggle, and custom OpenAI endpoint configuration.
+- Improved model refresh logic to pass API keys and base URLs for custom endpoints.
+- Added comprehensive tests for download order behavior (newest/oldest) and segment preparation edge cases.
+- Updated verification script to detect and use virtual environment Python when available, and made pytest optional.
+- Improved experimental Docker build script to handle platforms without buildx gracefully.
 
 ## 1.7.1 - 2026-07-13
 

@@ -39,6 +39,9 @@ class Subscription(SubscriptionBase):
     manual_retention_days: Optional[int] = 14
     retention_limit: Optional[int] = 1
 
+    # Download order
+    download_order: Optional[str] = "newest"
+
 class EpisodeBase(BaseModel):
     guid: str
     title: str

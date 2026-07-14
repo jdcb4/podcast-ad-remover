@@ -255,6 +255,20 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="pt-4 border-t border-white/[0.08]">
+                    <h4 class="font-semibold mb-3">Download Order</h4>
+                    <div>
+                        <label class="block text-sm text-text-secondary mb-2">Episode Download Order</label>
+                        <select name="download_order" class="select">
+                            <option value="newest" {% if (subscription.download_order is none or
+                                subscription.download_order=='newest') %}selected{% endif %}>Newest First (Default)
+                            </option>
+                            <option value="oldest" {% if subscription.download_order=='oldest' %}selected{% endif %}>
+                                Oldest First</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div class="space-y-4">
@@ -283,6 +297,10 @@
                         Instructions</label>
                     <textarea name="custom_instructions" rows="3" class="input font-mono text-sm"
                         placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'">{{ subscription.custom_instructions or '' }}</textarea>
+                </div>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-text-secondary mb-2">RSS Feed URL</label>
+                    <textarea name="feed_url" rows="1" class="input font-mono text-sm">{{ subscription.feed_url }}</textarea>
                 </div>
             </div>
         </div>

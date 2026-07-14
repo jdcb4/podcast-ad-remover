@@ -48,6 +48,8 @@ Supporting modules include:
 - `app/core/rss_gen.py`: generated feed output.
 - `app/core/feed.py`: feed parsing.
 
+For long episodes, transcripts are split into configurable chunks with overlap for AI analysis. Chunking settings (`chunk_num_chunks`, `chunk_overlap_percent`) are stored in `app_settings` and applied during ad detection to handle transcripts that exceed model context limits.
+
 ### Text-To-Speech
 
 TTS is only used for optional spoken title intros and audio summaries. `app_settings.tts_provider` selects the engine:
@@ -56,6 +58,19 @@ TTS is only used for optional spoken title intros and audio summaries. `app_sett
 - `gemini`: optional API-backed provider. It reuses saved Gemini API keys, sends speech requests through Google's REST `generateContent` endpoint, tries `gemini_tts_model_cascade` in order, and writes returned 24 kHz mono PCM as a WAV file for FFmpeg.
 
 The currently exposed Gemini voices are `Orus`, `Enceladus`, and `Laomedeia`.
+
+### AI Configuration
+
+The app supports multiple AI providers with configurable model cascades and custom endpoints:
+
+- **Gemini**: Direct access through Google's OpenAI-compatible endpoint. Uses `gemini_api_keys` (multi-key support) and `ai_model_cascade`.
+- **OpenAI**: Standard OpenAI API or custom OpenAI-compatible endpoints via `openai_base_url`. Uses `openai_api_key` and `openai_model`.
+- **Anthropic**: Anthropic Claude API. Uses `anthropic_api_key` and `anthropic_model`.
+- **OpenRouter**: OpenRouter aggregation service. Uses `openrouter_api_key` and `openrouter_model`.
+
+Custom OpenAI base URLs enable local LLM deployments (e.g., Ollama, LocalAI) or alternative OpenAI-compatible providers. When configured, the model refresh logic passes the custom base URL and API key to fetch available models.
+
+Ad detection prompts can optionally include a `reason` field for each detected segment. Disabling this via `include_reason` reduces token usage and processing time.
 
 ### Infrastructure
 
@@ -74,6 +89,8 @@ user_subscriptions(user_id, subscription_id, added_at)
 The dashboard defaults logged-in users to a "My Podcasts" view backed by `user_subscriptions`, with a Library view for all global podcasts. Adding an existing podcast from search or the Library only adds that global podcast to the user's list.
 
 `subscriptions.owner_user_id` records the user who first added a podcast. Admins can reassign or clear a podcast owner and can change settings for any podcast. Assigning a new owner also adds that podcast to the new owner's My Podcasts list. The owner can change settings for their podcast while they own it. Other users can view, subscribe, refresh, and trigger downloads, but cannot change per-podcast settings. Only admins can delete the global podcast and local files; when an owner removes a podcast from their own list, the podcast becomes unowned instead.
+
+Per-podcast settings include `download_order` (newest first or oldest first) for controlling episode processing order, and `feed_url` for feed migration scenarios where the original RSS URL has changed.
 
 ### Job State
 

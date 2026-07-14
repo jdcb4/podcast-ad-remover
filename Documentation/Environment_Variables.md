@@ -82,6 +82,7 @@ These are configured from the Admin UI rather than environment variables:
 | `whisper_cpu_threads` | Faster-Whisper CPU thread cap. `0` uses the library default. | `0` |
 | `ffmpeg_threads` | FFmpeg thread cap. `0` lets FFmpeg choose automatically. | `0` |
 | `unload_whisper_after_job` | Unload the local Whisper model after the queue empties to reduce idle RAM. | `0` |
+| `whisper_compute_type` | Whisper compute type for resource tuning: `float32`, `float16`, or `int8`. | `float32` |
 | `ai_api_enabled` | Enable the token-protected AI-facing REST API under `/api/v1`. | `0` |
 | `ai_api_default_requests_per_minute` | Default per-token minute limit for authenticated AI API requests. | `60` |
 | `ai_api_default_requests_per_day` | Default per-token daily limit for authenticated AI API requests. | `1000` |
@@ -95,3 +96,8 @@ These are configured from the Admin UI rather than environment variables:
 | `notify_new_podcasts` | Send notification when a new global podcast is added. | `1` |
 | `notify_episode_downloads` | Send notification when an episode finishes processing and is available in feeds. | `1` |
 | `notify_breaking_errors` | Send notification for max-retry processing failures and top-level worker errors. | `1` |
+| `openai_base_url` | Custom OpenAI-compatible endpoint URL for local LLMs or alternative providers. | empty |
+| `chunk_num_chunks` | Number of chunks to split transcripts into for AI analysis. | `10` |
+| `chunk_overlap_percent` | Overlap percentage between transcript chunks (0-100). | `25` |
+| `include_reason` | Include reason field in ad detection prompts. Disabling reduces token usage. | `1` |
+| `default_download_order` | Global default episode download order: `newest` or `oldest`. | `newest` |

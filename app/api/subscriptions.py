@@ -47,8 +47,11 @@ async def create_subscription(sub: SubscriptionCreate, initial_count: int = 5, u
     
     try:
         # Parse feed to get title
+        print(f"Parsing feed {sub.feed_url}")
         title, slug, image_url, description = FeedManager.parse_feed(sub.feed_url)
-        
+
+        print(f"Parsing feed complete title: {title}, slug: {slug}, image_url: {image_url}, description: {description}")
+
         # Save to DB
         new_sub = repo.create(sub, title, slug, image_url, description=description, owner_user_id=_real_user_id(user))
         await send_notification_async(

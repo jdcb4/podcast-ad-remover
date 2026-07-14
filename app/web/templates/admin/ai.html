@@ -44,10 +44,11 @@
 
 <h3 class="font-display text-xl font-bold mb-6">{{ page_titles.get(ai_section, 'Text Analysis') }}</h3>
 
-<form action="/admin/ai/update" method="POST" id="aiForm">
+<form action="/admin/ai/update" method="POST" id="aiForm" onsubmit="updateHiddenInputsBeforeSubmit()">
     <input type="hidden" name="redirect_to" value="{{ request.url.path }}">
     {% if ai_section != 'ai_transcription' %}
     <input type="hidden" name="whisper_model" value="{{ settings.whisper_model or 'base' }}">
+    <input type="hidden" name="whisper_compute_type" value="{{ settings.whisper_compute_type or 'float32' }}">
     {% endif %}
     {% if ai_section != 'ai_voice' %}
     <input type="hidden" name="piper_model" value="{{ settings.piper_model or 'en_GB-cori-high.onnx' }}">
@@ -56,15 +57,16 @@
     <input type="hidden" name="gemini_tts_model_cascade" value="{{ settings.gemini_tts_model_cascade or '[&quot;gemini-3.1-flash-tts-preview&quot;, &quot;gemini-2.5-flash-preview-tts&quot;]' }}">
     {% endif %}
     {% if ai_section != 'ai_text' %}
-    <input type="hidden" name="active_ai_provider" value="{{ settings.active_ai_provider or 'gemini' }}">
-    <input type="hidden" name="ai_model_cascade" value="{{ settings.ai_model_cascade or '[&quot;gemini-3.5-flash&quot;, &quot;gemini-3-flash&quot;, &quot;gemini-3.1-flash-lite&quot;, &quot;gemini-2.5-flash&quot;, &quot;gemini-2.5-flash-lite&quot;]' }}">
-    <input type="hidden" name="gemini_api_keys" value="{{ settings.gemini_api_keys or '[]' }}">
-    <input type="hidden" name="openai_api_key" value="{{ settings.openai_api_key or '' }}">
-    <input type="hidden" name="anthropic_api_key" value="{{ settings.anthropic_api_key or '' }}">
-    <input type="hidden" name="openrouter_api_key" value="{{ settings.openrouter_api_key or '' }}">
-    <input type="hidden" name="openai_model" value="{{ settings.openai_model or 'gpt-4o' }}">
-    <input type="hidden" name="anthropic_model" value="{{ settings.anthropic_model or 'claude-3-5-sonnet' }}">
-    <input type="hidden" name="openrouter_model" value="{{ settings.openrouter_model or '[&quot;google/gemini-3.5-flash&quot;, &quot;google/gemini-3-flash&quot;, &quot;google/gemini-3.1-flash-lite&quot;, &quot;google/gemini-2.5-flash&quot;, &quot;google/gemini-2.5-flash-lite&quot;]' }}">
+    <input type="hidden" name="active_ai_provider" id="hidden_active_ai_provider" value="{{ settings.active_ai_provider or 'gemini' }}">
+    <input type="hidden" name="ai_model_cascade" id="hidden_ai_model_cascade" value="{{ settings.ai_model_cascade or '[&quot;gemini-3.5-flash&quot;, &quot;gemini-3-flash&quot;, &quot;gemini-3.1-flash-lite&quot;, &quot;gemini-2.5-flash&quot;, &quot;gemini-2.5-flash-lite&quot;]' }}">
+    <input type="hidden" name="gemini_api_keys" id="hidden_gemini_api_keys" value="{{ settings.gemini_api_keys or '[]' }}">
+    <input type="hidden" name="openai_api_key" id="hidden_openai_api_key" value="{{ settings.openai_api_key or '' }}">
+    <input type="hidden" name="openai_base_url" id="hidden_openai_base_url" value="{{ settings.openai_base_url or '' }}">
+    <input type="hidden" name="anthropic_api_key" id="hidden_anthropic_api_key" value="{{ settings.anthropic_api_key or '' }}">
+    <input type="hidden" name="openrouter_api_key" id="hidden_openrouter_api_key" value="{{ settings.openrouter_api_key or '' }}">
+    <input type="hidden" name="openai_model" id="hidden_openai_model" value="{{ settings.openai_model or 'gpt-4o' }}">
+    <input type="hidden" name="anthropic_model" id="hidden_anthropic_model" value="{{ settings.anthropic_model or 'claude-3-5-sonnet' }}">
+    <input type="hidden" name="openrouter_model" id="hidden_openrouter_model" value="{{ settings.openrouter_model or '[&quot;google/gemini-3.5-flash&quot;, &quot;google/gemini-3-flash&quot;, &quot;google/gemini-3.1-flash-lite&quot;, &quot;google/gemini-2.5-flash&quot;, &quot;google/gemini-2.5-flash-lite&quot;]' }}">
     {% endif %}
     <div class="space-y-8">
         <!-- Transcription -->
@@ -73,12 +75,21 @@
             <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Transcription</h4>
             <label class="block text-sm font-medium text-text-secondary mb-2">Whisper Model</label>
             <select name="whisper_model" class="select">
-                {% for model in ['tiny', 'base', 'small', 'medium', 'large'] %}
+                {% for model in ['tiny', 'tiny.en', 'base', 'base.en', 'small', 'small.en', 'medium', 'medium.en', 'large', 'large-v3-turbo'] %}
                 <option value="{{ model }}" {% if settings.whisper_model==model %}selected{% endif %}>
                     {{ model|title }} {% if model == 'base' %}(Default){% endif %}
                 </option>
                 {% endfor %}
             </select>
+            <label class="block text-sm font-medium text-text-secondary mb-2 mt-4">Compute Type</label>
+            <select name="whisper_compute_type" class="select">
+                {% for compute_type in ['int8', 'int8_float16', 'float16', 'bfloat16', 'float32'] %}
+                <option value="{{ compute_type }}" {% if (settings.whisper_compute_type or 'float32')==compute_type %}selected{% endif %}>
+                    {{ compute_type }} {% if compute_type == 'float32' %}(Default){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <p class="text-xs text-text-muted mt-2">float32 provides maximum compatibility and stability on CPU (especially ARM64). Other types may offer better performance on specific hardware.</p>
         </div>
         {% endif %}
 
@@ -180,6 +191,14 @@
                     <p class="text-xs text-emerald-400">✓ Environment Variable Detected</p>
                     {% endif %}
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Custom Base URL (Optional)</label>
+                    <input type="text" name="openai_base_url" id="openai_base_url"
+                        value="{{ settings.openai_base_url or '' }}"
+                        placeholder="e.g., http://localhost:11434/v1 for Ollama"
+                        class="input">
+                    <p class="text-xs text-text-muted mt-2">Leave empty to use the default OpenAI API endpoint. Use this to connect to local LLMs like Ollama or vLLM that provide an OpenAI-compatible API.</p>
+                </div>
                 {{ shuttle_ui('openai', 'OpenAI Model Cascade', 'openai_model', settings.openai_model | tojson) }}
             </div>
 
@@ -213,6 +232,41 @@
                 </div>
                 {{ shuttle_ui('openrouter', 'OpenRouter Model Cascade', 'openrouter_model', settings.openrouter_model |
                 tojson) }}
+            </div>
+
+            <!-- Transcript Chunking Configuration -->
+            <div class="mt-6 p-4 bg-surface-base rounded-xl border border-white/[0.08]">
+                <h4 class="font-medium mb-4">Transcript Chunking Configuration</h4>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Number of Chunks</label>
+                        <input type="number" name="chunk_num_chunks"
+                            value="{{ settings.chunk_num_chunks or 10 }}"
+                            min="2" max="50"
+                            class="input">
+                        <p class="text-xs text-text-muted mt-2">How many chunks to split the transcript into for AI analysis. Default: 10</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Overlap Percent</label>
+                        <input type="number" name="chunk_overlap_percent"
+                            value="{{ settings.chunk_overlap_percent or 25 }}"
+                            min="0" max="75"
+                            class="input">
+                        <p class="text-xs text-text-muted mt-2">Percentage of overlap between adjacent chunks (0-75). Default: 25</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt Configuration -->
+            <div class="mt-6 p-4 bg-surface-base rounded-xl border border-white/[0.08]">
+                <h4 class="font-medium mb-4">Prompt Configuration</h4>
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" name="include_reason" id="include_reason"
+                        {% if settings.include_reason is none or settings.include_reason == 1 %}checked{% endif %}
+                        class="w-4 h-4 rounded border-white/20 bg-surface-elevated text-primary-500 focus:ring-primary-500">
+                    <label for="include_reason" class="text-sm font-medium text-text-secondary">Include Reason in Prompt</label>
+                </div>
+                <p class="text-xs text-text-muted mt-2">When enabled, the AI will provide a brief explanation for each detected segment. Disabling this can reduce token usage and processing time.</p>
             </div>
 
             <!-- Test Connection Area -->
@@ -259,7 +313,7 @@
     class ShuttleManager {
         constructor() { this.states = {}; }
 
-        init(provider, initialSelectedJson) {
+        init(provider, initialSelectedJson, skipDefaults = false) {
             let selected = [];
             try {
                 if (Array.isArray(initialSelectedJson)) { selected = initialSelectedJson; }
@@ -272,7 +326,7 @@
             } catch (e) { selected = []; }
 
             const defaults = DEFAULTS[provider] || [];
-            const allKnown = [...new Set([...defaults, ...selected])];
+            const allKnown = skipDefaults ? [...new Set([...selected])] : [...new Set([...defaults, ...selected])];
 
             this.states[provider] = { selected, allKnown, available: [], filter: '' };
             this.sync(provider);
@@ -360,11 +414,49 @@
 
         async refresh(provider) {
             try {
-                const res = await fetch(`/admin/ai/refresh/${provider}`);
+                let url = `/admin/ai/refresh/${provider}`;
+                const params = new URLSearchParams();
+
+                // Add API key from form if available
+                if (provider === 'openai') {
+                    const keyEl = document.getElementById('openai_key');
+                    if (keyEl && keyEl.value) {
+                        params.append('api_key', keyEl.value);
+                    }
+                    const baseUrlEl = document.getElementById('openai_base_url');
+                    if (baseUrlEl && baseUrlEl.value) {
+                        params.append('base_url', baseUrlEl.value);
+                    }
+                } else if (provider === 'anthropic') {
+                    const keyEl = document.getElementById('anthropic_key');
+                    if (keyEl && keyEl.value) {
+                        params.append('api_key', keyEl.value);
+                    }
+                } else if (provider === 'openrouter') {
+                    const keyEl = document.getElementById('openrouter_key');
+                    if (keyEl && keyEl.value) {
+                        params.append('api_key', keyEl.value);
+                    }
+                } else if (provider === 'gemini') {
+                    // For Gemini, use the first key from multi-key manager
+                    const keys = geminiKeyManager.keys.filter(k => k && k.trim());
+                    if (keys.length > 0) {
+                        params.append('api_key', keys[0]);
+                    }
+                }
+
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
+
+                const res = await fetch(url);
                 const data = await res.json();
                 if (data.models) {
                     const state = this.states[provider];
-                    data.models.forEach(m => { if (!state.allKnown.includes(m)) state.allKnown.push(m); });
+                    // Replace allKnown with the fresh list from the API
+                    state.allKnown = [...data.models];
+                    // Remove selected models that don't exist in the new API response
+                    state.selected = state.selected.filter(m => state.allKnown.includes(m));
                     this.sync(provider);
                     appToast(`Refreshed ${provider}. Found ${data.models.length} models.`, { type: 'success' });
                 } else { appToast('Error: ' + data.error, { type: 'error' }); }
@@ -394,11 +486,71 @@
     }
     toggleProviderSettings();
 
+    function updateHiddenInputsBeforeSubmit() {
+        // Update all hidden inputs with current shuttle manager state
+        const providers = ['gemini', 'openai', 'anthropic', 'openrouter', 'gemini_tts'];
+        providers.forEach(provider => {
+            if (shuttleManager.states[provider]) {
+                const hiddenInput = document.getElementById(`hidden_${provider}_model`);
+                if (hiddenInput) {
+                    hiddenInput.value = JSON.stringify(shuttleManager.states[provider].selected);
+                }
+            }
+        });
+
+        // Update Gemini API keys
+        const geminiKeysInput = document.getElementById('hidden_gemini_api_keys');
+        if (geminiKeysInput && geminiKeyManager) {
+            geminiKeysInput.value = JSON.stringify(geminiKeyManager.keys.filter(k => k && k.trim()));
+        }
+
+        // Update API keys from form fields
+        const openaiKeyInput = document.getElementById('hidden_openai_api_key');
+        const openaiKeyField = document.getElementById('openai_key');
+        if (openaiKeyInput && openaiKeyField) {
+            openaiKeyInput.value = openaiKeyField.value;
+        }
+
+        const openaiBaseUrlInput = document.getElementById('hidden_openai_base_url');
+        const openaiBaseUrlField = document.getElementById('openai_base_url');
+        if (openaiBaseUrlInput && openaiBaseUrlField) {
+            openaiBaseUrlInput.value = openaiBaseUrlField.value;
+        }
+
+        const anthropicKeyInput = document.getElementById('hidden_anthropic_api_key');
+        const anthropicKeyField = document.getElementById('anthropic_key');
+        if (anthropicKeyInput && anthropicKeyField) {
+            anthropicKeyInput.value = anthropicKeyField.value;
+        }
+
+        const openrouterKeyInput = document.getElementById('hidden_openrouter_api_key');
+        const openrouterKeyField = document.getElementById('openrouter_key');
+        if (openrouterKeyInput && openrouterKeyField) {
+            openrouterKeyInput.value = openrouterKeyField.value;
+        }
+
+        const activeProviderInput = document.getElementById('hidden_active_ai_provider');
+        const providerSelect = document.getElementById('providerSelect');
+        if (activeProviderInput && providerSelect) {
+            activeProviderInput.value = providerSelect.value;
+        }
+    }
+
     {% if ai_section == 'ai_text' %}
     shuttleManager.init('gemini', {{ settings.ai_model_cascade | tojson }});
-    shuttleManager.init('openai', {{ settings.openai_model | tojson }});
+    // Skip default GPT models if custom base URL is configured
+    shuttleManager.init('openai', {{ settings.openai_model | tojson }}, {{ 'true' if settings.openai_base_url else 'false' }});
     shuttleManager.init('anthropic', {{ settings.anthropic_model | tojson }});
     shuttleManager.init('openrouter', {{ settings.openrouter_model | tojson }});
+
+    // Auto-refresh OpenAI models if custom base URL is configured
+    {% if settings.openai_base_url %}
+    (async function() {
+        // Wait a moment for the form to be populated
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await shuttleManager.refresh('openai');
+    })();
+    {% endif %}
     {% elif ai_section == 'ai_voice' %}
     shuttleManager.init('gemini_tts', {{ settings.gemini_tts_model_cascade | tojson }});
     {% endif %}

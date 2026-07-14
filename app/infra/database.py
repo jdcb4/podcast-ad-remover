@@ -304,6 +304,7 @@ def init_db():
         whisper_cpu_threads INTEGER DEFAULT 0,
         ffmpeg_threads INTEGER DEFAULT 0,
         unload_whisper_after_job INTEGER DEFAULT 0,
+        whisper_compute_type TEXT DEFAULT 'float32',
         
         auth_enabled INTEGER DEFAULT 0,
         require_password_change INTEGER DEFAULT 0,
@@ -471,11 +472,28 @@ Transcript Context: {transcript_context}""",))
         "ALTER TABLE app_settings ADD COLUMN default_retention_days INTEGER DEFAULT 30",
         "ALTER TABLE app_settings ADD COLUMN default_manual_retention_days INTEGER DEFAULT 14",
         "ALTER TABLE app_settings ADD COLUMN default_custom_instructions TEXT",
+        "ALTER TABLE app_settings ADD COLUMN default_download_order TEXT DEFAULT 'newest'",
         "ALTER TABLE episodes ADD COLUMN listen_count INTEGER DEFAULT 0",
         "ALTER TABLE app_settings ADD COLUMN gemini_api_keys TEXT",
 
         # Whitelist mode: inverts filtering to keep only Content segments
-        "ALTER TABLE app_settings ADD COLUMN whitelist_mode INTEGER DEFAULT 0"
+        "ALTER TABLE app_settings ADD COLUMN whitelist_mode INTEGER DEFAULT 0",
+
+        # Download order per subscription
+        "ALTER TABLE subscriptions ADD COLUMN download_order TEXT DEFAULT 'newest'",
+
+        # Whisper compute type configuration
+        "ALTER TABLE app_settings ADD COLUMN whisper_compute_type TEXT DEFAULT 'float32'",
+
+        # Custom OpenAI endpoint for local LLMs
+        "ALTER TABLE app_settings ADD COLUMN openai_base_url TEXT",
+
+        # Transcript chunking configuration for AI analysis
+        "ALTER TABLE app_settings ADD COLUMN chunk_num_chunks INTEGER DEFAULT 10",
+        "ALTER TABLE app_settings ADD COLUMN chunk_overlap_percent INTEGER DEFAULT 25",
+
+        # Include reason in ad detection prompt
+        "ALTER TABLE app_settings ADD COLUMN include_reason INTEGER DEFAULT 1"
     ]
     
     for sql in migrations:

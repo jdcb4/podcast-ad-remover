@@ -41,21 +41,21 @@ class FeedManager:
         d = feedparser.parse(FeedManager._fetch_feed(url))
         if d.bozo:
             raise ValueError(f"Invalid feed: {d.bozo_exception}")
-        
+
         if not hasattr(d, 'feed') or not hasattr(d.feed, 'title'):
-             raise ValueError("Feed has no title")
-             
+            raise ValueError("Feed has no title")
+
         title = d.feed.title
         slug = slugify(title)
-        
+
         description = d.feed.get('summary', d.feed.get('description', ''))
-        
+
         image_url = None
         if hasattr(d.feed, 'image') and hasattr(d.feed.image, 'href'):
             image_url = d.feed.image.href
         elif hasattr(d.feed, 'itunes_image') and hasattr(d.feed.itunes_image, 'href'):
-             image_url = d.feed.itunes_image.href
-             
+            image_url = d.feed.itunes_image.href
+
         return title, slug, image_url, description
 
     @staticmethod
@@ -63,17 +63,17 @@ class FeedManager:
         """Parse all episodes from feed."""
         d = feedparser.parse(FeedManager._fetch_feed(url))
         episodes = []
-        
+
         for entry in d.entries:
             # Find audio enclosure
             enclosure = next((l for l in entry.get('links', []) if l.get('type', '').startswith('audio/')), None)
             if not enclosure:
                 continue
-                
+
             pub_date = None
             if hasattr(entry, 'published_parsed'):
                 pub_date = datetime.fromtimestamp(mktime(entry.published_parsed))
-            
+
             description = entry.get('summary', entry.get('description', ''))
 
             # Parse duration
@@ -101,7 +101,7 @@ class FeedManager:
                 'original_url': enclosure.href,
                 'duration': duration,
                 'description': description,
-                'file_size': int(enclosure.length) if hasattr(enclosure, 'length') and enclosure.length else 0
+                'file_size': int(enclosure.length) if hasattr(enclosure, 'length') and enclosure.length and str(enclosure.length).isdigit() else 0
             })
-            
+
         return episodes

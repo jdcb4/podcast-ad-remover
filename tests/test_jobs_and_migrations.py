@@ -82,6 +82,7 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
         "ai_api_default_requests_per_minute",
         "ai_api_default_requests_per_day",
         "ai_api_unauth_requests_per_minute",
+        "whisper_compute_type",
     }.issubset(settings_columns)
 
 
@@ -91,6 +92,7 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
     with get_db_connection() as conn:
         row = conn.execute("""
             SELECT whisper_cpu_threads, ffmpeg_threads, unload_whisper_after_job,
+                   whisper_compute_type,
                    ai_model_cascade, openrouter_model,
                    notifications_enabled, notification_urls,
                    notify_access_requests, notify_new_podcasts,
@@ -104,6 +106,7 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
     assert row["whisper_cpu_threads"] == 0
     assert row["ffmpeg_threads"] == 0
     assert row["unload_whisper_after_job"] == 0
+    assert row["whisper_compute_type"] == "float32"
     assert "gemini-3.5-flash" in row["ai_model_cascade"]
     assert "gemini-3-flash" in row["ai_model_cascade"]
     assert "gemini-3.1-flash-lite" in row["ai_model_cascade"]
