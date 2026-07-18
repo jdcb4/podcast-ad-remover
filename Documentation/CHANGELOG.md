@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.7.2 - 2026-07-18
+
+- Fixed feed processing so malformed non-numeric podcast enclosure lengths are treated as unknown instead of aborting the feed, with regression coverage for feed parsing and episode discovery.
+
 ## 1.7.1 - 2026-07-13
 
 - Fixed generated RSS episode descriptions so source HTML is emitted in genuine CDATA sections and formatting and links render correctly across podcast clients instead of appearing as literal tags.
