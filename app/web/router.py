@@ -730,6 +730,11 @@ async def update_ai_settings(
     openai_model: str = Form("gpt-4o"),
     anthropic_model: str = Form("claude-3-5-sonnet"),
     openrouter_model: str = Form('["google/gemini-3.5-flash", "google/gemini-3-flash", "google/gemini-3.1-flash-lite", "google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"]'),
+    chunking_enabled: str = Form("1"),
+    chunking_threshold_kb: int = Form(100),
+    chunking_max_chunks: int = Form(10),
+    chunking_overlap_seconds: int = Form(30),
+    chunking_accept_partial: str = Form("0"),
     redirect_to: str = Form("/admin/ai/text-analysis"),
     admin_user = Depends(require_admin)
 ):
@@ -765,7 +770,7 @@ async def update_ai_settings(
 
     with get_db_connection() as conn:
         conn.execute("""
-            UPDATE app_settings 
+            UPDATE app_settings
             SET whisper_model = ?,
                 ai_model_cascade = ?,
                 piper_model = ?,
@@ -780,6 +785,11 @@ async def update_ai_settings(
                 openai_model = ?,
                 anthropic_model = ?,
                 openrouter_model = ?,
+                chunking_enabled = ?,
+                chunking_threshold_kb = ?,
+                chunking_max_chunks = ?,
+                chunking_overlap_seconds = ?,
+                chunking_accept_partial = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
         """, (
@@ -787,7 +797,12 @@ async def update_ai_settings(
             tts_provider, gemini_tts_voice, gemini_tts_model_cascade,
             active_ai_provider,
             openai_api_key, anthropic_api_key, openrouter_api_key, gemini_api_keys,
-            openai_model, anthropic_model, openrouter_model
+            openai_model, anthropic_model, openrouter_model,
+            1 if chunking_enabled == "1" else 0,
+            max(10, min(10000, chunking_threshold_kb)),
+            max(1, min(50, chunking_max_chunks)),
+            max(0, min(300, chunking_overlap_seconds)),
+            1 if chunking_accept_partial == "1" else 0
         ))
         conn.commit()
     return RedirectResponse(url=_safe_local_redirect(redirect_to, "/admin/ai/text-analysis"), status_code=303)
