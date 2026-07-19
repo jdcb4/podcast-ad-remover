@@ -177,6 +177,16 @@ FORMAL_MIGRATIONS = [
             """,
         ],
     ),
+    (
+        "20260719_0008_chunking",
+        [
+            "ALTER TABLE app_settings ADD COLUMN chunking_enabled INTEGER DEFAULT 1",
+            "ALTER TABLE app_settings ADD COLUMN chunking_threshold_kb INTEGER DEFAULT 100",
+            "ALTER TABLE app_settings ADD COLUMN chunking_max_chunks INTEGER DEFAULT 10",
+            "ALTER TABLE app_settings ADD COLUMN chunking_overlap_seconds INTEGER DEFAULT 30",
+            "ALTER TABLE app_settings ADD COLUMN chunking_accept_partial INTEGER DEFAULT 0",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

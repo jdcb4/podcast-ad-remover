@@ -53,3 +53,7 @@ Piper remains the default because it is local, offline, and does not consume API
 ## 2026-06-17: Keep the AI API opt-in and token-scoped
 
 The AI-facing integration surface is a REST API under `/api/v1`, disabled by default and protected by admin-managed bearer tokens. API tokens are separate from feed tokens, use explicit scopes, and have SQLite-backed rate limits so the feature fits the existing single-container SQLite deployment model.
+
+## 2026-07-19: Chunk long transcripts for ad detection instead of single large prompts
+
+Very long podcast episodes can exceed provider context limits or become unnecessarily expensive when sent as a single prompt. The solution is configurable chunking that splits the transcript into time-based segments with bounded overlap, processes each chunk separately, and merges the results deterministically. Short transcripts retain the single-request path for efficiency. Chunking is enabled by default with a 100 KB threshold, uses 30s overlap to catch boundary ads, preserves global timestamps, and validates settings to prevent unexpected request counts. Rate limit errors propagate to the existing retry path, and partial results can be accepted when some chunks fail.

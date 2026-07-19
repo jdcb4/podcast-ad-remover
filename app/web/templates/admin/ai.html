@@ -65,6 +65,11 @@
     <input type="hidden" name="openai_model" value="{{ settings.openai_model or 'gpt-4o' }}">
     <input type="hidden" name="anthropic_model" value="{{ settings.anthropic_model or 'claude-3-5-sonnet' }}">
     <input type="hidden" name="openrouter_model" value="{{ settings.openrouter_model or '[&quot;google/gemini-3.5-flash&quot;, &quot;google/gemini-3-flash&quot;, &quot;google/gemini-3.1-flash-lite&quot;, &quot;google/gemini-2.5-flash&quot;, &quot;google/gemini-2.5-flash-lite&quot;]' }}">
+    <input type="hidden" name="chunking_enabled" value="{{ settings.chunking_enabled or 1 }}">
+    <input type="hidden" name="chunking_threshold_kb" value="{{ settings.chunking_threshold_kb or 100 }}">
+    <input type="hidden" name="chunking_max_chunks" value="{{ settings.chunking_max_chunks or 10 }}">
+    <input type="hidden" name="chunking_overlap_seconds" value="{{ settings.chunking_overlap_seconds or 30 }}">
+    <input type="hidden" name="chunking_accept_partial" value="{{ settings.chunking_accept_partial or 0 }}">
     {% endif %}
     <div class="space-y-8">
         <!-- Transcription -->
@@ -213,6 +218,52 @@
                 </div>
                 {{ shuttle_ui('openrouter', 'OpenRouter Model Cascade', 'openrouter_model', settings.openrouter_model |
                 tojson) }}
+            </div>
+
+            <!-- Chunking Configuration -->
+            <div class="mt-6 p-4 bg-surface-base rounded-xl border border-white/[0.08]">
+                <h4 class="font-medium border-b border-white/[0.08] pb-2 mb-4">Transcript Chunking</h4>
+                <p class="text-xs text-text-muted mb-4">For very long transcripts, chunking splits the transcript into smaller pieces for AI analysis to avoid context limits and control costs.</p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Enable Chunking</label>
+                        <select name="chunking_enabled" class="select">
+                            <option value="1" {% if (settings.chunking_enabled or 1) == 1 %}selected{% endif %}>Enabled (Default)</option>
+                            <option value="0" {% if settings.chunking_enabled == 0 %}selected{% endif %}>Disabled</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Threshold (KB)</label>
+                        <input type="number" name="chunking_threshold_kb" value="{{ settings.chunking_threshold_kb or 100 }}"
+                            class="input" min="10" max="10000">
+                        <p class="text-xs text-text-muted mt-1">Minimum transcript size to trigger chunking. Default: 100 KB</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Max Chunks</label>
+                        <input type="number" name="chunking_max_chunks" value="{{ settings.chunking_max_chunks or 10 }}"
+                            class="input" min="1" max="50">
+                        <p class="text-xs text-text-muted mt-1">Maximum number of chunks to create. Default: 10</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Overlap (seconds)</label>
+                        <input type="number" name="chunking_overlap_seconds" value="{{ settings.chunking_overlap_seconds or 30 }}"
+                            class="input" min="0" max="300">
+                        <p class="text-xs text-text-muted mt-1">Overlap between chunks to catch boundary ads. Default: 30s</p>
+                    </div>
+
+                    <div class="lg:col-span-2">
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Accept Partial Results</label>
+                        <select name="chunking_accept_partial" class="select">
+                            <option value="0" {% if (settings.chunking_accept_partial or 0) == 0 %}selected{% endif %}>No - Fail if any chunk fails (Default)</option>
+                            <option value="1" {% if settings.chunking_accept_partial == 1 %}selected{% endif %}>Yes - Use successful chunks, mark as partial</option>
+                        </select>
+                        <p class="text-xs text-text-muted mt-1">If enabled, partial results are accepted when some chunks fail. The analysis is marked as partial in the database.</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Test Connection Area -->

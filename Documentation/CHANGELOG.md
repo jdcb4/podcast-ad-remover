@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added configurable transcript chunking for ad detection to handle very long episodes without exceeding provider context limits or becoming unnecessarily expensive. Chunking triggers when the estimated transcript size exceeds a configurable threshold (default: 100 KB) and can be disabled entirely. The feature uses bounded overlap (default: 30s) to catch boundary ads, preserves original global timestamps, and merges overlapping detections deterministically without combining incompatible labels. Rate limit errors and complete provider failures propagate into the existing retry path. Partial results can be accepted when some chunks fail, with the analysis marked as partial. Settings are configurable in the admin AI Text Analysis page.
+
 ## 1.7.2 - 2026-07-18
 
 - Fixed feed processing so malformed non-numeric podcast enclosure lengths are treated as unknown instead of aborting the feed, with regression coverage for feed parsing and episode discovery.

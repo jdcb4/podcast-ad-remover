@@ -638,6 +638,39 @@ class AdDetector:
                 "remove_ads": True, "remove_promos": True, "remove_intros": False, "remove_outros": False, "custom_instructions": None
             }
 
+        # Check if chunking should be used
+        chunking_enabled = self.settings.get('chunking_enabled', 1)
+        threshold_kb = self.settings.get('chunking_threshold_kb', 100)
+        max_chunks = self.settings.get('chunking_max_chunks', 10)
+        overlap_seconds = self.settings.get('chunking_overlap_seconds', 30)
+        accept_partial = self.settings.get('chunking_accept_partial', 0)
+
+        # Prepare transcript text and estimate size
+        text_data = ""
+        for seg in transcript['segments']:
+            text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
+
+        estimated_size_kb = len(text_data.encode('utf-8')) / 1024
+
+        # Decide whether to chunk
+        should_chunk = (
+            chunking_enabled and
+            estimated_size_kb >= threshold_kb and
+            len(transcript['segments']) > 0
+        )
+
+        if should_chunk:
+            logger.info(f"Transcript size {estimated_size_kb:.1f} KB exceeds threshold {threshold_kb} KB. Using chunked ad detection.")
+            return self._detect_ads_chunked(
+                transcript, options, whitelist_mode,
+                max_chunks, overlap_seconds, accept_partial
+            )
+        else:
+            logger.info(f"Transcript size {estimated_size_kb:.1f} KB below threshold or chunking disabled. Using single-request ad detection.")
+            return self._detect_ads_single(transcript, options, whitelist_mode)
+
+    def _detect_ads_single(self, transcript: Dict, options: Dict, whitelist_mode: bool) -> List[Dict[str, float]]:
+        """Single-request ad detection (original behavior)."""
         # Prepare transcript text
         text_data = ""
         for seg in transcript['segments']:
@@ -677,6 +710,165 @@ class AdDetector:
         except Exception as e:
             logger.error(f"Ad detection failed: {e}")
             raise e
+
+    def _detect_ads_chunked(self, transcript: Dict, options: Dict, whitelist_mode: bool,
+                           max_chunks: int, overlap_seconds: float, accept_partial: bool) -> List[Dict[str, float]]:
+        """Chunked ad detection with bounded overlap and deterministic merging."""
+        segments = transcript['segments']
+        if not segments:
+            return []
+
+        # Calculate chunk boundaries based on time
+        total_duration = segments[-1]['end']
+        chunk_duration = total_duration / max_chunks
+
+        # Ensure minimum chunk duration to avoid tiny chunks
+        min_chunk_duration = 60.0  # 1 minute minimum
+        if chunk_duration < min_chunk_duration:
+            actual_max_chunks = int(total_duration / min_chunk_duration) + 1
+            chunk_duration = total_duration / actual_max_chunks
+            logger.info(f"Adjusted chunk count from {max_chunks} to {actual_max_chunks} to maintain minimum duration")
+            max_chunks = actual_max_chunks
+
+        chunks = self._create_transcript_chunks(segments, chunk_duration, overlap_seconds, max_chunks)
+        logger.info(f"Created {len(chunks)} chunks for ad detection")
+
+        all_results = []
+        failed_chunks = 0
+        rate_limit_errors = []
+
+        for i, chunk in enumerate(chunks):
+            chunk_transcript = {"segments": chunk}
+            logger.info(f"Processing chunk {i+1}/{len(chunks)} (segments {len(chunk)})")
+
+            try:
+                chunk_results = self._detect_ads_single(chunk_transcript, options, whitelist_mode)
+                all_results.extend(chunk_results)
+                logger.info(f"Chunk {i+1} complete: {len(chunk_results)} segments detected")
+            except RateLimitError as e:
+                failed_chunks += 1
+                rate_limit_errors.append(e)
+                logger.error(f"Chunk {i+1} failed with rate limit: {e}")
+                if not accept_partial:
+                    raise e
+            except Exception as e:
+                failed_chunks += 1
+                logger.error(f"Chunk {i+1} failed: {e}")
+                if not accept_partial:
+                    raise e
+
+        # Handle partial results
+        if failed_chunks > 0:
+            if accept_partial:
+                logger.warning(f"Ad detection completed with {failed_chunks}/{len(chunks)} failed chunks. Using partial results.")
+                # Could add metadata to mark as partial if needed
+            else:
+                # This should not happen since we raise above, but defensive check
+                raise Exception(f"Ad detection failed: {failed_chunks} chunks failed and partial results not accepted")
+
+        if rate_limit_errors:
+            # Propagate the first rate limit error to trigger retry logic
+            logger.warning(f"Propagating rate limit error from chunked detection")
+            raise rate_limit_errors[0]
+
+        # Merge overlapping detections
+        merged_results = self._merge_chunked_results(all_results, overlap_seconds)
+        logger.info(f"Merged {len(all_results)} chunk results into {len(merged_results)} final segments")
+
+        return merged_results
+
+    def _create_transcript_chunks(self, segments: List[Dict], chunk_duration: float,
+                                  overlap_seconds: float, max_chunks: int) -> List[List[Dict]]:
+        """Create transcript chunks with bounded overlap, preserving global timestamps."""
+        if not segments:
+            return []
+
+        chunks = []
+        total_duration = segments[-1]['end']
+        current_start = 0.0
+        chunk_index = 0
+
+        while current_start < total_duration and chunk_index < max_chunks:
+            chunk_end = min(current_start + chunk_duration, total_duration + overlap_seconds)
+
+            # Collect segments that overlap with this chunk's time window
+            chunk_segments = []
+            for seg in segments:
+                # Include segment if it overlaps with [current_start - overlap, chunk_end]
+                seg_start = seg['start']
+                seg_end = seg['end']
+
+                # Overlap condition: segment intersects chunk window
+                if seg_end > current_start and seg_start < chunk_end:
+                    chunk_segments.append(seg)
+
+            if chunk_segments:
+                chunks.append(chunk_segments)
+                logger.debug(f"Chunk {chunk_index}: {current_start:.2f}s to {chunk_end:.2f}s, {len(chunk_segments)} segments")
+            else:
+                logger.warning(f"Chunk {chunk_index} has no segments, skipping")
+
+            # Move to next chunk, accounting for overlap
+            current_start = chunk_end - overlap_seconds
+            chunk_index += 1
+
+        # Ensure we don't have empty trailing chunks
+        chunks = [c for c in chunks if c]
+
+        return chunks
+
+    def _merge_chunked_results(self, segments: List[Dict], overlap_seconds: float) -> List[Dict]:
+        """Merge overlapping ad detections from multiple chunks deterministically."""
+        if not segments:
+            return []
+
+        # Sort by start time for deterministic merging
+        sorted_segments = sorted(segments, key=lambda s: (s['start'], s['end'], s.get('label', '')))
+
+        merged = []
+        for seg in sorted_segments:
+            if not merged:
+                merged.append(seg.copy())
+                continue
+
+            last = merged[-1]
+
+            # Check for overlap
+            if seg['start'] <= last['end'] + (overlap_seconds / 2):
+                # Overlapping or adjacent - merge if labels are compatible
+                if self._labels_compatible(last.get('label', ''), seg.get('label', '')):
+                    # Merge: extend end time if needed
+                    if seg['end'] > last['end']:
+                        last['end'] = seg['end']
+                        # Update reason to reflect merge
+                        if seg.get('reason'):
+                            last['reason'] = f"{last.get('reason', '')} (merged with: {seg['reason']})"
+                    continue
+                else:
+                    # Incompatible labels - keep both
+                    merged.append(seg.copy())
+            else:
+                # No overlap - add as new segment
+                merged.append(seg.copy())
+
+        return merged
+
+    def _labels_compatible(self, label1: str, label2: str) -> bool:
+        """Check if two ad labels can be merged (same label or both are ads/promos)."""
+        # Exact match
+        if label1 == label2:
+            return True
+
+        # Ad and Promo are often interchangeable for merging purposes
+        ad_promo_set = {'Ad', 'Promo', 'Cross-promotion'}
+        if label1 in ad_promo_set and label2 in ad_promo_set:
+            return True
+
+        # Content should never merge with non-Content
+        if label1 == 'Content' or label2 == 'Content':
+            return False
+
+        return False
 
     def generate_summary(self, transcript: Dict, podcast_name: str, episode_title: str, pub_date: str, subscription_settings: Dict = None) -> str:
         self.settings = self._load_settings()
