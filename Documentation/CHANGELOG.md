@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added an opt-in custom OpenAI-compatible text-analysis provider with arbitrary API base URL/model slugs, keyed or keyless endpoint support, strict URL validation, separate credentials, and Docker networking guidance.
+- Prevented saved AI credentials from being rendered back into admin forms and made AI settings updates section-specific so saving one page cannot reset another.
+- Published the archived local-model transcript-chunking research report and exact interval comparisons; the unreliable chunking implementation remains experimental and is not included in the production application.
+
 ## 1.8.0 - 2026-07-22
 
 - Fixed subscription deletion during active processing by atomically deactivating the podcast, cancelling queued work, waiting a bounded time for running workers to acknowledge cancellation, and deferring retryable file cleanup when a worker is still active.

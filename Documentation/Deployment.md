@@ -47,6 +47,31 @@ docker compose -f docker-compose.prod.yml up -d
 
 The repository `docker-compose.yml` is intended for local source builds and development. It bind-mounts the source tree into `/app`; do not use that file for a stable install unless you intentionally want live source edits inside the container.
 
+## Local Or OpenAI-Compatible LLM Networking
+
+Configure local text analysis from **Admin > AI Settings > Text Analysis**. The API base URL must use
+HTTP or HTTPS, must not contain credentials, a query string, or a fragment, and normally includes the
+service's `/v1` compatibility path.
+
+Inside the Podcast Ad Remover container, `localhost` refers to that container—not the Docker host.
+Choose the address that matches the LLM deployment:
+
+- another service in the same Compose project: `http://ollama:11434/v1`;
+- Docker Desktop host service: `http://host.docker.internal:11434/v1`;
+- a LAN or Tailscale service: its trusted hostname or address, for example `http://llm-host:11434/v1`.
+
+On native Linux Docker, `host.docker.internal` may require this Compose entry:
+
+```yaml
+extra_hosts:
+  - "host.docker.internal:host-gateway"
+```
+
+The custom provider is deliberately separate from OpenAI. It uses only its own optional credential,
+so selecting a local URL cannot send a saved OpenAI cloud key to that endpoint. Restrict local model
+servers with host firewall and network controls; do not expose an unauthenticated generation endpoint
+to the public internet.
+
 ## Unraid
 
 The Unraid user-template XML lives at `Documentation/unraid/podcast-ad-remover.xml`. It uses the published `jdcb4/podcast-ad-remover:latest` image, maps `/data` to `/mnt/user/appdata/podcast-ad-remover`, and exposes port `8000`.

@@ -100,6 +100,11 @@ The default Gemini cascade is:
 
 The app tries each configured model in order and falls back when a model is unavailable, fails, or hits a rate limit. OpenRouter uses the same order with `google/` model IDs.
 
+Admins can also select **Custom OpenAI-compatible / Local** and provide an explicit API base URL plus
+arbitrary model slug for Ollama, LocalAI, vLLM, or another compatible service. This is opt-in: Gemini
+and the existing cloud cascades remain the defaults, and saved OpenAI cloud credentials are never
+forwarded to a custom endpoint.
+
 Current Gemini free-tier limits recorded for these defaults:
 
 | Model | Category | RPM | TPM | RPD |
@@ -116,6 +121,9 @@ You can set keys in the Admin UI or with environment variables:
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 - `OPENROUTER_API_KEY`
+
+Custom endpoint credentials are configured only in the Admin UI and may be left blank for keyless
+local servers.
 
 ## Text-To-Speech
 
@@ -215,6 +223,8 @@ npm run docker:publish
 - [Changelog](Documentation/CHANGELOG.md)
 - [Decisions](Documentation/DECISIONS.md)
 - [Resource Audit](Documentation/RESOURCE_AUDIT.md)
+- [Local LLM Evaluation](Documentation/LOCAL_LLM_EVALUATION.md)
+- [Local LLM HTML Comparison Report](Documentation/LOCAL_LLM_EVALUATION_REPORT.html)
 - [Roadmap](Documentation/ROADMAP.md)
 - [Naming](Documentation/NAMING.md)
 - [Security](SECURITY.md)

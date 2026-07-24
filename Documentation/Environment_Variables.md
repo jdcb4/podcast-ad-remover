@@ -15,6 +15,10 @@ Gemini direct access uses Google's OpenAI-compatible endpoint through the OpenAI
 | `ANTHROPIC_API_KEY` | Anthropic API Key |
 | `OPENROUTER_API_KEY` | OpenRouter API Key |
 
+Custom OpenAI-compatible endpoint settings are database-backed and configured under **Admin > AI
+Settings > Text Analysis**. They are intentionally not aliases for `OPENAI_API_KEY`, so a saved OpenAI
+cloud credential is never forwarded to a custom endpoint.
+
 ## Gemini Model Defaults And Free-Tier Limits
 
 The default direct Gemini cascade is:
@@ -89,6 +93,9 @@ These are configured from the Admin UI rather than environment variables:
 | `tts_provider` | TTS engine for spoken title intros and audio summaries: `piper` or `gemini`. | `piper` |
 | `gemini_tts_voice` | Gemini TTS voice when `tts_provider=gemini`. | `Orus` |
 | `gemini_tts_model_cascade` | JSON array of Gemini TTS models to try in order. | `["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]` |
+| `custom_llm_base_url` | Explicit HTTP(S) base URL for an opt-in OpenAI-compatible endpoint. | empty |
+| `custom_llm_api_key` | Optional credential used only for the custom endpoint. Keyless endpoints are supported. | empty |
+| `custom_llm_model` | JSON array of arbitrary model slugs for the custom endpoint. | `[]` |
 | `notifications_enabled` | Enable Apprise-backed admin notifications. | `0` |
 | `notification_urls` | Newline-separated Apprise URLs. Treat values as secrets because they can contain tokens or webhooks. | empty |
 | `notify_access_requests` | Send notification when a user requests dashboard access. | `1` |

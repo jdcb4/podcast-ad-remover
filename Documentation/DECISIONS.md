@@ -57,3 +57,18 @@ The AI-facing integration surface is a REST API under `/api/v1`, disabled by def
 ## 2026-07-22: Coordinate destructive subscription cleanup through SQLite
 
 The FastAPI app and episode processor run in separate processes, so in-memory locks cannot safely coordinate subscription deletion. Deletion uses durable subscription state and existing job locks: the database transaction prevents new claims and requests cancellation, running workers release their locks only after reaching a safe checkpoint, and one retryable cleanup claimant removes files and regenerates feeds outside the web event loop.
+
+## 2026-07-24: Keep cloud LLMs primary and make custom compatibility explicit
+
+Gemini and the existing cloud cascades remain the default text-analysis path. A custom endpoint is
+an opt-in, separately credentialed OpenAI-compatible provider so an OpenAI cloud key cannot be sent
+to an operator-supplied URL. Arbitrary model slugs and keyed or keyless endpoints are supported.
+
+## 2026-07-24: Do not ship experimental transcript chunking
+
+The 4B-to-72B evaluation completed only 20 of 30 runs and passed 6 of 30 interval-quality gates.
+Every local-class candidate missed the short promotion, and structured-output failures remained
+common. The chunking implementation and harness are preserved on
+`experimental/local-llm-transcript-chunking` for research, but are not part of the production
+application and have no planned further development. Sanitized HTML, Markdown, and JSON results
+remain on `master` so the decision and exact detections are inspectable.

@@ -8,6 +8,7 @@ import gc
 import importlib.util
 import wave
 from typing import List, Dict
+from urllib.parse import urlsplit, urlunsplit
 from app.core.config import settings
 import httpx
 
@@ -52,6 +53,31 @@ class RateLimitError(Exception):
         else:
             # Per-minute limit: short 2-minute retry
             return datetime.now() + timedelta(minutes=2)
+
+
+def normalize_openai_base_url(value: str) -> str:
+    """Validate and normalize an operator-supplied OpenAI-compatible API base URL."""
+    candidate = (value or "").strip()
+    if not candidate:
+        raise ValueError("Custom API base URL is required.")
+
+    parsed = urlsplit(candidate)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("Custom API base URL must use http:// or https://.")
+    if not parsed.hostname:
+        raise ValueError("Custom API base URL must include a hostname.")
+    if parsed.username or parsed.password:
+        raise ValueError("Custom API base URL must not contain credentials.")
+    if parsed.query or parsed.fragment:
+        raise ValueError("Custom API base URL must not contain a query string or fragment.")
+    try:
+        parsed.port
+    except ValueError as exc:
+        raise ValueError("Custom API base URL contains an invalid port.") from exc
+
+    normalized_path = parsed.path.rstrip("/")
+    return urlunsplit((parsed.scheme, parsed.netloc, normalized_path, "", ""))
+
 
 class Transcriber:
     def __init__(self):
@@ -334,12 +360,12 @@ class OpenAIProvider(LLMProvider):
         self.model_prefixes = model_prefixes
         self.rate_limit_provider = rate_limit_provider
         self.is_openrouter = base_url and "openrouter" in base_url
+        self.last_model = None
         self._init_client()
 
     def _init_client(self):
         key = self.api_keys[self.current_key_idx]
-        masked = key[:4] + "..." + key[-4:] if len(key) > 8 else "***"
-        logger.info(f"{self.provider_name}: Initializing client with key #{self.current_key_idx + 1} ({masked})")
+        logger.info(f"{self.provider_name}: Initializing client with credential #{self.current_key_idx + 1}")
         self.client = self.openai.OpenAI(api_key=key, base_url=self.base_url)
 
     def _rotate_key(self) -> bool:
@@ -355,6 +381,9 @@ class OpenAIProvider(LLMProvider):
         return any(pattern in error_str for pattern in self.RATE_LIMIT_PATTERNS)
 
     def generate(self, prompt: str) -> str:
+        if not self.models:
+            raise ValueError(f"No models configured for {self.provider_name}.")
+
         last_error = None
 
         while True:
@@ -367,6 +396,7 @@ class OpenAIProvider(LLMProvider):
                         model=model,
                         messages=[{"role": "user", "content": prompt}]
                     )
+                    self.last_model = model
                     return response.choices[0].message.content or ""
                 except Exception as e:
                     logger.warning(f"{self.provider_name} model {model} failed: {e}")
@@ -401,6 +431,8 @@ class OpenAIProvider(LLMProvider):
             return sorted([m for m in model_ids if m.startswith(self.model_prefixes)])
         except Exception as e:
             logger.error(f"{self.provider_name}: Failed to list models: {e}")
+            if self.provider_name == "Custom OpenAI-compatible":
+                raise RuntimeError(f"Custom endpoint model listing failed: {e}") from e
             return []
 
 class AnthropicProvider(LLMProvider):
@@ -508,8 +540,19 @@ class AdDetector:
 
         return api_keys
 
-    def create_provider(self, provider_type: str, api_key: str = None, model: str = None, openrouter_key: str = None) -> LLMProvider:
+    def create_provider(
+        self,
+        provider_type: str,
+        api_key: str = None,
+        model: str = None,
+        openrouter_key: str = None,
+        base_url: str = None,
+    ) -> LLMProvider:
         """Factory to create a provider instance."""
+        allowed_providers = {"gemini", "openai", "anthropic", "openrouter", "custom"}
+        if provider_type not in allowed_providers:
+            raise ValueError(f"Unsupported AI provider: {provider_type}")
+
         explicit_api_key = api_key
 
         # Resolve keys (DB Overrides Env)
@@ -532,6 +575,7 @@ class AdDetector:
             elif provider_type == 'openai': db_key = self.settings.get('openai_api_key')
             elif provider_type == 'anthropic': db_key = self.settings.get('anthropic_api_key')
             elif provider_type == 'openrouter': db_key = self.settings.get('openrouter_api_key')
+            elif provider_type == 'custom': db_key = self.settings.get('custom_llm_api_key')
 
             # 2. Try Env second
             env_key = None
@@ -543,7 +587,10 @@ class AdDetector:
             # Priority: DB > Env
             api_key = db_key if db_key else env_key
 
-        if not api_key:
+        if not api_key and provider_type == "custom":
+            # The OpenAI SDK requires a non-empty value even when a local server ignores auth.
+            api_key = "keyless-local-endpoint"
+        elif not api_key:
              raise ValueError(f"No API key found for {provider_type} (Check Admin Settings or Environment Variables)")
 
         # Resolve models (handle passed 'model' arg or DB settings)
@@ -564,6 +611,8 @@ class AdDetector:
                 models_list = self._parse_model_setting(self.settings.get('anthropic_model'), ['claude-3-5-sonnet-20241022'])
             elif provider_type == 'openrouter':
                 models_list = self._parse_model_setting(self.settings.get('openrouter_model'), self.DEFAULT_OPENROUTER_MODELS)
+            elif provider_type == 'custom':
+                models_list = self._parse_model_setting(self.settings.get('custom_llm_model'), [])
             else: # Gemini
                 models_list = self._parse_model_setting(self.settings.get('ai_model_cascade'), self.DEFAULT_GEMINI_MODELS)
 
@@ -581,6 +630,19 @@ class AdDetector:
                 provider_name="OpenRouter",
                 model_prefixes=None,
                 rate_limit_provider="openrouter",
+            )
+
+        elif provider_type == "custom":
+            resolved_base_url = normalize_openai_base_url(
+                base_url or self.settings.get("custom_llm_base_url")
+            )
+            return OpenAIProvider(
+                api_key,
+                models_list,
+                base_url=resolved_base_url,
+                provider_name="Custom OpenAI-compatible",
+                model_prefixes=None,
+                rate_limit_provider="custom",
             )
 
         else: # Gemini

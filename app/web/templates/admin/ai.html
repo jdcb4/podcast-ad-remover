@@ -46,26 +46,7 @@
 
 <form action="/admin/ai/update" method="POST" id="aiForm">
     <input type="hidden" name="redirect_to" value="{{ request.url.path }}">
-    {% if ai_section != 'ai_transcription' %}
-    <input type="hidden" name="whisper_model" value="{{ settings.whisper_model or 'base' }}">
-    {% endif %}
-    {% if ai_section != 'ai_voice' %}
-    <input type="hidden" name="piper_model" value="{{ settings.piper_model or 'en_GB-cori-high.onnx' }}">
-    <input type="hidden" name="tts_provider" value="{{ settings.tts_provider or 'piper' }}">
-    <input type="hidden" name="gemini_tts_voice" value="{{ settings.gemini_tts_voice or 'Orus' }}">
-    <input type="hidden" name="gemini_tts_model_cascade" value="{{ settings.gemini_tts_model_cascade or '[&quot;gemini-3.1-flash-tts-preview&quot;, &quot;gemini-2.5-flash-preview-tts&quot;]' }}">
-    {% endif %}
-    {% if ai_section != 'ai_text' %}
-    <input type="hidden" name="active_ai_provider" value="{{ settings.active_ai_provider or 'gemini' }}">
-    <input type="hidden" name="ai_model_cascade" value="{{ settings.ai_model_cascade or '[&quot;gemini-3.5-flash&quot;, &quot;gemini-3-flash&quot;, &quot;gemini-3.1-flash-lite&quot;, &quot;gemini-2.5-flash&quot;, &quot;gemini-2.5-flash-lite&quot;]' }}">
-    <input type="hidden" name="gemini_api_keys" value="{{ settings.gemini_api_keys or '[]' }}">
-    <input type="hidden" name="openai_api_key" value="{{ settings.openai_api_key or '' }}">
-    <input type="hidden" name="anthropic_api_key" value="{{ settings.anthropic_api_key or '' }}">
-    <input type="hidden" name="openrouter_api_key" value="{{ settings.openrouter_api_key or '' }}">
-    <input type="hidden" name="openai_model" value="{{ settings.openai_model or 'gpt-4o' }}">
-    <input type="hidden" name="anthropic_model" value="{{ settings.anthropic_model or 'claude-3-5-sonnet' }}">
-    <input type="hidden" name="openrouter_model" value="{{ settings.openrouter_model or '[&quot;google/gemini-3.5-flash&quot;, &quot;google/gemini-3-flash&quot;, &quot;google/gemini-3.1-flash-lite&quot;, &quot;google/gemini-2.5-flash&quot;, &quot;google/gemini-2.5-flash-lite&quot;]' }}">
-    {% endif %}
+    <input type="hidden" name="section" value="{{ ai_section }}">
     <div class="space-y-8">
         <!-- Transcription -->
         {% if ai_section == 'ai_transcription' %}
@@ -143,6 +124,8 @@
                     (Claude)</option>
                 <option value="openrouter" {% if settings.active_ai_provider=='openrouter' %}selected{% endif %}>
                     OpenRouter</option>
+                <option value="custom" {% if settings.active_ai_provider=='custom' %}selected{% endif %}>
+                    Custom OpenAI-compatible / Local</option>
             </select>
 
             <!-- Gemini Shuttle -->
@@ -162,6 +145,14 @@
                     <p class="text-xs text-emerald-400 mt-2">✓ Environment Variable Detected (will be used as fallback
                         if no keys are saved)</p>
                     {% endif %}
+                    {% if settings.gemini_api_keys and settings.gemini_api_keys != '[]' %}
+                    <p class="text-xs text-emerald-400 mt-2">Saved Gemini credentials are configured. They are not displayed.</p>
+                    <label class="flex items-center gap-2 text-xs text-text-muted mt-2">
+                        <input type="checkbox" name="clear_gemini_api_keys" value="true"
+                            class="h-4 w-4 rounded bg-surface-base border-white/20">
+                        Remove all saved Gemini credentials
+                    </label>
+                    {% endif %}
                     <input type="hidden" name="gemini_api_keys" id="gemini_api_keys_input" value="">
                 </div>
                 {{ shuttle_ui('gemini', 'Gemini Model Cascade', 'ai_model_cascade', settings.ai_model_cascade | tojson)
@@ -173,9 +164,16 @@
                 <div>
                     <label class="block text-sm font-medium text-text-secondary mb-2">OpenAI API Key</label>
                     <input type="password" name="openai_api_key" id="openai_key"
-                        value="{{ settings.openai_api_key or '' }}"
-                        placeholder="{% if env_keys.OPENAI_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
+                        value="" autocomplete="new-password"
+                        placeholder="{% if settings.openai_api_key %}Leave blank to keep saved key{% elif env_keys.OPENAI_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
                         class="input">
+                    {% if settings.openai_api_key %}
+                    <label class="flex items-center gap-2 text-xs text-text-muted mt-2">
+                        <input type="checkbox" name="clear_openai_api_key" value="true"
+                            class="h-4 w-4 rounded bg-surface-base border-white/20">
+                        Remove saved OpenAI key
+                    </label>
+                    {% endif %}
                     {% if env_keys.OPENAI_API_KEY %}
                     <p class="text-xs text-emerald-400">✓ Environment Variable Detected</p>
                     {% endif %}
@@ -188,9 +186,16 @@
                 <div>
                     <label class="block text-sm font-medium text-text-secondary mb-2">Anthropic API Key</label>
                     <input type="password" name="anthropic_api_key" id="anthropic_key"
-                        value="{{ settings.anthropic_api_key or '' }}"
-                        placeholder="{% if env_keys.ANTHROPIC_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
+                        value="" autocomplete="new-password"
+                        placeholder="{% if settings.anthropic_api_key %}Leave blank to keep saved key{% elif env_keys.ANTHROPIC_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
                         class="input">
+                    {% if settings.anthropic_api_key %}
+                    <label class="flex items-center gap-2 text-xs text-text-muted mt-2">
+                        <input type="checkbox" name="clear_anthropic_api_key" value="true"
+                            class="h-4 w-4 rounded bg-surface-base border-white/20">
+                        Remove saved Anthropic key
+                    </label>
+                    {% endif %}
                     {% if env_keys.ANTHROPIC_API_KEY %}
                     <p class="text-xs text-emerald-400">✓ Environment Variable Detected</p>
                     {% endif %}
@@ -204,15 +209,65 @@
                 <div>
                     <label class="block text-sm font-medium text-text-secondary mb-2">OpenRouter API Key</label>
                     <input type="password" name="openrouter_api_key" id="openrouter_key"
-                        value="{{ settings.openrouter_api_key or '' }}"
-                        placeholder="{% if env_keys.OPENROUTER_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
+                        value="" autocomplete="new-password"
+                        placeholder="{% if settings.openrouter_api_key %}Leave blank to keep saved key{% elif env_keys.OPENROUTER_API_KEY %}Using Environment Variable{% else %}Enter API Key{% endif %}"
                         class="input">
+                    {% if settings.openrouter_api_key %}
+                    <label class="flex items-center gap-2 text-xs text-text-muted mt-2">
+                        <input type="checkbox" name="clear_openrouter_api_key" value="true"
+                            class="h-4 w-4 rounded bg-surface-base border-white/20">
+                        Remove saved OpenRouter key
+                    </label>
+                    {% endif %}
                     {% if env_keys.OPENROUTER_API_KEY %}
                     <p class="text-xs text-emerald-400">✓ Environment Variable Detected</p>
                     {% endif %}
                 </div>
                 {{ shuttle_ui('openrouter', 'OpenRouter Model Cascade', 'openrouter_model', settings.openrouter_model |
                 tojson) }}
+            </div>
+
+            <!-- Custom OpenAI-compatible -->
+            <div id="customSettings" class="provider-section hidden space-y-4">
+                <div class="p-4 rounded-xl border border-amber-500/20 bg-amber-500/10 text-sm text-amber-100">
+                    This provider is intended for explicitly trusted Ollama, LocalAI, vLLM, or other
+                    OpenAI-compatible endpoints. Saved OpenAI cloud credentials are never sent to it.
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">API Base URL</label>
+                    <input type="url" name="custom_llm_base_url" id="custom_base_url"
+                        value="{{ settings.custom_llm_base_url or '' }}"
+                        placeholder="http://host.docker.internal:11434/v1" class="input">
+                    <p class="text-xs text-text-muted mt-2">
+                        Include the endpoint's API path, normally <code>/v1</code>. Inside Docker,
+                        <code>localhost</code> refers to this application container.
+                    </p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Optional Endpoint API Key</label>
+                    <input type="password" name="custom_llm_api_key" id="custom_key"
+                        value="" autocomplete="new-password"
+                        placeholder="{% if settings.custom_llm_api_key %}Leave blank to keep saved key{% else %}Leave blank for a keyless endpoint{% endif %}"
+                        class="input">
+                    {% if settings.custom_llm_api_key %}
+                    <label class="flex items-center gap-2 text-xs text-text-muted mt-2">
+                        <input type="checkbox" name="clear_custom_llm_api_key" value="true"
+                            class="h-4 w-4 rounded bg-surface-base border-white/20">
+                        Remove saved custom endpoint key
+                    </label>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Add Model Slug</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="custom_manual_model" class="input"
+                            placeholder="qwen2.5:7b or provider/model-name">
+                        <button type="button" class="btn-secondary"
+                            onclick="addCustomModel()">Add</button>
+                    </div>
+                </div>
+                {{ shuttle_ui('custom', 'Custom Model Cascade', 'custom_llm_model',
+                settings.custom_llm_model | tojson) }}
             </div>
 
             <!-- Test Connection Area -->
@@ -243,7 +298,8 @@
         'gemini_tts': ['gemini-3.1-flash-tts-preview', 'gemini-2.5-flash-preview-tts'],
         'openai': ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
         'anthropic': ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
-        'openrouter': ['google/gemini-3.5-flash', 'google/gemini-3-flash', 'google/gemini-3.1-flash-lite', 'google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite']
+        'openrouter': ['google/gemini-3.5-flash', 'google/gemini-3-flash', 'google/gemini-3.1-flash-lite', 'google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite'],
+        'custom': []
     };
 
     function escapeHtml(value) {
@@ -360,7 +416,19 @@
 
         async refresh(provider) {
             try {
-                const res = await fetch(`/admin/ai/refresh/${provider}`);
+                const formData = new FormData();
+                formData.append('provider', provider);
+                if (provider === 'gemini' && typeof geminiKeyManager !== 'undefined') {
+                    const keys = geminiKeyManager.keys.filter(k => k && k.trim());
+                    if (keys.length > 0) formData.append('api_key', keys[0]);
+                }
+                const keyEl = document.getElementById(provider + '_key');
+                if (keyEl && keyEl.value) formData.append('api_key', keyEl.value);
+                if (provider === 'custom') {
+                    const baseEl = document.getElementById('custom_base_url');
+                    if (baseEl && baseEl.value) formData.append('base_url', baseEl.value);
+                }
+                const res = await fetch('/admin/ai/refresh', { method: 'POST', body: formData });
                 const data = await res.json();
                 if (data.models) {
                     const state = this.states[provider];
@@ -399,6 +467,7 @@
     shuttleManager.init('openai', {{ settings.openai_model | tojson }});
     shuttleManager.init('anthropic', {{ settings.anthropic_model | tojson }});
     shuttleManager.init('openrouter', {{ settings.openrouter_model | tojson }});
+    shuttleManager.init('custom', {{ settings.custom_llm_model | tojson }});
     {% elif ai_section == 'ai_voice' %}
     shuttleManager.init('gemini_tts', {{ settings.gemini_tts_model_cascade | tojson }});
     {% endif %}
@@ -498,8 +567,18 @@
         }
     }
 
-    // Initialize with saved keys
-    const geminiKeyManager = new GeminiKeyManager({{ settings.gemini_api_keys | tojson if settings.gemini_api_keys else '[]' }});
+    // Saved credentials are intentionally never rendered back into the page.
+    const geminiKeyManager = new GeminiKeyManager([]);
+
+    function addCustomModel() {
+        const input = document.getElementById('custom_manual_model');
+        const model = input?.value.trim();
+        if (!model) return;
+        const state = shuttleManager.states.custom;
+        if (!state.allKnown.includes(model)) state.allKnown.push(model);
+        if (!state.selected.includes(model)) shuttleManager.add('custom', model);
+        input.value = '';
+    }
 
     async function testConnection() {
         if (!document.getElementById('providerSelect')) return;
@@ -525,6 +604,10 @@
 
         const modelEl = document.getElementById(provider + '_input');
         if (modelEl) formData.append('model', modelEl.value);
+        if (provider === 'custom') {
+            const baseEl = document.getElementById('custom_base_url');
+            if (baseEl) formData.append('base_url', baseEl.value);
+        }
 
         try {
             const res = await fetch('/admin/ai/test', { method: 'POST', body: formData });

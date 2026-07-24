@@ -14,7 +14,7 @@ The application is intentionally simple: one web app, one SQLite database, local
 - SQLite for application state.
 - FFmpeg for audio processing.
 - Whisper/faster-whisper for local transcription.
-- Gemini, OpenAI, Anthropic, or OpenRouter for LLM-backed segment detection and summaries.
+- Gemini, OpenAI, Anthropic, OpenRouter, or an explicitly configured OpenAI-compatible endpoint for LLM-backed segment detection and summaries.
 - Piper or Gemini TTS for optional spoken title intros and audio summaries.
 - Tailwind CSS for styling.
 - Docker for deployment.
@@ -47,6 +47,13 @@ Supporting modules include:
 - `app/core/ai_services.py`: provider integrations, transcription, summaries, and TTS.
 - `app/core/rss_gen.py`: generated feed output.
 - `app/core/feed.py`: feed parsing.
+
+### Text Analysis Providers
+
+Gemini remains the default provider. The custom provider is a separate, opt-in OpenAI-compatible
+configuration with its own base URL, model cascade, and optional credential. It never inherits the
+OpenAI provider credential. Keyless endpoints receive an internal non-secret SDK placeholder because
+the OpenAI client requires a non-empty key value.
 
 ### Text-To-Speech
 

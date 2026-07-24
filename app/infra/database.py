@@ -190,6 +190,16 @@ FORMAL_MIGRATIONS = [
             """,
         ],
     ),
+    (
+        # Keep the identifier used by the published experimental branch so an
+        # installation that briefly evaluated it does not rerun column creation.
+        "20260724_0009_local_llm_chunking",
+        [
+            "ALTER TABLE app_settings ADD COLUMN custom_llm_base_url TEXT",
+            "ALTER TABLE app_settings ADD COLUMN custom_llm_api_key TEXT",
+            "ALTER TABLE app_settings ADD COLUMN custom_llm_model TEXT DEFAULT '[]'",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

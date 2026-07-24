@@ -52,6 +52,16 @@ npm run verify:docker
 
 This runs the standard check and builds a local image tagged `podcast-ad-remover:verify`.
 
+## Custom OpenAI-Compatible Endpoint Checks
+
+Automated coverage uses a temporary OpenAI-compatible HTTP server and verifies keyed/keyless model
+listing and generation, URL validation, arbitrary model slugs, credential isolation, settings
+persistence across separate AI pages, and prevention of saved credential rendering.
+
+The rejected transcript-chunking experiment and its provider comparison are documented in
+`Documentation/LOCAL_LLM_EVALUATION.md` and `Documentation/LOCAL_LLM_EVALUATION_REPORT.html`.
+Those research artifacts are not a production release gate.
+
 ## Migration Dry Run
 
 Before upgrading a valuable existing install, validate migrations against a copy of the database:

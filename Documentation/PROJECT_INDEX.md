@@ -53,5 +53,8 @@ docker compose up -d --build
 - `Documentation/DECISIONS.md`: lightweight decision log.
 - `Documentation/ROADMAP.md`: improvement candidates and future direction.
 - `Documentation/RESOURCE_AUDIT.md`: image size, runtime resource findings, and live-container measurement commands.
+- `Documentation/LOCAL_LLM_EVALUATION.md`: archived local-model and transcript-chunking research findings.
+- `Documentation/LOCAL_LLM_EVALUATION_REPORT.html`: self-contained pass/fail and exact detection comparison.
+- `Documentation/LOCAL_LLM_EVALUATION_RESULTS.json`: sanitized machine-readable research results.
 - `Documentation/NAMING.md`: naming conventions for code, statuses, docs, and Docker artifacts.
 - `AGENTS.md`: maintenance rules for coding agents.
