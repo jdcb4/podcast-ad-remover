@@ -326,7 +326,7 @@ class Transcriber:
 
 
 class LLMProvider:
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, max_tokens: int | None = None) -> str:
         raise NotImplementedError
 
     def list_models(self) -> List[str]:
@@ -335,7 +335,7 @@ class LLMProvider:
     def test_connection(self) -> Dict:
         try:
             # Simple hello world test
-            response = self.generate("Say hello")
+            response = self.generate("Say hello", max_tokens=128)
             return {"status": "ok", "response": response[:100]}
         except Exception as e:
             return {"status": "error", "error": str(e)}
@@ -390,7 +390,7 @@ class OpenAIProvider(LLMProvider):
         error_str = str(error).lower()
         return any(pattern in error_str for pattern in self.RATE_LIMIT_PATTERNS)
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, max_tokens: int | None = None) -> str:
         if not self.models:
             raise ValueError(f"No models configured for {self.provider_name}.")
 
@@ -402,9 +402,14 @@ class OpenAIProvider(LLMProvider):
             for model in self.models:
                 try:
                     logger.info(f"{self.provider_name}: Using model {model} with key #{self.current_key_idx + 1}...")
+                    request = {
+                        "model": model,
+                        "messages": [{"role": "user", "content": prompt}],
+                    }
+                    if max_tokens is not None:
+                        request["max_tokens"] = max_tokens
                     response = self.client.chat.completions.create(
-                        model=model,
-                        messages=[{"role": "user", "content": prompt}]
+                        **request
                     )
                     self.last_model = model
                     if response.usage:
@@ -457,14 +462,14 @@ class AnthropicProvider(LLMProvider):
         self.last_model = None
         self.last_usage = {}
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, max_tokens: int | None = None) -> str:
         last_error = None
         for model in self.models:
             try:
                 logger.info(f"Anthropic: Using model {model}...")
                 response = self.client.messages.create(
                     model=model,
-                    max_tokens=4096,
+                    max_tokens=max_tokens or 4096,
                     messages=[{"role": "user", "content": prompt}]
                 )
                 self.last_model = model
@@ -518,7 +523,9 @@ class AdDetector:
     CHUNK_MAX_COUNT = 64
     CHUNK_OUTPUT_RESERVE_TOKENS = 1024
     CHUNK_SAFETY_TOKENS = 512
-    CHARS_PER_ESTIMATED_TOKEN = 3
+    # Timestamp-heavy transcript prompts tokenize less efficiently than plain prose.
+    # 2.25 chars/token intentionally overestimates the OpenRouter samples used for validation.
+    CHARS_PER_ESTIMATED_TOKEN = 2.25
 
     def __init__(self):
         self.settings = self._load_settings()
@@ -761,7 +768,10 @@ class AdDetector:
             usage_totals = {}
             for index, chunk in enumerate(chunks):
                 logger.info(f"Running ad detection request {index + 1}/{len(chunks)}")
-                response_text = provider.generate(chunk["prompt"])
+                response_text = provider.generate(
+                    chunk["prompt"],
+                    max_tokens=self.CHUNK_OUTPUT_RESERVE_TOKENS,
+                )
                 for name, value in getattr(provider, "last_usage", {}).items():
                     if isinstance(value, (int, float)):
                         usage_totals[name] = usage_totals.get(name, 0) + value
