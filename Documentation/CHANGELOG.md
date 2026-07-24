@@ -13,6 +13,8 @@
 - Normalized common case and naming variants for supported segment labels so smaller models do not break whitelist filtering with responses such as `content` or `advertisement`.
 - Prevented saved AI credentials from being rendered back into admin forms and made AI settings updates section-specific so saving one page cannot reset another.
 - Disabled AI description rewrites and audio summaries while transcript chunking is enabled, with processing enforcement and explanatory UI while retaining podcast preferences.
+- Added a repeatable, production-derived local-LLM evaluation harness and a current OpenRouter matrix spanning 4B-effective through 72B models, with strict execution and interval-F1 quality gates.
+- Added sanitized machine-readable benchmark results and a self-contained HTML report comparing exact detected removal windows, reference overlaps, failures, token usage, estimated cost, and latency without embedding transcripts, titles, credentials, or raw model responses.
 
 ## 1.8.0 - 2026-07-22
 

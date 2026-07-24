@@ -22,7 +22,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/api/`: dashboard API, audio endpoints, and the optional AI-facing `/api/v1` REST API.
 - `Documentation/`: architecture, deployment, release, and maintenance docs.
 - `Documentation/unraid/podcast-ad-remover.xml`: Unraid Docker template.
-- `scripts/`: verification, migration dry-run, API-token user-linking, and Docker release helpers.
+- `scripts/`: verification, migration dry-run, local-LLM evaluation, API-token user-linking, and Docker release helpers.
 - `Dockerfile` and `docker-compose.yml`: container build and local compose configuration.
 
 ## Common Commands
@@ -53,6 +53,8 @@ docker compose up -d --build
 - `Documentation/DECISIONS.md`: lightweight decision log.
 - `Documentation/ROADMAP.md`: improvement candidates and future direction.
 - `Documentation/RESOURCE_AUDIT.md`: image size, runtime resource findings, and live-container measurement commands.
-- `Documentation/LOCAL_LLM_EVALUATION.md`: constrained-model, chunking, and isolated end-to-end validation results.
+- `Documentation/LOCAL_LLM_EVALUATION.md`: living local-model test method, results, interpretation, and update workflow.
+- `Documentation/LOCAL_LLM_EVALUATION_REPORT.html`: self-contained model/episode pass-fail and exact detection comparison.
+- `Documentation/LOCAL_LLM_EVALUATION_RESULTS.json`: sanitized machine-readable benchmark results.
 - `Documentation/NAMING.md`: naming conventions for code, statuses, docs, and Docker artifacts.
 - `AGENTS.md`: maintenance rules for coding agents.

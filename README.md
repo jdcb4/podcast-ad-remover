@@ -234,6 +234,7 @@ npm run docker:publish
 - [Decisions](Documentation/DECISIONS.md)
 - [Resource Audit](Documentation/RESOURCE_AUDIT.md)
 - [Local LLM Evaluation](Documentation/LOCAL_LLM_EVALUATION.md)
+- [Local LLM HTML Comparison Report](Documentation/LOCAL_LLM_EVALUATION_REPORT.html)
 - [Roadmap](Documentation/ROADMAP.md)
 - [Naming](Documentation/NAMING.md)
 - [Security](SECURITY.md)

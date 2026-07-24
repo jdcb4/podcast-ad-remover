@@ -1,0 +1,2330 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-24T05:58:51+00:00",
+  "catalog_checked_at": "2026-07-24",
+  "provider": "OpenRouter",
+  "base_url": "https://openrouter.ai/api/v1",
+  "quality_f1_threshold": 0.7,
+  "test_configuration": {
+    "mode": "Whitelist ad detection",
+    "chunk_overlap_seconds": 30,
+    "chunk_max_count": 32,
+    "reasons_enabled": false,
+    "temperature": "0 for chunked runs; provider default for standard control",
+    "reference": "Historical production remove windows",
+    "production_access": "Read-only"
+  },
+  "episodes": [
+    {
+      "episode_id": 19667,
+      "case": "Very short promo/message",
+      "duration": 19.0,
+      "transcript_segments": 7,
+      "transcript_characters": 427,
+      "reference_segments": [
+        {
+          "start": 0.0,
+          "end": 19.36,
+          "duration": 19.36,
+          "label": "Promo"
+        }
+      ],
+      "reference_seconds": 19.36
+    },
+    {
+      "episode_id": 22272,
+      "case": "Context-boundary episode",
+      "duration": 1608.0,
+      "transcript_segments": 314,
+      "transcript_characters": 27349,
+      "reference_segments": [
+        {
+          "start": 60.84,
+          "end": 104.36,
+          "duration": 43.52,
+          "label": "Non-Content"
+        },
+        {
+          "start": 761.8,
+          "end": 781.16,
+          "duration": 19.36,
+          "label": "Non-Content"
+        },
+        {
+          "start": 1523.8,
+          "end": 1608.52,
+          "duration": 84.72,
+          "label": "Non-Content"
+        }
+      ],
+      "reference_seconds": 147.6
+    },
+    {
+      "episode_id": 26476,
+      "case": "Long episode",
+      "duration": 4312.0,
+      "transcript_segments": 943,
+      "transcript_characters": 70786,
+      "reference_segments": [
+        {
+          "start": 0.0,
+          "end": 135.0,
+          "duration": 135.0,
+          "label": "Non-Content"
+        },
+        {
+          "start": 2266.08,
+          "end": 2326.48,
+          "duration": 60.4,
+          "label": "Non-Content"
+        },
+        {
+          "start": 4253.32,
+          "end": 4276.27,
+          "duration": 22.95,
+          "label": "Non-Content"
+        }
+      ],
+      "reference_seconds": 218.35
+    }
+  ],
+  "model_runs": [
+    {
+      "model": {
+        "run_id": "gemini-3.1-flash-lite-standard",
+        "model_id": "google/gemini-3.1-flash-lite",
+        "display_name": "Gemini 3.1 Flash Lite — standard",
+        "family": "Cloud control",
+        "parameters": "Undisclosed",
+        "parameter_billions": null,
+        "native_context_tokens": 1048576,
+        "chunking_enabled": false,
+        "declared_context_tokens": null
+      },
+      "started_at": "2026-07-24T05:48:47+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "pass",
+          "metrics": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "predicted_seconds": 19.36,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 19.36
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 19.36,
+              "duration": 19.36,
+              "label": "Promo",
+              "best_reference_index": 0,
+              "overlap_seconds": 19.36,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemini-3.1-flash-lite",
+            "chunking_enabled": false,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": null,
+            "elapsed_seconds": 1.785,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 7,
+              "prompt_tokens": 420,
+              "total_tokens": 427,
+              "cost": 0.0001155,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000115,
+          "wall_seconds": 2.382
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 1.0,
+            "recall": 0.4832,
+            "f1": 0.6516,
+            "predicted_seconds": 71.32,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 71.32
+          },
+          "predicted_segments": [
+            {
+              "start": 761.8,
+              "end": 768.12,
+              "duration": 6.32,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 6.32,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1543.0,
+              "end": 1608.0,
+              "duration": 65.0,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 65.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemini-3.1-flash-lite",
+            "chunking_enabled": false,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 15010,
+            "context_window_tokens": null,
+            "elapsed_seconds": 1.537,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 148,
+              "prompt_tokens": 11798,
+              "total_tokens": 11946,
+              "cost": 0.0031715,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.003171,
+          "wall_seconds": 1.752
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "pass",
+          "quality_status": "pass",
+          "metrics": {
+            "precision": 0.8406,
+            "recall": 0.9846,
+            "f1": 0.9069,
+            "predicted_seconds": 255.76,
+            "reference_seconds": 218.35,
+            "overlap_seconds": 214.99
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 135.0,
+              "duration": 135.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 135.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 2269.44,
+              "end": 2326.48,
+              "duration": 57.04,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 57.04,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 4248.28,
+              "end": 4312.0,
+              "duration": 63.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 22.95,
+              "overlap_fraction": 0.3602,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemini-3.1-flash-lite",
+            "chunking_enabled": false,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 39517,
+            "context_window_tokens": null,
+            "elapsed_seconds": 2.886,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 238,
+              "prompt_tokens": 34420,
+              "total_tokens": 34658,
+              "cost": 0.008962,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.008962,
+          "wall_seconds": 3.099
+        }
+      ],
+      "completed_at": "2026-07-24T05:48:54+00:00",
+      "summary": {
+        "execution_passes": 3,
+        "execution_total": 3,
+        "quality_passes": 2,
+        "average_f1": 0.8528,
+        "estimated_cost_usd": 0.012248,
+        "wall_seconds": 7.233,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "gemini-3.1-flash-lite-8k",
+        "model_id": "google/gemini-3.1-flash-lite",
+        "display_name": "Gemini 3.1 Flash Lite — 8K chunked",
+        "family": "Chunked cloud control",
+        "parameters": "Undisclosed",
+        "parameter_billions": null,
+        "native_context_tokens": 1048576,
+        "chunking_enabled": true,
+        "declared_context_tokens": 8192
+      },
+      "started_at": "2026-07-24T05:48:55+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "pass",
+          "metrics": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "predicted_seconds": 19.36,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 19.36
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 19.36,
+              "duration": 19.36,
+              "label": "Promo",
+              "best_reference_index": 0,
+              "overlap_seconds": 19.36,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemini-3.1-flash-lite",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 1.034,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 7,
+              "prompt_tokens": 420,
+              "total_tokens": 427,
+              "cost": 0.0001155,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000115,
+          "wall_seconds": 1.25
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "pass",
+          "metrics": {
+            "precision": 0.947,
+            "recall": 0.6821,
+            "f1": 0.793,
+            "predicted_seconds": 106.32,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 100.68
+          },
+          "predicted_segments": [
+            {
+              "start": 60.84,
+              "end": 70.92,
+              "duration": 10.08,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 10.08,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 761.8,
+              "end": 768.2,
+              "duration": 6.4,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 6.4,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1518.16,
+              "end": 1608.0,
+              "duration": 89.84,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 84.2,
+              "overlap_fraction": 0.9372,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemini-3.1-flash-lite",
+            "chunking_enabled": true,
+            "chunk_count": 5,
+            "completed_chunks": 5,
+            "estimated_input_tokens": 19023,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 8.765,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 485,
+              "prompt_tokens": 14615,
+              "total_tokens": 15100,
+              "cost": 0.00438125,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.004381,
+          "wall_seconds": 9.113
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "pass",
+          "quality_status": "pass",
+          "metrics": {
+            "precision": 0.8018,
+            "recall": 1.0,
+            "f1": 0.89,
+            "predicted_seconds": 272.32,
+            "reference_seconds": 218.35,
+            "overlap_seconds": 218.35
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 135.0,
+              "duration": 135.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 135.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1281.04,
+              "end": 1281.6,
+              "duration": 0.56,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 2253.44,
+              "end": 2326.48,
+              "duration": 73.04,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 60.4,
+              "overlap_fraction": 0.8269,
+              "match": "matched"
+            },
+            {
+              "start": 4248.28,
+              "end": 4312.0,
+              "duration": 63.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 22.95,
+              "overlap_fraction": 0.3602,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemini-3.1-flash-lite",
+            "chunking_enabled": true,
+            "chunk_count": 13,
+            "completed_chunks": 13,
+            "estimated_input_tokens": 51357,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 16.768,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 405,
+              "prompt_tokens": 43530,
+              "total_tokens": 43935,
+              "cost": 0.01149,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.01149,
+          "wall_seconds": 17.005
+        }
+      ],
+      "completed_at": "2026-07-24T05:49:23+00:00",
+      "summary": {
+        "execution_passes": 3,
+        "execution_total": 3,
+        "quality_passes": 3,
+        "average_f1": 0.8943,
+        "estimated_cost_usd": 0.015986,
+        "wall_seconds": 27.368,
+        "overall_status": "pass"
+      }
+    },
+    {
+      "model": {
+        "run_id": "gemma-3n-e4b-it-8k",
+        "model_id": "google/gemma-3n-e4b-it",
+        "display_name": "Gemma 3n E4B — 8K",
+        "family": "Small",
+        "parameters": "4B effective",
+        "parameter_billions": 4,
+        "native_context_tokens": 32768,
+        "chunking_enabled": true,
+        "declared_context_tokens": 8192
+      },
+      "started_at": "2026-07-24T05:49:24+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3n-e4b-it",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 5.247,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 199,
+              "prompt_tokens": 435,
+              "total_tokens": 634,
+              "cost": 4.998e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 5e-05,
+          "wall_seconds": 5.461
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3n-e4b-it",
+            "chunking_enabled": true,
+            "chunk_count": 5,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 19023,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 72.803,
+            "finish_reasons": [
+              "stop",
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 2,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 3782,
+              "prompt_tokens": 5937,
+              "total_tokens": 9719,
+              "cost": 0.00081006,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.00081,
+          "wall_seconds": 73.016,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3n-e4b-it",
+            "chunking_enabled": true,
+            "chunk_count": 13,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 51357,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 41.087,
+            "finish_reasons": [
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 2048,
+              "prompt_tokens": 3544,
+              "total_tokens": 5592,
+              "cost": 0.0004584,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000458,
+          "wall_seconds": 41.301,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        }
+      ],
+      "completed_at": "2026-07-24T05:51:24+00:00",
+      "summary": {
+        "execution_passes": 1,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.0,
+        "estimated_cost_usd": 0.001318,
+        "wall_seconds": 119.778,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "qwen-2.5-7b-instruct-8k",
+        "model_id": "qwen/qwen-2.5-7b-instruct",
+        "display_name": "Qwen 2.5 7B Instruct — 8K",
+        "family": "Small",
+        "parameters": "7B",
+        "parameter_billions": 7,
+        "native_context_tokens": 32768,
+        "chunking_enabled": true,
+        "declared_context_tokens": 8192
+      },
+      "started_at": "2026-07-24T05:51:25+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-7b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 2.372,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 53,
+              "prompt_tokens": 404,
+              "total_tokens": 457,
+              "cost": 0.0001371,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 2.1e-05,
+          "wall_seconds": 2.594
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.3013,
+            "recall": 0.2209,
+            "f1": 0.2549,
+            "predicted_seconds": 108.2,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 32.6
+          },
+          "predicted_segments": [
+            {
+              "start": 66.04,
+              "end": 70.92,
+              "duration": 4.88,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 4.88,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 193.16,
+              "end": 201.32,
+              "duration": 8.16,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 216.36,
+              "end": 232.28,
+              "duration": 15.92,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 365.48,
+              "end": 369.4,
+              "duration": 3.92,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 995.64,
+              "end": 1042.6,
+              "duration": 46.96,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1139.88,
+              "end": 1140.52,
+              "duration": 0.64,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1580.28,
+              "end": 1608.0,
+              "duration": 27.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 27.72,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-7b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 5,
+            "completed_chunks": 5,
+            "estimated_input_tokens": 19023,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 17.416,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 468,
+              "prompt_tokens": 14381,
+              "total_tokens": 14849,
+              "cost": 0.00367228,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000622,
+          "wall_seconds": 17.632
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.5022,
+            "recall": 0.2377,
+            "f1": 0.3227,
+            "predicted_seconds": 103.36,
+            "reference_seconds": 218.35,
+            "overlap_seconds": 51.91
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 29.0,
+              "duration": 29.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 29.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 50.0,
+              "end": 52.0,
+              "duration": 2.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 2.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 67.0,
+              "end": 73.0,
+              "duration": 6.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 6.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 122.0,
+              "end": 135.0,
+              "duration": 13.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 13.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 205.0,
+              "end": 209.0,
+              "duration": 4.0,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 658.0,
+              "end": 663.0,
+              "duration": 5.0,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1281.04,
+              "end": 1281.6,
+              "duration": 0.56,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 2290.8,
+              "end": 2291.44,
+              "duration": 0.64,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 0.64,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 2380.8,
+              "end": 2381.52,
+              "duration": 0.72,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 2713.68,
+              "end": 2719.12,
+              "duration": 5.44,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 4275.0,
+              "end": 4312.0,
+              "duration": 37.0,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 1.27,
+              "overlap_fraction": 0.0343,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-7b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 13,
+            "completed_chunks": 13,
+            "estimated_input_tokens": 51357,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 47.242,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 2513,
+              "prompt_tokens": 42471,
+              "total_tokens": 44984,
+              "cost": 0.01220322,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.00195,
+          "wall_seconds": 47.447
+        }
+      ],
+      "completed_at": "2026-07-24T05:52:32+00:00",
+      "summary": {
+        "execution_passes": 3,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.1925,
+        "estimated_cost_usd": 0.002593,
+        "wall_seconds": 67.673,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "llama-3.1-8b-instruct-8k",
+        "model_id": "meta-llama/llama-3.1-8b-instruct",
+        "display_name": "Llama 3.1 8B Instruct — 8K",
+        "family": "Small",
+        "parameters": "8B",
+        "parameter_billions": 8,
+        "native_context_tokens": 131072,
+        "chunking_enabled": true,
+        "declared_context_tokens": 8192
+      },
+      "started_at": "2026-07-24T05:52:33+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.1-8b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 2.343,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 460,
+              "prompt_tokens": 404,
+              "total_tokens": 864,
+              "cost": 5.7e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 5.7e-05,
+          "wall_seconds": 2.556,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.1-8b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 5,
+            "completed_chunks": 3,
+            "estimated_input_tokens": 19023,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 16.378,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 4,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 7650,
+              "prompt_tokens": 10471,
+              "total_tokens": 18121,
+              "cost": 0.00113555,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.001136,
+          "wall_seconds": 16.581,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.1-8b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 13,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 51357,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 4.036,
+            "finish_reasons": [
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 2048,
+              "prompt_tokens": 2800,
+              "total_tokens": 4848,
+              "cost": 0.00030384,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000304,
+          "wall_seconds": 4.241,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        }
+      ],
+      "completed_at": "2026-07-24T05:52:57+00:00",
+      "summary": {
+        "execution_passes": 0,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.0,
+        "estimated_cost_usd": 0.001497,
+        "wall_seconds": 23.378,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "phi-4-14b-8k",
+        "model_id": "microsoft/phi-4",
+        "display_name": "Phi-4 14B — 8K",
+        "family": "Small/medium",
+        "parameters": "14B",
+        "parameter_billions": 14,
+        "native_context_tokens": 16384,
+        "chunking_enabled": true,
+        "declared_context_tokens": 8192
+      },
+      "started_at": "2026-07-24T05:52:58+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "microsoft/phi-4",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 1.008,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 30,
+              "prompt_tokens": 377,
+              "total_tokens": 407,
+              "cost": 3.059e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 3.1e-05,
+          "wall_seconds": 1.221
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 1.0,
+            "recall": 0.3176,
+            "f1": 0.4821,
+            "predicted_seconds": 46.88,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 46.88
+          },
+          "predicted_segments": [
+            {
+              "start": 60.84,
+              "end": 66.04,
+              "duration": 5.2,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 5.2,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 768.2,
+              "end": 781.16,
+              "duration": 12.96,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 12.96,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1579.28,
+              "end": 1608.0,
+              "duration": 28.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 28.72,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "microsoft/phi-4",
+            "chunking_enabled": true,
+            "chunk_count": 5,
+            "completed_chunks": 5,
+            "estimated_input_tokens": 19023,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 18.761,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 1286,
+              "prompt_tokens": 12160,
+              "total_tokens": 13446,
+              "cost": 0.00103124,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.001031,
+          "wall_seconds": 19.085
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "microsoft/phi-4",
+            "chunking_enabled": true,
+            "chunk_count": 13,
+            "completed_chunks": 5,
+            "estimated_input_tokens": 51357,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 37.592,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 6,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 2736,
+              "prompt_tokens": 17271,
+              "total_tokens": 20007,
+              "cost": 0.00159201,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.001592,
+          "wall_seconds": 37.799,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        }
+      ],
+      "completed_at": "2026-07-24T05:53:56+00:00",
+      "summary": {
+        "execution_passes": 2,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.241,
+        "estimated_cost_usd": 0.002654,
+        "wall_seconds": 58.105,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "mistral-small-3.1-24b-instruct-8k",
+        "model_id": "mistralai/mistral-small-3.1-24b-instruct",
+        "display_name": "Mistral Small 3.1 24B — 8K",
+        "family": "Medium",
+        "parameters": "24B",
+        "parameter_billions": 24,
+        "native_context_tokens": 128000,
+        "chunking_enabled": true,
+        "declared_context_tokens": 8192
+      },
+      "started_at": "2026-07-24T05:53:57+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "mistralai/mistral-small-3.1-24b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 2.086,
+            "finish_reasons": [
+              "error"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 1,
+              "prompt_tokens": 0,
+              "total_tokens": 1,
+              "cost": 5.5e-07,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 1e-06,
+          "wall_seconds": 2.301,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "mistralai/mistral-small-3.1-24b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 5,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 19023,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 0.917,
+            "finish_reasons": [
+              "error"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 1,
+              "prompt_tokens": 0,
+              "total_tokens": 1,
+              "cost": 5.5e-07,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 1e-06,
+          "wall_seconds": 1.208,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "mistralai/mistral-small-3.1-24b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 13,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 51357,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 2.399,
+            "finish_reasons": [
+              "error"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 1,
+              "prompt_tokens": 0,
+              "total_tokens": 1,
+              "cost": 5.5e-07,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 1e-06,
+          "wall_seconds": 2.689,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        }
+      ],
+      "completed_at": "2026-07-24T05:54:03+00:00",
+      "summary": {
+        "execution_passes": 0,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.0,
+        "estimated_cost_usd": 3e-06,
+        "wall_seconds": 6.198,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "gemma-3-27b-it-8k",
+        "model_id": "google/gemma-3-27b-it",
+        "display_name": "Gemma 3 27B — 8K",
+        "family": "Medium",
+        "parameters": "27B",
+        "parameter_billions": 27,
+        "native_context_tokens": 262144,
+        "chunking_enabled": true,
+        "declared_context_tokens": 8192
+      },
+      "started_at": "2026-07-24T05:54:04+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3-27b-it",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 1.394,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 35,
+              "prompt_tokens": 426,
+              "total_tokens": 461,
+              "cost": 3.968e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 5e-05,
+          "wall_seconds": 1.617
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 1.0,
+            "recall": 0.2322,
+            "f1": 0.377,
+            "predicted_seconds": 34.28,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 34.28
+          },
+          "predicted_segments": [
+            {
+              "start": 60.84,
+              "end": 66.04,
+              "duration": 5.2,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 5.2,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 761.8,
+              "end": 781.16,
+              "duration": 19.36,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 19.36,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1598.28,
+              "end": 1608.0,
+              "duration": 9.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 9.72,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3-27b-it",
+            "chunking_enabled": true,
+            "chunk_count": 5,
+            "completed_chunks": 5,
+            "estimated_input_tokens": 19023,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 19.898,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 595,
+              "prompt_tokens": 14653,
+              "total_tokens": 15248,
+              "cost": 0.0014437,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.00144,
+          "wall_seconds": 20.209
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.4703,
+            "recall": 0.732,
+            "f1": 0.5727,
+            "predicted_seconds": 339.84,
+            "reference_seconds": 218.35,
+            "overlap_seconds": 159.83
+          },
+          "predicted_segments": [
+            {
+              "start": 5.4,
+              "end": 40.0,
+              "duration": 34.6,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 34.6,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 70.0,
+              "end": 135.0,
+              "duration": 65.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 65.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1087.0,
+              "end": 1088.0,
+              "duration": 1.0,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1281.04,
+              "end": 1281.6,
+              "duration": 0.56,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1412.4,
+              "end": 1416.72,
+              "duration": 4.32,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1433.28,
+              "end": 1433.92,
+              "duration": 0.64,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1445.04,
+              "end": 1445.76,
+              "duration": 0.72,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1466.0,
+              "end": 1476.88,
+              "duration": 10.88,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1489.36,
+              "end": 1490.0,
+              "duration": 0.64,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1526.0,
+              "end": 1527.04,
+              "duration": 1.04,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1546.64,
+              "end": 1549.68,
+              "duration": 3.04,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1562.8,
+              "end": 1569.76,
+              "duration": 6.96,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1585.04,
+              "end": 1596.32,
+              "duration": 11.28,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 2189.84,
+              "end": 2291.44,
+              "duration": 101.6,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 25.36,
+              "overlap_fraction": 0.2496,
+              "match": "matched"
+            },
+            {
+              "start": 2314.56,
+              "end": 2326.48,
+              "duration": 11.92,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 11.92,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 2901.2,
+              "end": 2902.8,
+              "duration": 1.6,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 2958.48,
+              "end": 2959.68,
+              "duration": 1.2,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 3680.6,
+              "end": 3682.52,
+              "duration": 1.92,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 4231.08,
+              "end": 4312.0,
+              "duration": 80.92,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 22.95,
+              "overlap_fraction": 0.2836,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3-27b-it",
+            "chunking_enabled": true,
+            "chunk_count": 13,
+            "completed_chunks": 13,
+            "estimated_input_tokens": 51357,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 164.043,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 5691,
+              "prompt_tokens": 43618,
+              "total_tokens": 49309,
+              "cost": 0.00528343,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.00605,
+          "wall_seconds": 164.249
+        }
+      ],
+      "completed_at": "2026-07-24T05:57:10+00:00",
+      "summary": {
+        "execution_passes": 3,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.3166,
+        "estimated_cost_usd": 0.00754,
+        "wall_seconds": 186.075,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "llama-3.3-70b-instruct-8k",
+        "model_id": "meta-llama/llama-3.3-70b-instruct",
+        "display_name": "Llama 3.3 70B Instruct — 8K",
+        "family": "Large",
+        "parameters": "70B",
+        "parameter_billions": 70,
+        "native_context_tokens": 131072,
+        "chunking_enabled": true,
+        "declared_context_tokens": 8192
+      },
+      "started_at": "2026-07-24T05:57:11+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.3-70b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 1.735,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 25,
+              "prompt_tokens": 379,
+              "total_tokens": 404,
+              "cost": 4.59e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 5.9e-05,
+          "wall_seconds": 1.956
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.3-70b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 5,
+            "completed_chunks": 4,
+            "estimated_input_tokens": 19023,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 14.04,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": false,
+            "failed_chunk": 5,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 811,
+              "prompt_tokens": 12194,
+              "total_tokens": 13005,
+              "cost": 0.00230972,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.00191,
+          "wall_seconds": 14.28,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "pass",
+          "quality_status": "pass",
+          "metrics": {
+            "precision": 0.686,
+            "recall": 0.8624,
+            "f1": 0.7641,
+            "predicted_seconds": 274.52,
+            "reference_seconds": 218.35,
+            "overlap_seconds": 188.31
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 40.0,
+              "duration": 40.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 40.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 50.0,
+              "end": 52.0,
+              "duration": 2.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 2.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 67.0,
+              "end": 135.0,
+              "duration": 68.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 68.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 205.0,
+              "end": 217.0,
+              "duration": 12.0,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1281.04,
+              "end": 1281.6,
+              "duration": 0.56,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 2250.4,
+              "end": 2321.44,
+              "duration": 71.04,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 55.36,
+              "overlap_fraction": 0.7793,
+              "match": "matched"
+            },
+            {
+              "start": 4231.08,
+              "end": 4312.0,
+              "duration": 80.92,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 22.95,
+              "overlap_fraction": 0.2836,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.3-70b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 13,
+            "completed_chunks": 13,
+            "estimated_input_tokens": 51357,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 26.351,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 920,
+              "prompt_tokens": 35533,
+              "total_tokens": 36453,
+              "cost": 0.00673142,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.004987,
+          "wall_seconds": 26.555
+        }
+      ],
+      "completed_at": "2026-07-24T05:57:54+00:00",
+      "summary": {
+        "execution_passes": 2,
+        "execution_total": 3,
+        "quality_passes": 1,
+        "average_f1": 0.3821,
+        "estimated_cost_usd": 0.006956,
+        "wall_seconds": 42.791,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "qwen-2.5-72b-instruct-8k",
+        "model_id": "qwen/qwen-2.5-72b-instruct",
+        "display_name": "Qwen 2.5 72B Instruct — 8K",
+        "family": "Large",
+        "parameters": "72B",
+        "parameter_billions": 72,
+        "native_context_tokens": 32768,
+        "chunking_enabled": true,
+        "declared_context_tokens": 8192
+      },
+      "started_at": "2026-07-24T05:57:55+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-72b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 1.375,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 31,
+              "prompt_tokens": 404,
+              "total_tokens": 435,
+              "cost": 0.00015784,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000158,
+          "wall_seconds": 1.592
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 1.0,
+            "recall": 0.316,
+            "f1": 0.4802,
+            "predicted_seconds": 46.64,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 46.64
+          },
+          "predicted_segments": [
+            {
+              "start": 60.84,
+              "end": 70.92,
+              "duration": 10.08,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 10.08,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 761.8,
+              "end": 768.2,
+              "duration": 6.4,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 6.4,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1532.36,
+              "end": 1537.52,
+              "duration": 5.16,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 5.16,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1554.6,
+              "end": 1566.92,
+              "duration": 12.32,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 12.32,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1579.28,
+              "end": 1580.28,
+              "duration": 1.0,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 1.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1596.32,
+              "end": 1608.0,
+              "duration": 11.68,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 11.68,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-72b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 5,
+            "completed_chunks": 5,
+            "estimated_input_tokens": 19023,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 18.379,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 629,
+              "prompt_tokens": 14360,
+              "total_tokens": 14989,
+              "cost": 0.0054212,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.005421,
+          "wall_seconds": 18.654
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.5367,
+            "recall": 0.3771,
+            "f1": 0.443,
+            "predicted_seconds": 153.44,
+            "reference_seconds": 218.35,
+            "overlap_seconds": 82.35
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 20.0,
+              "duration": 20.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 20.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 70.0,
+              "end": 73.0,
+              "duration": 3.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 3.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 129.0,
+              "end": 135.0,
+              "duration": 6.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 6.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1281.04,
+              "end": 1281.6,
+              "duration": 0.56,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 2253.44,
+              "end": 2291.44,
+              "duration": 38.0,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 25.36,
+              "overlap_fraction": 0.6674,
+              "match": "matched"
+            },
+            {
+              "start": 2321.44,
+              "end": 2333.04,
+              "duration": 11.6,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 5.04,
+              "overlap_fraction": 0.4345,
+              "match": "matched"
+            },
+            {
+              "start": 4237.72,
+              "end": 4312.0,
+              "duration": 74.28,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 22.95,
+              "overlap_fraction": 0.309,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-72b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 13,
+            "completed_chunks": 13,
+            "estimated_input_tokens": 51357,
+            "context_window_tokens": 8192,
+            "elapsed_seconds": 35.32,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 890,
+              "prompt_tokens": 42429,
+              "total_tokens": 43319,
+              "cost": 0.01563044,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.01563,
+          "wall_seconds": 35.523
+        }
+      ],
+      "completed_at": "2026-07-24T05:58:51+00:00",
+      "summary": {
+        "execution_passes": 3,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.3077,
+        "estimated_cost_usd": 0.021209,
+        "wall_seconds": 55.769,
+        "overall_status": "fail"
+      }
+    }
+  ]
+}

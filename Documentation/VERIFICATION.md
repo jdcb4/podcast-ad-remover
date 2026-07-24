@@ -65,6 +65,28 @@ Compare a constrained/open model against `google/gemini-3.1-flash-lite` using th
 record actual model, chunk count, timing and provider usage, and manually review the resulting cut
 windows before accepting end-to-end output. Never point evaluation runs at the production database.
 
+The repeatable transcript benchmark reads a corpus kept outside the repository and regenerates the
+sanitized JSON and self-contained HTML comparison:
+
+```powershell
+python scripts/evaluate_local_llms.py `
+  --corpus "$env:TEMP\podcast_llm_eval_corpus.json"
+```
+
+To add or replace selected model results while retaining the rest:
+
+```powershell
+python scripts/evaluate_local_llms.py `
+  --corpus "$env:TEMP\podcast_llm_eval_corpus.json" `
+  --resume `
+  --only "<run-id>[,<run-id>...]"
+```
+
+Review `Documentation/LOCAL_LLM_EVALUATION_REPORT.html` after every run. Before committing, verify
+that the result artifacts contain no transcript text, episode titles, production paths, raw model
+responses, or credentials. The current model matrix and catalogue date are versioned in
+`scripts/local_llm_model_matrix.json`.
+
 ## Migration Dry Run
 
 Before upgrading a valuable existing install, validate migrations against a copy of the database:
