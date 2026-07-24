@@ -517,12 +517,13 @@ class AdDetector:
         'gemini-2.5-flash-preview-tts',
     ]
     GEMINI_TTS_VOICES = {'Orus', 'Enceladus', 'Laomedeia'}
-    CHUNK_CONTEXT_MIN = 2048
+    CHUNK_CONTEXT_MIN = 4096
     CHUNK_CONTEXT_MAX = 1_000_000
     CHUNK_OVERLAP_MAX_SECONDS = 120
     CHUNK_MAX_COUNT = 64
     CHUNK_OUTPUT_RESERVE_TOKENS = 1024
     CHUNK_SAFETY_TOKENS = 512
+    WHITELIST_TRANSCRIPT_BUDGET_TOKENS = 4000
     # Timestamp-heavy transcript prompts tokenize less efficiently than plain prose.
     # 2.25 chars/token intentionally overestimates the OpenRouter samples used for validation.
     CHARS_PER_ESTIMATED_TOKEN = 2.25
@@ -932,6 +933,7 @@ Example: [{"start": 0.0, "end": 10.0, "label": "Ad"}]
 IMPORTANT: You MUST also label ALL substantive speech/content segments with label "Content".
 Every segment of the transcript must be classified. Use "Content" for any segment containing substantive speech, interviews, reporting, or discussion that is NOT an ad, promo, intro, or outro.
 Non-speech segments (music, jingles, silence) should NOT be labeled as Content.
+Combine adjacent segments with the same label into broad continuous time ranges. Do not emit one object for every transcript line.
 Example: [{content_example}]
 """
 
@@ -981,6 +983,14 @@ Example: [{content_example}]
             - self.CHUNK_OUTPUT_RESERVE_TOKENS
             - self.CHUNK_SAFETY_TOKENS
         )
+        if whitelist_mode:
+            # Whitelist responses classify substantive content as well as removals and
+            # therefore need more output space than blacklist responses. Smaller input
+            # chunks keep constrained models from truncating the required JSON array.
+            transcript_budget = min(
+                transcript_budget,
+                self.WHITELIST_TRANSCRIPT_BUDGET_TOKENS,
+            )
         if transcript_budget < 128:
             raise TranscriptChunkingError(
                 "Configured context window is too small for the ad-detection instructions and output reserve."

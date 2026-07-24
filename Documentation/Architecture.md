@@ -60,8 +60,10 @@ complete prompt against the configured context window, preserves the one-request
 and otherwise partitions timestamped Whisper segments into bounded sequential requests with limited
 overlap. Results are clipped to each chunk's primary ownership window and same-label overlaps are
 merged deterministically. Ad-detection completions are capped at 1,024 tokens so a compatible server
-cannot reserve the remaining context window for an unexpectedly large response. A failed,
-rate-limited, or malformed chunk fails the whole analysis.
+cannot reserve the remaining context window for an unexpectedly large response. Whitelist mode uses
+a smaller input budget because it must return content coverage as well as removal labels, and its
+prompt asks providers to consolidate adjacent labels into broad time ranges. A failed, rate-limited,
+or malformed chunk fails the whole analysis.
 
 The summary generator is not chunk-aware and still uses a single truncated full-transcript prompt.
 The processor consequently disables description rewrites and audio summaries whenever ad-detection

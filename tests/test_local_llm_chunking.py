@@ -112,12 +112,12 @@ def test_chunking_covers_long_transcript_without_empty_trailing_request(monkeypa
     settings = {
         "active_ai_provider": "custom",
         "ad_chunking_enabled": 1,
-        "ad_chunk_context_tokens": 2048,
+        "ad_chunk_context_tokens": 4096,
         "ad_chunk_overlap_seconds": 20,
         "ad_chunk_max_chunks": 64,
         "ad_include_reasons": 0,
     }
-    transcript_segments = [make_segment(index, text_size=120) for index in range(36)]
+    transcript_segments = [make_segment(index, text_size=160) for index in range(80)]
     planning_detector = AdDetector()
     planning_detector.settings = settings
     chunks = planning_detector._build_transcript_chunks(
@@ -141,12 +141,12 @@ def test_chunk_failure_propagates_instead_of_accepting_partial_results(monkeypat
     settings = {
         "active_ai_provider": "custom",
         "ad_chunking_enabled": 1,
-        "ad_chunk_context_tokens": 2048,
+        "ad_chunk_context_tokens": 4096,
         "ad_chunk_overlap_seconds": 20,
         "ad_chunk_max_chunks": 64,
         "ad_include_reasons": 1,
     }
-    transcript_segments = [make_segment(index, text_size=160) for index in range(30)]
+    transcript_segments = [make_segment(index, text_size=200) for index in range(80)]
     planner = AdDetector()
     planner.settings = settings
     chunks = planner._build_transcript_chunks(
@@ -166,12 +166,12 @@ def test_whitelist_chunking_preserves_every_primary_transcript_segment(monkeypat
     settings = {
         "active_ai_provider": "custom",
         "ad_chunking_enabled": 1,
-        "ad_chunk_context_tokens": 2048,
+        "ad_chunk_context_tokens": 4096,
         "ad_chunk_overlap_seconds": 20,
         "ad_chunk_max_chunks": 64,
         "ad_include_reasons": 0,
     }
-    transcript_segments = [make_segment(index, text_size=140) for index in range(24)]
+    transcript_segments = [make_segment(index, text_size=180) for index in range(80)]
     provider = EchoContentProvider()
     detector = configured_detector(monkeypatch, settings, provider)
 
@@ -187,10 +187,35 @@ def test_whitelist_chunking_preserves_every_primary_transcript_segment(monkeypat
     ]
 
 
+def test_whitelist_uses_smaller_chunks_to_protect_output_budget():
+    detector = AdDetector()
+    detector.settings = {
+        "ad_chunk_context_tokens": 32768,
+        "ad_chunk_overlap_seconds": 30,
+        "ad_chunk_max_chunks": 64,
+        "ad_include_reasons": 0,
+    }
+    transcript_segments = [make_segment(index, text_size=160) for index in range(80)]
+
+    whitelist_chunks = detector._build_transcript_chunks(
+        transcript_segments, default_options(), whitelist_mode=True
+    )
+    blacklist_chunks = detector._build_transcript_chunks(
+        transcript_segments, default_options(), whitelist_mode=False
+    )
+
+    assert len(whitelist_chunks) > 1
+    assert len(whitelist_chunks) > len(blacklist_chunks)
+    assert all(
+        chunk["estimated_tokens"] < 7000
+        for chunk in whitelist_chunks
+    )
+
+
 def test_chunk_limit_is_enforced_before_requests():
     detector = AdDetector()
     detector.settings = {
-        "ad_chunk_context_tokens": 2048,
+        "ad_chunk_context_tokens": 4096,
         "ad_chunk_overlap_seconds": 0,
         "ad_chunk_max_chunks": 1,
         "ad_include_reasons": 1,
@@ -198,7 +223,7 @@ def test_chunk_limit_is_enforced_before_requests():
 
     with pytest.raises(TranscriptChunkingError, match="exceeding"):
         detector._build_transcript_chunks(
-            [make_segment(index, text_size=200) for index in range(30)],
+            [make_segment(index, text_size=240) for index in range(120)],
             default_options(),
             whitelist_mode=False,
         )
