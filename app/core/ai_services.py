@@ -370,6 +370,7 @@ class OpenAIProvider(LLMProvider):
         self.rate_limit_provider = rate_limit_provider
         self.is_openrouter = base_url and "openrouter" in base_url
         self.last_model = None
+        self.last_usage = {}
         self._init_client()
 
     def _init_client(self):
@@ -406,6 +407,10 @@ class OpenAIProvider(LLMProvider):
                         messages=[{"role": "user", "content": prompt}]
                     )
                     self.last_model = model
+                    if response.usage:
+                        self.last_usage = response.usage.model_dump()
+                    else:
+                        self.last_usage = {}
                     return response.choices[0].message.content or ""
                 except Exception as e:
                     logger.warning(f"{self.provider_name} model {model} failed: {e}")
@@ -450,6 +455,7 @@ class AnthropicProvider(LLMProvider):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.models = models
         self.last_model = None
+        self.last_usage = {}
 
     def generate(self, prompt: str) -> str:
         last_error = None
@@ -462,6 +468,11 @@ class AnthropicProvider(LLMProvider):
                     messages=[{"role": "user", "content": prompt}]
                 )
                 self.last_model = model
+                usage = getattr(response, "usage", None)
+                self.last_usage = {
+                    "input_tokens": getattr(usage, "input_tokens", 0),
+                    "output_tokens": getattr(usage, "output_tokens", 0),
+                } if usage else {}
                 return response.content[0].text
             except Exception as e:
                 logger.warning(f"Model {model} failed: {e}")
@@ -747,9 +758,13 @@ class AdDetector:
                 }]
 
             chunk_results = []
+            usage_totals = {}
             for index, chunk in enumerate(chunks):
                 logger.info(f"Running ad detection request {index + 1}/{len(chunks)}")
                 response_text = provider.generate(chunk["prompt"])
+                for name, value in getattr(provider, "last_usage", {}).items():
+                    if isinstance(value, (int, float)):
+                        usage_totals[name] = usage_totals.get(name, 0) + value
                 parsed = self._parse_ad_response(response_text)
                 chunk_results.extend(self._clip_chunk_results(parsed, chunk))
 
@@ -767,6 +782,7 @@ class AdDetector:
                     if chunking_enabled else None
                 ),
                 "elapsed_seconds": round(time.monotonic() - started, 3),
+                "usage": usage_totals,
                 "complete": True,
             }
 
