@@ -326,7 +326,12 @@ class Transcriber:
 
 
 class LLMProvider:
-    def generate(self, prompt: str, max_tokens: int | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> str:
         raise NotImplementedError
 
     def list_models(self) -> List[str]:
@@ -391,7 +396,12 @@ class OpenAIProvider(LLMProvider):
         error_str = str(error).lower()
         return any(pattern in error_str for pattern in self.RATE_LIMIT_PATTERNS)
 
-    def generate(self, prompt: str, max_tokens: int | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> str:
         if not self.models:
             raise ValueError(f"No models configured for {self.provider_name}.")
 
@@ -409,6 +419,8 @@ class OpenAIProvider(LLMProvider):
                     }
                     if max_tokens is not None:
                         request["max_tokens"] = max_tokens
+                    if temperature is not None:
+                        request["temperature"] = temperature
                     response = self.client.chat.completions.create(
                         **request
                     )
@@ -465,15 +477,25 @@ class AnthropicProvider(LLMProvider):
         self.last_usage = {}
         self.last_finish_reason = None
 
-    def generate(self, prompt: str, max_tokens: int | None = None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> str:
         last_error = None
         for model in self.models:
             try:
                 logger.info(f"Anthropic: Using model {model}...")
+                request = {
+                    "model": model,
+                    "max_tokens": max_tokens or 4096,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+                if temperature is not None:
+                    request["temperature"] = temperature
                 response = self.client.messages.create(
-                    model=model,
-                    max_tokens=max_tokens or 4096,
-                    messages=[{"role": "user", "content": prompt}]
+                    **request
                 )
                 self.last_model = model
                 usage = getattr(response, "usage", None)
@@ -797,6 +819,7 @@ class AdDetector:
                 response_text = provider.generate(
                     chunk["prompt"],
                     max_tokens=chunk["max_output_tokens"],
+                    temperature=0 if chunking_enabled else None,
                 )
                 for name, value in getattr(provider, "last_usage", {}).items():
                     if isinstance(value, (int, float)):

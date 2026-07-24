@@ -26,9 +26,10 @@ class FakeProvider:
         self.responses = list(responses)
         self.prompts = []
 
-    def generate(self, prompt, max_tokens=None):
+    def generate(self, prompt, max_tokens=None, temperature=None):
         self.prompts.append(prompt)
         assert max_tokens == AdDetector.CHUNK_OUTPUT_RESERVE_TOKENS
+        assert temperature == 0
         response = self.responses.pop(0)
         if isinstance(response, Exception):
             raise response
@@ -42,11 +43,12 @@ class EchoContentProvider:
     def __init__(self):
         self.prompts = []
 
-    def generate(self, prompt, max_tokens=None):
+    def generate(self, prompt, max_tokens=None, temperature=None):
         import re
 
         self.prompts.append(prompt)
         assert max_tokens == AdDetector.WHITELIST_OUTPUT_RESERVE_TOKENS
+        assert temperature == 0
         transcript_text = prompt.split("Transcript:\n", 1)[1]
         rows = []
         for start, end in re.findall(r"\[(\d+\.\d+)-(\d+\.\d+)\]", transcript_text):

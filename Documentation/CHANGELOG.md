@@ -8,6 +8,7 @@
 - Added bounded chunked-ad-detection completion allowances—1,024 tokens for blacklist mode and 2,048 for whitelist mode—plus a more conservative timestamped-prompt estimator after constrained-context OpenRouter validation exposed provider-side context reservation failures. Chunking-off cloud requests retain their previous output behavior.
 - Added a smaller whitelist-mode input budget and contiguous-range guidance so constrained models can return complete content-classification JSON within the bounded output allowance.
 - Recorded safe incomplete-analysis diagnostics such as failed chunk number, completed chunks, token usage, finish reasons, and error type without storing prompts or model responses.
+- Set temperature zero for chunked detection requests to reduce small-model run-to-run variance while leaving chunking-off cloud request behavior unchanged.
 - Added an option to omit per-segment detection reasons for lower-output local models while keeping reasons enabled by default.
 - Normalized common case and naming variants for supported segment labels so smaller models do not break whitelist filtering with responses such as `content` or `advertisement`.
 - Prevented saved AI credentials from being rendered back into admin forms and made AI settings updates section-specific so saving one page cannot reset another.

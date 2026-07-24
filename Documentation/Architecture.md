@@ -62,9 +62,10 @@ overlap. Results are clipped to each chunk's primary ownership window and same-l
 merged deterministically. While chunking is active, blacklist completions are capped at 1,024 tokens
 and whitelist completions at 2,048 tokens so a compatible server cannot reserve the remaining context
 window for an unexpectedly large response. Chunking-off cloud requests retain their previous output
-behavior. Whitelist mode also uses a smaller input budget because it must return content coverage as
-well as removal labels, and its prompt asks providers to consolidate adjacent labels into broad time
-ranges. A failed, rate-limited, or malformed chunk fails the whole analysis.
+behavior. Chunked detection requests use temperature zero when the compatible endpoint supports it
+to reduce run-to-run variance. Whitelist mode also uses a smaller input budget because it must return
+content coverage as well as removal labels, and its prompt asks providers to consolidate adjacent
+labels into broad time ranges. A failed, rate-limited, or malformed chunk fails the whole analysis.
 
 The summary generator is not chunk-aware and still uses a single truncated full-transcript prompt.
 The processor consequently disables description rewrites and audio summaries whenever ad-detection
