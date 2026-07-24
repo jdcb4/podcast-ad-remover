@@ -12,6 +12,11 @@ standard cloud model.
 Gemini remains the recommended and default provider. Local OpenAI-compatible endpoints are an
 advanced option; the benchmark does not change the product's cloud-first direction.
 
+**Outcome:** transcript chunking for smaller/local models is concluded as an unsuccessful product
+experiment. The implementation is retained on the experimental branch for inspection, but there is
+no current intention to continue developing it or merge it into the production application. The
+separately useful configurable OpenAI-compatible endpoint is being retained without chunking.
+
 The detailed, self-contained comparison is available in
 [`LOCAL_LLM_EVALUATION_REPORT.html`](LOCAL_LLM_EVALUATION_REPORT.html). It includes run and quality
 pass/fail status, per-episode timelines, every detected removal window, overlap with each reference
