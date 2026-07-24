@@ -233,6 +233,7 @@ npm run docker:publish
 - [Changelog](Documentation/CHANGELOG.md)
 - [Decisions](Documentation/DECISIONS.md)
 - [Resource Audit](Documentation/RESOURCE_AUDIT.md)
+- [Local LLM Evaluation](Documentation/LOCAL_LLM_EVALUATION.md)
 - [Roadmap](Documentation/ROADMAP.md)
 - [Naming](Documentation/NAMING.md)
 - [Security](SECURITY.md)
