@@ -46,7 +46,7 @@ class EchoContentProvider:
         import re
 
         self.prompts.append(prompt)
-        assert max_tokens == AdDetector.CHUNK_OUTPUT_RESERVE_TOKENS
+        assert max_tokens == AdDetector.WHITELIST_OUTPUT_RESERVE_TOKENS
         transcript_text = prompt.split("Transcript:\n", 1)[1]
         rows = []
         for start, end in re.findall(r"\[(\d+\.\d+)-(\d+\.\d+)\]", transcript_text):
@@ -160,6 +160,8 @@ def test_chunk_failure_propagates_instead_of_accepting_partial_results(monkeypat
         detector.detect_ads({"segments": transcript_segments}, default_options())
 
     assert detector.last_detection_metadata["complete"] is False
+    assert detector.last_detection_metadata["failed_chunk"] == 2
+    assert detector.last_detection_metadata["completed_chunks"] == 1
 
 
 def test_whitelist_chunking_preserves_every_primary_transcript_segment(monkeypatch):

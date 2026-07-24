@@ -371,6 +371,7 @@ class OpenAIProvider(LLMProvider):
         self.is_openrouter = base_url and "openrouter" in base_url
         self.last_model = None
         self.last_usage = {}
+        self.last_finish_reason = None
         self._init_client()
 
     def _init_client(self):
@@ -416,6 +417,7 @@ class OpenAIProvider(LLMProvider):
                         self.last_usage = response.usage.model_dump()
                     else:
                         self.last_usage = {}
+                    self.last_finish_reason = response.choices[0].finish_reason
                     return response.choices[0].message.content or ""
                 except Exception as e:
                     logger.warning(f"{self.provider_name} model {model} failed: {e}")
@@ -461,6 +463,7 @@ class AnthropicProvider(LLMProvider):
         self.models = models
         self.last_model = None
         self.last_usage = {}
+        self.last_finish_reason = None
 
     def generate(self, prompt: str, max_tokens: int | None = None) -> str:
         last_error = None
@@ -478,6 +481,7 @@ class AnthropicProvider(LLMProvider):
                     "input_tokens": getattr(usage, "input_tokens", 0),
                     "output_tokens": getattr(usage, "output_tokens", 0),
                 } if usage else {}
+                self.last_finish_reason = getattr(response, "stop_reason", None)
                 return response.content[0].text
             except Exception as e:
                 logger.warning(f"Model {model} failed: {e}")
@@ -522,6 +526,7 @@ class AdDetector:
     CHUNK_OVERLAP_MAX_SECONDS = 120
     CHUNK_MAX_COUNT = 64
     CHUNK_OUTPUT_RESERVE_TOKENS = 1024
+    WHITELIST_OUTPUT_RESERVE_TOKENS = 2048
     CHUNK_SAFETY_TOKENS = 512
     WHITELIST_TRANSCRIPT_BUDGET_TOKENS = 4000
     # Timestamp-heavy transcript prompts tokenize less efficiently than plain prose.
@@ -763,28 +768,18 @@ class AdDetector:
                     "primary_start": float(segments[0]["start"]),
                     "primary_end": float(segments[-1]["end"]),
                     "estimated_tokens": self._estimate_tokens(prompt),
+                    "max_output_tokens": None,
                 }]
 
             chunk_results = []
             usage_totals = {}
-            for index, chunk in enumerate(chunks):
-                logger.info(f"Running ad detection request {index + 1}/{len(chunks)}")
-                response_text = provider.generate(
-                    chunk["prompt"],
-                    max_tokens=self.CHUNK_OUTPUT_RESERVE_TOKENS,
-                )
-                for name, value in getattr(provider, "last_usage", {}).items():
-                    if isinstance(value, (int, float)):
-                        usage_totals[name] = usage_totals.get(name, 0) + value
-                parsed = self._parse_ad_response(response_text)
-                chunk_results.extend(self._clip_chunk_results(parsed, chunk))
-
-            raw_segments = self._merge_chunk_detections(chunk_results)
+            finish_reasons = []
             self.last_detection_metadata = {
                 "provider": self.settings.get("active_ai_provider", "gemini"),
-                "model": getattr(provider, "last_model", None),
+                "model": None,
                 "chunking_enabled": chunking_enabled,
                 "chunk_count": len(chunks),
+                "completed_chunks": 0,
                 "estimated_input_tokens": sum(chunk["estimated_tokens"] for chunk in chunks),
                 "context_window_tokens": (
                     self._validated_chunk_setting(
@@ -792,10 +787,40 @@ class AdDetector:
                     )
                     if chunking_enabled else None
                 ),
-                "elapsed_seconds": round(time.monotonic() - started, 3),
                 "usage": usage_totals,
-                "complete": True,
+                "finish_reasons": finish_reasons,
+                "complete": False,
             }
+            for index, chunk in enumerate(chunks):
+                logger.info(f"Running ad detection request {index + 1}/{len(chunks)}")
+                self.last_detection_metadata["failed_chunk"] = index + 1
+                response_text = provider.generate(
+                    chunk["prompt"],
+                    max_tokens=chunk["max_output_tokens"],
+                )
+                for name, value in getattr(provider, "last_usage", {}).items():
+                    if isinstance(value, (int, float)):
+                        usage_totals[name] = usage_totals.get(name, 0) + value
+                finish_reason = getattr(provider, "last_finish_reason", None)
+                if finish_reason:
+                    finish_reasons.append(str(finish_reason))
+                self.last_detection_metadata.update({
+                    "model": getattr(provider, "last_model", None),
+                    "failed_chunk": index + 1,
+                    "usage": dict(usage_totals),
+                    "finish_reasons": list(finish_reasons),
+                    "elapsed_seconds": round(time.monotonic() - started, 3),
+                })
+                parsed = self._parse_ad_response(response_text)
+                chunk_results.extend(self._clip_chunk_results(parsed, chunk))
+                self.last_detection_metadata["completed_chunks"] = index + 1
+
+            raw_segments = self._merge_chunk_detections(chunk_results)
+            self.last_detection_metadata.update({
+                "elapsed_seconds": round(time.monotonic() - started, 3),
+                "complete": True,
+            })
+            self.last_detection_metadata.pop("failed_chunk", None)
 
             # Whitelist mode: return ALL segments (including Content) for processor to invert
             if whitelist_mode:
@@ -822,6 +847,11 @@ class AdDetector:
         except Exception as e:
             self.last_detection_metadata = {
                 **self.last_detection_metadata,
+                "elapsed_seconds": (
+                    round(time.monotonic() - started, 3)
+                    if "started" in locals() else None
+                ),
+                "error_type": type(e).__name__,
                 "complete": False,
             }
             logger.error(f"Ad detection failed: {e}")
@@ -977,10 +1007,15 @@ Example: [{content_example}]
             "ad_chunk_max_chunks", 32, 1, self.CHUNK_MAX_COUNT
         )
         empty_prompt = self._build_ad_prompt(options, "", whitelist_mode=whitelist_mode)
+        output_reserve_tokens = (
+            self.WHITELIST_OUTPUT_RESERVE_TOKENS
+            if whitelist_mode
+            else self.CHUNK_OUTPUT_RESERVE_TOKENS
+        )
         transcript_budget = (
             context_tokens
             - self._estimate_tokens(empty_prompt)
-            - self.CHUNK_OUTPUT_RESERVE_TOKENS
+            - output_reserve_tokens
             - self.CHUNK_SAFETY_TOKENS
         )
         if whitelist_mode:
@@ -1014,6 +1049,7 @@ Example: [{content_example}]
                 "primary_start": float(segments[0]["start"]),
                 "primary_end": float(segments[-1]["end"]),
                 "estimated_tokens": self._estimate_tokens(prompt),
+                "max_output_tokens": output_reserve_tokens,
             }]
 
         # Leave room for bounded context overlap on multi-request transcripts.
@@ -1072,6 +1108,7 @@ Example: [{content_example}]
                 "primary_start": primary_start,
                 "primary_end": primary_end,
                 "estimated_tokens": self._estimate_tokens(prompt),
+                "max_output_tokens": output_reserve_tokens,
             })
 
         return chunks
