@@ -25,6 +25,18 @@ logger = logging.getLogger(__name__)
 
 class Processor:
     _active_task_ids = set()
+
+    @staticmethod
+    def _summary_feature_flags(subscription, global_settings: dict) -> tuple[bool, bool, bool]:
+        """Return text/audio summary flags and whether chunking disabled them."""
+        disabled = bool(global_settings.get("ad_chunking_enabled", 0))
+        do_text = not disabled and (
+            subscription.ai_rewrite_description or subscription.append_summary
+        )
+        do_audio = not disabled and (
+            subscription.ai_audio_summary or subscription.append_summary
+        )
+        return do_text, do_audio, disabled
     _queue_lock = asyncio.Lock()  # Prevent race conditions in process_queue
     DELETION_ACK_TIMEOUT_SECONDS = 10.0
     DELETION_POLL_INTERVAL_SECONDS = 0.1
@@ -840,7 +852,9 @@ class Processor:
                 "episode_id": ep.id,
                 "guid": ep.guid,
                 "segments": ad_segments,
-                "transcript_path": transcript_path
+                "transcript_path": transcript_path,
+                "analysis": self.ad_detector.last_detection_metadata,
+                "summary_features_disabled": bool(global_settings.get("ad_chunking_enabled", 0)),
             }
             async with aiofiles.open(report_path, "w") as f:
                 await f.write(json.dumps(report_data, indent=2))
@@ -1005,9 +1019,17 @@ class Processor:
                         logger.error(f"Failed to generate Title Intro: {e}")
 
                 # B. AI Summary Features
-                do_text = sub.ai_rewrite_description or sub.append_summary
-                do_audio = sub.ai_audio_summary or sub.append_summary
-                
+                do_text, do_audio, summaries_disabled = self._summary_feature_flags(
+                    sub, global_settings
+                )
+                summary_requested = (
+                    sub.ai_rewrite_description or sub.ai_audio_summary or sub.append_summary
+                )
+                if summaries_disabled and summary_requested:
+                    logger.info(
+                        "Skipping episode summary features because transcript chunking is enabled."
+                    )
+
                 if do_text or do_audio:
                     summary_text = None
                     try:

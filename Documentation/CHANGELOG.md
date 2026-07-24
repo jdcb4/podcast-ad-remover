@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added an opt-in custom OpenAI-compatible text-analysis provider with arbitrary API base URL/model slugs, keyed or keyless endpoint support, strict URL validation, separate credentials, and Docker networking guidance.
+- Added opt-in context-budget transcript chunking for ad detection with a single-request short path, bounded overlap and request caps, deterministic same-label merging, strict complete-failure semantics, and safe report metadata.
+- Added an option to omit per-segment detection reasons for lower-output local models while keeping reasons enabled by default.
+- Prevented saved AI credentials from being rendered back into admin forms and made AI settings updates section-specific so saving one page cannot reset another.
+- Disabled AI description rewrites and audio summaries while transcript chunking is enabled, with processing enforcement and explanatory UI while retaining podcast preferences.
+
 ## 1.8.0 - 2026-07-22
 
 - Fixed subscription deletion during active processing by atomically deactivating the podcast, cancelling queued work, waiting a bounded time for running workers to acknowledge cancellation, and deferring retryable file cleanup when a worker is still active.

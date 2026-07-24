@@ -20,14 +20,19 @@ For each queued episode:
     - Load Whisper model (if not loaded).
     - Process audio file -> generate text segments with timestamps.
 
-3.  **Ad Detection (Gemini)**:
-    - Send transcript to Gemini API with a prompt to identify ad segments.
-    - Receive JSON response containing start/end times of ads.
+3.  **Ad Detection (Configured LLM)**:
+    - Build a timestamped prompt for Gemini by default, or another configured cloud/custom OpenAI-compatible provider.
+    - When context-aware chunking is enabled and the prompt exceeds the configured budget, partition it at transcript-segment boundaries with bounded overlap. Short prompts still use one request.
+    - Require every request to return a valid JSON array. A timeout, rate limit, malformed response, or other failed chunk fails the complete attempt and enters normal retry handling.
+    - Clip chunk results to their primary time windows and deterministically merge same-label overlap without combining incompatible labels.
 
 4.  **Ad Removal (FFmpeg)**:
     - Calculate "keep" segments (total duration minus ad segments).
     - Use FFmpeg to cut and concatenate "keep" segments.
     - Save processed audio in the episode artifact directory.
+
+    AI description rewrites and audio summaries are skipped when ad-detection chunking is enabled,
+    because summary generation is not yet chunk-aware. Spoken title intros are unaffected.
 
 5.  **Finalize**:
     - Update database with processing stats (time saved, ad count).

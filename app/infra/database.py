@@ -190,6 +190,19 @@ FORMAL_MIGRATIONS = [
             """,
         ],
     ),
+    (
+        "20260724_0009_local_llm_chunking",
+        [
+            "ALTER TABLE app_settings ADD COLUMN custom_llm_base_url TEXT",
+            "ALTER TABLE app_settings ADD COLUMN custom_llm_api_key TEXT",
+            "ALTER TABLE app_settings ADD COLUMN custom_llm_model TEXT DEFAULT '[]'",
+            "ALTER TABLE app_settings ADD COLUMN ad_chunking_enabled INTEGER DEFAULT 0",
+            "ALTER TABLE app_settings ADD COLUMN ad_chunk_context_tokens INTEGER DEFAULT 8192",
+            "ALTER TABLE app_settings ADD COLUMN ad_chunk_overlap_seconds INTEGER DEFAULT 30",
+            "ALTER TABLE app_settings ADD COLUMN ad_chunk_max_chunks INTEGER DEFAULT 32",
+            "ALTER TABLE app_settings ADD COLUMN ad_include_reasons INTEGER DEFAULT 1",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

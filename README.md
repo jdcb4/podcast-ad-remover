@@ -100,6 +100,20 @@ The default Gemini cascade is:
 
 The app tries each configured model in order and falls back when a model is unavailable, fails, or hits a rate limit. OpenRouter uses the same order with `google/` model IDs.
 
+Admins can also select **Custom OpenAI-compatible / Local** and provide an explicit API base URL plus
+arbitrary model slug for Ollama, LocalAI, vLLM, or another compatible service. This is opt-in: Gemini
+and the existing cloud cascades remain the defaults, and saved OpenAI cloud credentials are never
+forwarded to a custom endpoint.
+
+Context-aware ad-detection chunking is also off by default. When enabled, transcripts that exceed the
+configured context budget are split at timestamped transcript boundaries and processed sequentially.
+Short transcripts still use one request. Any failed or malformed chunk fails the complete detection
+attempt so a provider error cannot be mistaken for “no ads.”
+
+The existing summary implementation requires one full-transcript prompt. AI description rewrites and
+audio summaries are therefore disabled while ad-detection chunking is enabled; the UI explains this
+and retains saved podcast preferences. Spoken title intros remain available.
+
 Current Gemini free-tier limits recorded for these defaults:
 
 | Model | Category | RPM | TPM | RPD |
@@ -116,6 +130,10 @@ You can set keys in the Admin UI or with environment variables:
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 - `OPENROUTER_API_KEY`
+
+Custom endpoint credentials are configured only in the Admin UI and may be left blank for keyless
+local servers. The model response `reason` field remains enabled by default and can be disabled to
+reduce output tokens for smaller models.
 
 ## Text-To-Speech
 

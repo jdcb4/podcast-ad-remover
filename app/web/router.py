@@ -716,79 +716,199 @@ async def admin_ai_text_analysis(request: Request):
 @router.post("/admin/ai/update")
 async def update_ai_settings(
     request: Request,
-    whisper_model: str = Form("base"),
-    ai_model_cascade: str = Form(...),
-    piper_model: str = Form("en_GB-cori-high.onnx"),
-    tts_provider: str = Form("piper"),
-    gemini_tts_voice: str = Form("Orus"),
-    gemini_tts_model_cascade: str = Form('["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]'),
-    active_ai_provider: str = Form("gemini"),
+    section: str = Form("ai_text"),
+    whisper_model: str = Form(None),
+    ai_model_cascade: str = Form(None),
+    piper_model: str = Form(None),
+    tts_provider: str = Form(None),
+    gemini_tts_voice: str = Form(None),
+    gemini_tts_model_cascade: str = Form(None),
+    active_ai_provider: str = Form(None),
     openai_api_key: str = Form(None),
     anthropic_api_key: str = Form(None),
     openrouter_api_key: str = Form(None),
     gemini_api_keys: str = Form(None),
-    openai_model: str = Form("gpt-4o"),
-    anthropic_model: str = Form("claude-3-5-sonnet"),
-    openrouter_model: str = Form('["google/gemini-3.5-flash", "google/gemini-3-flash", "google/gemini-3.1-flash-lite", "google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"]'),
+    openai_model: str = Form(None),
+    anthropic_model: str = Form(None),
+    openrouter_model: str = Form(None),
+    custom_llm_base_url: str = Form(None),
+    custom_llm_api_key: str = Form(None),
+    custom_llm_model: str = Form(None),
+    ad_chunking_enabled: bool = Form(False),
+    ad_chunk_context_tokens: int = Form(8192),
+    ad_chunk_overlap_seconds: int = Form(30),
+    ad_chunk_max_chunks: int = Form(32),
+    ad_include_reasons: bool = Form(False),
+    clear_openai_api_key: bool = Form(False),
+    clear_anthropic_api_key: bool = Form(False),
+    clear_openrouter_api_key: bool = Form(False),
+    clear_custom_llm_api_key: bool = Form(False),
+    clear_gemini_api_keys: bool = Form(False),
     redirect_to: str = Form("/admin/ai/text-analysis"),
     admin_user = Depends(require_admin)
 ):
     from app.infra.database import get_db_connection
+    from app.core.ai_services import AdDetector, normalize_openai_base_url
     import json
-    try:
-        json.loads(ai_model_cascade)
-    except:
-        ai_model_cascade = '["gemini-3.5-flash", "gemini-3-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]'
 
-    try:
-        parsed_tts_models = json.loads(gemini_tts_model_cascade)
-        if not isinstance(parsed_tts_models, list):
-            raise ValueError("Gemini TTS cascade must be a list")
-    except:
-        gemini_tts_model_cascade = '["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]'
-
-    if tts_provider not in {"piper", "gemini"}:
-        tts_provider = "piper"
-    if gemini_tts_voice not in {"Orus", "Enceladus", "Laomedeia"}:
-        gemini_tts_voice = "Orus"
-    
-    # Validate gemini_api_keys is valid JSON array
-    if gemini_api_keys:
+    def normalized_models(value: str | None, current: str, default: list[str]) -> str:
+        if value is None:
+            return current or json.dumps(default)
         try:
-            parsed_keys = json.loads(gemini_api_keys)
-            if not isinstance(parsed_keys, list):
-                gemini_api_keys = "[]"
-        except:
-            gemini_api_keys = "[]"
-    else:
-        gemini_api_keys = "[]"
+            parsed = json.loads(value)
+            if not isinstance(parsed, list):
+                parsed = [str(parsed)]
+        except json.JSONDecodeError:
+            parsed = [value]
+        parsed = [str(item).strip() for item in parsed if str(item).strip()]
+        if len(parsed) > 10:
+            raise HTTPException(status_code=400, detail="A model cascade can contain at most 10 models.")
+        return json.dumps(parsed)
+
+    def updated_secret(submitted: str | None, clear: bool, current: str | None) -> str | None:
+        if clear:
+            return None
+        if submitted and submitted.strip():
+            return submitted.strip()
+        return current
 
     with get_db_connection() as conn:
-        conn.execute("""
-            UPDATE app_settings 
-            SET whisper_model = ?,
-                ai_model_cascade = ?,
-                piper_model = ?,
-                tts_provider = ?,
-                gemini_tts_voice = ?,
-                gemini_tts_model_cascade = ?,
-                active_ai_provider = ?,
-                openai_api_key = ?,
-                anthropic_api_key = ?,
-                openrouter_api_key = ?,
-                gemini_api_keys = ?,
-                openai_model = ?,
-                anthropic_model = ?,
-                openrouter_model = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = 1
-        """, (
-            whisper_model, ai_model_cascade, piper_model,
-            tts_provider, gemini_tts_voice, gemini_tts_model_cascade,
-            active_ai_provider,
-            openai_api_key, anthropic_api_key, openrouter_api_key, gemini_api_keys,
-            openai_model, anthropic_model, openrouter_model
-        ))
+        current_row = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
+        current = dict(current_row) if current_row else {}
+
+        if section == "ai_transcription":
+            selected_whisper = whisper_model if whisper_model in {"tiny", "base", "small", "medium", "large"} else "base"
+            conn.execute(
+                "UPDATE app_settings SET whisper_model = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1",
+                (selected_whisper,),
+            )
+        elif section == "ai_voice":
+            selected_tts_provider = tts_provider if tts_provider in {"piper", "gemini"} else "piper"
+            selected_voice = (
+                gemini_tts_voice
+                if gemini_tts_voice in AdDetector.GEMINI_TTS_VOICES
+                else "Orus"
+            )
+            selected_tts_models = normalized_models(
+                gemini_tts_model_cascade,
+                current.get("gemini_tts_model_cascade"),
+                AdDetector.DEFAULT_GEMINI_TTS_MODELS,
+            )
+            conn.execute(
+                """
+                UPDATE app_settings
+                SET piper_model = ?,
+                    tts_provider = ?,
+                    gemini_tts_voice = ?,
+                    gemini_tts_model_cascade = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = 1
+                """,
+                (
+                    piper_model or current.get("piper_model") or "en_GB-cori-high.onnx",
+                    selected_tts_provider,
+                    selected_voice,
+                    selected_tts_models,
+                ),
+            )
+        elif section == "ai_text":
+            selected_provider = active_ai_provider or current.get("active_ai_provider") or "gemini"
+            if selected_provider not in {"gemini", "openai", "anthropic", "openrouter", "custom"}:
+                raise HTTPException(status_code=400, detail="Unsupported text-analysis provider.")
+
+            selected_gemini_models = normalized_models(
+                ai_model_cascade,
+                current.get("ai_model_cascade"),
+                AdDetector.DEFAULT_GEMINI_MODELS,
+            )
+            selected_openai_models = normalized_models(
+                openai_model, current.get("openai_model"), ["gpt-4o"]
+            )
+            selected_anthropic_models = normalized_models(
+                anthropic_model,
+                current.get("anthropic_model"),
+                ["claude-3-5-sonnet-20241022"],
+            )
+            selected_openrouter_models = normalized_models(
+                openrouter_model,
+                current.get("openrouter_model"),
+                AdDetector.DEFAULT_OPENROUTER_MODELS,
+            )
+            selected_custom_models = normalized_models(
+                custom_llm_model, current.get("custom_llm_model"), []
+            )
+
+            selected_gemini_keys = current.get("gemini_api_keys") or "[]"
+            if clear_gemini_api_keys:
+                selected_gemini_keys = "[]"
+            elif gemini_api_keys:
+                try:
+                    parsed_keys = json.loads(gemini_api_keys)
+                except json.JSONDecodeError as exc:
+                    raise HTTPException(status_code=400, detail="Gemini API keys must be a JSON array.") from exc
+                parsed_keys = [
+                    str(key).strip() for key in parsed_keys
+                    if isinstance(key, str) and key.strip()
+                ]
+                if parsed_keys:
+                    selected_gemini_keys = json.dumps(parsed_keys)
+
+            selected_base_url = (
+                normalize_openai_base_url(custom_llm_base_url)
+                if custom_llm_base_url and custom_llm_base_url.strip()
+                else current.get("custom_llm_base_url")
+            )
+            if selected_provider == "custom":
+                if not selected_base_url:
+                    raise HTTPException(status_code=400, detail="Custom API base URL is required.")
+                if not json.loads(selected_custom_models):
+                    raise HTTPException(status_code=400, detail="At least one custom model slug is required.")
+
+            conn.execute(
+                """
+                UPDATE app_settings
+                SET active_ai_provider = ?,
+                    ai_model_cascade = ?,
+                    openai_api_key = ?,
+                    anthropic_api_key = ?,
+                    openrouter_api_key = ?,
+                    gemini_api_keys = ?,
+                    openai_model = ?,
+                    anthropic_model = ?,
+                    openrouter_model = ?,
+                    custom_llm_base_url = ?,
+                    custom_llm_api_key = ?,
+                    custom_llm_model = ?,
+                    ad_chunking_enabled = ?,
+                    ad_chunk_context_tokens = ?,
+                    ad_chunk_overlap_seconds = ?,
+                    ad_chunk_max_chunks = ?,
+                    ad_include_reasons = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = 1
+                """,
+                (
+                    selected_provider,
+                    selected_gemini_models,
+                    updated_secret(openai_api_key, clear_openai_api_key, current.get("openai_api_key")),
+                    updated_secret(anthropic_api_key, clear_anthropic_api_key, current.get("anthropic_api_key")),
+                    updated_secret(openrouter_api_key, clear_openrouter_api_key, current.get("openrouter_api_key")),
+                    selected_gemini_keys,
+                    selected_openai_models,
+                    selected_anthropic_models,
+                    selected_openrouter_models,
+                    selected_base_url,
+                    updated_secret(custom_llm_api_key, clear_custom_llm_api_key, current.get("custom_llm_api_key")),
+                    selected_custom_models,
+                    1 if ad_chunking_enabled else 0,
+                    max(AdDetector.CHUNK_CONTEXT_MIN, min(AdDetector.CHUNK_CONTEXT_MAX, ad_chunk_context_tokens)),
+                    max(0, min(AdDetector.CHUNK_OVERLAP_MAX_SECONDS, ad_chunk_overlap_seconds)),
+                    max(1, min(AdDetector.CHUNK_MAX_COUNT, ad_chunk_max_chunks)),
+                    1 if ad_include_reasons else 0,
+                ),
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported AI settings section.")
         conn.commit()
     return RedirectResponse(url=_safe_local_redirect(redirect_to, "/admin/ai/text-analysis"), status_code=303)
 
@@ -797,13 +917,16 @@ async def test_ai_connection(
     provider: str = Form(...),
     api_key: str = Form(None),
     model: str = Form(None),
+    base_url: str = Form(None),
     admin_user = Depends(require_admin)
 ):
     try:
         from app.core.ai_services import AdDetector
         detector = AdDetector()
         
-        prov_instance = detector.create_provider(provider, api_key=api_key, model=model)
+        prov_instance = detector.create_provider(
+            provider, api_key=api_key, model=model, base_url=base_url
+        )
         result = prov_instance.test_connection()
 
         # Return the dictionary returned by test_connection() directly!
@@ -832,6 +955,28 @@ async def refresh_models(provider: str, admin_user = Depends(require_admin)):
     except Exception as e:
         return {"error": str(e)}
 
+
+@router.post("/admin/ai/refresh")
+async def refresh_models_from_form(
+    provider: str = Form(...),
+    api_key: str = Form(None),
+    base_url: str = Form(None),
+    admin_user = Depends(require_admin),
+):
+    try:
+        from app.core.ai_services import AdDetector
+        if provider == "gemini_tts":
+            return {"models": AdDetector.DEFAULT_GEMINI_TTS_MODELS}
+        detector = AdDetector()
+        instance = detector.create_provider(
+            provider,
+            api_key=api_key,
+            base_url=base_url,
+        )
+        return {"models": instance.list_models()}
+    except Exception as e:
+        return {"error": str(e)}
+
 # --- Admin: Prompts ---
 @router.get("/admin/prompts", response_class=HTMLResponse)
 async def admin_prompts(request: Request):
@@ -839,9 +984,7 @@ async def admin_prompts(request: Request):
     default_prompts = {
         "ad_base": """Identify segments in the transcript that match the Targets.
 Targets: {targets}
-{custom_instr}
-Return a JSON array of objects with "start", "end", "label" (Ad/Promo/Intro/Outro), and "reason" (brief explanation).
-Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for XYZ"}]""",
+{custom_instr}""",
         "sponsor": "Sponsor messages, ad reads, promotional segments",
         "promo": "Cross-promotions, plugs for other shows or content",
         "summary": "Summarize the key points of this podcast episode in 3-5 bullet points."
@@ -911,9 +1054,7 @@ The summary must:
 Transcript Context: {transcript_context}""",
         'ad_base': """Identify segments in the transcript that match the Targets.
 Targets: {targets}
-{custom_instr}
-Return a JSON array of objects with "start", "end", "label" (Ad/Promo/Intro/Outro), and "reason" (brief explanation).
-Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for XYZ"}]""",
+{custom_instr}""",
         'sponsor': 'Sponsor messages, ad reads, promotional segments',
         'promo': 'Cross-promotions, plugs for other shows or content'
     }

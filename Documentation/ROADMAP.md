@@ -7,6 +7,7 @@ This roadmap lists improvement candidates. It is not a release commitment.
 - Expand Python coverage around full processor lifecycle transitions and service boundaries.
 - Expand migration tests so they run against a copied realistic `podcasts.db`.
 - Continue expanding the durable job model with recovery tooling for orphaned work directories and richer worker lease visibility.
+- Add hierarchical transcript summary chunking so description rewrites and audio summaries can be safely re-enabled when ad-detection chunking is active.
 
 ## Security
 

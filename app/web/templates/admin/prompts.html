@@ -1,6 +1,12 @@
 {% extends "admin/layout.html" %}
 
 {% block admin_content %}
+{% if settings.ad_chunking_enabled %}
+<div class="mb-6 p-3 rounded-lg border border-amber-500/20 bg-amber-500/10 text-sm text-amber-100">
+    Summary generation is currently disabled because transcript chunking is enabled under Text Analysis.
+    The summary prompt is retained here for use if chunking is disabled later.
+</div>
+{% endif %}
 <h3 class="font-display text-xl font-bold mb-6">AI Prompt Rules</h3>
 
 <div id="alert-container"></div>
@@ -15,6 +21,10 @@
         </label>
         <textarea name="ad_prompt_base" id="ad_prompt_base"
             class="input font-mono text-sm h-40">{{ settings.ad_prompt_base or default_prompts.ad_base }}</textarea>
+        <p class="text-xs text-text-muted mt-2">
+            The required JSON response schema is appended automatically. Whether a reason is requested is
+            controlled under Text Analysis, so custom instructions should not define their own response schema.
+        </p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

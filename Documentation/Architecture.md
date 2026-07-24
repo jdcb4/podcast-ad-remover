@@ -14,7 +14,7 @@ The application is intentionally simple: one web app, one SQLite database, local
 - SQLite for application state.
 - FFmpeg for audio processing.
 - Whisper/faster-whisper for local transcription.
-- Gemini, OpenAI, Anthropic, or OpenRouter for LLM-backed segment detection and summaries.
+- Gemini, OpenAI, Anthropic, OpenRouter, or an explicitly configured OpenAI-compatible endpoint for LLM-backed segment detection and summaries.
 - Piper or Gemini TTS for optional spoken title intros and audio summaries.
 - Tailwind CSS for styling.
 - Docker for deployment.
@@ -47,6 +47,23 @@ Supporting modules include:
 - `app/core/ai_services.py`: provider integrations, transcription, summaries, and TTS.
 - `app/core/rss_gen.py`: generated feed output.
 - `app/core/feed.py`: feed parsing.
+
+### Text Analysis Providers And Chunking
+
+Gemini remains the default provider. The custom provider is a separate, opt-in OpenAI-compatible
+configuration with its own base URL, model cascade, and optional credential. It never inherits the
+OpenAI provider credential. Keyless endpoints receive an internal non-secret SDK placeholder because
+the OpenAI client requires a non-empty key value.
+
+Ad-detection chunking is global and disabled by default. When enabled, `AdDetector` estimates the
+complete prompt against the configured context window, preserves the one-request path when it fits,
+and otherwise partitions timestamped Whisper segments into bounded sequential requests with limited
+overlap. Results are clipped to each chunk's primary ownership window and same-label overlaps are
+merged deterministically. A failed, rate-limited, or malformed chunk fails the whole analysis.
+
+The summary generator is not chunk-aware and still uses a single truncated full-transcript prompt.
+The processor consequently disables description rewrites and audio summaries whenever ad-detection
+chunking is enabled. It retains per-podcast preferences for use if chunking is turned off later.
 
 ### Text-To-Speech
 

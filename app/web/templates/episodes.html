@@ -259,15 +259,29 @@
 
             <div class="space-y-4">
                 <h4 class="font-semibold border-b border-white/[0.08] pb-2">Features</h4>
-                <label class="flex items-center cursor-pointer">
+                {% if settings.ad_chunking_enabled %}
+                <div class="p-3 rounded-lg border border-amber-500/20 bg-amber-500/10 text-sm text-amber-100">
+                    AI description rewrites and audio summaries are disabled because transcript chunking is
+                    enabled by the administrator. Existing preferences are retained.
+                </div>
+                <input type="hidden" name="ai_rewrite_description"
+                    value="{{ 'true' if subscription.ai_rewrite_description else 'false' }}">
+                {% endif %}
+                <label class="flex items-center {% if settings.ad_chunking_enabled %}opacity-50 cursor-not-allowed{% else %}cursor-pointer{% endif %}">
                     <input type="checkbox" name="ai_rewrite_description" value="true" {% if
                         subscription.ai_rewrite_description %}checked{% endif %}
+                        {% if settings.ad_chunking_enabled %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Rewrite Description (AI Text)</span>
                 </label>
-                <label class="flex items-center cursor-pointer">
+                {% if settings.ad_chunking_enabled %}
+                <input type="hidden" name="ai_audio_summary"
+                    value="{{ 'true' if subscription.ai_audio_summary else 'false' }}">
+                {% endif %}
+                <label class="flex items-center {% if settings.ad_chunking_enabled %}opacity-50 cursor-not-allowed{% else %}cursor-pointer{% endif %}">
                     <input type="checkbox" name="ai_audio_summary" value="true" {% if subscription.ai_audio_summary
                         %}checked{% endif %}
+                        {% if settings.ad_chunking_enabled %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Append Audio Summary (AI TTS)</span>
                 </label>

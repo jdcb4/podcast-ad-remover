@@ -1,4 +1,6 @@
-from app.core.ai_services import AdDetector
+import pytest
+
+from app.core.ai_services import AdDetectionParseError, AdDetector
 
 
 def test_parse_ad_response_accepts_fenced_json_and_string_times():
@@ -33,7 +35,14 @@ Here is the answer:
     ]
 
 
-def test_parse_ad_response_returns_empty_list_for_non_json():
+def test_parse_ad_response_rejects_non_json_instead_of_treating_it_as_no_ads():
     detector = AdDetector()
 
-    assert detector._parse_ad_response("No ads found.") == []
+    with pytest.raises(AdDetectionParseError):
+        detector._parse_ad_response("No ads found.")
+
+
+def test_parse_ad_response_accepts_explicit_empty_json_array():
+    detector = AdDetector()
+
+    assert detector._parse_ad_response("[]") == []

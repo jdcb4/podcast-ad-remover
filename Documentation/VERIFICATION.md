@@ -52,6 +52,19 @@ npm run verify:docker
 
 This runs the standard check and builds a local image tagged `podcast-ad-remover:verify`.
 
+## Custom LLM And Chunking Checks
+
+Automated coverage uses a temporary OpenAI-compatible HTTP server and verifies keyed/keyless model
+listing and generation, URL validation, credential isolation, short and long transcript planning,
+bounded request counts, overlap merging, strict parse/failure propagation, reason output, settings
+persistence, and summary disabling.
+
+For a real-provider comparison, use an isolated data directory and pin one OpenRouter model per run;
+do not use a fallback cascade because it can hide the model that actually completed the request.
+Compare a constrained/open model against `google/gemini-3.1-flash-lite` using the same transcripts,
+record actual model, chunk count, timing and provider usage, and manually review the resulting cut
+windows before accepting end-to-end output. Never point evaluation runs at the production database.
+
 ## Migration Dry Run
 
 Before upgrading a valuable existing install, validate migrations against a copy of the database:

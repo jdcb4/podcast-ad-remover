@@ -57,3 +57,15 @@ The AI-facing integration surface is a REST API under `/api/v1`, disabled by def
 ## 2026-07-22: Coordinate destructive subscription cleanup through SQLite
 
 The FastAPI app and episode processor run in separate processes, so in-memory locks cannot safely coordinate subscription deletion. Deletion uses durable subscription state and existing job locks: the database transaction prevents new claims and requests cancellation, running workers release their locks only after reaching a safe checkpoint, and one retryable cleanup claimant removes files and regenerates feeds outside the web event loop.
+
+## 2026-07-24: Keep cloud LLMs primary and make local compatibility explicit
+
+Gemini and the existing cloud cascades remain the default text-analysis path. Local model support is
+an opt-in, separately credentialed OpenAI-compatible provider so an OpenAI cloud key cannot be sent
+to an operator-supplied URL. Context-aware ad-detection chunking is also off by default, preserves the
+single-call path when a prompt fits, and rejects partial analysis if any chunk fails.
+
+The current summary feature is disabled while ad-detection chunking is active because it is not
+chunk-aware and truncating a large transcript would produce an incomplete summary. Podcast summary
+preferences are retained so a future hierarchical summary implementation can restore the feature
+without reconfiguration.

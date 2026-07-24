@@ -6,8 +6,11 @@ import os
 import sys
 import gc
 import importlib.util
+import math
+import time
 import wave
 from typing import List, Dict
+from urllib.parse import urlsplit, urlunsplit
 from app.core.config import settings
 import httpx
 
@@ -52,6 +55,38 @@ class RateLimitError(Exception):
         else:
             # Per-minute limit: short 2-minute retry
             return datetime.now() + timedelta(minutes=2)
+
+
+class AdDetectionParseError(ValueError):
+    """Raised when a model response cannot safely be interpreted as ad detections."""
+
+
+class TranscriptChunkingError(ValueError):
+    """Raised when safe transcript chunking cannot satisfy the configured limits."""
+
+
+def normalize_openai_base_url(value: str) -> str:
+    """Validate and normalize an operator-supplied OpenAI-compatible API base URL."""
+    candidate = (value or "").strip()
+    if not candidate:
+        raise ValueError("Custom API base URL is required.")
+
+    parsed = urlsplit(candidate)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("Custom API base URL must use http:// or https://.")
+    if not parsed.hostname:
+        raise ValueError("Custom API base URL must include a hostname.")
+    if parsed.username or parsed.password:
+        raise ValueError("Custom API base URL must not contain credentials.")
+    if parsed.query or parsed.fragment:
+        raise ValueError("Custom API base URL must not contain a query string or fragment.")
+    try:
+        parsed.port
+    except ValueError as exc:
+        raise ValueError("Custom API base URL contains an invalid port.") from exc
+
+    normalized_path = parsed.path.rstrip("/")
+    return urlunsplit((parsed.scheme, parsed.netloc, normalized_path, "", ""))
 
 class Transcriber:
     def __init__(self):
@@ -334,12 +369,12 @@ class OpenAIProvider(LLMProvider):
         self.model_prefixes = model_prefixes
         self.rate_limit_provider = rate_limit_provider
         self.is_openrouter = base_url and "openrouter" in base_url
+        self.last_model = None
         self._init_client()
 
     def _init_client(self):
         key = self.api_keys[self.current_key_idx]
-        masked = key[:4] + "..." + key[-4:] if len(key) > 8 else "***"
-        logger.info(f"{self.provider_name}: Initializing client with key #{self.current_key_idx + 1} ({masked})")
+        logger.info(f"{self.provider_name}: Initializing client with credential #{self.current_key_idx + 1}")
         self.client = self.openai.OpenAI(api_key=key, base_url=self.base_url)
 
     def _rotate_key(self) -> bool:
@@ -355,6 +390,9 @@ class OpenAIProvider(LLMProvider):
         return any(pattern in error_str for pattern in self.RATE_LIMIT_PATTERNS)
 
     def generate(self, prompt: str) -> str:
+        if not self.models:
+            raise ValueError(f"No models configured for {self.provider_name}.")
+
         last_error = None
 
         while True:
@@ -367,6 +405,7 @@ class OpenAIProvider(LLMProvider):
                         model=model,
                         messages=[{"role": "user", "content": prompt}]
                     )
+                    self.last_model = model
                     return response.choices[0].message.content or ""
                 except Exception as e:
                     logger.warning(f"{self.provider_name} model {model} failed: {e}")
@@ -401,6 +440,8 @@ class OpenAIProvider(LLMProvider):
             return sorted([m for m in model_ids if m.startswith(self.model_prefixes)])
         except Exception as e:
             logger.error(f"{self.provider_name}: Failed to list models: {e}")
+            if self.provider_name == "Custom OpenAI-compatible":
+                raise RuntimeError(f"Custom endpoint model listing failed: {e}") from e
             return []
 
 class AnthropicProvider(LLMProvider):
@@ -408,6 +449,7 @@ class AnthropicProvider(LLMProvider):
         import anthropic
         self.client = anthropic.Anthropic(api_key=api_key)
         self.models = models
+        self.last_model = None
 
     def generate(self, prompt: str) -> str:
         last_error = None
@@ -419,6 +461,7 @@ class AnthropicProvider(LLMProvider):
                     max_tokens=4096,
                     messages=[{"role": "user", "content": prompt}]
                 )
+                self.last_model = model
                 return response.content[0].text
             except Exception as e:
                 logger.warning(f"Model {model} failed: {e}")
@@ -458,9 +501,17 @@ class AdDetector:
         'gemini-2.5-flash-preview-tts',
     ]
     GEMINI_TTS_VOICES = {'Orus', 'Enceladus', 'Laomedeia'}
+    CHUNK_CONTEXT_MIN = 2048
+    CHUNK_CONTEXT_MAX = 1_000_000
+    CHUNK_OVERLAP_MAX_SECONDS = 120
+    CHUNK_MAX_COUNT = 64
+    CHUNK_OUTPUT_RESERVE_TOKENS = 1024
+    CHUNK_SAFETY_TOKENS = 512
+    CHARS_PER_ESTIMATED_TOKEN = 3
 
     def __init__(self):
         self.settings = self._load_settings()
+        self.last_detection_metadata = {}
 
     def _load_settings(self):
         from app.infra.database import get_db_connection
@@ -508,8 +559,19 @@ class AdDetector:
 
         return api_keys
 
-    def create_provider(self, provider_type: str, api_key: str = None, model: str = None, openrouter_key: str = None) -> LLMProvider:
+    def create_provider(
+        self,
+        provider_type: str,
+        api_key: str = None,
+        model: str = None,
+        openrouter_key: str = None,
+        base_url: str = None,
+    ) -> LLMProvider:
         """Factory to create a provider instance."""
+        allowed_providers = {"gemini", "openai", "anthropic", "openrouter", "custom"}
+        if provider_type not in allowed_providers:
+            raise ValueError(f"Unsupported AI provider: {provider_type}")
+
         explicit_api_key = api_key
 
         # Resolve keys (DB Overrides Env)
@@ -532,6 +594,7 @@ class AdDetector:
             elif provider_type == 'openai': db_key = self.settings.get('openai_api_key')
             elif provider_type == 'anthropic': db_key = self.settings.get('anthropic_api_key')
             elif provider_type == 'openrouter': db_key = self.settings.get('openrouter_api_key')
+            elif provider_type == 'custom': db_key = self.settings.get('custom_llm_api_key')
 
             # 2. Try Env second
             env_key = None
@@ -543,7 +606,10 @@ class AdDetector:
             # Priority: DB > Env
             api_key = db_key if db_key else env_key
 
-        if not api_key:
+        if not api_key and provider_type == "custom":
+            # The OpenAI SDK requires a non-empty value even when a local server ignores auth.
+            api_key = "keyless-local-endpoint"
+        elif not api_key:
              raise ValueError(f"No API key found for {provider_type} (Check Admin Settings or Environment Variables)")
 
         # Resolve models (handle passed 'model' arg or DB settings)
@@ -564,6 +630,8 @@ class AdDetector:
                 models_list = self._parse_model_setting(self.settings.get('anthropic_model'), ['claude-3-5-sonnet-20241022'])
             elif provider_type == 'openrouter':
                 models_list = self._parse_model_setting(self.settings.get('openrouter_model'), self.DEFAULT_OPENROUTER_MODELS)
+            elif provider_type == 'custom':
+                models_list = self._parse_model_setting(self.settings.get('custom_llm_model'), [])
             else: # Gemini
                 models_list = self._parse_model_setting(self.settings.get('ai_model_cascade'), self.DEFAULT_GEMINI_MODELS)
 
@@ -581,6 +649,19 @@ class AdDetector:
                 provider_name="OpenRouter",
                 model_prefixes=None,
                 rate_limit_provider="openrouter",
+            )
+
+        elif provider_type == "custom":
+            resolved_base_url = normalize_openai_base_url(
+                base_url or self.settings.get("custom_llm_base_url")
+            )
+            return OpenAIProvider(
+                api_key,
+                models_list,
+                base_url=resolved_base_url,
+                provider_name="Custom OpenAI-compatible",
+                model_prefixes=None,
+                rate_limit_provider="custom",
             )
 
         else: # Gemini
@@ -638,19 +719,56 @@ class AdDetector:
                 "remove_ads": True, "remove_promos": True, "remove_intros": False, "remove_outros": False, "custom_instructions": None
             }
 
-        # Prepare transcript text
-        text_data = ""
-        for seg in transcript['segments']:
-            text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
+        segments = transcript.get("segments") or []
+        if not segments:
+            self.last_detection_metadata = {
+                "chunking_enabled": bool(self.settings.get("ad_chunking_enabled", 0)),
+                "chunk_count": 0,
+                "estimated_input_tokens": 0,
+                "complete": True,
+            }
+            return []
 
-        # Build Prompt
-        prompt = self._build_ad_prompt(options, text_data, whitelist_mode=whitelist_mode)
-
-        # Execute
         try:
             provider = self._get_provider()
-            response_text = provider.generate(prompt)
-            raw_segments = self._parse_ad_response(response_text)
+            started = time.monotonic()
+            chunking_enabled = bool(self.settings.get("ad_chunking_enabled", 0))
+
+            if chunking_enabled:
+                chunks = self._build_transcript_chunks(segments, options, whitelist_mode)
+            else:
+                text_data = self._format_transcript_segments(segments)
+                prompt = self._build_ad_prompt(options, text_data, whitelist_mode=whitelist_mode)
+                chunks = [{
+                    "prompt": prompt,
+                    "primary_start": float(segments[0]["start"]),
+                    "primary_end": float(segments[-1]["end"]),
+                    "estimated_tokens": self._estimate_tokens(prompt),
+                }]
+
+            chunk_results = []
+            for index, chunk in enumerate(chunks):
+                logger.info(f"Running ad detection request {index + 1}/{len(chunks)}")
+                response_text = provider.generate(chunk["prompt"])
+                parsed = self._parse_ad_response(response_text)
+                chunk_results.extend(self._clip_chunk_results(parsed, chunk))
+
+            raw_segments = self._merge_chunk_detections(chunk_results)
+            self.last_detection_metadata = {
+                "provider": self.settings.get("active_ai_provider", "gemini"),
+                "model": getattr(provider, "last_model", None),
+                "chunking_enabled": chunking_enabled,
+                "chunk_count": len(chunks),
+                "estimated_input_tokens": sum(chunk["estimated_tokens"] for chunk in chunks),
+                "context_window_tokens": (
+                    self._validated_chunk_setting(
+                        "ad_chunk_context_tokens", 8192, self.CHUNK_CONTEXT_MIN, self.CHUNK_CONTEXT_MAX
+                    )
+                    if chunking_enabled else None
+                ),
+                "elapsed_seconds": round(time.monotonic() - started, 3),
+                "complete": True,
+            }
 
             # Whitelist mode: return ALL segments (including Content) for processor to invert
             if whitelist_mode:
@@ -675,8 +793,12 @@ class AdDetector:
 
             return filtered
         except Exception as e:
+            self.last_detection_metadata = {
+                **self.last_detection_metadata,
+                "complete": False,
+            }
             logger.error(f"Ad detection failed: {e}")
-            raise e
+            raise
 
     def generate_summary(self, transcript: Dict, podcast_name: str, episode_title: str, pub_date: str, subscription_settings: Dict = None) -> str:
         self.settings = self._load_settings()
@@ -744,34 +866,215 @@ class AdDetector:
         Identify segments in the transcript that match the Targets.
         Targets: {targets}
         {custom_instr}
-        Return a JSON array of objects with "start", "end", "label" (Ad/Promo/Intro/Outro), and "reason" (brief explanation).
-        Example: [{{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for XYZ"}}]
         """
 
         base = self.settings.get('ad_prompt_base') or default_base
+        # Legacy/default custom prompts may contain the old response schema. The active
+        # reason setting owns the schema now, so remove those known schema lines before
+        # appending the authoritative form below.
+        base = "\n".join(
+            line for line in base.splitlines()
+            if not (
+                ("return a json array" in line.lower() and "reason" in line.lower())
+                or (line.strip().lower().startswith("example:") and '"reason"' in line.lower())
+            )
+        )
 
         custom = f"Custom: {options.get('custom_instructions')}" if options.get('custom_instructions') else ""
+        include_reasons = bool(self.settings.get("ad_include_reasons", 1))
+        if include_reasons:
+            response_schema = """
+Return only a JSON array of objects with "start", "end", "label" (Ad/Promo/Intro/Outro), and "reason" (brief explanation).
+Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for XYZ"}]
+"""
+        else:
+            response_schema = """
+Return only a JSON array of objects with "start", "end", and "label" (Ad/Promo/Intro/Outro).
+Do not include a reason field.
+Example: [{"start": 0.0, "end": 10.0, "label": "Ad"}]
+"""
 
         # Whitelist mode: append instructions to also label Content segments
         whitelist_addendum = ""
         if whitelist_mode:
-            whitelist_addendum = """
+            content_example = (
+                '{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main discussion segment"}'
+                if include_reasons
+                else '{"start": 10.0, "end": 300.0, "label": "Content"}'
+            )
+            whitelist_addendum = f"""
 IMPORTANT: You MUST also label ALL substantive speech/content segments with label "Content".
 Every segment of the transcript must be classified. Use "Content" for any segment containing substantive speech, interviews, reporting, or discussion that is NOT an ad, promo, intro, or outro.
 Non-speech segments (music, jingles, silence) should NOT be labeled as Content.
-Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main discussion segment"}]
+Example: [{content_example}]
 """
 
         # Use manual replacement instead of .format() to avoid breaking on JSON examples
         try:
             prompt = base.replace("{targets}", "\n".join(targets)).replace("{custom_instr}", custom)
-            return prompt + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
+            return prompt + response_schema + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
         except Exception as e:
              logger.warning(f"Prompt formatting failed: {e}")
-             return base + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
+             return base + response_schema + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
+
+    def _estimate_tokens(self, text: str) -> int:
+        return max(1, math.ceil(len(text) / self.CHARS_PER_ESTIMATED_TOKEN))
+
+    def _validated_chunk_setting(self, name: str, default: int, minimum: int, maximum: int) -> int:
+        try:
+            value = int(self.settings.get(name, default))
+        except (TypeError, ValueError):
+            value = default
+        return max(minimum, min(maximum, value))
+
+    def _format_transcript_segments(self, segments: List[Dict]) -> str:
+        return "".join(
+            f"[{float(seg['start']):.2f}-{float(seg['end']):.2f}] {seg.get('text', '')}\n"
+            for seg in segments
+        )
+
+    def _build_transcript_chunks(
+        self,
+        segments: List[Dict],
+        options: Dict,
+        whitelist_mode: bool,
+    ) -> List[Dict]:
+        context_tokens = self._validated_chunk_setting(
+            "ad_chunk_context_tokens", 8192, self.CHUNK_CONTEXT_MIN, self.CHUNK_CONTEXT_MAX
+        )
+        overlap_seconds = self._validated_chunk_setting(
+            "ad_chunk_overlap_seconds", 30, 0, self.CHUNK_OVERLAP_MAX_SECONDS
+        )
+        max_chunks = self._validated_chunk_setting(
+            "ad_chunk_max_chunks", 32, 1, self.CHUNK_MAX_COUNT
+        )
+        empty_prompt = self._build_ad_prompt(options, "", whitelist_mode=whitelist_mode)
+        transcript_budget = (
+            context_tokens
+            - self._estimate_tokens(empty_prompt)
+            - self.CHUNK_OUTPUT_RESERVE_TOKENS
+            - self.CHUNK_SAFETY_TOKENS
+        )
+        if transcript_budget < 128:
+            raise TranscriptChunkingError(
+                "Configured context window is too small for the ad-detection instructions and output reserve."
+            )
+
+        lines = [
+            f"[{float(seg['start']):.2f}-{float(seg['end']):.2f}] {seg.get('text', '')}\n"
+            for seg in segments
+        ]
+        line_tokens = [self._estimate_tokens(line) for line in lines]
+        for index, token_count in enumerate(line_tokens):
+            if token_count > transcript_budget:
+                raise TranscriptChunkingError(
+                    f"Transcript segment {index} cannot fit within the configured context window."
+                )
+
+        if sum(line_tokens) <= transcript_budget:
+            prompt = self._build_ad_prompt(options, "".join(lines), whitelist_mode=whitelist_mode)
+            return [{
+                "prompt": prompt,
+                "primary_start": float(segments[0]["start"]),
+                "primary_end": float(segments[-1]["end"]),
+                "estimated_tokens": self._estimate_tokens(prompt),
+            }]
+
+        # Leave room for bounded context overlap on multi-request transcripts.
+        primary_budget = max(128, int(transcript_budget * 0.8))
+        primary_ranges = []
+        range_start = 0
+        range_tokens = 0
+        for index, token_count in enumerate(line_tokens):
+            if range_tokens and range_tokens + token_count > primary_budget:
+                primary_ranges.append((range_start, index - 1))
+                range_start = index
+                range_tokens = 0
+            range_tokens += token_count
+        primary_ranges.append((range_start, len(segments) - 1))
+
+        if len(primary_ranges) > max_chunks:
+            raise TranscriptChunkingError(
+                f"Transcript requires {len(primary_ranges)} chunks, exceeding the configured maximum of {max_chunks}."
+            )
+
+        chunks = []
+        for primary_start_index, primary_end_index in primary_ranges:
+            request_start_index = primary_start_index
+            request_end_index = primary_end_index
+            used_tokens = sum(line_tokens[primary_start_index:primary_end_index + 1])
+            primary_start = float(segments[primary_start_index]["start"])
+            primary_end = float(segments[primary_end_index]["end"])
+
+            previous = primary_start_index - 1
+            while previous >= 0:
+                if primary_start - float(segments[previous]["end"]) > overlap_seconds:
+                    break
+                if used_tokens + line_tokens[previous] > transcript_budget:
+                    break
+                request_start_index = previous
+                used_tokens += line_tokens[previous]
+                previous -= 1
+
+            following = primary_end_index + 1
+            while following < len(segments):
+                if float(segments[following]["start"]) - primary_end > overlap_seconds:
+                    break
+                if used_tokens + line_tokens[following] > transcript_budget:
+                    break
+                request_end_index = following
+                used_tokens += line_tokens[following]
+                following += 1
+
+            prompt = self._build_ad_prompt(
+                options,
+                "".join(lines[request_start_index:request_end_index + 1]),
+                whitelist_mode=whitelist_mode,
+            )
+            chunks.append({
+                "prompt": prompt,
+                "primary_start": primary_start,
+                "primary_end": primary_end,
+                "estimated_tokens": self._estimate_tokens(prompt),
+            })
+
+        return chunks
+
+    def _clip_chunk_results(self, segments: List[Dict], chunk: Dict) -> List[Dict]:
+        clipped = []
+        for segment in segments:
+            start = max(float(segment["start"]), chunk["primary_start"])
+            end = min(float(segment["end"]), chunk["primary_end"])
+            if end <= start:
+                continue
+            clipped.append({**segment, "start": start, "end": end})
+        return clipped
+
+    def _merge_chunk_detections(self, segments: List[Dict]) -> List[Dict]:
+        by_label: Dict[str, List[Dict]] = {}
+        for segment in segments:
+            label = str(segment.get("label") or "Ad")
+            by_label.setdefault(label.casefold(), []).append({**segment, "label": label})
+
+        merged = []
+        for label_segments in by_label.values():
+            label_segments.sort(key=lambda item: (item["start"], item["end"]))
+            label_merged = []
+            for segment in label_segments:
+                if label_merged and segment["start"] <= label_merged[-1]["end"] + 0.5:
+                    label_merged[-1]["end"] = max(label_merged[-1]["end"], segment["end"])
+                    if not label_merged[-1].get("reason") and segment.get("reason"):
+                        label_merged[-1]["reason"] = segment["reason"]
+                else:
+                    label_merged.append(dict(segment))
+            merged.extend(label_merged)
+
+        return sorted(merged, key=lambda item: (item["start"], item["end"], item["label"]))
 
     def _parse_ad_response(self, text: str):
-        text = text.strip()
+        text = (text or "").strip()
+        if not text:
+            raise AdDetectionParseError("Ad detector returned an empty response.")
         # Common markdown cleanup
         if text.startswith("```json"):
             text = text[7:]
@@ -792,18 +1095,18 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
             if match:
                 try:
                     return self._normalize_ad_segments(json.loads(match.group(0)))
-                except: pass
+                except (json.JSONDecodeError, AdDetectionParseError):
+                    pass
 
-            logger.error(f"Failed to parse JSON response: {text[:200]}...")
-            return []
+            logger.error("Failed to parse ad detector JSON response.")
+            raise AdDetectionParseError("Ad detector response was not valid JSON.")
 
     def _normalize_ad_segments(self, payload) -> List[Dict[str, float]]:
         if isinstance(payload, dict) and isinstance(payload.get("segments"), list):
             payload = payload["segments"]
 
         if not isinstance(payload, list):
-            logger.warning("Ad detector response was not a JSON array.")
-            return []
+            raise AdDetectionParseError("Ad detector response was not a JSON array.")
 
         normalized = []
         for item in payload:
@@ -830,6 +1133,8 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                 "reason": str(item.get("reason") or ""),
             })
 
+        if payload and not normalized:
+            raise AdDetectionParseError("Ad detector response contained no valid segment rows.")
         return normalized
 
     # Static method to list Gemini models
