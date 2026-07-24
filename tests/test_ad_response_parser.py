@@ -46,3 +46,17 @@ def test_parse_ad_response_accepts_explicit_empty_json_array():
     detector = AdDetector()
 
     assert detector._parse_ad_response("[]") == []
+
+
+def test_parse_ad_response_canonicalizes_common_small_model_labels():
+    detector = AdDetector()
+
+    assert detector._parse_ad_response(
+        '[{"start":0,"end":1,"label":"content"},'
+        '{"start":2,"end":3,"label":"advertisement"},'
+        '{"start":4,"end":5,"label":"cross promotion"}]'
+    ) == [
+        {"start": 0.0, "end": 1.0, "label": "Content", "reason": ""},
+        {"start": 2.0, "end": 3.0, "label": "Ad", "reason": ""},
+        {"start": 4.0, "end": 5.0, "label": "Cross-promotion", "reason": ""},
+    ]

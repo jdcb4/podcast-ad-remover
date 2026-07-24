@@ -1126,10 +1126,25 @@ Example: [{content_example}]
                 logger.warning(f"Skipping ad segment with non-positive duration: {item}")
                 continue
 
+            raw_label = str(item.get("label") or "Ad").strip()
+            canonical_labels = {
+                "ad": "Ad",
+                "ads": "Ad",
+                "advertisement": "Ad",
+                "advertisements": "Ad",
+                "promo": "Promo",
+                "promotion": "Promo",
+                "promotional": "Promo",
+                "cross-promotion": "Cross-promotion",
+                "cross promotion": "Cross-promotion",
+                "intro": "Intro",
+                "outro": "Outro",
+                "content": "Content",
+            }
             normalized.append({
                 "start": start,
                 "end": end,
-                "label": str(item.get("label") or "Ad"),
+                "label": canonical_labels.get(raw_label.casefold(), raw_label or "Ad"),
                 "reason": str(item.get("reason") or ""),
             })
 
