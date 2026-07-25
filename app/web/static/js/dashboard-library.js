@@ -52,6 +52,9 @@
             const grid = document.getElementById('podcast-grid');
             if (grid?.dataset.libraryView === 'mine' && !result.in_user_library && card) {
                 card.remove();
+                document.querySelector(
+                    `.podcast-table-row[data-subscription-id="${result.subscription_id}"]`
+                )?.remove();
             }
 
             document.dispatchEvent(new CustomEvent('library-membership-changed', { detail: result }));

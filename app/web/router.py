@@ -1809,7 +1809,8 @@ def _render_index(request: Request, error: str = None):
             "config_warning": config_warning,
             "queue": queue,
             "unified_links": unified_links,
-            "settings": global_settings
+            "settings": global_settings,
+            "active_users": _active_users() if user and user.is_admin else [],
         }
     )
 
@@ -2131,6 +2132,169 @@ async def update_subscription_owner(
 
     message = "Podcast owner updated" if new_owner_id else "Podcast owner cleared"
     return RedirectResponse(url=f"/subscriptions/{id}?success={quote(message)}", status_code=303)
+
+
+@router.post("/subscriptions/bulk-settings")
+async def bulk_update_subscription_settings(
+    background_tasks: BackgroundTasks,
+    subscription_ids: list[int] = Form(...),
+    content_mode: str = Form("unchanged"),
+    remove_ads: bool = Form(False),
+    remove_promos: bool = Form(False),
+    remove_intros: bool = Form(False),
+    remove_outros: bool = Form(False),
+    retention_mode: str = Form("unchanged"),
+    retention_limit: int = Form(1),
+    retention_days: int = Form(30),
+    manual_retention_days: int = Form(14),
+    features_mode: str = Form("unchanged"),
+    ai_rewrite_description: bool = Form(False),
+    ai_audio_summary: bool = Form(False),
+    append_title_intro: bool = Form(False),
+    watermark_artwork: bool = Form(False),
+    instructions_mode: str = Form("unchanged"),
+    custom_instructions: str = Form(""),
+    owner_mode: str = Form("unchanged"),
+    owner_user_id: str = Form(""),
+    user = Depends(require_auth),
+):
+    ids = list(dict.fromkeys(subscription_ids))
+    if not ids:
+        raise HTTPException(status_code=400, detail="Select at least one podcast")
+    if len(ids) > 500:
+        raise HTTPException(status_code=400, detail="Bulk updates are limited to 500 podcasts")
+
+    valid_group_modes = {"unchanged", "inherit", "override"}
+    if any(
+        mode not in valid_group_modes
+        for mode in (content_mode, retention_mode, features_mode, instructions_mode)
+    ):
+        raise HTTPException(status_code=400, detail="Invalid bulk settings mode")
+    if owner_mode not in {"unchanged", "set", "clear"}:
+        raise HTTPException(status_code=400, detail="Invalid owner update mode")
+
+    subscriptions = [sub_repo.get_by_id(subscription_id) for subscription_id in ids]
+    if any(sub is None for sub in subscriptions):
+        raise HTTPException(status_code=404, detail="One or more podcasts no longer exist")
+    if any(not _can_manage_subscription(user, sub) for sub in subscriptions):
+        raise HTTPException(
+            status_code=403,
+            detail="The selection contains a podcast you are not allowed to manage",
+        )
+    if owner_mode != "unchanged" and not getattr(user, "is_admin", False):
+        raise HTTPException(status_code=403, detail="Only administrators can reassign owners")
+
+    owner_id = None
+    if owner_mode == "set":
+        try:
+            owner_id = int(owner_user_id)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Select a valid owner") from exc
+        if owner_id <= 0:
+            raise HTTPException(status_code=400, detail="Select a valid owner")
+
+    custom_instructions = custom_instructions.strip()
+    if instructions_mode == "override" and not custom_instructions:
+        raise HTTPException(
+            status_code=400,
+            detail="Enter custom instructions or select global instructions",
+        )
+    if retention_mode == "override" and (
+        retention_limit < 0 or retention_days < 1 or manual_retention_days < 1
+    ):
+        raise HTTPException(status_code=400, detail="Retention values are outside the allowed range")
+
+    assignments = []
+    values = []
+
+    def set_value(column: str, value):
+        assignments.append(f"{column} = ?")
+        values.append(value)
+
+    if content_mode == "inherit":
+        set_value("inherit_content_removal", 1)
+    elif content_mode == "override":
+        set_value("inherit_content_removal", 0)
+        for column, value in (
+            ("remove_ads", remove_ads),
+            ("remove_promos", remove_promos),
+            ("remove_intros", remove_intros),
+            ("remove_outros", remove_outros),
+        ):
+            set_value(column, int(value))
+
+    if retention_mode == "inherit":
+        set_value("inherit_retention", 1)
+    elif retention_mode == "override":
+        set_value("inherit_retention", 0)
+        set_value("retention_limit", retention_limit)
+        set_value("retention_days", retention_days)
+        set_value("manual_retention_days", manual_retention_days)
+
+    if features_mode == "inherit":
+        set_value("inherit_default_features", 1)
+    elif features_mode == "override":
+        set_value("inherit_default_features", 0)
+        for column, value in (
+            ("ai_rewrite_description", ai_rewrite_description),
+            ("ai_audio_summary", ai_audio_summary),
+            ("append_title_intro", append_title_intro),
+            ("watermark_artwork", watermark_artwork),
+        ):
+            set_value(column, int(value))
+
+    if instructions_mode == "inherit":
+        set_value("inherit_custom_instructions", 1)
+    elif instructions_mode == "override":
+        set_value("inherit_custom_instructions", 0)
+        set_value("custom_instructions", custom_instructions)
+
+    if owner_mode == "set":
+        set_value("owner_user_id", owner_id)
+    elif owner_mode == "clear":
+        set_value("owner_user_id", None)
+
+    if not assignments:
+        return RedirectResponse(
+            url="/?view=library&success=" + quote("No bulk changes selected"),
+            status_code=303,
+        )
+
+    placeholders = ",".join("?" for _ in ids)
+    with get_db_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        if owner_mode == "set":
+            owner = conn.execute("SELECT id FROM users WHERE id = ?", (owner_id,)).fetchone()
+            if not owner:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Selected owner no longer exists")
+        conn.execute(
+            f"UPDATE subscriptions SET {', '.join(assignments)} WHERE id IN ({placeholders})",
+            (*values, *ids),
+        )
+        if owner_mode == "set":
+            conn.executemany(
+                """
+                INSERT OR IGNORE INTO user_subscriptions (user_id, subscription_id)
+                VALUES (?, ?)
+                """,
+                [(owner_id, subscription_id) for subscription_id in ids],
+            )
+        conn.commit()
+
+    async def post_bulk_update_tasks():
+        await asyncio.to_thread(_reconcile_artwork_and_feeds, ids)
+        processor = Processor()
+        await processor.cleanup_old_episodes()
+        for subscription_id in ids:
+            await processor.check_feeds(subscription_id)
+
+    background_tasks.add_task(post_bulk_update_tasks)
+    return RedirectResponse(
+        url="/?view=library&success="
+        + quote(f"Updated settings for {len(ids)} podcast{'s' if len(ids) != 1 else ''}"),
+        status_code=303,
+    )
 
 
 @router.get("/subscriptions/{id}", response_class=HTMLResponse)
