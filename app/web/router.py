@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from app.infra.repository import ApiTokenRepository, SubscriptionRepository, EpisodeRepository, FeedTokenRepository
 from app.core.feed import FeedManager
 from app.core.models import SubscriptionCreate
@@ -2044,6 +2044,19 @@ async def update_user_library_membership(
         message = "Podcast removed from My Podcasts" if changed else "Podcast was not in My Podcasts"
     else:
         message = "No library change made"
+
+    in_user_library = sub_repo.is_in_user_library(user_id, id)
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse(
+            {
+                "status": "updated",
+                "subscription_id": id,
+                "changed": changed if "changed" in locals() else False,
+                "in_user_library": in_user_library,
+                "user_library_count": sub_repo.count_user_library_members(id),
+                "message": message,
+            }
+        )
 
     target = _safe_local_redirect(redirect_to, "/")
     separator = "&" if "?" in target else "?"

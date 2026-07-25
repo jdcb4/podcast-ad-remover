@@ -198,7 +198,7 @@
     <a href="/?view=mine"
         class="{% if library_view == 'mine' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">
         My Podcasts
-        <span class="badge-neutral ml-1">{{ my_podcast_count }}</span>
+        <span id="my-podcast-count" class="badge-neutral ml-1">{{ my_podcast_count }}</span>
     </a>
     <a href="/?view=library"
         class="{% if library_view == 'library' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">
@@ -268,7 +268,8 @@
 {% endif %}
 
 <!-- Podcast Grid -->
-<div id="podcast-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+<div id="podcast-grid" data-library-view="{{ library_view }}"
+    class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
     {% for item in subscriptions %}
     <article class="podcast-card" data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}"
         data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}"
@@ -296,7 +297,8 @@
                         item.sub.title }}</a>
                 </h3>
                 {% if user and user.id and user.id > 0 %}
-                <form action="/subscriptions/{{ item.sub.id }}/library" method="post" class="shrink-0">
+                <form action="/subscriptions/{{ item.sub.id }}/library" method="post"
+                    class="shrink-0 library-membership-form" data-subscription-id="{{ item.sub.id }}">
                     <input type="hidden" name="redirect_to" value="/?view={{ library_view }}">
                     <input type="hidden" name="action" value="{% if item.in_user_library %}remove{% else %}add{% endif %}">
                     <button type="submit"
@@ -320,7 +322,7 @@
             {% endif %}
             {% if user and user.is_admin %}
             <div class="flex flex-wrap gap-2 mb-3">
-                <span class="badge-neutral">{{ item.user_library_count }} user{% if item.user_library_count != 1 %}s{% endif %}</span>
+                <span class="badge-neutral library-user-count" data-count="{{ item.user_library_count }}">{{ item.user_library_count }} user{% if item.user_library_count != 1 %}s{% endif %}</span>
                 <span class="badge-neutral">{{ item.total_listens|default(0) }} play{% if item.total_listens|default(0) != 1 %}s{% endif %}</span>
             </div>
             {% endif %}
@@ -609,7 +611,7 @@
         const grid = document.getElementById('podcast-grid');
         if (!grid) return;
 
-        const cards = Array.from(grid.querySelectorAll('.podcast-card'));
+        let cards = Array.from(grid.querySelectorAll('.podcast-card'));
 
         function applyFiltersAndSort() {
             const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
@@ -673,6 +675,11 @@
         if (searchInput) searchInput.addEventListener('input', applyFiltersAndSort);
         if (filterSelect) filterSelect.addEventListener('change', applyFiltersAndSort);
         if (sortSelect) sortSelect.addEventListener('change', applyFiltersAndSort);
+        document.addEventListener('library-membership-changed', () => {
+            cards = Array.from(grid.querySelectorAll('.podcast-card'));
+            applyFiltersAndSort();
+        });
     })();
 </script>
+<script src="/static/js/dashboard-library.js" defer></script>
 {% endblock %}

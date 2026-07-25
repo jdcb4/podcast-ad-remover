@@ -928,6 +928,14 @@ class JobRepository:
             ).fetchone()
             return row is not None
 
+    def count_user_library_members(self, subscription_id: int) -> int:
+        with get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS count FROM user_subscriptions WHERE subscription_id = ?",
+                (subscription_id,),
+            ).fetchone()
+            return int(row["count"]) if row else 0
+
     def count_claimable(self) -> int:
         with get_db_connection() as conn:
             row = conn.execute("""
