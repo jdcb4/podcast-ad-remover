@@ -200,6 +200,20 @@ FORMAL_MIGRATIONS = [
             "ALTER TABLE app_settings ADD COLUMN custom_llm_model TEXT DEFAULT '[]'",
         ],
     ),
+    (
+        "20260725_0010_subscription_setting_inheritance",
+        [
+            "ALTER TABLE subscriptions ADD COLUMN inherit_content_removal INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscriptions ADD COLUMN inherit_retention INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscriptions ADD COLUMN inherit_default_features INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscriptions ADD COLUMN inherit_custom_instructions INTEGER NOT NULL DEFAULT 0",
+            """
+            UPDATE subscriptions
+            SET inherit_custom_instructions = 1
+            WHERE custom_instructions IS NULL OR TRIM(custom_instructions) = ''
+            """,
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

@@ -51,6 +51,10 @@ class SubscriptionSettingsUpdate(BaseModel):
     retention_days: int | None = Field(default=None, ge=0)
     manual_retention_days: int | None = Field(default=None, ge=0)
     retention_limit: int | None = Field(default=None, ge=0)
+    inherit_content_removal: bool | None = None
+    inherit_retention: bool | None = None
+    inherit_default_features: bool | None = None
+    inherit_custom_instructions: bool | None = None
 
 
 class ActionResponse(BaseModel):

@@ -7,8 +7,17 @@ from typing import List, Optional
 from datetime import datetime
 from app.infra.database import get_db_connection
 from app.core.models import SubscriptionCreate, Subscription, Episode
+from app.core.subscription_settings import resolve_subscription_row
 
 class SubscriptionRepository:
+    @staticmethod
+    def _global_settings(conn) -> dict:
+        row = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
+        return dict(row) if row else {}
+
+    def _subscription_from_row(self, row, global_settings: dict) -> Subscription:
+        return Subscription.model_validate(resolve_subscription_row(dict(row), global_settings))
+
     def create(
         self,
         sub: SubscriptionCreate,
@@ -18,6 +27,7 @@ class SubscriptionRepository:
         description: str = None,
         retention_limit: int = 1,
         owner_user_id: int | None = None,
+        inherit_retention: bool = True,
     ) -> Subscription:
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -25,10 +35,21 @@ class SubscriptionRepository:
                 cursor.execute(
                     """
                     INSERT INTO subscriptions
-                        (feed_url, title, slug, image_url, description, retention_limit, owner_user_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (feed_url, title, slug, image_url, description, retention_limit, owner_user_id,
+                         inherit_content_removal, inherit_retention,
+                         inherit_default_features, inherit_custom_instructions)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 1, 1)
                     """,
-                    (sub.feed_url, title, slug, image_url, description, retention_limit, owner_user_id)
+                    (
+                        sub.feed_url,
+                        title,
+                        slug,
+                        image_url,
+                        description,
+                        retention_limit,
+                        owner_user_id,
+                        int(inherit_retention),
+                    )
                 )
                 sub_id = cursor.lastrowid
                 if owner_user_id and owner_user_id > 0:
@@ -45,7 +66,7 @@ class SubscriptionRepository:
         with get_db_connection() as conn:
             row = conn.execute("SELECT * FROM subscriptions WHERE id = ?", (id,)).fetchone()
             if row:
-                return Subscription.model_validate(dict(row))
+                return self._subscription_from_row(row, self._global_settings(conn))
             return None
 
     def get_all(
@@ -73,7 +94,8 @@ class SubscriptionRepository:
                 rows = conn.execute(
                     f"SELECT * FROM subscriptions{where_clause} ORDER BY title COLLATE NOCASE"
                 ).fetchall()
-            return [Subscription.model_validate(dict(row)) for row in rows]
+            global_settings = self._global_settings(conn)
+            return [self._subscription_from_row(row, global_settings) for row in rows]
 
     def add_to_user_library(self, user_id: int | None, subscription_id: int) -> bool:
         if not user_id or user_id <= 0:
@@ -154,14 +176,14 @@ class SubscriptionRepository:
         with get_db_connection() as conn:
             row = conn.execute("SELECT * FROM subscriptions WHERE feed_url = ?", (url,)).fetchone()
             if row:
-                return Subscription.model_validate(dict(row))
+                return self._subscription_from_row(row, self._global_settings(conn))
             return None
 
     def get_by_slug(self, slug: str) -> Optional[Subscription]:
         with get_db_connection() as conn:
             row = conn.execute("SELECT * FROM subscriptions WHERE slug = ?", (slug,)).fetchone()
             if row:
-                return Subscription.model_validate(dict(row))
+                return self._subscription_from_row(row, self._global_settings(conn))
             return None
 
     def begin_deletion(self, id: int) -> Optional[dict]:
@@ -336,7 +358,26 @@ class SubscriptionRepository:
             conn.execute("DELETE FROM subscriptions WHERE id = ?", (id,))
             conn.commit()
 
-    def update_settings(self, id: int, remove_ads: bool, remove_promos: bool, remove_intros: bool, remove_outros: bool, custom_instructions: str, append_summary: bool, append_title_intro: bool, ai_rewrite_description: bool, ai_audio_summary: bool, retention_days: int = 30, manual_retention_days: int = 14, retention_limit: int = 1):
+    def update_settings(
+        self,
+        id: int,
+        remove_ads: bool,
+        remove_promos: bool,
+        remove_intros: bool,
+        remove_outros: bool,
+        custom_instructions: str,
+        append_summary: bool,
+        append_title_intro: bool,
+        ai_rewrite_description: bool,
+        ai_audio_summary: bool,
+        retention_days: int = 30,
+        manual_retention_days: int = 14,
+        retention_limit: int = 1,
+        inherit_content_removal: bool | None = None,
+        inherit_retention: bool | None = None,
+        inherit_default_features: bool | None = None,
+        inherit_custom_instructions: bool | None = None,
+    ):
         with get_db_connection() as conn:
             conn.execute("""
                 UPDATE subscriptions 
@@ -351,9 +392,31 @@ class SubscriptionRepository:
                     ai_audio_summary = ?,
                     retention_days = ?,
                     manual_retention_days = ?,
-                    retention_limit = ?
+                    retention_limit = ?,
+                    inherit_content_removal = COALESCE(?, inherit_content_removal),
+                    inherit_retention = COALESCE(?, inherit_retention),
+                    inherit_default_features = COALESCE(?, inherit_default_features),
+                    inherit_custom_instructions = COALESCE(?, inherit_custom_instructions)
                 WHERE id = ?
-            """, (remove_ads, remove_promos, remove_intros, remove_outros, custom_instructions, append_summary, append_title_intro, ai_rewrite_description, ai_audio_summary, retention_days, manual_retention_days, retention_limit, id))
+            """, (
+                remove_ads,
+                remove_promos,
+                remove_intros,
+                remove_outros,
+                custom_instructions,
+                append_summary,
+                append_title_intro,
+                ai_rewrite_description,
+                ai_audio_summary,
+                retention_days,
+                manual_retention_days,
+                retention_limit,
+                None if inherit_content_removal is None else int(inherit_content_removal),
+                None if inherit_retention is None else int(inherit_retention),
+                None if inherit_default_features is None else int(inherit_default_features),
+                None if inherit_custom_instructions is None else int(inherit_custom_instructions),
+                id,
+            ))
             conn.commit()
 
 class EpisodeRepository:

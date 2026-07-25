@@ -456,11 +456,10 @@
             if (!limits.includes(GLOBAL_RETENTION_DEFAULT)) limits.push(GLOBAL_RETENTION_DEFAULT);
             limits.sort((a, b) => a - b);
 
-            let optionsHtml = '';
+            let optionsHtml = '<option value="inherit" selected>Use global setting</option>';
             limits.forEach(limit => {
                 const label = limit === 0 ? '0 eps' : (limit === 1 ? '1 ep' : `${limit} eps`);
-                const selected = limit === GLOBAL_RETENTION_DEFAULT ? 'selected' : '';
-                optionsHtml += `<option value="${limit}" ${selected}>${label}</option>`;
+                optionsHtml += `<option value="${limit}">${label}</option>`;
             });
 
             data.forEach(pod => {

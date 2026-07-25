@@ -1920,7 +1920,7 @@ async def add_subscription(
     request: Request,
     background_tasks: BackgroundTasks,
     feed_url: str = Form(...),
-    initial_count: int = Form(1),
+    initial_count: str = Form("inherit"),
     user = Depends(require_auth),
 ):
     try:
@@ -1938,9 +1938,18 @@ async def add_subscription(
         with get_db_connection() as conn:
             app_settings = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
             
-        # Use user-provided initial_count (from UI dropdown) as retention limit
-        # The UI defaults this dropdown to the global default setting already.
-        retention_limit = initial_count
+        inherit_retention = str(initial_count).strip().lower() == "inherit"
+        if inherit_retention:
+            retention_limit = app_settings["default_retention_limit"]
+            if retention_limit is None:
+                retention_limit = 1
+        else:
+            try:
+                retention_limit = int(initial_count)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Invalid initial episode count") from exc
+            if retention_limit < 0:
+                raise ValueError("Initial episode count cannot be negative")
         
         sub_create = SubscriptionCreate(feed_url=feed_url)
         new_sub = sub_repo.create(
@@ -1951,6 +1960,7 @@ async def add_subscription(
             "Fetching feed information...",
             retention_limit=retention_limit,
             owner_user_id=_real_user_id(user),
+            inherit_retention=inherit_retention,
         )
         
         # Apply other global defaults immediately
@@ -1961,7 +1971,7 @@ async def add_subscription(
             remove_intros=bool(app_settings['default_remove_intros']),
             remove_outros=bool(app_settings['default_remove_outros']),
             custom_instructions=app_settings['default_custom_instructions'],
-            append_summary=bool(app_settings['default_ai_audio_summary']), # Mapped correctly? Yes
+            append_summary=False,
             append_title_intro=bool(app_settings['default_append_title_intro']),
             ai_rewrite_description=bool(app_settings['default_ai_rewrite_description']),
             ai_audio_summary=bool(app_settings['default_ai_audio_summary']),
@@ -2200,6 +2210,10 @@ async def update_settings(
     retention_days: int = Form(30),
     manual_retention_days: int = Form(14),
     retention_limit: int = Form(1),
+    inherit_content_removal: bool = Form(False),
+    inherit_retention: bool = Form(False),
+    inherit_default_features: bool = Form(False),
+    inherit_custom_instructions: bool = Form(False),
     user = Depends(require_auth),
 ):
     sub = sub_repo.get_by_id(id)
@@ -2207,6 +2221,39 @@ async def update_settings(
         raise HTTPException(status_code=404, detail="Subscription not found")
     if not _can_manage_subscription(user, sub):
         raise HTTPException(status_code=403, detail="Only admins and the podcast owner can change podcast settings")
+
+    stored = sub.setting_overrides
+    if inherit_content_removal:
+        remove_ads = bool(stored.get("remove_ads"))
+        remove_promos = bool(stored.get("remove_promos"))
+        remove_intros = bool(stored.get("remove_intros"))
+        remove_outros = bool(stored.get("remove_outros"))
+    if inherit_retention:
+        retention_days = stored.get("retention_days") if stored.get("retention_days") is not None else 30
+        manual_retention_days = (
+            stored.get("manual_retention_days")
+            if stored.get("manual_retention_days") is not None
+            else 14
+        )
+        retention_limit = (
+            stored.get("retention_limit")
+            if stored.get("retention_limit") is not None
+            else 1
+        )
+    if inherit_default_features:
+        append_summary = bool(stored.get("append_summary"))
+        append_title_intro = bool(stored.get("append_title_intro"))
+        ai_rewrite_description = bool(stored.get("ai_rewrite_description"))
+        ai_audio_summary = bool(stored.get("ai_audio_summary"))
+    if inherit_custom_instructions:
+        custom_instructions = stored.get("custom_instructions")
+    else:
+        custom_instructions = (custom_instructions or "").strip()
+        if not custom_instructions:
+            return RedirectResponse(
+                url=f"/subscriptions/{id}?error={quote('Enter custom instructions or use the global instructions')}",
+                status_code=303,
+            )
 
     sub_repo.update_settings(
         id, 
@@ -2221,7 +2268,11 @@ async def update_settings(
         ai_audio_summary,
         retention_days,
         manual_retention_days,
-        retention_limit
+        retention_limit,
+        inherit_content_removal=inherit_content_removal,
+        inherit_retention=inherit_retention,
+        inherit_default_features=inherit_default_features,
+        inherit_custom_instructions=inherit_custom_instructions,
     )
     
     # Trigger processing if any ads/promos settings were changed
