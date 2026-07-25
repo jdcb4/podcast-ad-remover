@@ -45,8 +45,10 @@ Key areas:
 Supporting modules include:
 - `app/core/audio.py`: FFmpeg helpers.
 - `app/core/ai_services.py`: provider integrations, transcription, summaries, and TTS.
+- `app/core/artwork.py`: safe source-image retrieval and cached ad-free artwork generation.
 - `app/core/rss_gen.py`: generated feed output.
 - `app/core/feed.py`: feed parsing.
+- `app/core/subscription_settings.py`: effective per-podcast setting resolution.
 
 ### Text Analysis Providers
 
@@ -81,6 +83,46 @@ user_subscriptions(user_id, subscription_id, added_at)
 The dashboard defaults logged-in users to a "My Podcasts" view backed by `user_subscriptions`, with a Library view for all global podcasts. Adding an existing podcast from search or the Library only adds that global podcast to the user's list.
 
 `subscriptions.owner_user_id` records the user who first added a podcast. Admins can reassign or clear a podcast owner and can change settings for any podcast. Assigning a new owner also adds that podcast to the new owner's My Podcasts list. The owner can change settings for their podcast while they own it. Other users can view, subscribe, refresh, and trigger downloads, but cannot change per-podcast settings. Only admins can delete the global podcast and local files; when an owner removes a podcast from their own list, the podcast becomes unowned instead.
+
+Library membership changes use a JSON response when requested by the dashboard, allowing the star,
+membership counts, active filters, selected view, and scroll position to remain in place. A redirect
+response remains available for ordinary form submissions.
+
+The compact table displays retention and inheritance sources and supplies row selection for bulk
+updates. The server validates every selected podcast before opening one SQLite write transaction, so
+a mixed unauthorised selection changes nothing. Owners can bulk-edit podcasts they manage; ownership
+reassignment remains admin-only.
+
+### Subscription Setting Inheritance
+
+Subscriptions have four explicit inheritance flags:
+
+- `inherit_content_removal`
+- `inherit_retention`
+- `inherit_default_features`
+- `inherit_custom_instructions`
+
+`SubscriptionRepository` resolves inheriting groups against the current `app_settings` row whenever
+it returns a subscription. The stored podcast-specific values remain available as internal
+`setting_overrides`; changing global settings affects inheriting podcasts immediately, and disabling
+inheritance restores the stored values. New subscriptions inherit all groups.
+
+Migration `20260725_0010_subscription_setting_inheritance` is additive. Existing settings remain
+explicit except blank or NULL custom instructions, which migrate to inheritance. This preserves the
+old meaning of blank custom instructions without treating NULL booleans as an inheritance signal.
+
+The default-features group contains description rewriting, audio summary, title intro, and artwork
+badging. The legacy `append_summary` umbrella flag remains explicit for compatibility and is
+suppressed while the default-features group inherits.
+
+### Derived Podcast Artwork
+
+When the effective artwork-badge setting is enabled, `app/core/artwork.py` retrieves HTTP(S) source
+artwork with redirect and size validation, composites the bundled `AD FREE` badge, and atomically
+caches a PNG under `/data/artwork/`. Generated feeds and the web UI use the local `/artwork/{id}.png`
+route with a content hash cache key. Disabling the feature clears the derived file and restores the
+source artwork URL. An artwork failure is logged but does not prevent subscription creation or feed
+processing.
 
 ### Job State
 
@@ -161,6 +203,8 @@ Persistent data should be mounted at `/data`.
         episode artifacts
   feeds/
     generated RSS files
+  artwork/
+    cached ad-free podcast artwork
   models/
     downloaded local model files
   app.log

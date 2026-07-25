@@ -2,7 +2,7 @@
 
 ## 1. Subscription & Polling
 1.  **User** adds a Podcast RSS URL via Web UI.
-2.  **System** saves one global podcast row to `subscriptions`, or reuses the existing global row if the feed is already known.
+2.  **System** saves one global podcast row to `subscriptions`, or reuses the existing global row if the feed is already known. New rows inherit the current global content-removal, retention, default-feature, and custom-instruction groups.
 3.  **System** adds the podcast to the user's `user_subscriptions` list. New podcasts record the first adding user as `subscriptions.owner_user_id`.
 4.  **Scheduler** wakes up (e.g., every hour) and iterates active subscriptions.
 5.  **Feed Manager** fetches the remote RSS feed.
@@ -43,10 +43,18 @@ For each queued episode:
 
 The public feed/audio path is not tied to a logged-in account by default. Admin-visible podcast stats can show how many user libraries include each podcast and the existing aggregate episode play count. Per-user download attribution would require token-attributed audio access logging and is not currently part of the data flow.
 
-## 4. Subscription Deletion
+## 4. Effective Settings And Artwork
+
+1. Repository reads resolve each inherited setting group against the current global settings.
+2. Explicit podcast values stay stored while inheritance is enabled; they become effective again if the group toggle is disabled.
+3. Global-setting changes therefore affect all inheriting podcasts without rewriting their rows.
+4. If artwork badging is effectively enabled, validated source art is composited with the bundled badge and cached under `/data/artwork/`.
+5. Feed generation uses the derived artwork URL and its content hash. Disabling the feature clears the cached derivative and restores source artwork.
+
+## 5. Subscription Deletion
 
 1. The delete request atomically deactivates the subscription, marks its episodes ignored, and cancels all queued or retryable jobs.
 2. Running jobs retain their worker lock while cancellation is requested. Workers stop at their next safe checkpoint, remove worker-owned temporary artifacts, and then mark the job cancelled.
 3. The request waits asynchronously for up to ten seconds. If a worker has not stopped, it returns a pending result and leaves all podcast files in place.
-4. Once no running jobs remain, a single cleanup claimant removes the subscription directory and generated feed, regenerates the unified feed once, and deletes the related database rows.
+4. Once no running jobs remain, a single cleanup claimant removes the subscription directory, generated feed, and derived artwork, regenerates the unified feed once, and deletes the related database rows.
 5. Partial filesystem or feed cleanup is recorded as failed and retried idempotently by the processor loop. A process interruption during cleanup can be reclaimed after five minutes.

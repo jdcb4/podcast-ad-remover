@@ -324,6 +324,11 @@ Example response:
     "append_title_intro": false,
     "ai_rewrite_description": false,
     "ai_audio_summary": false,
+    "watermark_artwork": false,
+    "inherit_content_removal": true,
+    "inherit_retention": true,
+    "inherit_default_features": true,
+    "inherit_custom_instructions": true,
     "owner_user_id": null,
     "retention_days": 30,
     "manual_retention_days": 14,
@@ -559,9 +564,14 @@ Content-Type: application/json
   "append_title_intro": false,
   "ai_rewrite_description": false,
   "ai_audio_summary": false,
+  "watermark_artwork": true,
   "retention_days": 30,
   "manual_retention_days": 14,
-  "retention_limit": 1
+  "retention_limit": 1,
+  "inherit_content_removal": false,
+  "inherit_retention": false,
+  "inherit_default_features": false,
+  "inherit_custom_instructions": false
 }
 ```
 
@@ -571,7 +581,18 @@ Use this when a user asks an assistant to change how a podcast is processed.
 
 Linked normal-user tokens can update only podcasts owned by that user. Linked admin tokens and legacy unlinked tokens can update any podcast.
 
-All fields are optional. Omitted fields keep their current values.
+All fields are optional. Omitted fields keep their current values. The response from subscription
+read endpoints contains effective values: fields in an inheriting group reflect the current global
+settings.
+
+The four `inherit_*` fields control content removal, retention, default features, and custom
+instructions independently. Setting an ordinary group member makes that group explicit unless its
+inheritance flag is supplied in the same request. For backward compatibility, setting
+`custom_instructions` to an empty string or `null` selects global-instruction inheritance. Stored
+podcast overrides are retained while a group inherits and return if inheritance is later disabled.
+
+The default-features group includes `ai_rewrite_description`, `ai_audio_summary`,
+`append_title_intro`, and `watermark_artwork`.
 
 Response:
 

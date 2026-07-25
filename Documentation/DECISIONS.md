@@ -72,3 +72,13 @@ common. The chunking implementation and harness are preserved on
 `experimental/local-llm-transcript-chunking` for research, but are not part of the production
 application and have no planned further development. Sanitized HTML, Markdown, and JSON results
 remain on `master` so the decision and exact detections are inspectable.
+
+## 2026-07-25: Use explicit group inheritance without discarding podcast overrides
+
+Per-podcast settings inherit through four independent flags: content removal, retention, default
+features, and custom instructions. Effective values are resolved when subscriptions are read, while
+the stored podcast-specific values remain unchanged so turning inheritance off restores them. New
+podcasts inherit all four groups. The additive migration keeps every existing content-removal,
+retention, and feature group explicit; only blank or NULL custom instructions migrate to inheritance,
+matching their previous behavior. Boolean values are therefore never overloaded with NULL to mean
+inheritance.

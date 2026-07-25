@@ -85,10 +85,17 @@ Important paths:
 - `/data/db/podcasts.db`: SQLite database.
 - `/data/podcasts/`: podcast and episode artifacts.
 - `/data/feeds/`: generated RSS files.
+- `/data/artwork/`: cached artwork generated when the ad-free badge is enabled.
 - `/data/models/`: downloaded local model files.
 - `/data/app.log`: application log.
 
 Do not delete `/data` unless you intentionally want to remove the app database and downloaded podcasts.
+
+The inheritance and artwork migrations are additive and the normal startup migration path creates a
+database backup under `/data/backups/` first. Existing podcast setting values are not erased. If an
+upgrade must be rolled back, stop the container and restore the matching pre-migration database backup
+before starting the older image; cached files in `/data/artwork/` can remain because older releases do
+not read them.
 
 ## Notifications
 
