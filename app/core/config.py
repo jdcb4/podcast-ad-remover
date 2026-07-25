@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     @property
     def FEEDS_DIR(self) -> str:
         return os.path.join(self.DATA_DIR, "feeds")
+
+    @property
+    def ARTWORK_DIR(self) -> str:
+        return os.path.join(self.DATA_DIR, "artwork")
         
     @property
     def AUDIO_DIR(self) -> str:
@@ -86,6 +90,7 @@ for path in [
     os.path.dirname(settings.DB_PATH),
     settings.PODCASTS_DIR,
     settings.FEEDS_DIR,
+    settings.ARTWORK_DIR,
     settings.MODELS_DIR
 ]:
     os.makedirs(path, exist_ok=True)

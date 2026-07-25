@@ -214,6 +214,15 @@ FORMAL_MIGRATIONS = [
             """,
         ],
     ),
+    (
+        "20260725_0011_artwork_watermark",
+        [
+            "ALTER TABLE subscriptions ADD COLUMN watermark_artwork INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscriptions ADD COLUMN watermarked_image_path TEXT",
+            "ALTER TABLE subscriptions ADD COLUMN watermarked_image_hash TEXT",
+            "ALTER TABLE app_settings ADD COLUMN default_watermark_artwork INTEGER NOT NULL DEFAULT 0",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

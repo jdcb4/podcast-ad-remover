@@ -251,6 +251,8 @@ class Processor:
                 raise RuntimeError("subscription directory failed path-containment validation")
             if not self._remove_subscription_feed(sub["slug"]):
                 raise RuntimeError("subscription feed failed path-containment validation")
+            from app.core.artwork import ArtworkWatermarker
+            ArtworkWatermarker().clear(subscription_id)
             self.rss_gen.generate_unified_feed()
             self.sub_repo.delete(subscription_id)
             logger.info(f"Completed deletion of subscription {subscription_id} ({sub['title']})")

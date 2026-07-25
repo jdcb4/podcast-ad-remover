@@ -275,9 +275,9 @@
         data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}"
         data-recent="{{ item.latest_episode_date|default('') }}">
         <!-- Artwork -->
-        {% if item.sub.image_url %}
+        {% if item.artwork_url %}
         <div class="podcast-artwork">
-            <img src="{{ item.sub.image_url }}" alt="{{ item.sub.title }}" loading="lazy">
+            <img src="{{ item.artwork_url }}" alt="{{ item.sub.title }}" loading="lazy">
             <div class="podcast-overlay">
                 <a href="/subscriptions/{{ item.sub.id }}"
                     class="w-14 h-14 rounded-full bg-primary-500 flex items-center justify-center text-white shadow-glow-md hover:scale-110 transition-transform">

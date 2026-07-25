@@ -377,6 +377,7 @@ class SubscriptionRepository:
         inherit_retention: bool | None = None,
         inherit_default_features: bool | None = None,
         inherit_custom_instructions: bool | None = None,
+        watermark_artwork: bool | None = None,
     ):
         with get_db_connection() as conn:
             conn.execute("""
@@ -396,7 +397,8 @@ class SubscriptionRepository:
                     inherit_content_removal = COALESCE(?, inherit_content_removal),
                     inherit_retention = COALESCE(?, inherit_retention),
                     inherit_default_features = COALESCE(?, inherit_default_features),
-                    inherit_custom_instructions = COALESCE(?, inherit_custom_instructions)
+                    inherit_custom_instructions = COALESCE(?, inherit_custom_instructions),
+                    watermark_artwork = COALESCE(?, watermark_artwork)
                 WHERE id = ?
             """, (
                 remove_ads,
@@ -415,6 +417,7 @@ class SubscriptionRepository:
                 None if inherit_retention is None else int(inherit_retention),
                 None if inherit_default_features is None else int(inherit_default_features),
                 None if inherit_custom_instructions is None else int(inherit_custom_instructions),
+                None if watermark_artwork is None else int(watermark_artwork),
                 id,
             ))
             conn.commit()

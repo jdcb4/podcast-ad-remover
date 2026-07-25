@@ -292,6 +292,7 @@ async def update_subscription_settings(
         "append_title_intro",
         "ai_rewrite_description",
         "ai_audio_summary",
+        "watermark_artwork",
     }
 
     inherit_content_removal = updates.get(
@@ -340,6 +341,7 @@ async def update_subscription_settings(
         inherit_retention=inherit_retention,
         inherit_default_features=inherit_default_features,
         inherit_custom_instructions=inherit_custom_instructions,
+        watermark_artwork=updates.get("watermark_artwork", stored.get("watermark_artwork")),
     )
 
     proc = _processor()

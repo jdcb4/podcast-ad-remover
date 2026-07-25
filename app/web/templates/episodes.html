@@ -21,18 +21,18 @@
     <div
         class="relative overflow-hidden rounded-3xl p-6 md:p-10 border border-white/5 bg-surface-elevated/40 backdrop-blur-none md:backdrop-blur-md">
         <div class="absolute inset-0 z-0">
-            {% if subscription.image_url %}
+            {% if artwork_url %}
             <div class="hidden md:block absolute inset-0 bg-cover bg-center blur-[100px] opacity-30 scale-125"
-                style="background-image: url('{{ subscription.image_url }}');"></div>
+                style="background-image: url('{{ artwork_url }}');"></div>
             {% endif %}
             <div class="absolute inset-0 bg-gradient-to-br from-bg-surface/90 via-bg-surface/60 to-transparent"></div>
         </div>
 
         <div class="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
             <!-- Artwork and Delete Button (mobile) -->
-            {% if subscription.image_url %}
+            {% if artwork_url %}
             <div class="shrink-0 relative flex flex-col items-center gap-4">
-                <img src="{{ subscription.image_url }}" alt="{{ subscription.title }}"
+                <img src="{{ artwork_url }}" alt="{{ subscription.title }}"
                     class="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform duration-500">
                 <div class="absolute inset-0 rounded-2xl ring-inset ring-1 ring-white/20 pointer-events-none"></div>
             </div>
@@ -324,6 +324,13 @@
                         {% if subscription.inherit_default_features %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Append Audio Title as Intro (TTS)</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="watermark_artwork" value="true" data-inherited-control
+                        {% if subscription.setting_overrides.get('watermark_artwork') %}checked{% endif %}
+                        {% if subscription.inherit_default_features %}disabled{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Add “Ad Free” Artwork Badge</span>
                 </label>
                 </section>
 

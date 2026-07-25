@@ -45,6 +45,9 @@ class Subscription(SubscriptionBase):
     inherit_default_features: bool = False
     inherit_custom_instructions: bool = False
     setting_overrides: dict[str, Any] = Field(default_factory=dict, exclude=True)
+    watermark_artwork: bool = False
+    watermarked_image_path: Optional[str] = None
+    watermarked_image_hash: Optional[str] = None
     
     # Retention
     retention_days: Optional[int] = 30

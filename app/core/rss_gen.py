@@ -6,6 +6,7 @@ from uuid import uuid4
 from xml.etree.ElementTree import Element, SubElement, tostring
 from app.core.config import settings
 from app.infra.repository import SubscriptionRepository, EpisodeRepository
+from app.core.artwork import effective_artwork_url
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +92,10 @@ class RSSGenerator:
         SubElement(channel, 'link').text = sub.feed_url
         
         # Image
-        if sub.image_url:
+        artwork_url = effective_artwork_url(sub, base_url)
+        if artwork_url:
             itunes_image = SubElement(channel, 'itunes:image')
-            itunes_image.set('href', sub.image_url) 
+            itunes_image.set('href', artwork_url)
 
         for ep_row in episodes:
             ep = dict(ep_row)
@@ -161,6 +163,7 @@ class RSSGenerator:
         base_url = _get_feed_base_url(global_settings)
 
         episodes = self.ep_repo.get_completed_with_subscription_info()
+        subscriptions = {sub.id: sub for sub in self.sub_repo.get_all()}
 
         rss = Element('rss', version='2.0', **{'xmlns:itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'})
         channel = SubElement(rss, 'channel')
@@ -215,9 +218,13 @@ class RSSGenerator:
                 description = f"From: {ep['podcast_title']}\n\n" + description
 
             # Episode Artwork - Use podcast image for each item
-            if ep.get('podcast_image'):
+            episode_artwork = effective_artwork_url(
+                subscriptions.get(ep.get("subscription_id")),
+                base_url,
+            )
+            if episode_artwork:
                 itunes_ep_image = SubElement(item, 'itunes:image')
-                itunes_ep_image.set('href', ep['podcast_image'])
+                itunes_ep_image.set('href', episode_artwork)
 
             desc_element = SubElement(item, 'description')
             desc_element.text = _cdata(description)

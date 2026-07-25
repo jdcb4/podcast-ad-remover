@@ -58,6 +58,7 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
     assert "20260617_0007_ai_api" in migrations
     assert "20260722_0008_subscription_deletion" in migrations
     assert "20260725_0010_subscription_setting_inheritance" in migrations
+    assert "20260725_0011_artwork_watermark" in migrations
 
     with get_db_connection() as conn:
         access_request_columns = {
@@ -83,6 +84,9 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
         "inherit_retention",
         "inherit_default_features",
         "inherit_custom_instructions",
+        "watermark_artwork",
+        "watermarked_image_path",
+        "watermarked_image_hash",
     }.issubset(subscription_columns)
     assert {
         "notifications_enabled",
@@ -98,6 +102,7 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
         "ai_api_default_requests_per_minute",
         "ai_api_default_requests_per_day",
         "ai_api_unauth_requests_per_minute",
+        "default_watermark_artwork",
     }.issubset(settings_columns)
 
 

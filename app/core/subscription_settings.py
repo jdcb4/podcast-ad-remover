@@ -12,6 +12,7 @@ GROUP_FIELDS = {
         "ai_rewrite_description",
         "ai_audio_summary",
         "append_title_intro",
+        "watermark_artwork",
     ),
     "custom_instructions": ("custom_instructions",),
 }
@@ -27,6 +28,7 @@ GLOBAL_FIELDS = {
     "ai_rewrite_description": "default_ai_rewrite_description",
     "ai_audio_summary": "default_ai_audio_summary",
     "append_title_intro": "default_append_title_intro",
+    "watermark_artwork": "default_watermark_artwork",
     "custom_instructions": "default_custom_instructions",
 }
 
@@ -38,6 +40,7 @@ BOOLEAN_FIELDS = {
     "ai_rewrite_description",
     "ai_audio_summary",
     "append_title_intro",
+    "watermark_artwork",
 }
 
 FALLBACKS = {
@@ -51,6 +54,7 @@ FALLBACKS = {
     "ai_rewrite_description": False,
     "ai_audio_summary": False,
     "append_title_intro": False,
+    "watermark_artwork": False,
     "custom_instructions": None,
 }
 

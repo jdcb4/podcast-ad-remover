@@ -112,6 +112,7 @@ async def auth_middleware(request: Request, call_next):
        path.startswith("/subscribe/") or \
        path.startswith("/feeds/") or \
        path.startswith("/feed/") or \
+       path.startswith("/artwork/") or \
        path.startswith("/audio/"):
         return await call_next(request)
 

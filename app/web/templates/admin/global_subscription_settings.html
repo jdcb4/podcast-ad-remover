@@ -121,6 +121,12 @@
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Append Audio Title as Intro (TTS)</span>
                 </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="default_watermark_artwork" value="true"
+                        {% if settings.default_watermark_artwork %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Add “Ad Free” Artwork Badge</span>
+                </label>
             </div>
 
             <div class="mt-6">
