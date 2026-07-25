@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.10.0 - 2026-07-25
+
 - Added four explicit per-podcast inheritance groups for content removal, retention, default features, and custom instructions. New podcasts inherit all groups; migration preserves existing explicit values except blank or NULL custom instructions, which now inherit.
 - Added an optional inherited or per-podcast ad-free artwork badge with validated source-image fetching, cached generated artwork, and RSS/dashboard integration.
 - Added a compact subscription table with settings-source indicators and permission-checked, atomic bulk updates for processing settings, retention, instructions, and admin ownership.
