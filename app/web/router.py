@@ -718,6 +718,7 @@ async def update_ai_settings(
     request: Request,
     section: str = Form("ai_text"),
     whisper_model: str = Form(None),
+    transcription_engine: str = Form(None),
     ai_model_cascade: str = Form(None),
     piper_model: str = Form(None),
     tts_provider: str = Form(None),
@@ -773,9 +774,10 @@ async def update_ai_settings(
 
         if section == "ai_transcription":
             selected_whisper = whisper_model if whisper_model in {"tiny", "base", "small", "medium", "large"} else "base"
+            selected_engine = transcription_engine if transcription_engine in {"faster-whisper", "whisperx"} else "faster-whisper"
             conn.execute(
-                "UPDATE app_settings SET whisper_model = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1",
-                (selected_whisper,),
+                "UPDATE app_settings SET whisper_model = ?, transcription_engine = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1",
+                (selected_whisper, selected_engine),
             )
         elif section == "ai_voice":
             selected_tts_provider = tts_provider if tts_provider in {"piper", "gemini"} else "piper"

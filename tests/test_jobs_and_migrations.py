@@ -57,6 +57,7 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
     assert "20260612_0006_tts_provider_settings" in migrations
     assert "20260617_0007_ai_api" in migrations
     assert "20260722_0008_subscription_deletion" in migrations
+    assert "20260724_0009_local_llm_chunking" in migrations
 
     with get_db_connection() as conn:
         access_request_columns = {
@@ -93,6 +94,7 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
         "ai_api_default_requests_per_minute",
         "ai_api_default_requests_per_day",
         "ai_api_unauth_requests_per_minute",
+        "transcription_engine",
     }.issubset(settings_columns)
 
 
@@ -108,7 +110,8 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
                    notify_episode_downloads, notify_breaking_errors,
                    tts_provider, gemini_tts_voice, gemini_tts_model_cascade,
                    ai_api_enabled, ai_api_default_requests_per_minute,
-                   ai_api_default_requests_per_day, ai_api_unauth_requests_per_minute
+                   ai_api_default_requests_per_day, ai_api_unauth_requests_per_minute,
+                   transcription_engine
             FROM app_settings WHERE id = 1
         """).fetchone()
 
@@ -135,6 +138,7 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
     assert row["ai_api_default_requests_per_minute"] == 60
     assert row["ai_api_default_requests_per_day"] == 1000
     assert row["ai_api_unauth_requests_per_minute"] == 10
+    assert row["transcription_engine"] == "faster-whisper"
 
 
 def test_database_connections_use_wal_and_busy_timeout(isolated_data_dir):
