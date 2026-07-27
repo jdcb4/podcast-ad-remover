@@ -7,6 +7,7 @@ This roadmap lists improvement candidates. It is not a release commitment.
 - Expand Python coverage around full processor lifecycle transitions and service boundaries.
 - Expand migration tests so they run against a copied realistic `podcasts.db`.
 - Continue expanding the durable job model with recovery tooling for orphaned work directories and richer worker lease visibility.
+- Investigate and fix grouped global-settings inheritance so the effective values used by processing and cleanup, as well as the disabled per-podcast controls, consistently reflect the current global settings. Use Real Footy as a regression case: it is set to inherit retention and reports a global keep-latest value of 3, while its retention selector shows 1. Add repository, web, and cleanup coverage that distinguishes stored per-podcast values from effective inherited values.
 
 ## Security
 
