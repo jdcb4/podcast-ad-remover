@@ -20,6 +20,9 @@ This roadmap lists improvement candidates. It is not a release commitment.
 ## User Experience
 
 - Expand first-run setup into a guided wizard for API keys and recommended defaults; the current System Settings checklist covers admin credentials and URL/feed checks.
+- Make the landing page more compact on mobile while preserving readable hierarchy, accessible touch targets, and the controls needed for common podcast actions.
+- Constrain the landing-page current-processing list to roughly three visible items, with a clear total count and an internal scroll area when more work is active so the queue cannot dominate the page.
+- Replace the scheduled whole-page reload used for processing progress with a partial queue refresh that updates only the current-processing region, preserving scroll position, filters, selected view, and other in-progress page state. Keep a manual or failure fallback to a full refresh.
 - Add clearer queue state explanations for failed, rate-limited, ignored, and unprocessed episodes.
 - Add optional token-attributed feed/audio access logging if admins need true per-user download analytics. Current stats show per-podcast user-library counts and aggregate plays.
 - Add dynamic per-user file serving so each user can keep podcast-specific preferences and receive a personalized episode file generated when their podcast client downloads it.
