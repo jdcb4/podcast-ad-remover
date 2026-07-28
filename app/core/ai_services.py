@@ -261,51 +261,98 @@ class Transcriber:
         try:
             import whisperx
 
+            # Load audio using WhisperX
+            audio = whisperx.load_audio(clean_audio_path)
+            
             # WhisperX transcribe
             logger.info("Running WhisperX transcription...")
-            result = self.model.transcribe(clean_audio_path, batch_size=16)
+            try:
+                result = self.model.transcribe(audio, batch_size=16)
+            except Exception as e:
+                logger.error(f"WhisperX transcribe failed: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise
+            
+            if not isinstance(result, dict):
+                logger.error(f"WhisperX transcribe returned unexpected type: {type(result)}. Result: {result}")
+                raise ValueError(f"WhisperX transcribe returned {type(result)} instead of dict")
             
             logger.info(f"Detected language: {result.get('language', 'unknown')}")
 
-            # Align segments (optional but recommended for WhisperX)
+            # Align segments (required for diarization)
             logger.info("Running WhisperX alignment...")
-            model_a, metadata = whisperx.load_align_model(
-                language_code=result["language"], 
-                device="cpu"
-            )
-            result = whisperx.align(result, model_a, metadata, clean_audio_path, "cpu")
+            try:
+                model_a, metadata = whisperx.load_align_model(
+                    language_code=result["language"], 
+                    device="cpu"
+                )
+                result = whisperx.align(
+                    result["segments"], 
+                    model_a, 
+                    metadata, 
+                    audio, 
+                    "cpu", 
+                    return_char_alignments=False
+                )
+                del model_a
+                import gc
+                gc.collect()
+            except Exception as e:
+                logger.error(f"WhisperX alignment failed: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise
 
             # Diarization (speaker identification)
             logger.info("Running WhisperX diarization...")
-            diarize_model = whisperx.DiarizationPipeline(use_auth_token=None, device="cpu")
-            result = whisperx.assign_word_speakers(diarize_model, result)
+            try:
+                from whisperx.diarize import DiarizationPipeline
+                from app.core.config import settings
+                
+                hf_token = settings.HF_TOKEN
+                if not hf_token:
+                    logger.warning("Diarization requested but no HF token provided. Skipping diarization.")
+                else:
+                    diarize_model = DiarizationPipeline(
+                        token=hf_token,
+                        device="cpu"
+                    )
+                    diarize_segments = diarize_model(audio)
+                    result = whisperx.assign_word_speakers(diarize_segments, result)
+            except Exception as e:
+                logger.error(f"WhisperX diarization failed: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise
 
             # Convert WhisperX segments to standard format with speaker tags
             segments_result = []
-            for i, seg in enumerate(result["segments"]):
-                speaker = seg.get("speaker", "UNKNOWN")
-                # Add speaker tag to the text
-                text_with_speaker = f"[{speaker}] {seg['text']}"
-                segments_result.append({
+            for i, segment in enumerate(result["segments"]):
+                seg_dict = {
                     "id": i,
-                    "seek": 0,  # WhisperX doesn't provide seek
-                    "start": seg["start"],
-                    "end": seg["end"],
-                    "text": text_with_speaker,
-                    "tokens": [],  # WhisperX doesn't provide tokens
+                    "seek": 0,
+                    "start": segment["start"],
+                    "end": segment["end"],
+                    "text": segment["text"],
+                    "tokens": [],
                     "temperature": 0.0,
                     "avg_logprob": 0.0,
                     "compression_ratio": 0.0,
                     "no_speech_prob": 0.0
-                })
-
+                }
+                # Add speaker information if available
+                if "speaker" in segment:
+                    seg_dict["speaker"] = segment["speaker"]
+                segments_result.append(seg_dict)
+                
                 if progress_callback:
-                    progress_callback(seg["end"], audio_duration)
+                    progress_callback(segment["end"], audio_duration)
 
             final_result = {
-                "text": result["text"],
+                "text": "".join([s['text'] for s in segments_result]),
                 "segments": segments_result,
-                "language": result.get("language", "unknown")
+                "language": result.get('language', 'en')
             }
 
             logger.info(f"WhisperX transcription complete. Found {len(segments_result)} segments.")
@@ -797,10 +844,12 @@ class AdDetector:
         # Prepare transcript text
         text_data = ""
         for seg in transcript['segments']:
-            text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
+            text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] [{seg['speaker']}] {seg['text']}\n"
 
         # Build Prompt
         prompt = self._build_ad_prompt(options, text_data, whitelist_mode=whitelist_mode)
+
+        logger.info(f"Ad detection prompt: {prompt}")
 
         # Execute
         try:

@@ -183,23 +183,24 @@ def test_transcribe_routes_to_whisperx(isolated_data_dir):
 
 
 def test_transcribe_whisperx_converts_segments_to_standard_format(isolated_data_dir):
-    """Test that _transcribe_whisperx converts WhisperX segments to standard format."""
+    """Test that _transcribe_whisperx converts WhisperX segments to standard format with speaker tags."""
     init_db()
     
     transcriber = Transcriber()
     
-    # Mock WhisperX response
+    # Mock WhisperX response with speaker information
     mock_whisperx_result = {
         "text": "Hello world",
         "language": "en",
         "segments": [
-            {"start": 0.0, "end": 1.0, "text": "Hello "},
-            {"start": 1.0, "end": 2.0, "text": "world"},
+            {"start": 0.0, "end": 1.0, "text": "Hello ", "speaker": "SPEAKER_00"},
+            {"start": 1.0, "end": 2.0, "text": "world", "speaker": "SPEAKER_01"},
         ]
     }
     
     # Mock the whisperx module
     mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
     mock_model = MagicMock()
     mock_model.transcribe.return_value = mock_whisperx_result
     mock_wx_module.load_model.return_value = mock_model
@@ -207,6 +208,15 @@ def test_transcribe_whisperx_converts_segments_to_standard_format(isolated_data_
     mock_metadata = {}
     mock_wx_module.load_align_model.return_value = (mock_align_model, mock_metadata)
     mock_wx_module.align.return_value = mock_whisperx_result
+    
+    # Mock the diarize submodule
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_pipeline.return_value = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    mock_wx_module.assign_word_speakers.return_value = mock_whisperx_result
     
     with patch('app.core.audio.AudioProcessor') as mock_audio:
         mock_audio.get_duration.return_value = 2.0
@@ -219,28 +229,36 @@ def test_transcribe_whisperx_converts_segments_to_standard_format(isolated_data_
         # Use the actual method but with mocked whisperx
         import sys
         sys.modules['whisperx'] = mock_wx_module
+        sys.modules['whisperx.diarize'] = mock_diarize_module
         
         try:
             result = transcriber._transcribe_whisperx("test.mp3", 2.0)
         finally:
             del sys.modules['whisperx']
+            del sys.modules['whisperx.diarize']
     
     assert result["text"] == "Hello world"
     assert result["language"] == "en"
     assert len(result["segments"]) == 2
     
-    # Check segment format
+    # Check segment format with speaker field (not in text)
     seg = result["segments"][0]
     assert seg["id"] == 0
     assert seg["start"] == 0.0
     assert seg["end"] == 1.0
     assert seg["text"] == "Hello "
+    assert seg["speaker"] == "SPEAKER_00"
     assert seg["seek"] == 0
     assert seg["tokens"] == []
     assert seg["temperature"] == 0.0
     assert seg["avg_logprob"] == 0.0
     assert seg["compression_ratio"] == 0.0
     assert seg["no_speech_prob"] == 0.0
+    
+    # Check second segment has speaker field
+    seg2 = result["segments"][1]
+    assert seg2["text"] == "world"
+    assert seg2["speaker"] == "SPEAKER_01"
 
 
 def test_transcribe_whisperx_handles_progress_callback(isolated_data_dir):
@@ -252,7 +270,7 @@ def test_transcribe_whisperx_handles_progress_callback(isolated_data_dir):
     mock_whisperx_result = {
         "text": "Test",
         "language": "en",
-        "segments": [{"start": 0.0, "end": 1.0, "text": "Test"}]
+        "segments": [{"start": 0.0, "end": 1.0, "text": "Test", "speaker": "SPEAKER_00"}]
     }
     
     progress_calls = []
@@ -262,11 +280,21 @@ def test_transcribe_whisperx_handles_progress_callback(isolated_data_dir):
     
     # Mock the whisperx module
     mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
     mock_model = MagicMock()
     mock_model.transcribe.return_value = mock_whisperx_result
     mock_wx_module.load_model.return_value = mock_model
     mock_wx_module.load_align_model.return_value = (MagicMock(), {})
     mock_wx_module.align.return_value = mock_whisperx_result
+    
+    # Mock the diarize submodule
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_pipeline.return_value = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    mock_wx_module.assign_word_speakers.return_value = mock_whisperx_result
     
     with patch('app.core.audio.AudioProcessor') as mock_audio:
         mock_audio.get_duration.return_value = 1.0
@@ -277,11 +305,13 @@ def test_transcribe_whisperx_handles_progress_callback(isolated_data_dir):
         
         import sys
         sys.modules['whisperx'] = mock_wx_module
+        sys.modules['whisperx.diarize'] = mock_diarize_module
         
         try:
             transcriber._transcribe_whisperx("test.mp3", 1.0, progress_callback=mock_progress)
         finally:
             del sys.modules['whisperx']
+            del sys.modules['whisperx.diarize']
     
     assert len(progress_calls) == 1
     assert progress_calls[0] == (1.0, 1.0)
@@ -330,3 +360,626 @@ def test_transcriber_does_not_reload_if_config_unchanged(isolated_data_dir):
     
     # Config should be the same, so no reload needed
     assert current_config == transcriber.model_config
+
+
+def test_transcribe_whisperx_with_diarization_enabled(isolated_data_dir):
+    """Test WhisperX transcription with diarization when HF_TOKEN is set."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Hello world",
+        "language": "en",
+        "segments": [
+            {"start": 0.0, "end": 1.0, "text": "Hello ", "speaker": "SPEAKER_00"},
+            {"start": 1.0, "end": 2.0, "text": "world", "speaker": "SPEAKER_01"},
+        ]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_pipeline.return_value = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    mock_wx_module.assign_word_speakers.return_value = mock_whisperx_result
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        with patch('app.core.config.settings') as mock_settings:
+            mock_settings.HF_TOKEN = "test_token"
+            mock_audio.get_duration.return_value = 2.0
+            mock_audio.prepare_for_transcription.return_value = None
+            
+            transcriber.model = mock_model
+            transcriber.transcription_engine = "whisperx"
+            
+            import sys
+            sys.modules['whisperx'] = mock_wx_module
+            sys.modules['whisperx.diarize'] = mock_diarize_module
+            
+            try:
+                result = transcriber._transcribe_whisperx("test.mp3", 2.0)
+            finally:
+                del sys.modules['whisperx']
+                del sys.modules['whisperx.diarize']
+    
+    # Verify diarization pipeline was called
+    mock_diarize_module.DiarizationPipeline.assert_called_once_with(token="test_token", device="cpu")
+    mock_wx_module.assign_word_speakers.assert_called_once()
+    assert result["segments"][0]["speaker"] == "SPEAKER_00"
+
+
+def test_transcribe_whisperx_skips_diarization_without_token(isolated_data_dir):
+    """Test WhisperX transcription skips diarization when HF_TOKEN is not set."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Hello world",
+        "language": "en",
+        "segments": [
+            {"start": 0.0, "end": 1.0, "text": "Hello "},
+            {"start": 1.0, "end": 2.0, "text": "world"},
+        ]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    mock_wx_module.assign_word_speakers.return_value = mock_whisperx_result
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        with patch('app.core.config.settings') as mock_settings:
+            mock_settings.HF_TOKEN = None
+            mock_audio.get_duration.return_value = 2.0
+            mock_audio.prepare_for_transcription.return_value = None
+            
+            transcriber.model = mock_model
+            transcriber.transcription_engine = "whisperx"
+            
+            import sys
+            sys.modules['whisperx'] = mock_wx_module
+            sys.modules['whisperx.diarize'] = mock_diarize_module
+            
+            try:
+                result = transcriber._transcribe_whisperx("test.mp3", 2.0)
+            finally:
+                del sys.modules['whisperx']
+                del sys.modules['whisperx.diarize']
+    
+    # Verify diarization pipeline was NOT called
+    mock_diarize_module.DiarizationPipeline.assert_not_called()
+    mock_wx_module.assign_word_speakers.assert_not_called()
+    # Segments should not have speaker field
+    assert "speaker" not in result["segments"][0]
+
+
+def test_transcribe_whisperx_handles_transcribe_error(isolated_data_dir):
+    """Test WhisperX transcription handles transcribe errors gracefully."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.side_effect = Exception("Transcribe failed")
+    mock_wx_module.load_model.return_value = mock_model
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        mock_audio.get_duration.return_value = 2.0
+        mock_audio.prepare_for_transcription.return_value = None
+        
+        transcriber.model = mock_model
+        transcriber.transcription_engine = "whisperx"
+        
+        import sys
+        sys.modules['whisperx'] = mock_wx_module
+        
+        try:
+            with pytest.raises(Exception, match="Transcribe failed"):
+                transcriber._transcribe_whisperx("test.mp3", 2.0)
+        finally:
+            del sys.modules['whisperx']
+
+
+def test_transcribe_whisperx_handles_alignment_error(isolated_data_dir):
+    """Test WhisperX transcription handles alignment errors gracefully."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Hello",
+        "language": "en",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "Hello"}]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.side_effect = Exception("Alignment failed")
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        mock_audio.get_duration.return_value = 2.0
+        mock_audio.prepare_for_transcription.return_value = None
+        
+        transcriber.model = mock_model
+        transcriber.transcription_engine = "whisperx"
+        
+        import sys
+        sys.modules['whisperx'] = mock_wx_module
+        
+        try:
+            with pytest.raises(Exception, match="Alignment failed"):
+                transcriber._transcribe_whisperx("test.mp3", 2.0)
+        finally:
+            del sys.modules['whisperx']
+
+
+def test_transcribe_whisperx_handles_diarization_error(isolated_data_dir):
+    """Test WhisperX transcription handles diarization errors gracefully."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Hello",
+        "language": "en",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "Hello"}]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_pipeline.side_effect = Exception("Diarization failed")
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        with patch('app.core.config.settings') as mock_settings:
+            mock_settings.HF_TOKEN = "test_token"
+            mock_audio.get_duration.return_value = 2.0
+            mock_audio.prepare_for_transcription.return_value = None
+            
+            transcriber.model = mock_model
+            transcriber.transcription_engine = "whisperx"
+            
+            import sys
+            sys.modules['whisperx'] = mock_wx_module
+            sys.modules['whisperx.diarize'] = mock_diarize_module
+            
+            try:
+                with pytest.raises(Exception, match="Diarization failed"):
+                    transcriber._transcribe_whisperx("test.mp3", 2.0)
+            finally:
+                del sys.modules['whisperx']
+                del sys.modules['whisperx.diarize']
+
+
+def test_transcribe_whisperx_multiple_segments_multiple_speakers(isolated_data_dir):
+    """Test WhisperX handles multiple segments with different speakers."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Speaker A: Hello. Speaker B: Hi there. Speaker A: How are you?",
+        "language": "en",
+        "segments": [
+            {"start": 0.0, "end": 1.0, "text": "Speaker A: Hello. ", "speaker": "SPEAKER_00"},
+            {"start": 1.0, "end": 2.0, "text": "Speaker B: Hi there. ", "speaker": "SPEAKER_01"},
+            {"start": 2.0, "end": 3.0, "text": "Speaker A: How are you?", "speaker": "SPEAKER_00"},
+        ]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_pipeline.return_value = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    mock_wx_module.assign_word_speakers.return_value = mock_whisperx_result
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        with patch('app.core.config.settings') as mock_settings:
+            mock_settings.HF_TOKEN = "test_token"
+            mock_audio.get_duration.return_value = 3.0
+            mock_audio.prepare_for_transcription.return_value = None
+            
+            transcriber.model = mock_model
+            transcriber.transcription_engine = "whisperx"
+            
+            import sys
+            sys.modules['whisperx'] = mock_wx_module
+            sys.modules['whisperx.diarize'] = mock_diarize_module
+            
+            try:
+                result = transcriber._transcribe_whisperx("test.mp3", 3.0)
+            finally:
+                del sys.modules['whisperx']
+                del sys.modules['whisperx.diarize']
+    
+    assert len(result["segments"]) == 3
+    assert result["segments"][0]["speaker"] == "SPEAKER_00"
+    assert result["segments"][1]["speaker"] == "SPEAKER_01"
+    assert result["segments"][2]["speaker"] == "SPEAKER_00"
+
+
+def test_transcribe_whisperx_empty_segments(isolated_data_dir):
+    """Test WhisperX handles empty segments list."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "",
+        "language": "en",
+        "segments": []
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        mock_audio.get_duration.return_value = 0.0
+        mock_audio.prepare_for_transcription.return_value = None
+        
+        transcriber.model = mock_model
+        transcriber.transcription_engine = "whisperx"
+        
+        import sys
+        sys.modules['whisperx'] = mock_wx_module
+        sys.modules['whisperx.diarize'] = mock_diarize_module
+        
+        try:
+            result = transcriber._transcribe_whisperx("test.mp3", 0.0)
+        finally:
+            del sys.modules['whisperx']
+            del sys.modules['whisperx.diarize']
+    
+    assert result["text"] == ""
+    assert len(result["segments"]) == 0
+
+
+def test_transcribe_whisperx_language_detection(isolated_data_dir):
+    """Test WhisperX correctly detects and reports language."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Bonjour le monde",
+        "language": "fr",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "Bonjour le monde"}]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        mock_audio.get_duration.return_value = 1.0
+        mock_audio.prepare_for_transcription.return_value = None
+        
+        transcriber.model = mock_model
+        transcriber.transcription_engine = "whisperx"
+        
+        import sys
+        sys.modules['whisperx'] = mock_wx_module
+        sys.modules['whisperx.diarize'] = mock_diarize_module
+        
+        try:
+            result = transcriber._transcribe_whisperx("test.mp3", 1.0)
+        finally:
+            del sys.modules['whisperx']
+            del sys.modules['whisperx.diarize']
+    
+    assert result["language"] == "fr"
+
+
+def test_transcribe_whisperx_audio_loading(isolated_data_dir):
+    """Test WhisperX loads audio using load_audio."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Test",
+        "language": "en",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "Test"}]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_audio_array = MagicMock()
+    mock_wx_module.load_audio.return_value = mock_audio_array
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        mock_audio.get_duration.return_value = 1.0
+        mock_audio.prepare_for_transcription.return_value = None
+        
+        transcriber.model = mock_model
+        transcriber.transcription_engine = "whisperx"
+        
+        import sys
+        sys.modules['whisperx'] = mock_wx_module
+        sys.modules['whisperx.diarize'] = mock_diarize_module
+        
+        try:
+            transcriber._transcribe_whisperx("test.mp3", 1.0)
+        finally:
+            del sys.modules['whisperx']
+            del sys.modules['whisperx.diarize']
+    
+    # Verify load_audio was called with the clean audio path
+    mock_wx_module.load_audio.assert_called_once()
+    # Verify transcribe was called with the audio array
+    mock_model.transcribe.assert_called_once_with(mock_audio_array, batch_size=16)
+
+
+def test_transcribe_whisperx_cleanup_temp_file(isolated_data_dir):
+    """Test WhisperX cleans up temporary audio file."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Test",
+        "language": "en",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "Test"}]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        with patch('os.path.exists') as mock_exists:
+            with patch('os.remove') as mock_remove:
+                mock_audio.get_duration.return_value = 1.0
+                mock_audio.prepare_for_transcription.return_value = None
+                mock_exists.return_value = True
+                
+                transcriber.model = mock_model
+                transcriber.transcription_engine = "whisperx"
+                
+                import sys
+                sys.modules['whisperx'] = mock_wx_module
+                sys.modules['whisperx.diarize'] = mock_diarize_module
+                
+                try:
+                    transcriber._transcribe_whisperx("test.mp3", 1.0)
+                finally:
+                    del sys.modules['whisperx']
+                    del sys.modules['whisperx.diarize']
+    
+    # Verify temp file was removed
+    mock_remove.assert_called_once()
+
+
+def test_transcribe_whisperx_alignment_parameters(isolated_data_dir):
+    """Test WhisperX alignment is called with correct parameters."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Test",
+        "language": "en",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "Test"}]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_audio_array = MagicMock()
+    mock_wx_module.load_audio.return_value = mock_audio_array
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_align_model = MagicMock()
+    mock_metadata = {}
+    mock_wx_module.load_align_model.return_value = (mock_align_model, mock_metadata)
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        mock_audio.get_duration.return_value = 1.0
+        mock_audio.prepare_for_transcription.return_value = None
+        
+        transcriber.model = mock_model
+        transcriber.transcription_engine = "whisperx"
+        
+        import sys
+        sys.modules['whisperx'] = mock_wx_module
+        sys.modules['whisperx.diarize'] = mock_diarize_module
+        
+        try:
+            transcriber._transcribe_whisperx("test.mp3", 1.0)
+        finally:
+            del sys.modules['whisperx']
+            del sys.modules['whisperx.diarize']
+    
+    # Verify align was called with segments, not full result
+    mock_wx_module.align.assert_called_once()
+    call_args = mock_wx_module.align.call_args
+    assert call_args[0][0] == mock_whisperx_result["segments"]  # First arg should be segments
+    assert call_args[0][1] == mock_align_model  # Second arg should be align model
+    assert call_args[0][2] == mock_metadata  # Third arg should be metadata
+    assert call_args[0][3] == mock_audio_array  # Fourth arg should be audio array
+    assert call_args[0][4] == "cpu"  # Fifth arg should be device
+    assert call_args[1]["return_char_alignments"] == False  # Should be False
+
+
+def test_transcribe_whisperx_garbage_collection_after_alignment(isolated_data_dir):
+    """Test WhisperX performs garbage collection after alignment."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Test",
+        "language": "en",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "Test"}]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_align_model = MagicMock()
+    mock_wx_module.load_align_model.return_value = (mock_align_model, {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        with patch('gc.collect') as mock_gc:
+            mock_audio.get_duration.return_value = 1.0
+            mock_audio.prepare_for_transcription.return_value = None
+            
+            transcriber.model = mock_model
+            transcriber.transcription_engine = "whisperx"
+            
+            import sys
+            sys.modules['whisperx'] = mock_wx_module
+            sys.modules['whisperx.diarize'] = mock_diarize_module
+            
+            try:
+                transcriber._transcribe_whisperx("test.mp3", 1.0)
+            finally:
+                del sys.modules['whisperx']
+                del sys.modules['whisperx.diarize']
+    
+    # Verify garbage collection was called
+    mock_gc.assert_called_once()
+
+
+def test_transcribe_whisperx_segments_without_speaker(isolated_data_dir):
+    """Test WhisperX handles segments without speaker information."""
+    init_db()
+    
+    transcriber = Transcriber()
+    
+    mock_whisperx_result = {
+        "text": "Hello world",
+        "language": "en",
+        "segments": [
+            {"start": 0.0, "end": 1.0, "text": "Hello "},
+            {"start": 1.0, "end": 2.0, "text": "world"},
+        ]
+    }
+    
+    mock_wx_module = MagicMock()
+    mock_wx_module.load_audio.return_value = MagicMock()
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = mock_whisperx_result
+    mock_wx_module.load_model.return_value = mock_model
+    mock_wx_module.load_align_model.return_value = (MagicMock(), {})
+    mock_wx_module.align.return_value = mock_whisperx_result
+    
+    mock_diarize_module = MagicMock()
+    mock_diarize_pipeline = MagicMock()
+    mock_diarize_module.DiarizationPipeline = mock_diarize_pipeline
+    mock_wx_module.diarize = mock_diarize_module
+    
+    with patch('app.core.audio.AudioProcessor') as mock_audio:
+        mock_audio.get_duration.return_value = 2.0
+        mock_audio.prepare_for_transcription.return_value = None
+        
+        transcriber.model = mock_model
+        transcriber.transcription_engine = "whisperx"
+        
+        import sys
+        sys.modules['whisperx'] = mock_wx_module
+        sys.modules['whisperx.diarize'] = mock_diarize_module
+        
+        try:
+            result = transcriber._transcribe_whisperx("test.mp3", 2.0)
+        finally:
+            del sys.modules['whisperx']
+            del sys.modules['whisperx.diarize']
+    
+    # Segments should not have speaker field when not present
+    assert "speaker" not in result["segments"][0]
+    assert "speaker" not in result["segments"][1]
+    assert result["text"] == "Hello world"
