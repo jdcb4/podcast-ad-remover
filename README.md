@@ -8,7 +8,9 @@ It is built for homelab-style deployment: one Docker container, SQLite state und
 
 ### Dashboard
 
-The dashboard shows My Podcasts or the global Library, processing state, unified feed links, saved storage, and per-podcast feed links.
+The compact dashboard switches between My Podcasts and the global Library without a page reload,
+refreshes processing progress independently, and offers direct RSS or generic podcast-app setup for
+each feed.
 
 ![Dashboard](Documentation/screenshots/dashboard.png)
 
@@ -34,7 +36,7 @@ The admin queue shows active jobs, queued/retry states, disk usage, next feed ch
 
 - Podcast search and RSS subscription management.
 - Global podcast library with per-user My Podcasts lists and one shared copy of each podcast.
-- In-place Library starring plus grid, artwork, and compact table views.
+- In-place Library starring and My Podcasts/Library switching plus grid, artwork, and compact table views.
 - Podcast ownership rules for per-podcast settings, with admin owner reassignment and admin-only global deletion.
 - Grouped global-setting inheritance for content removal, retention, default features, and custom instructions.
 - Permission-checked bulk editing for podcast settings and ownership.
@@ -46,6 +48,7 @@ The admin queue shows active jobs, queued/retry states, disk usage, next feed ch
 - Per-podcast feeds plus a unified feed.
 - Optional AI episode summaries and spoken title intros using either local Piper TTS or Gemini TTS.
 - Durable SQLite-backed processing jobs with retry and rate-limit states.
+- A bounded, independently refreshed current-processing panel that does not disturb dashboard state.
 - Admin queue/operations dashboard.
 - Optional token-protected AI/automation REST API with scoped tokens and configurable rate limits.
 - Optional management login.

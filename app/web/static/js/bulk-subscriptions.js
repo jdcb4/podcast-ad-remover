@@ -26,6 +26,7 @@
     document.addEventListener('change', (event) => {
         if (event.target.matches('.podcast-bulk-checkbox')) syncSelection();
     });
+    document.addEventListener('dashboard-library-results-changed', syncSelection);
 
     form.querySelectorAll('[data-bulk-mode]').forEach((mode) => {
         const controls = mode.parentElement.querySelector('[data-bulk-controls]');

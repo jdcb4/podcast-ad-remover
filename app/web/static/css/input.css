@@ -219,6 +219,24 @@
         border: 1px solid rgba(255, 255, 255, 0.06);
     }
 
+    .stat-card-compact {
+        @apply rounded-xl p-2 sm:p-6;
+    }
+
+    .stat-card-compact .stat-value {
+        @apply text-xl sm:text-5xl;
+    }
+
+    .stat-card-compact .stat-label {
+        @apply mt-0.5 text-[10px] normal-case tracking-normal sm:mt-2 sm:text-sm sm:uppercase sm:tracking-widest;
+    }
+
+    @media (max-width: 639px) {
+        .dashboard-add-card {
+            padding: 1rem;
+        }
+    }
+
     .stat-card:hover {
         border-color: rgba(139, 92, 246, 0.3);
         box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);

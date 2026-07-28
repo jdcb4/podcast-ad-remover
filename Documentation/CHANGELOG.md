@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Made the mobile dashboard more compact, reduced feed subscription choices to Direct link and a generic “Use your favourite app” workflow, and deemphasized the unified feed.
+- Limited the visible processing queue to roughly three items and replaced scheduled whole-page reloads with a queue-only JSON refresh plus an explicit full-refresh fallback.
+- Made My Podcasts and Library switch in place while preserving dashboard search, filters, sorting, display mode, and scroll position; ordinary links remain as progressive-enhancement fallbacks.
+- Fixed inherited podcast controls to display their current effective global values while preserving stored overrides for restoration, with regression coverage proving repository reads, feed discovery, and cleanup use updated global retention.
+
 ## 1.10.0 - 2026-07-25
 
 - Added four explicit per-podcast inheritance groups for content removal, retention, default features, and custom instructions. New podcasts inherit all groups; migration preserves existing explicit values except blank or NULL custom instructions, which now inherit.

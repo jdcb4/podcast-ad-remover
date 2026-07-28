@@ -11,6 +11,7 @@ def test_subscription_links_encode_tokenized_feed_urls():
     links = build_subscription_links(feed_url)
 
     assert links["direct"] == feed_url
+    assert links["apps"] == "/subscribe/apps?url=https%3A%2F%2Fexample.com%2Ffeeds%2Fshow.xml%3Ftoken%3Da%2Bb%26name%3Done%20two"
     assert links["apple"] == "/subscribe/apple?url=https%3A%2F%2Fexample.com%2Ffeeds%2Fshow.xml%3Ftoken%3Da%2Bb%26name%3Done%20two"
     assert links["pocket_casts"] == "/subscribe/pocket_casts?url=https%3A%2F%2Fexample.com%2Ffeeds%2Fshow.xml%3Ftoken%3Da%2Bb%26name%3Done%20two"
     assert links["overcast"] == "overcast://x-callback-url/add?url=https%3A%2F%2Fexample.com%2Ffeeds%2Fshow.xml%3Ftoken%3Da%2Bb%26name%3Done%20two"
@@ -18,26 +19,23 @@ def test_subscription_links_encode_tokenized_feed_urls():
     assert links["podcast_addict"] == "/subscribe/podcast_addict?url=https%3A%2F%2Fexample.com%2Ffeeds%2Fshow.xml%3Ftoken%3Da%2Bb%26name%3Done%20two"
 
 
-def test_subscription_app_links_include_direct_and_instruction_links():
+def test_subscription_app_links_offer_two_clear_workflows():
     links = build_subscription_links("https://example.com/feed.xml")
 
     labels = [link["label"] for link in links["app_links"]]
     urls = {link["key"]: link["url"] for link in links["app_links"]}
 
-    assert labels == [
-        "Direct link",
-        "Pocket Casts",
-        "Apple",
-        "Overcast",
-        "Castbox",
-        "Podcast Addict",
-    ]
+    assert labels == ["Direct link", "Use your favourite app"]
     assert urls["direct"] == "https://example.com/feed.xml"
-    assert urls["pocket_casts"].startswith("/subscribe/pocket_casts?")
-    assert urls["apple"].startswith("/subscribe/apple?")
-    assert urls["overcast"].startswith("overcast://x-callback-url/add?")
-    assert urls["castbox"].startswith("/subscribe/castbox?")
-    assert urls["podcast_addict"].startswith("/subscribe/podcast_addict?")
+    assert urls["apps"].startswith("/subscribe/apps?")
+
+
+def test_generic_app_instructions_describe_the_shared_private_feed_workflow():
+    context = build_subscribe_instruction_context("apps", "https://example.com/feed.xml")
+
+    assert context["label"] == "Use your favourite app"
+    assert context["best_effort_url"] is None
+    assert "Add by URL" in context["intro"]
 
 
 def test_best_effort_links_do_not_include_raw_protocol_prefix_for_supported_scheme_paths():
