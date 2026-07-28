@@ -51,9 +51,9 @@
 <section id="public-podcast-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
     {% for item in subscriptions %}
     <article class="podcast-card public-podcast-card" data-title="{{ item.sub.title|lower }}">
-        {% if item.sub.image_url %}
+        {% if item.artwork_url %}
         <div class="podcast-artwork">
-            <img src="{{ item.sub.image_url }}" alt="{{ item.sub.title }}" loading="lazy">
+            <img src="{{ item.artwork_url }}" alt="{{ item.sub.title }}" loading="lazy">
         </div>
         {% endif %}
 

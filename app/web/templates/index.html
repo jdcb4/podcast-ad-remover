@@ -198,7 +198,7 @@
     <a href="/?view=mine"
         class="{% if library_view == 'mine' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">
         My Podcasts
-        <span class="badge-neutral ml-1">{{ my_podcast_count }}</span>
+        <span id="my-podcast-count" class="badge-neutral ml-1">{{ my_podcast_count }}</span>
     </a>
     <a href="/?view=library"
         class="{% if library_view == 'library' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">
@@ -245,7 +245,7 @@
         </button>
         <button type="button" id="view-list"
             class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
-            title="List View">
+            title="Compact Table View">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
                 </path>
@@ -267,16 +267,201 @@
 </div>
 {% endif %}
 
+{% if user and subscriptions %}
+<form id="bulk-settings-form" action="/subscriptions/bulk-settings" method="post"
+    class="hidden mb-6 rounded-xl border border-primary-500/25 bg-surface-elevated p-4 space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h3 class="font-semibold">Bulk settings</h3>
+            <p class="text-xs text-text-muted"><span id="bulk-selection-count">0</span> podcasts selected.
+                Unchanged groups retain their current values.</p>
+        </div>
+        <button type="submit" class="btn-primary btn-sm">Apply Changes</button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+        <fieldset class="rounded-lg border border-white/[0.08] p-3 space-y-3">
+            <legend class="px-1 text-sm font-semibold">Content Removal</legend>
+            <select name="content_mode" class="select text-sm" data-bulk-mode>
+                <option value="unchanged">Leave unchanged</option>
+                <option value="inherit">Use global settings</option>
+                <option value="override">Set podcast values</option>
+            </select>
+            <div class="space-y-2" data-bulk-controls>
+                {% for name, label in [('remove_ads', 'Remove ads'), ('remove_promos', 'Remove promos'),
+                    ('remove_intros', 'Remove intros'), ('remove_outros', 'Remove outros')] %}
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="{{ name }}" value="true" class="h-4 w-4 rounded">
+                    {{ label }}
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+
+        <fieldset class="rounded-lg border border-white/[0.08] p-3 space-y-3">
+            <legend class="px-1 text-sm font-semibold">Retention</legend>
+            <select name="retention_mode" class="select text-sm" data-bulk-mode>
+                <option value="unchanged">Leave unchanged</option>
+                <option value="inherit">Use global settings</option>
+                <option value="override">Set podcast values</option>
+            </select>
+            <div class="space-y-2" data-bulk-controls>
+                <label class="block text-xs text-text-secondary">Episodes to keep
+                    <select name="retention_limit" class="select text-sm mt-1">
+                        <option value="0">None</option>
+                        <option value="1">Latest 1</option>
+                        <option value="3">Latest 3</option>
+                        <option value="5">Latest 5</option>
+                        <option value="10">Latest 10</option>
+                        <option value="20">Latest 20</option>
+                        <option value="1000">All</option>
+                    </select>
+                </label>
+                <input type="hidden" name="retention_days" value="{{ settings.default_retention_days or 30 }}">
+                <label class="block text-xs text-text-secondary">Manual-download days
+                    <select name="manual_retention_days" class="select text-sm mt-1">
+                        {% for days in [7, 14, 30, 90, 365] %}
+                        <option value="{{ days }}" {% if days == 14 %}selected{% endif %}>{{ days }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+        </fieldset>
+
+        <fieldset class="rounded-lg border border-white/[0.08] p-3 space-y-3">
+            <legend class="px-1 text-sm font-semibold">Default Features</legend>
+            <select name="features_mode" class="select text-sm" data-bulk-mode>
+                <option value="unchanged">Leave unchanged</option>
+                <option value="inherit">Use global settings</option>
+                <option value="override">Set podcast values</option>
+            </select>
+            <div class="space-y-2" data-bulk-controls>
+                {% for name, label in [('ai_rewrite_description', 'Rewrite description'),
+                    ('ai_audio_summary', 'Audio summary'), ('append_title_intro', 'Title intro'),
+                    ('watermark_artwork', 'Ad-free artwork badge')] %}
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="{{ name }}" value="true" class="h-4 w-4 rounded">
+                    {{ label }}
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+
+        <fieldset class="rounded-lg border border-white/[0.08] p-3 space-y-3">
+            <legend class="px-1 text-sm font-semibold">Instructions and Owner</legend>
+            <select name="instructions_mode" class="select text-sm" data-bulk-mode>
+                <option value="unchanged">Instructions unchanged</option>
+                <option value="inherit">Use global instructions</option>
+                <option value="override">Set podcast instructions</option>
+            </select>
+            <div data-bulk-controls>
+                <textarea name="custom_instructions" rows="3" class="input text-sm"
+                    placeholder="Podcast-specific instructions"></textarea>
+            </div>
+            {% if user.is_admin %}
+            <select name="owner_mode" class="select text-sm" data-owner-mode>
+                <option value="unchanged">Owner unchanged</option>
+                <option value="set">Set owner</option>
+                <option value="clear">Clear owner</option>
+            </select>
+            <select name="owner_user_id" class="select text-sm" data-owner-select disabled>
+                <option value="">Select owner</option>
+                {% for active_user in active_users %}
+                <option value="{{ active_user.id }}">{{ active_user.username }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <input type="hidden" name="owner_mode" value="unchanged">
+            {% endif %}
+        </fieldset>
+    </div>
+</form>
+
+<div id="podcast-table-container" class="hidden mb-6 overflow-x-auto rounded-xl border border-white/[0.08] bg-surface-elevated">
+    <table class="w-full min-w-[920px] text-sm">
+        <thead class="bg-surface-base text-left text-xs uppercase tracking-wide text-text-muted">
+            <tr>
+                <th class="p-3 w-10">
+                    <input type="checkbox" id="select-all-podcasts" aria-label="Select all manageable podcasts">
+                </th>
+                <th class="p-3">Podcast</th>
+                <th class="p-3">Owner</th>
+                <th class="p-3">Retention</th>
+                <th class="p-3">Settings source</th>
+                <th class="p-3">Status</th>
+                <th class="p-3 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="podcast-table-body" class="divide-y divide-white/[0.06]">
+            {% for item in subscriptions %}
+            <tr class="podcast-table-row hover:bg-white/[0.025]"
+                data-subscription-id="{{ item.sub.id }}" data-title="{{ item.sub.title|lower }}"
+                data-episodes="{{ item.episode_count }}" data-processing="{{ item.processing_count|default(0) }}"
+                data-listens="{{ item.total_listens|default(0) }}" data-recent="{{ item.latest_episode_date|default('') }}">
+                <td class="p-3">
+                    {% if item.can_manage %}
+                    <input type="checkbox" name="subscription_ids" value="{{ item.sub.id }}"
+                        form="bulk-settings-form" class="podcast-bulk-checkbox"
+                        aria-label="Select {{ item.sub.title }}">
+                    {% else %}
+                    <span class="text-text-muted" title="You cannot manage this podcast">—</span>
+                    {% endif %}
+                </td>
+                <td class="p-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        {% if item.artwork_url %}
+                        <img src="{{ item.artwork_url }}" alt="" class="h-10 w-10 rounded-lg object-cover shrink-0">
+                        {% endif %}
+                        <div class="min-w-0">
+                            <a href="/subscriptions/{{ item.sub.id }}"
+                                class="font-medium hover:text-primary-400 block truncate max-w-[260px]">{{ item.sub.title }}</a>
+                            <span class="text-xs text-text-muted">{{ item.episode_count }} completed · {{ item.total_listens|default(0) }} plays</span>
+                        </div>
+                    </div>
+                </td>
+                <td class="p-3 text-text-secondary">{{ item.owner_username or "Unowned" }}</td>
+                <td class="p-3">
+                    <span class="block">Keep {{ "all" if item.sub.retention_limit >= 1000 else item.sub.retention_limit }}</span>
+                    <span class="text-xs {% if item.sub.inherit_retention %}text-primary-300{% else %}text-text-muted{% endif %}">
+                        {{ "Global" if item.sub.inherit_retention else "Podcast override" }}
+                    </span>
+                </td>
+                <td class="p-3">
+                    <div class="flex flex-wrap gap-1">
+                        <span class="badge-neutral">{{ "Global content" if item.sub.inherit_content_removal else "Custom content" }}</span>
+                        <span class="badge-neutral">{{ "Global features" if item.sub.inherit_default_features else "Custom features" }}</span>
+                        <span class="badge-neutral">{{ "Global instructions" if item.sub.inherit_custom_instructions else "Custom instructions" }}</span>
+                    </div>
+                </td>
+                <td class="p-3">
+                    {% if item.processing_count %}
+                    <span class="badge-soft">{{ item.processing_count }} processing</span>
+                    {% else %}
+                    <span class="badge-success">Active</span>
+                    {% endif %}
+                </td>
+                <td class="p-3 text-right">
+                    <a href="/subscriptions/{{ item.sub.id }}" class="text-primary-400 hover:text-primary-300">Manage</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
 <!-- Podcast Grid -->
-<div id="podcast-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+<div id="podcast-grid" data-library-view="{{ library_view }}"
+    class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
     {% for item in subscriptions %}
-    <article class="podcast-card" data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}"
+    <article class="podcast-card" data-subscription-id="{{ item.sub.id }}"
+        data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}"
         data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}"
         data-recent="{{ item.latest_episode_date|default('') }}">
         <!-- Artwork -->
-        {% if item.sub.image_url %}
+        {% if item.artwork_url %}
         <div class="podcast-artwork">
-            <img src="{{ item.sub.image_url }}" alt="{{ item.sub.title }}" loading="lazy">
+            <img src="{{ item.artwork_url }}" alt="{{ item.sub.title }}" loading="lazy">
             <div class="podcast-overlay">
                 <a href="/subscriptions/{{ item.sub.id }}"
                     class="w-14 h-14 rounded-full bg-primary-500 flex items-center justify-center text-white shadow-glow-md hover:scale-110 transition-transform">
@@ -296,7 +481,8 @@
                         item.sub.title }}</a>
                 </h3>
                 {% if user and user.id and user.id > 0 %}
-                <form action="/subscriptions/{{ item.sub.id }}/library" method="post" class="shrink-0">
+                <form action="/subscriptions/{{ item.sub.id }}/library" method="post"
+                    class="shrink-0 library-membership-form" data-subscription-id="{{ item.sub.id }}">
                     <input type="hidden" name="redirect_to" value="/?view={{ library_view }}">
                     <input type="hidden" name="action" value="{% if item.in_user_library %}remove{% else %}add{% endif %}">
                     <button type="submit"
@@ -320,7 +506,7 @@
             {% endif %}
             {% if user and user.is_admin %}
             <div class="flex flex-wrap gap-2 mb-3">
-                <span class="badge-neutral">{{ item.user_library_count }} user{% if item.user_library_count != 1 %}s{% endif %}</span>
+                <span class="badge-neutral library-user-count" data-count="{{ item.user_library_count }}">{{ item.user_library_count }} user{% if item.user_library_count != 1 %}s{% endif %}</span>
                 <span class="badge-neutral">{{ item.total_listens|default(0) }} play{% if item.total_listens|default(0) != 1 %}s{% endif %}</span>
             </div>
             {% endif %}
@@ -454,11 +640,10 @@
             if (!limits.includes(GLOBAL_RETENTION_DEFAULT)) limits.push(GLOBAL_RETENTION_DEFAULT);
             limits.sort((a, b) => a - b);
 
-            let optionsHtml = '';
+            let optionsHtml = '<option value="inherit" selected>Use global setting</option>';
             limits.forEach(limit => {
                 const label = limit === 0 ? '0 eps' : (limit === 1 ? '1 ep' : `${limit} eps`);
-                const selected = limit === GLOBAL_RETENTION_DEFAULT ? 'selected' : '';
-                optionsHtml += `<option value="${limit}" ${selected}>${label}</option>`;
+                optionsHtml += `<option value="${limit}">${label}</option>`;
             });
 
             data.forEach(pod => {
@@ -561,9 +746,16 @@
         function setView(mode) {
             const grid = document.getElementById('podcast-grid');
             if (!grid) return;
+            const table = document.getElementById('podcast-table-container');
 
-            // Set attribute
-            grid.setAttribute('data-view', mode);
+            if (mode === 'list' && table) {
+                grid.classList.add('hidden');
+                table.classList.remove('hidden');
+            } else {
+                grid.classList.remove('hidden');
+                if (table) table.classList.add('hidden');
+                grid.setAttribute('data-view', mode);
+            }
 
             // Save preference
             try {
@@ -609,7 +801,9 @@
         const grid = document.getElementById('podcast-grid');
         if (!grid) return;
 
-        const cards = Array.from(grid.querySelectorAll('.podcast-card'));
+        let cards = Array.from(grid.querySelectorAll('.podcast-card'));
+        const tableBody = document.getElementById('podcast-table-body');
+        let tableRows = tableBody ? Array.from(tableBody.querySelectorAll('.podcast-table-row')) : [];
 
         function applyFiltersAndSort() {
             const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
@@ -665,6 +859,19 @@
                 grid.appendChild(c);
             });
 
+            if (tableBody) {
+                const order = new Map(
+                    visibleCards.map((card, index) => [card.dataset.subscriptionId, index])
+                );
+                tableRows.forEach(row => {
+                    row.style.display = order.has(row.dataset.subscriptionId) ? '' : 'none';
+                });
+                tableRows
+                    .filter(row => order.has(row.dataset.subscriptionId))
+                    .sort((a, b) => order.get(a.dataset.subscriptionId) - order.get(b.dataset.subscriptionId))
+                    .forEach(row => tableBody.appendChild(row));
+            }
+
             if (countSpan) {
                 countSpan.textContent = visibleCards.length + ' podcast' + (visibleCards.length !== 1 ? 's' : '');
             }
@@ -673,6 +880,13 @@
         if (searchInput) searchInput.addEventListener('input', applyFiltersAndSort);
         if (filterSelect) filterSelect.addEventListener('change', applyFiltersAndSort);
         if (sortSelect) sortSelect.addEventListener('change', applyFiltersAndSort);
+        document.addEventListener('library-membership-changed', () => {
+            cards = Array.from(grid.querySelectorAll('.podcast-card'));
+            tableRows = tableBody ? Array.from(tableBody.querySelectorAll('.podcast-table-row')) : [];
+            applyFiltersAndSort();
+        });
     })();
 </script>
+<script src="/static/js/dashboard-library.js" defer></script>
+<script src="/static/js/bulk-subscriptions.js" defer></script>
 {% endblock %}

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from app.infra.repository import ApiTokenRepository, SubscriptionRepository, EpisodeRepository, FeedTokenRepository
 from app.core.feed import FeedManager
 from app.core.models import SubscriptionCreate
@@ -23,11 +23,14 @@ from app.web.template_filters import clean_description as safe_clean_description
 from app.web.template_filters import simple_markdown as safe_simple_markdown
 from app.infra.database import get_db_connection
 from app.core.config import is_default_session_secret, settings as runtime_settings
+from app.core.artwork import ArtworkWatermarker, effective_artwork_url
 from datetime import datetime
+import asyncio
 import os
 import logging
 import re
 from urllib.parse import quote
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +96,24 @@ def _can_manage_subscription(user, sub) -> bool:
         return True
     user_id = _real_user_id(user)
     return bool(user_id and getattr(sub, "owner_user_id", None) == user_id)
+
+
+def _reconcile_artwork_and_feeds(subscription_ids: list[int] | None = None) -> None:
+    from app.core.rss_gen import RSSGenerator
+
+    service = ArtworkWatermarker()
+    subscriptions = sub_repo.get_all()
+    selected = [sub for sub in subscriptions if subscription_ids is None or sub.id in subscription_ids]
+    for sub in selected:
+        try:
+            service.reconcile(sub.id)
+        except Exception as exc:
+            logger.warning("Artwork reconciliation failed for subscription %s: %s", sub.id, exc)
+
+    generator = RSSGenerator()
+    for sub in selected:
+        generator.generate_feed(sub.id)
+    generator.generate_unified_feed()
 
 from app.core.utils import get_app_base_url
 
@@ -1660,6 +1681,7 @@ def _render_index(request: Request, error: str = None):
 
     subs_with_links = []
     global_settings = get_global_settings()
+    artwork_base_url = get_app_base_url(global_settings, request)
     for sub in subs:
         # Get completed episodes for this subscription
         with get_db_connection() as conn:
@@ -1727,6 +1749,7 @@ def _render_index(request: Request, error: str = None):
             "can_manage": _can_manage_subscription(user, sub),
             "owner_username": sub_repo.get_owner_username(sub.id),
             "user_library_count": user_library_count,
+            "artwork_url": effective_artwork_url(sub, artwork_base_url),
         })
 
     # Get queue data for dashboard display
@@ -1788,12 +1811,14 @@ def _render_index(request: Request, error: str = None):
             "config_warning": config_warning,
             "queue": queue,
             "unified_links": unified_links,
-            "settings": global_settings
+            "settings": global_settings,
+            "active_users": _active_users() if user and user.is_admin else [],
         }
     )
 
 def _build_public_subscribe_context(request: Request, global_settings: dict):
     subs = sub_repo.get_all()
+    artwork_base_url = get_app_base_url(global_settings, request)
     public_links = []
     for sub in subs:
         with get_db_connection() as conn:
@@ -1816,6 +1841,7 @@ def _build_public_subscribe_context(request: Request, global_settings: dict):
             "links": generate_rss_links(request, sub, global_settings, include_auth_token=False),
             "episode_count": row["count"] if row else 0,
             "latest_episode": dict(latest) if latest else None,
+            "artwork_url": effective_artwork_url(sub, artwork_base_url),
         })
 
     unified_links = None
@@ -1876,6 +1902,7 @@ async def admin_global_subscription_settings(request: Request):
 @router.post("/admin/global-subscription-settings/update")
 async def update_global_subscription_settings(
     request: Request,
+    background_tasks: BackgroundTasks,
     default_remove_ads: bool = Form(False),
     default_remove_promos: bool = Form(False),
     default_remove_intros: bool = Form(False),
@@ -1883,6 +1910,7 @@ async def update_global_subscription_settings(
     default_ai_rewrite_description: bool = Form(False),
     default_ai_audio_summary: bool = Form(False),
     default_append_title_intro: bool = Form(False),
+    default_watermark_artwork: bool = Form(False),
     default_retention_limit: int = Form(1),
     default_retention_days: int = Form(30),
     default_manual_retention_days: int = Form(14),
@@ -1900,6 +1928,7 @@ async def update_global_subscription_settings(
                 default_ai_rewrite_description = ?,
                 default_ai_audio_summary = ?, 
                 default_append_title_intro = ?,
+                default_watermark_artwork = ?,
                 default_retention_limit = ?,
                 default_retention_days = ?,
                 default_manual_retention_days = ?,
@@ -1909,10 +1938,13 @@ async def update_global_subscription_settings(
         """, (
             default_remove_ads, default_remove_promos, default_remove_intros, default_remove_outros,
             default_ai_rewrite_description, default_ai_audio_summary, default_append_title_intro,
+            default_watermark_artwork,
             default_retention_limit, default_retention_days, default_manual_retention_days,
             default_custom_instructions, 1 if whitelist_mode else 0
         ))
         conn.commit()
+
+    background_tasks.add_task(_reconcile_artwork_and_feeds)
         
     return RedirectResponse(url="/admin/global-subscription-settings?success=Settings updated", status_code=303)
 
@@ -1922,7 +1954,7 @@ async def add_subscription(
     request: Request,
     background_tasks: BackgroundTasks,
     feed_url: str = Form(...),
-    initial_count: int = Form(1),
+    initial_count: str = Form("inherit"),
     user = Depends(require_auth),
 ):
     try:
@@ -1940,9 +1972,18 @@ async def add_subscription(
         with get_db_connection() as conn:
             app_settings = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
             
-        # Use user-provided initial_count (from UI dropdown) as retention limit
-        # The UI defaults this dropdown to the global default setting already.
-        retention_limit = initial_count
+        inherit_retention = str(initial_count).strip().lower() == "inherit"
+        if inherit_retention:
+            retention_limit = app_settings["default_retention_limit"]
+            if retention_limit is None:
+                retention_limit = 1
+        else:
+            try:
+                retention_limit = int(initial_count)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Invalid initial episode count") from exc
+            if retention_limit < 0:
+                raise ValueError("Initial episode count cannot be negative")
         
         sub_create = SubscriptionCreate(feed_url=feed_url)
         new_sub = sub_repo.create(
@@ -1953,6 +1994,7 @@ async def add_subscription(
             "Fetching feed information...",
             retention_limit=retention_limit,
             owner_user_id=_real_user_id(user),
+            inherit_retention=inherit_retention,
         )
         
         # Apply other global defaults immediately
@@ -1963,7 +2005,7 @@ async def add_subscription(
             remove_intros=bool(app_settings['default_remove_intros']),
             remove_outros=bool(app_settings['default_remove_outros']),
             custom_instructions=app_settings['default_custom_instructions'],
-            append_summary=bool(app_settings['default_ai_audio_summary']), # Mapped correctly? Yes
+            append_summary=False,
             append_title_intro=bool(app_settings['default_append_title_intro']),
             ai_rewrite_description=bool(app_settings['default_ai_rewrite_description']),
             ai_audio_summary=bool(app_settings['default_ai_audio_summary']),
@@ -1992,6 +2034,11 @@ async def add_subscription(
                         WHERE id = ?
                     """, (title, slug, image_url, description, sub_id))
                     conn.commit()
+
+                try:
+                    ArtworkWatermarker().reconcile(sub_id)
+                except Exception as exc:
+                    logger.warning("Initial artwork generation failed for subscription %s: %s", sub_id, exc)
 
                 await send_notification_async(
                     EVENT_NEW_PODCAST,
@@ -2047,6 +2094,19 @@ async def update_user_library_membership(
     else:
         message = "No library change made"
 
+    in_user_library = sub_repo.is_in_user_library(user_id, id)
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse(
+            {
+                "status": "updated",
+                "subscription_id": id,
+                "changed": changed if "changed" in locals() else False,
+                "in_user_library": in_user_library,
+                "user_library_count": sub_repo.count_user_library_members(id),
+                "message": message,
+            }
+        )
+
     target = _safe_local_redirect(redirect_to, "/")
     separator = "&" if "?" in target else "?"
     return RedirectResponse(url=f"{target}{separator}success={quote(message)}", status_code=303)
@@ -2074,6 +2134,169 @@ async def update_subscription_owner(
 
     message = "Podcast owner updated" if new_owner_id else "Podcast owner cleared"
     return RedirectResponse(url=f"/subscriptions/{id}?success={quote(message)}", status_code=303)
+
+
+@router.post("/subscriptions/bulk-settings")
+async def bulk_update_subscription_settings(
+    background_tasks: BackgroundTasks,
+    subscription_ids: list[int] = Form(...),
+    content_mode: str = Form("unchanged"),
+    remove_ads: bool = Form(False),
+    remove_promos: bool = Form(False),
+    remove_intros: bool = Form(False),
+    remove_outros: bool = Form(False),
+    retention_mode: str = Form("unchanged"),
+    retention_limit: int = Form(1),
+    retention_days: int = Form(30),
+    manual_retention_days: int = Form(14),
+    features_mode: str = Form("unchanged"),
+    ai_rewrite_description: bool = Form(False),
+    ai_audio_summary: bool = Form(False),
+    append_title_intro: bool = Form(False),
+    watermark_artwork: bool = Form(False),
+    instructions_mode: str = Form("unchanged"),
+    custom_instructions: str = Form(""),
+    owner_mode: str = Form("unchanged"),
+    owner_user_id: str = Form(""),
+    user = Depends(require_auth),
+):
+    ids = list(dict.fromkeys(subscription_ids))
+    if not ids:
+        raise HTTPException(status_code=400, detail="Select at least one podcast")
+    if len(ids) > 500:
+        raise HTTPException(status_code=400, detail="Bulk updates are limited to 500 podcasts")
+
+    valid_group_modes = {"unchanged", "inherit", "override"}
+    if any(
+        mode not in valid_group_modes
+        for mode in (content_mode, retention_mode, features_mode, instructions_mode)
+    ):
+        raise HTTPException(status_code=400, detail="Invalid bulk settings mode")
+    if owner_mode not in {"unchanged", "set", "clear"}:
+        raise HTTPException(status_code=400, detail="Invalid owner update mode")
+
+    subscriptions = [sub_repo.get_by_id(subscription_id) for subscription_id in ids]
+    if any(sub is None for sub in subscriptions):
+        raise HTTPException(status_code=404, detail="One or more podcasts no longer exist")
+    if any(not _can_manage_subscription(user, sub) for sub in subscriptions):
+        raise HTTPException(
+            status_code=403,
+            detail="The selection contains a podcast you are not allowed to manage",
+        )
+    if owner_mode != "unchanged" and not getattr(user, "is_admin", False):
+        raise HTTPException(status_code=403, detail="Only administrators can reassign owners")
+
+    owner_id = None
+    if owner_mode == "set":
+        try:
+            owner_id = int(owner_user_id)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Select a valid owner") from exc
+        if owner_id <= 0:
+            raise HTTPException(status_code=400, detail="Select a valid owner")
+
+    custom_instructions = custom_instructions.strip()
+    if instructions_mode == "override" and not custom_instructions:
+        raise HTTPException(
+            status_code=400,
+            detail="Enter custom instructions or select global instructions",
+        )
+    if retention_mode == "override" and (
+        retention_limit < 0 or retention_days < 1 or manual_retention_days < 1
+    ):
+        raise HTTPException(status_code=400, detail="Retention values are outside the allowed range")
+
+    assignments = []
+    values = []
+
+    def set_value(column: str, value):
+        assignments.append(f"{column} = ?")
+        values.append(value)
+
+    if content_mode == "inherit":
+        set_value("inherit_content_removal", 1)
+    elif content_mode == "override":
+        set_value("inherit_content_removal", 0)
+        for column, value in (
+            ("remove_ads", remove_ads),
+            ("remove_promos", remove_promos),
+            ("remove_intros", remove_intros),
+            ("remove_outros", remove_outros),
+        ):
+            set_value(column, int(value))
+
+    if retention_mode == "inherit":
+        set_value("inherit_retention", 1)
+    elif retention_mode == "override":
+        set_value("inherit_retention", 0)
+        set_value("retention_limit", retention_limit)
+        set_value("retention_days", retention_days)
+        set_value("manual_retention_days", manual_retention_days)
+
+    if features_mode == "inherit":
+        set_value("inherit_default_features", 1)
+    elif features_mode == "override":
+        set_value("inherit_default_features", 0)
+        for column, value in (
+            ("ai_rewrite_description", ai_rewrite_description),
+            ("ai_audio_summary", ai_audio_summary),
+            ("append_title_intro", append_title_intro),
+            ("watermark_artwork", watermark_artwork),
+        ):
+            set_value(column, int(value))
+
+    if instructions_mode == "inherit":
+        set_value("inherit_custom_instructions", 1)
+    elif instructions_mode == "override":
+        set_value("inherit_custom_instructions", 0)
+        set_value("custom_instructions", custom_instructions)
+
+    if owner_mode == "set":
+        set_value("owner_user_id", owner_id)
+    elif owner_mode == "clear":
+        set_value("owner_user_id", None)
+
+    if not assignments:
+        return RedirectResponse(
+            url="/?view=library&success=" + quote("No bulk changes selected"),
+            status_code=303,
+        )
+
+    placeholders = ",".join("?" for _ in ids)
+    with get_db_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        if owner_mode == "set":
+            owner = conn.execute("SELECT id FROM users WHERE id = ?", (owner_id,)).fetchone()
+            if not owner:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail="Selected owner no longer exists")
+        conn.execute(
+            f"UPDATE subscriptions SET {', '.join(assignments)} WHERE id IN ({placeholders})",
+            (*values, *ids),
+        )
+        if owner_mode == "set":
+            conn.executemany(
+                """
+                INSERT OR IGNORE INTO user_subscriptions (user_id, subscription_id)
+                VALUES (?, ?)
+                """,
+                [(owner_id, subscription_id) for subscription_id in ids],
+            )
+        conn.commit()
+
+    async def post_bulk_update_tasks():
+        await asyncio.to_thread(_reconcile_artwork_and_feeds, ids)
+        processor = Processor()
+        await processor.cleanup_old_episodes()
+        for subscription_id in ids:
+            await processor.check_feeds(subscription_id)
+
+    background_tasks.add_task(post_bulk_update_tasks)
+    return RedirectResponse(
+        url="/?view=library&success="
+        + quote(f"Updated settings for {len(ids)} podcast{'s' if len(ids) != 1 else ''}"),
+        status_code=303,
+    )
 
 
 @router.get("/subscriptions/{id}", response_class=HTMLResponse)
@@ -2139,7 +2362,8 @@ async def view_subscription(request: Request, id: int):
             "total_episodes": total_episodes,
             "has_more": has_more,
             "page_size": INITIAL_PAGE_SIZE,
-            "settings": global_settings
+            "settings": global_settings,
+            "artwork_url": effective_artwork_url(sub, get_app_base_url(global_settings, request)),
         }
     )
 
@@ -2186,9 +2410,14 @@ async def update_settings(
     append_title_intro: bool = Form(False),
     ai_rewrite_description: bool = Form(False),
     ai_audio_summary: bool = Form(False),
+    watermark_artwork: bool = Form(False),
     retention_days: int = Form(30),
     manual_retention_days: int = Form(14),
     retention_limit: int = Form(1),
+    inherit_content_removal: bool = Form(False),
+    inherit_retention: bool = Form(False),
+    inherit_default_features: bool = Form(False),
+    inherit_custom_instructions: bool = Form(False),
     user = Depends(require_auth),
 ):
     sub = sub_repo.get_by_id(id)
@@ -2196,6 +2425,40 @@ async def update_settings(
         raise HTTPException(status_code=404, detail="Subscription not found")
     if not _can_manage_subscription(user, sub):
         raise HTTPException(status_code=403, detail="Only admins and the podcast owner can change podcast settings")
+
+    stored = sub.setting_overrides
+    if inherit_content_removal:
+        remove_ads = bool(stored.get("remove_ads"))
+        remove_promos = bool(stored.get("remove_promos"))
+        remove_intros = bool(stored.get("remove_intros"))
+        remove_outros = bool(stored.get("remove_outros"))
+    if inherit_retention:
+        retention_days = stored.get("retention_days") if stored.get("retention_days") is not None else 30
+        manual_retention_days = (
+            stored.get("manual_retention_days")
+            if stored.get("manual_retention_days") is not None
+            else 14
+        )
+        retention_limit = (
+            stored.get("retention_limit")
+            if stored.get("retention_limit") is not None
+            else 1
+        )
+    if inherit_default_features:
+        append_summary = bool(stored.get("append_summary"))
+        append_title_intro = bool(stored.get("append_title_intro"))
+        ai_rewrite_description = bool(stored.get("ai_rewrite_description"))
+        ai_audio_summary = bool(stored.get("ai_audio_summary"))
+        watermark_artwork = bool(stored.get("watermark_artwork"))
+    if inherit_custom_instructions:
+        custom_instructions = stored.get("custom_instructions")
+    else:
+        custom_instructions = (custom_instructions or "").strip()
+        if not custom_instructions:
+            return RedirectResponse(
+                url=f"/subscriptions/{id}?error={quote('Enter custom instructions or use the global instructions')}",
+                status_code=303,
+            )
 
     sub_repo.update_settings(
         id, 
@@ -2210,7 +2473,12 @@ async def update_settings(
         ai_audio_summary,
         retention_days,
         manual_retention_days,
-        retention_limit
+        retention_limit,
+        inherit_content_removal=inherit_content_removal,
+        inherit_retention=inherit_retention,
+        inherit_default_features=inherit_default_features,
+        inherit_custom_instructions=inherit_custom_instructions,
+        watermark_artwork=watermark_artwork,
     )
     
     # Trigger processing if any ads/promos settings were changed
@@ -2218,6 +2486,7 @@ async def update_settings(
     proc = Processor()
     
     async def post_update_tasks(sub_id):
+        await asyncio.to_thread(_reconcile_artwork_and_feeds, [sub_id])
         await proc.cleanup_old_episodes()
         await proc.check_feeds(sub_id)
         await proc.process_queue()
@@ -2225,7 +2494,22 @@ async def update_settings(
     background_tasks.add_task(post_update_tasks, id)
     return RedirectResponse(url=f"/subscriptions/{id}", status_code=303)
 
-from fastapi.responses import FileResponse
+@router.get("/artwork/{subscription_id}.png")
+async def serve_watermarked_artwork(subscription_id: int):
+    sub = sub_repo.get_by_id(subscription_id)
+    if not sub or not sub.watermark_artwork or not sub.watermarked_image_path:
+        raise HTTPException(status_code=404, detail="Artwork not found")
+
+    path = Path(sub.watermarked_image_path).resolve()
+    root = Path(runtime_settings.ARTWORK_DIR).resolve()
+    if path.parent != root or not path.is_file():
+        raise HTTPException(status_code=404, detail="Artwork not found")
+
+    return FileResponse(
+        path,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 @router.get("/episodes/{id}/transcript")
 async def view_transcript(id: int, request: Request):

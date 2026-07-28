@@ -34,7 +34,11 @@ The admin queue shows active jobs, queued/retry states, disk usage, next feed ch
 
 - Podcast search and RSS subscription management.
 - Global podcast library with per-user My Podcasts lists and one shared copy of each podcast.
+- In-place Library starring plus grid, artwork, and compact table views.
 - Podcast ownership rules for per-podcast settings, with admin owner reassignment and admin-only global deletion.
+- Grouped global-setting inheritance for content removal, retention, default features, and custom instructions.
+- Permission-checked bulk editing for podcast settings and ownership.
+- Optional ad-free badge composited onto generated podcast artwork.
 - Automatic episode download and retention controls.
 - Local transcription with Whisper/faster-whisper.
 - LLM-based ad, promo, intro, and outro detection.
@@ -171,11 +175,17 @@ Mount `/data` in Docker. It contains:
 - `/data/db/podcasts.db`
 - `/data/podcasts/`
 - `/data/feeds/`
+- `/data/artwork/`
 - `/data/models/`
 - `/data/backups/`
 - logs
 
 Database migrations are designed to preserve existing installs. Formal migrations create backups under `/data/backups/` before applying schema changes.
+
+New podcasts inherit all four global setting groups. Upgraded podcasts keep their existing explicit
+content-removal, retention, and feature values; only podcasts whose custom instructions were blank or
+NULL begin inheriting global custom instructions. The stored podcast values are retained while a group
+inherits, so disabling inheritance restores the podcast's previous overrides.
 
 ## Verification
 

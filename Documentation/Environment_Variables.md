@@ -81,6 +81,10 @@ In Docker, set `BASE_URL` or the System Settings public application URL to a hos
 
 These are configured from the Admin UI rather than environment variables:
 
+Podcast defaults for content removal, retention, default features, and custom instructions are also
+stored in `app_settings`. They are resolved at read time for subscriptions whose corresponding
+inheritance toggle is enabled. `default_watermark_artwork` is off by default.
+
 | Setting | Description | Default |
 |---------|-------------|---------|
 | `transcription_engine` | Transcription engine to use: `faster-whisper` or `whisperx`. WhisperX provides better alignment and diarization support but may be slower. | `faster-whisper` |

@@ -57,7 +57,8 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
     assert "20260612_0006_tts_provider_settings" in migrations
     assert "20260617_0007_ai_api" in migrations
     assert "20260722_0008_subscription_deletion" in migrations
-    assert "20260724_0009_local_llm_chunking" in migrations
+    assert "20260725_0010_subscription_setting_inheritance" in migrations
+    assert "20260725_0011_artwork_watermark" in migrations
 
     with get_db_connection() as conn:
         access_request_columns = {
@@ -79,6 +80,13 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
         "deletion_started_at",
         "deletion_updated_at",
         "deletion_error",
+        "inherit_content_removal",
+        "inherit_retention",
+        "inherit_default_features",
+        "inherit_custom_instructions",
+        "watermark_artwork",
+        "watermarked_image_path",
+        "watermarked_image_hash",
     }.issubset(subscription_columns)
     assert {
         "notifications_enabled",
@@ -95,6 +103,7 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
         "ai_api_default_requests_per_day",
         "ai_api_unauth_requests_per_minute",
         "transcription_engine",
+        "default_watermark_artwork",
     }.issubset(settings_columns)
 
 
@@ -208,7 +217,13 @@ def test_legacy_database_rows_survive_and_pending_work_is_backfilled(isolated_da
     init_db()
 
     with get_db_connection() as migrated:
-        subscription = migrated.execute("SELECT title, slug FROM subscriptions WHERE id = 1").fetchone()
+        subscription = migrated.execute(
+            """
+            SELECT title, slug, inherit_content_removal, inherit_retention,
+                   inherit_default_features, inherit_custom_instructions
+            FROM subscriptions WHERE id = 1
+            """
+        ).fetchone()
         app_settings = migrated.execute(
             "SELECT whisper_model, concurrent_downloads, retention_days FROM app_settings WHERE id = 1"
         ).fetchone()
@@ -230,6 +245,10 @@ def test_legacy_database_rows_survive_and_pending_work_is_backfilled(isolated_da
 
     assert subscription["title"] == "Legacy Show"
     assert subscription["slug"] == "legacy-show"
+    assert subscription["inherit_content_removal"] == 0
+    assert subscription["inherit_retention"] == 0
+    assert subscription["inherit_default_features"] == 0
+    assert subscription["inherit_custom_instructions"] == 1
     assert app_settings["whisper_model"] == "tiny"
     assert app_settings["concurrent_downloads"] == 1
     assert app_settings["retention_days"] == 7

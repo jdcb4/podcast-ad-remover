@@ -48,9 +48,14 @@ class SubscriptionSettingsUpdate(BaseModel):
     append_title_intro: bool | None = None
     ai_rewrite_description: bool | None = None
     ai_audio_summary: bool | None = None
+    watermark_artwork: bool | None = None
     retention_days: int | None = Field(default=None, ge=0)
     manual_retention_days: int | None = Field(default=None, ge=0)
     retention_limit: int | None = Field(default=None, ge=0)
+    inherit_content_removal: bool | None = None
+    inherit_retention: bool | None = None
+    inherit_default_features: bool | None = None
+    inherit_custom_instructions: bool | None = None
 
 
 class ActionResponse(BaseModel):

@@ -4,8 +4,10 @@
 
 {% block admin_content %}
 <h2 class="font-display text-2xl font-bold mb-6">Global Subscription Settings</h2>
-<p class="text-text-secondary mb-6">These settings will be used as defaults for any NEW podcast subscriptions added to
-    the system. Existing subscriptions will not be affected.</p>
+<p class="text-text-secondary mb-6">
+    These settings apply to new podcasts and to any existing podcast whose matching
+    <strong>Use global settings</strong> toggle is enabled. Podcast-specific overrides remain unchanged.
+</p>
 
 <form action="/admin/global-subscription-settings/update" method="POST">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -118,6 +120,12 @@
                         settings.default_append_title_intro %}checked{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Append Audio Title as Intro (TTS)</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="default_watermark_artwork" value="true"
+                        {% if settings.default_watermark_artwork %}checked{% endif %}
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                    <span class="ml-3">Add “Ad Free” Artwork Badge</span>
                 </label>
             </div>
 

@@ -284,20 +284,64 @@ async def update_subscription_settings(
         "Only admins and the podcast owner can change podcast settings",
     )
     updates = request_body.model_dump(exclude_unset=True)
+    stored = sub.setting_overrides
+    content_fields = {"remove_ads", "remove_promos", "remove_intros", "remove_outros"}
+    retention_fields = {"retention_days", "manual_retention_days", "retention_limit"}
+    feature_fields = {
+        "append_summary",
+        "append_title_intro",
+        "ai_rewrite_description",
+        "ai_audio_summary",
+        "watermark_artwork",
+    }
+
+    inherit_content_removal = updates.get(
+        "inherit_content_removal",
+        False if content_fields.intersection(updates) else sub.inherit_content_removal,
+    )
+    inherit_retention = updates.get(
+        "inherit_retention",
+        False if retention_fields.intersection(updates) else sub.inherit_retention,
+    )
+    inherit_default_features = updates.get(
+        "inherit_default_features",
+        False if feature_fields.intersection(updates) else sub.inherit_default_features,
+    )
+    inherit_custom_instructions = updates.get(
+        "inherit_custom_instructions",
+        sub.inherit_custom_instructions,
+    )
+    if "custom_instructions" in updates:
+        if updates["custom_instructions"] is None or not updates["custom_instructions"].strip():
+            inherit_custom_instructions = True
+        elif "inherit_custom_instructions" not in updates:
+            inherit_custom_instructions = False
+
     sub_repo.update_settings(
         subscription_id,
-        updates.get("remove_ads", sub.remove_ads),
-        updates.get("remove_promos", sub.remove_promos),
-        updates.get("remove_intros", sub.remove_intros),
-        updates.get("remove_outros", sub.remove_outros),
-        updates.get("custom_instructions", sub.custom_instructions),
-        updates.get("append_summary", sub.append_summary),
-        updates.get("append_title_intro", sub.append_title_intro),
-        updates.get("ai_rewrite_description", sub.ai_rewrite_description),
-        updates.get("ai_audio_summary", sub.ai_audio_summary),
-        updates.get("retention_days", sub.retention_days or 30),
-        updates.get("manual_retention_days", sub.manual_retention_days or 14),
-        updates.get("retention_limit", sub.retention_limit or 1),
+        updates.get("remove_ads", stored.get("remove_ads")),
+        updates.get("remove_promos", stored.get("remove_promos")),
+        updates.get("remove_intros", stored.get("remove_intros")),
+        updates.get("remove_outros", stored.get("remove_outros")),
+        updates.get("custom_instructions", stored.get("custom_instructions")),
+        updates.get("append_summary", stored.get("append_summary")),
+        updates.get("append_title_intro", stored.get("append_title_intro")),
+        updates.get("ai_rewrite_description", stored.get("ai_rewrite_description")),
+        updates.get("ai_audio_summary", stored.get("ai_audio_summary")),
+        updates.get("retention_days", stored.get("retention_days") or 30),
+        updates.get("manual_retention_days", stored.get("manual_retention_days") or 14),
+        (
+            updates["retention_limit"]
+            if "retention_limit" in updates
+            else stored.get("retention_limit")
+            if stored.get("retention_limit") is not None
+            else 1
+        ),
+        inherit_content_removal=inherit_content_removal,
+        inherit_retention=inherit_retention,
+        inherit_default_features=inherit_default_features,
+        inherit_custom_instructions=inherit_custom_instructions,
+        watermark_artwork=updates.get("watermark_artwork", stored.get("watermark_artwork")),
     )
 
     proc = _processor()

@@ -251,6 +251,8 @@ class Processor:
                 raise RuntimeError("subscription directory failed path-containment validation")
             if not self._remove_subscription_feed(sub["slug"]):
                 raise RuntimeError("subscription feed failed path-containment validation")
+            from app.core.artwork import ArtworkWatermarker
+            ArtworkWatermarker().clear(subscription_id)
             self.rss_gen.generate_unified_feed()
             self.sub_repo.delete(subscription_id)
             logger.info(f"Completed deletion of subscription {subscription_id} ({sub['title']})")
@@ -1258,9 +1260,17 @@ class Processor:
                 cursor = conn.execute("""
                     SELECT e.id, e.title FROM episodes e
                     LEFT JOIN subscriptions s ON e.subscription_id = s.id
+                    CROSS JOIN app_settings a
                     WHERE e.status = 'completed' 
                       AND e.is_manual_download = 1
-                      AND datetime(e.processed_at) < datetime('now', '-' || COALESCE(s.manual_retention_days, 14) || ' days')
+                      AND datetime(e.processed_at) < datetime(
+                          'now',
+                          '-' || CASE
+                              WHEN s.inherit_retention = 1
+                                  THEN COALESCE(a.default_manual_retention_days, 14)
+                              ELSE COALESCE(s.manual_retention_days, 14)
+                          END || ' days'
+                      )
                 """)
                 for row in cursor.fetchall():
                     logger.info(f"Cleanup: Expired Manual Download: {row['title']}")
@@ -1279,7 +1289,12 @@ class Processor:
                              AND (is_manual_download IS NULL OR is_manual_download=0)
                         ) t
                         JOIN subscriptions s ON t.subscription_id = s.id
-                        WHERE t.rn > COALESCE(s.retention_limit, 1)
+                        CROSS JOIN app_settings a
+                        WHERE t.rn > CASE
+                            WHEN s.inherit_retention = 1
+                                THEN COALESCE(a.default_retention_limit, 1)
+                            ELSE COALESCE(s.retention_limit, 1)
+                        END
                     """)
                     for row in cursor.fetchall():
                          logger.info(f"Cleanup: Auto Download Exceeds Limit: {row['title']}")

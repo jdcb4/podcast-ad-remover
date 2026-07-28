@@ -1,5 +1,5 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, Optional, List
 from datetime import datetime
 
 class SubscriptionBase(BaseModel):
@@ -37,6 +37,17 @@ class Subscription(SubscriptionBase):
     ai_rewrite_description: bool = False
     ai_audio_summary: bool = False
     owner_user_id: Optional[int] = None
+
+    # Four explicit inheritance groups. Effective values are resolved by the
+    # repository; the underlying podcast values remain available for the UI.
+    inherit_content_removal: bool = False
+    inherit_retention: bool = False
+    inherit_default_features: bool = False
+    inherit_custom_instructions: bool = False
+    setting_overrides: dict[str, Any] = Field(default_factory=dict, exclude=True)
+    watermark_artwork: bool = False
+    watermarked_image_path: Optional[str] = None
+    watermarked_image_hash: Optional[str] = None
     
     # Retention
     retention_days: Optional[int] = 30

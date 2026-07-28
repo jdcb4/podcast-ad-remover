@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.10.0 - 2026-07-25
+
+- Added four explicit per-podcast inheritance groups for content removal, retention, default features, and custom instructions. New podcasts inherit all groups; migration preserves existing explicit values except blank or NULL custom instructions, which now inherit.
+- Added an optional inherited or per-podcast ad-free artwork badge with validated source-image fetching, cached generated artwork, and RSS/dashboard integration.
+- Added a compact subscription table with settings-source indicators and permission-checked, atomic bulk updates for processing settings, retention, instructions, and admin ownership.
+- Preserved dashboard view, filters, sort order, and scroll position when adding or removing podcasts from a user's Library.
+
 ## 1.9.0 - 2026-07-24
 
 - Added an opt-in custom OpenAI-compatible text-analysis provider with arbitrary API base URL/model slugs, keyed or keyless endpoint support, strict URL validation, separate credentials, and Docker networking guidance.

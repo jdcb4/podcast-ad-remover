@@ -62,6 +62,20 @@ The rejected transcript-chunking experiment and its provider comparison are docu
 `Documentation/LOCAL_LLM_EVALUATION.md` and `Documentation/LOCAL_LLM_EVALUATION_REPORT.html`.
 Those research artifacts are not a production release gate.
 
+## Subscription Management Checks
+
+Automated coverage verifies:
+
+- new-subscription inheritance and the migration rule that only blank or NULL custom instructions inherit;
+- effective global values and restoration of stored podcast overrides;
+- backward-compatible API updates and all four inheritance flags;
+- artwork URL validation, image limits, compositing/cache behavior, cleanup, and RSS output;
+- in-place Library membership changes without dashboard navigation;
+- atomic bulk updates, rejection of mixed unauthorised selections, and admin owner assignment.
+
+For UI changes, manually confirm the compact table at a desktop width, select multiple manageable
+podcasts, and verify that choosing an override enables only that group's controls.
+
 ## Migration Dry Run
 
 Before upgrading a valuable existing install, validate migrations against a copy of the database:
@@ -129,5 +143,6 @@ This publishes `jdcb4/podcast-ad-remover:experimental-arm64` when pushed. It pas
 
 ## Current Gaps
 
-- Python test coverage is intentionally small and should be expanded before broad processor refactors.
-- There is no automated migration test against a realistic copy of an existing `podcasts.db`; add this before making destructive or rename-style schema changes.
+- Python coverage should continue expanding around full processor lifecycles and service boundaries.
+- Migration tests cover additive schema and data transforms, but a copied realistic `podcasts.db`
+  dry run remains a release-time check rather than a routine automated test.
