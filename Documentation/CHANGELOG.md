@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.11.0 - 2026-07-28
+
 - Made the mobile dashboard more compact, reduced feed subscription choices to Direct link and a generic “Use your favourite app” workflow, and deemphasized the unified feed.
 - Limited the visible processing queue to roughly three items and replaced scheduled whole-page reloads with a queue-only JSON refresh plus an explicit full-refresh fallback.
 - Made My Podcasts and Library switch in place while preserving dashboard search, filters, sorting, display mode, and scroll position; ordinary links remain as progressive-enhancement fallbacks.
