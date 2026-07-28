@@ -60,10 +60,10 @@
                             Faster-Whisper (Default)
                         </option>
                         <option value="whisperx" {% if settings.transcription_engine=='whisperx' %}selected{% endif %}>
-                            WhisperX (with alignment)
+                            WhisperX (with alignment and diarization) - Note: experimental
                         </option>
                     </select>
-                    <p class="text-xs text-text-muted mt-2">WhisperX provides better alignment and diarization support but may be slower.</p>
+                    <p class="text-xs text-text-muted mt-2">WhisperX (experimental) provides better alignment and diarization support but may be slower.  WhisperX support is still in development and may not be stable.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-text-secondary mb-2">Whisper Model</label>
