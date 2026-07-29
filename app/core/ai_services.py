@@ -844,7 +844,10 @@ class AdDetector:
         # Prepare transcript text
         text_data = ""
         for seg in transcript['segments']:
-            text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] [{seg['speaker']}] {seg['text']}\n"
+            if 'speaker' not in seg:
+                text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
+            else:
+                text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] [{seg['speaker']}] {seg['text']}\n"
 
         # Build Prompt
         prompt = self._build_ad_prompt(options, text_data, whitelist_mode=whitelist_mode)
