@@ -46,6 +46,12 @@ class EvaluationAdDetector(AdDetector):
 
     def __init__(self, evaluation_settings: dict[str, Any]):
         self._evaluation_settings = dict(evaluation_settings)
+        transcript_budget = self._evaluation_settings.pop(
+            "evaluation_whitelist_transcript_budget_tokens",
+            None,
+        )
+        if transcript_budget is not None:
+            self.WHITELIST_TRANSCRIPT_BUDGET_TOKENS = int(transcript_budget)
         super().__init__()
 
     def _load_settings(self) -> dict[str, Any]:
@@ -227,6 +233,10 @@ def build_settings(model: dict[str, Any], api_key: str) -> dict[str, Any]:
         "ad_chunk_max_chunks": 32,
         "ad_include_reasons": 0,
         "whitelist_mode": 1,
+        "evaluation_whitelist_transcript_budget_tokens": model.get(
+            "transcript_budget_tokens",
+            AdDetector.WHITELIST_TRANSCRIPT_BUDGET_TOKENS,
+        ),
     }
 
 
@@ -499,11 +509,21 @@ def render_html(results: dict[str, Any]) -> str:
     for run in runs:
         model = run["model"]
         summary = run["summary"]
+        chunk_profile = (
+            "Standard single request"
+            if not model.get("chunking_enabled")
+            else (
+                f"{int(model['declared_context_tokens']) // 1024}K context · "
+                f"{int(model.get('transcript_budget_tokens') or 4000):,}-token "
+                "transcript cap"
+            )
+        )
         table_rows.append(
             "<tr>"
             f"<td><strong>{h(model['display_name'])}</strong>"
             f"<small>{h(model['model_id'])}</small></td>"
             f"<td>{h(model['parameters'])}</td>"
+            f"<td>{h(chunk_profile)}</td>"
             f"<td>{status_badge(summary['overall_status'])}</td>"
             f"<td>{summary['execution_passes']}/{summary['execution_total']}</td>"
             f"<td>{summary['quality_passes']}/{summary['execution_total']}</td>"
@@ -645,13 +665,16 @@ cost, and time while keeping cloud models as the product default.</p>
 removal windows are a regression reference, not hand-adjudicated ground truth. A failed quality gate
 does not by itself prove a detected segment is wrong.</p>
 <h2>Model comparison</h2>
-<div class="table-wrap"><table><thead><tr><th>Configuration</th><th>Size</th><th>Overall</th>
+<div class="table-wrap"><table><thead><tr><th>Configuration</th><th>Size</th><th>Chunk profile</th><th>Overall</th>
 <th>Execution</th><th>Quality</th><th>Average F1</th><th>Cost</th><th>Time</th></tr></thead>
 <tbody>{"".join(table_rows)}</tbody></table></div>
-<div class="method"><strong>Consistent test conditions.</strong> Open/local-class runs use an 8K declared
-context, 30-second overlap, whitelist classification, reasons disabled, and temperature 0. The standard
-Gemini control uses one request and provider-default sampling. OpenRouter models are pinned individually;
-there is no fallback cascade. Summary generation is disabled whenever chunking is enabled.</div>
+<div class="method"><strong>Two chunk-size series.</strong> The original series uses an 8K declared
+context and a 4K transcript-input cap. The follow-up series uses models with at least 32K native
+context, a 32K declared context, and a 16K transcript-input cap so each request covers substantially
+more of the episode. Both series use 30-second overlap, whitelist classification, reasons disabled,
+and temperature 0. The standard Gemini control uses one request and provider-default sampling.
+OpenRouter models are pinned individually; there is no fallback cascade. Summary generation is
+disabled whenever chunking is enabled.</div>
 <h2>Episode-by-episode detections</h2>
 {"".join(episode_sections)}
 <footer>Generated {h(generated)} · Catalogue checked {h(results['catalog_checked_at'])} ·

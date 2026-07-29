@@ -1,4 +1,6 @@
 from scripts.evaluate_local_llms import (
+    EvaluationAdDetector,
+    build_settings,
     interval_metrics,
     render_html,
     safe_error,
@@ -135,3 +137,16 @@ def test_html_report_contains_detections_but_not_transcripts():
     assert "Test model" in report
     assert "0:00–0:10" in report
     assert "transcript text" not in report
+
+
+def test_evaluation_model_can_use_a_larger_transcript_budget():
+    model = {
+        "model_id": "test/model",
+        "chunking_enabled": True,
+        "declared_context_tokens": 32768,
+        "transcript_budget_tokens": 16384,
+    }
+
+    detector = EvaluationAdDetector(build_settings(model, "test-key"))
+
+    assert detector.WHITELIST_TRANSCRIPT_BUDGET_TOKENS == 16384

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-24T05:58:51+00:00",
-  "catalog_checked_at": "2026-07-24",
+  "updated_at": "2026-07-29T11:41:04+00:00",
+  "catalog_checked_at": "2026-07-29",
   "provider": "OpenRouter",
   "base_url": "https://openrouter.ai/api/v1",
   "quality_f1_threshold": 0.7,
@@ -2323,6 +2323,1464 @@
         "average_f1": 0.3077,
         "estimated_cost_usd": 0.021209,
         "wall_seconds": 55.769,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "gemini-3.1-flash-lite-32k",
+        "model_id": "google/gemini-3.1-flash-lite",
+        "display_name": "Gemini 3.1 Flash Lite — 32K larger chunks",
+        "family": "Chunked cloud control",
+        "parameters": "Undisclosed",
+        "parameter_billions": null,
+        "native_context_tokens": 1048576,
+        "chunking_enabled": true,
+        "declared_context_tokens": 32768,
+        "transcript_budget_tokens": 16384
+      },
+      "started_at": "2026-07-29T11:30:36+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "pass",
+          "metrics": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "predicted_seconds": 19.36,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 19.36
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 19.36,
+              "duration": 19.36,
+              "label": "Promo",
+              "best_reference_index": 0,
+              "overlap_seconds": 19.36,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemini-3.1-flash-lite",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 1.754,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 7,
+              "prompt_tokens": 420,
+              "total_tokens": 427,
+              "cost": 0.0001155,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000115,
+          "wall_seconds": 2.303
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 1.0,
+            "recall": 0.5209,
+            "f1": 0.685,
+            "predicted_seconds": 76.88,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 76.88
+          },
+          "predicted_segments": [
+            {
+              "start": 761.8,
+              "end": 768.2,
+              "duration": 6.4,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 6.4,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1537.52,
+              "end": 1608.0,
+              "duration": 70.48,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 70.48,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemini-3.1-flash-lite",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 15010,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 1.671,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 117,
+              "prompt_tokens": 11798,
+              "total_tokens": 11915,
+              "cost": 0.003125,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.003125,
+          "wall_seconds": 1.866
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "pass",
+          "quality_status": "pass",
+          "metrics": {
+            "precision": 0.8109,
+            "recall": 1.0,
+            "f1": 0.8956,
+            "predicted_seconds": 269.28,
+            "reference_seconds": 218.35,
+            "overlap_seconds": 218.35
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 135.0,
+              "duration": 135.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 135.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1318.24,
+              "end": 1318.96,
+              "duration": 0.72,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 2256.64,
+              "end": 2326.48,
+              "duration": 69.84,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 60.4,
+              "overlap_fraction": 0.8648,
+              "match": "matched"
+            },
+            {
+              "start": 4248.28,
+              "end": 4312.0,
+              "duration": 63.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 22.95,
+              "overlap_fraction": 0.3602,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemini-3.1-flash-lite",
+            "chunking_enabled": true,
+            "chunk_count": 4,
+            "completed_chunks": 4,
+            "estimated_input_tokens": 42270,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 6.738,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 207,
+              "prompt_tokens": 36441,
+              "total_tokens": 36648,
+              "cost": 0.00942075,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.009421,
+          "wall_seconds": 6.973
+        }
+      ],
+      "completed_at": "2026-07-29T11:30:47+00:00",
+      "summary": {
+        "execution_passes": 3,
+        "execution_total": 3,
+        "quality_passes": 2,
+        "average_f1": 0.8602,
+        "estimated_cost_usd": 0.012661,
+        "wall_seconds": 11.142,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "gemma-3n-e4b-it-32k",
+        "model_id": "google/gemma-3n-e4b-it",
+        "display_name": "Gemma 3n E4B — 32K larger chunks",
+        "family": "Small",
+        "parameters": "4B effective",
+        "parameter_billions": 4,
+        "native_context_tokens": 32768,
+        "chunking_enabled": true,
+        "declared_context_tokens": 32768,
+        "transcript_budget_tokens": 16384
+      },
+      "started_at": "2026-07-29T11:30:48+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3n-e4b-it",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 6.666,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 199,
+              "prompt_tokens": 435,
+              "total_tokens": 634,
+              "cost": 4.998e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 5e-05,
+          "wall_seconds": 6.912
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3n-e4b-it",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 15010,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 54.486,
+            "finish_reasons": [
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 2048,
+              "prompt_tokens": 11813,
+              "total_tokens": 13861,
+              "cost": 0.00095454,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000955,
+          "wall_seconds": 54.737,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3n-e4b-it",
+            "chunking_enabled": true,
+            "chunk_count": 4,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 42270,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 2.172,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 1,
+              "prompt_tokens": 12547,
+              "total_tokens": 12548,
+              "cost": 0.00075294,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000753,
+          "wall_seconds": 2.421,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector returned an empty response."
+          }
+        }
+      ],
+      "completed_at": "2026-07-29T11:31:52+00:00",
+      "summary": {
+        "execution_passes": 1,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.0,
+        "estimated_cost_usd": 0.001758,
+        "wall_seconds": 64.07,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "qwen-2.5-7b-instruct-32k",
+        "model_id": "qwen/qwen-2.5-7b-instruct",
+        "display_name": "Qwen 2.5 7B Instruct — 32K larger chunks",
+        "family": "Small",
+        "parameters": "7B",
+        "parameter_billions": 7,
+        "native_context_tokens": 32768,
+        "chunking_enabled": true,
+        "declared_context_tokens": 32768,
+        "transcript_budget_tokens": 16384
+      },
+      "started_at": "2026-07-29T11:31:53+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-7b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 1.113,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 27,
+              "prompt_tokens": 425,
+              "total_tokens": 452,
+              "cost": 1.97e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 2e-05,
+          "wall_seconds": 1.307
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.3038,
+            "recall": 0.3537,
+            "f1": 0.3268,
+            "predicted_seconds": 171.84,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 52.2
+          },
+          "predicted_segments": [
+            {
+              "start": 66.04,
+              "end": 70.92,
+              "duration": 4.88,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 4.88,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 158.36,
+              "end": 163.48,
+              "duration": 5.12,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 197.16,
+              "end": 216.36,
+              "duration": 19.2,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 232.28,
+              "end": 247.16,
+              "duration": 14.88,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 265.88,
+              "end": 270.92,
+              "duration": 5.04,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 317.16,
+              "end": 324.36,
+              "duration": 7.2,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 398.6,
+              "end": 403.64,
+              "duration": 5.04,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 459.56,
+              "end": 465.24,
+              "duration": 5.68,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 527.64,
+              "end": 532.44,
+              "duration": 4.8,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 596.28,
+              "end": 600.28,
+              "duration": 4.0,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 675.24,
+              "end": 681.72,
+              "duration": 6.48,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 768.12,
+              "end": 781.16,
+              "duration": 13.04,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 13.04,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 871.0,
+              "end": 875.48,
+              "duration": 4.48,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 968.04,
+              "end": 973.24,
+              "duration": 5.2,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1022.6,
+              "end": 1027.6,
+              "duration": 5.0,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1133.72,
+              "end": 1139.88,
+              "duration": 6.16,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1194.92,
+              "end": 1201.92,
+              "duration": 7.0,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1396.08,
+              "end": 1403.16,
+              "duration": 7.08,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1510.88,
+              "end": 1518.16,
+              "duration": 7.28,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 1530.96,
+              "end": 1537.52,
+              "duration": 6.56,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 6.56,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1580.28,
+              "end": 1608.0,
+              "duration": 27.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 27.72,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-7b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 15010,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 13.057,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 1428,
+              "prompt_tokens": 11612,
+              "total_tokens": 13040,
+              "cost": 0.00060728,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000607,
+          "wall_seconds": 13.257
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-7b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 4,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 42270,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 35.308,
+            "finish_reasons": [
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 2048,
+              "prompt_tokens": 12052,
+              "total_tokens": 14100,
+              "cost": 0.00068688,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000687,
+          "wall_seconds": 35.573,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        }
+      ],
+      "completed_at": "2026-07-29T11:32:43+00:00",
+      "summary": {
+        "execution_passes": 2,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.1634,
+        "estimated_cost_usd": 0.001314,
+        "wall_seconds": 50.137,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "llama-3.1-8b-instruct-32k",
+        "model_id": "meta-llama/llama-3.1-8b-instruct",
+        "display_name": "Llama 3.1 8B Instruct — 32K larger chunks",
+        "family": "Small",
+        "parameters": "8B",
+        "parameter_billions": 8,
+        "native_context_tokens": 131072,
+        "chunking_enabled": true,
+        "declared_context_tokens": 32768,
+        "transcript_budget_tokens": 16384
+      },
+      "started_at": "2026-07-29T11:32:44+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.1-8b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 0.712,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 460,
+              "prompt_tokens": 404,
+              "total_tokens": 864,
+              "cost": 5.7e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 5.7e-05,
+          "wall_seconds": 0.921,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.1-8b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 15010,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 120.946,
+            "finish_reasons": [
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 2048,
+              "prompt_tokens": 9724,
+              "total_tokens": 11772,
+              "cost": 0.0002764,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.00065,
+          "wall_seconds": 121.145,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.1-8b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 4,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 42270,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 82.703,
+            "finish_reasons": [
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 2048,
+              "prompt_tokens": 9694,
+              "total_tokens": 11742,
+              "cost": 0.0002758,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.000649,
+          "wall_seconds": 82.961,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        }
+      ],
+      "completed_at": "2026-07-29T11:36:09+00:00",
+      "summary": {
+        "execution_passes": 0,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.0,
+        "estimated_cost_usd": 0.001356,
+        "wall_seconds": 205.027,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "mistral-small-3.1-24b-instruct-32k",
+        "model_id": "mistralai/mistral-small-3.1-24b-instruct",
+        "display_name": "Mistral Small 3.1 24B — 32K larger chunks",
+        "family": "Medium",
+        "parameters": "24B",
+        "parameter_billions": 24,
+        "native_context_tokens": 128000,
+        "chunking_enabled": true,
+        "declared_context_tokens": 32768,
+        "transcript_budget_tokens": 16384
+      },
+      "started_at": "2026-07-29T11:36:10+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "mistralai/mistral-small-3.1-24b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 1.737,
+            "finish_reasons": [
+              "error"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 1,
+              "prompt_tokens": 0,
+              "total_tokens": 1,
+              "cost": 5.5e-07,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 1e-06,
+          "wall_seconds": 1.936,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "mistralai/mistral-small-3.1-24b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 15010,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 2.012,
+            "finish_reasons": [
+              "error"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 1,
+              "prompt_tokens": 0,
+              "total_tokens": 1,
+              "cost": 5.5e-07,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 1e-06,
+          "wall_seconds": 2.208,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "mistralai/mistral-small-3.1-24b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 4,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 42270,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 2.381,
+            "finish_reasons": [
+              "error"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 1,
+              "prompt_tokens": 0,
+              "total_tokens": 1,
+              "cost": 5.5e-07,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 1e-06,
+          "wall_seconds": 2.611,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        }
+      ],
+      "completed_at": "2026-07-29T11:36:17+00:00",
+      "summary": {
+        "execution_passes": 0,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.0,
+        "estimated_cost_usd": 3e-06,
+        "wall_seconds": 6.755,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "gemma-3-27b-it-32k",
+        "model_id": "google/gemma-3-27b-it",
+        "display_name": "Gemma 3 27B — 32K larger chunks",
+        "family": "Medium",
+        "parameters": "27B",
+        "parameter_billions": 27,
+        "native_context_tokens": 262144,
+        "chunking_enabled": true,
+        "declared_context_tokens": 32768,
+        "transcript_budget_tokens": 16384
+      },
+      "started_at": "2026-07-29T11:36:18+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3-27b-it",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 1.261,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 35,
+              "prompt_tokens": 426,
+              "total_tokens": 461,
+              "cost": 4.983e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 5e-05,
+          "wall_seconds": 1.46
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3-27b-it",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 15010,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 69.41,
+            "finish_reasons": [
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 2048,
+              "prompt_tokens": 11804,
+              "total_tokens": 13852,
+              "cost": 0.00185696,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.001866,
+          "wall_seconds": 69.626,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "google/gemma-3-27b-it",
+            "chunking_enabled": true,
+            "chunk_count": 4,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 42270,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 106.3,
+            "finish_reasons": [
+              "length"
+            ],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "AdDetectionParseError",
+            "usage": {
+              "completion_tokens": 2048,
+              "prompt_tokens": 12537,
+              "total_tokens": 14585,
+              "cost": 0.0019015,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.001925,
+          "wall_seconds": 106.563,
+          "error": {
+            "type": "AdDetectionParseError",
+            "message": "Ad detector response was not valid JSON."
+          }
+        }
+      ],
+      "completed_at": "2026-07-29T11:39:16+00:00",
+      "summary": {
+        "execution_passes": 1,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.0,
+        "estimated_cost_usd": 0.003841,
+        "wall_seconds": 177.649,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "llama-3.3-70b-instruct-32k",
+        "model_id": "meta-llama/llama-3.3-70b-instruct",
+        "display_name": "Llama 3.3 70B Instruct — 32K larger chunks",
+        "family": "Large",
+        "parameters": "70B",
+        "parameter_billions": 70,
+        "native_context_tokens": 131072,
+        "chunking_enabled": true,
+        "declared_context_tokens": 32768,
+        "transcript_budget_tokens": 16384
+      },
+      "started_at": "2026-07-29T11:39:17+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "predicted_seconds": 0,
+            "reference_seconds": 19.36,
+            "overlap_seconds": 0.0
+          },
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.3-70b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 3.152,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 25,
+              "prompt_tokens": 380,
+              "total_tokens": 405,
+              "cost": 5.94e-05,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 5.9e-05,
+          "wall_seconds": 3.358
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 0.3926,
+            "recall": 0.2664,
+            "f1": 0.3174,
+            "predicted_seconds": 100.16,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 39.32
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 66.04,
+              "duration": 66.04,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 5.2,
+              "overlap_fraction": 0.0787,
+              "match": "matched"
+            },
+            {
+              "start": 761.8,
+              "end": 768.2,
+              "duration": 6.4,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 6.4,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1580.28,
+              "end": 1608.0,
+              "duration": 27.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 27.72,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.3-70b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 15010,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 19.583,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 121,
+              "prompt_tokens": 9724,
+              "total_tokens": 9845,
+              "cost": 0.00101112,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.001313,
+          "wall_seconds": 19.77
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "pass",
+          "quality_status": "pass",
+          "metrics": {
+            "precision": 0.8301,
+            "recall": 1.0,
+            "f1": 0.9072,
+            "predicted_seconds": 263.04,
+            "reference_seconds": 218.35,
+            "overlap_seconds": 218.35
+          },
+          "predicted_segments": [
+            {
+              "start": 0.0,
+              "end": 135.0,
+              "duration": 135.0,
+              "label": "Non-Content",
+              "best_reference_index": 0,
+              "overlap_seconds": 135.0,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1318.24,
+              "end": 1318.96,
+              "duration": 0.72,
+              "label": "Non-Content",
+              "best_reference_index": null,
+              "overlap_seconds": 0.0,
+              "overlap_fraction": 0.0,
+              "match": "extra"
+            },
+            {
+              "start": 2266.08,
+              "end": 2329.68,
+              "duration": 63.6,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 60.4,
+              "overlap_fraction": 0.9497,
+              "match": "matched"
+            },
+            {
+              "start": 4248.28,
+              "end": 4312.0,
+              "duration": 63.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 22.95,
+              "overlap_fraction": 0.3602,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "meta-llama/llama-3.3-70b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 4,
+            "completed_chunks": 4,
+            "estimated_input_tokens": 42270,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 40.178,
+            "finish_reasons": [
+              "stop",
+              "stop",
+              "stop",
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 563,
+              "prompt_tokens": 29544,
+              "total_tokens": 30107,
+              "cost": 0.00406592,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.004066,
+          "wall_seconds": 40.395
+        }
+      ],
+      "completed_at": "2026-07-29T11:40:20+00:00",
+      "summary": {
+        "execution_passes": 3,
+        "execution_total": 3,
+        "quality_passes": 1,
+        "average_f1": 0.4082,
+        "estimated_cost_usd": 0.005438,
+        "wall_seconds": 63.523,
+        "overall_status": "fail"
+      }
+    },
+    {
+      "model": {
+        "run_id": "qwen-2.5-72b-instruct-32k",
+        "model_id": "qwen/qwen-2.5-72b-instruct",
+        "display_name": "Qwen 2.5 72B Instruct — 32K larger chunks",
+        "family": "Large",
+        "parameters": "72B",
+        "parameter_billions": 72,
+        "native_context_tokens": 32768,
+        "chunking_enabled": true,
+        "declared_context_tokens": 32768,
+        "transcript_budget_tokens": 16384
+      },
+      "started_at": "2026-07-29T11:40:21+00:00",
+      "episodes": [
+        {
+          "episode_id": 19667,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": null,
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 625,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 5.627,
+            "finish_reasons": [],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "Exception",
+            "usage": {}
+          },
+          "estimated_cost_usd": 0.0,
+          "wall_seconds": 5.851,
+          "error": {
+            "type": "Exception",
+            "message": "All OpenRouter models failed. Last error: 'NoneType' object is not subscriptable"
+          }
+        },
+        {
+          "episode_id": 22272,
+          "execution_status": "pass",
+          "quality_status": "fail",
+          "metrics": {
+            "precision": 1.0,
+            "recall": 0.319,
+            "f1": 0.4837,
+            "predicted_seconds": 47.08,
+            "reference_seconds": 147.6,
+            "overlap_seconds": 47.08
+          },
+          "predicted_segments": [
+            {
+              "start": 761.8,
+              "end": 781.16,
+              "duration": 19.36,
+              "label": "Non-Content",
+              "best_reference_index": 1,
+              "overlap_seconds": 19.36,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            },
+            {
+              "start": 1580.28,
+              "end": 1608.0,
+              "duration": 27.72,
+              "label": "Non-Content",
+              "best_reference_index": 2,
+              "overlap_seconds": 27.72,
+              "overlap_fraction": 1.0,
+              "match": "matched"
+            }
+          ],
+          "metadata": {
+            "provider": "openrouter",
+            "model": "qwen/qwen-2.5-72b-instruct",
+            "chunking_enabled": true,
+            "chunk_count": 1,
+            "completed_chunks": 1,
+            "estimated_input_tokens": 15010,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 23.357,
+            "finish_reasons": [
+              "stop"
+            ],
+            "complete": true,
+            "usage": {
+              "completion_tokens": 124,
+              "prompt_tokens": 11591,
+              "total_tokens": 11715,
+              "cost": 0.00422236,
+              "is_byok": 0
+            }
+          },
+          "estimated_cost_usd": 0.004222,
+          "wall_seconds": 23.583
+        },
+        {
+          "episode_id": 26476,
+          "execution_status": "fail",
+          "quality_status": "fail",
+          "metrics": null,
+          "predicted_segments": [],
+          "metadata": {
+            "provider": "openrouter",
+            "model": null,
+            "chunking_enabled": true,
+            "chunk_count": 4,
+            "completed_chunks": 0,
+            "estimated_input_tokens": 42270,
+            "context_window_tokens": 32768,
+            "elapsed_seconds": 13.055,
+            "finish_reasons": [],
+            "complete": false,
+            "failed_chunk": 1,
+            "error_type": "Exception",
+            "usage": {}
+          },
+          "estimated_cost_usd": 0.0,
+          "wall_seconds": 13.278,
+          "error": {
+            "type": "Exception",
+            "message": "All OpenRouter models failed. Last error: 'NoneType' object is not subscriptable"
+          }
+        }
+      ],
+      "completed_at": "2026-07-29T11:41:04+00:00",
+      "summary": {
+        "execution_passes": 1,
+        "execution_total": 3,
+        "quality_passes": 0,
+        "average_f1": 0.4837,
+        "estimated_cost_usd": 0.004222,
+        "wall_seconds": 42.712,
         "overall_status": "fail"
       }
     }

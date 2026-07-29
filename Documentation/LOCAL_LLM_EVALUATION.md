@@ -1,6 +1,6 @@
 # Local LLM Evaluation
 
-Last updated: 2026-07-24.
+Last updated: 2026-07-29.
 
 ## Purpose
 
@@ -51,7 +51,18 @@ Committed result artifacts deliberately exclude:
 They retain only episode IDs, case labels, timing intervals, aggregate transcript sizes, metrics,
 safe error diagnostics, token usage, estimated cost, and latency.
 
-## Current Benchmark
+## Benchmark Series
+
+The report now contains two directly comparable chunked-model series:
+
+- The original 8K-context series, with a 4K transcript-input cap.
+- A 32K-context follow-up, limited to models whose advertised native context is at least 32K and
+  using a 16K transcript-input cap.
+
+The larger-cap follow-up is a research-only evaluator override. It does not change the experimental
+application's default chunk planner or the production branch.
+
+### 8K Series
 
 ### Method
 
@@ -130,6 +141,45 @@ The current recommendation remains:
 - Do not recommend one local model based on this three-episode corpus.
 - Manually adjudicate a larger, more diverse corpus before defining a production acceptance gate.
 - Prefer models with reliable schema-constrained output support when local providers expose it.
+
+### 32K Context And Larger Chunks
+
+The 2026-07-29 follow-up reran the same eligible models with a 32,768-token declared context and a
+16,384-token transcript-input cap. Phi-4 was not rerun because its recorded native context is only
+16,384 tokens. The OpenRouter catalogue was checked immediately before the run; all eight selected
+model IDs remained available and their recorded context lengths and token prices were unchanged.
+
+The larger cap reduced the context-boundary episode from five chunks to one and the long episode
+from thirteen chunks to four. All other conditions, corpus episodes, historical reference windows,
+strict failure behavior, prompt mode, temperature, and quality threshold remained the same.
+
+| Model/configuration | Short F1 | Boundary F1 | Long F1 | Execution | Quality passes | Chunks by episode | Estimated cost | Wall time |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Gemini 3.1 Flash Lite, 32K | **1.000** | 0.685 | **0.896** | 3/3 | 2/3 | 1; 1; 4 | $0.0127 | 11.1s |
+| Gemma 3n E4B, 32K | 0.000 | Error | Error | 1/3 | 0/3 | 1; 1; 4 | $0.0018 | 64.1s |
+| Qwen 2.5 7B Instruct, 32K | 0.000 | 0.327 | Error | 2/3 | 0/3 | 1; 1; 4 | $0.0013 | 50.1s |
+| Llama 3.1 8B Instruct, 32K | Error | Error | Error | 0/3 | 0/3 | 1; 1; 4 | $0.0014 | 205.0s |
+| Mistral Small 3.1, 32K | Error | Error | Error | 0/3 | 0/3 | 1; 1; 4 | $0.0000 | 6.8s |
+| Gemma 3 27B, 32K | 0.000 | Error | Error | 1/3 | 0/3 | 1; 1; 4 | $0.0038 | 177.6s |
+| Llama 3.3 70B Instruct, 32K | 0.000 | 0.317 | **0.907** | 3/3 | 1/3 | 1; 1; 4 | $0.0054 | 63.5s |
+| Qwen 2.5 72B Instruct, 32K | Error | 0.484 | Error | 1/3 | 0/3 | 1; 1; 4 | $0.0042 | 42.7s |
+
+Across the follow-up matrix:
+
+- 11 of 24 episode runs completed, compared with 20 of 30 in the original broader matrix.
+- 3 of 24 comparisons passed the quality gate, all from Gemini or Llama 70B.
+- No local/open-model configuration passed the short promo case.
+- Gemini's boundary score fell from 0.793 with 8K chunks to 0.685 with the larger chunks.
+- Llama 70B's long score improved from 0.764 to 0.907, while its boundary score fell from an
+  incomplete run to 0.317 and its short score remained zero.
+- Every other local/open model either remained below the quality threshold or became less reliable
+  at producing complete structured output.
+- The follow-up cost an estimated USD 0.0306 and took 621.0 seconds of provider wall time.
+
+The larger chunks did not rescue local-class detection quality. They reduced request counts, but
+concentrated more transcript classification into each structured response and increased the impact
+of one malformed or truncated response. The result strengthens the original conclusion: chunk size
+is not the primary blocker, and the experimental feature remains unsuitable for production.
 
 ## Earlier End-To-End Processing Validation
 

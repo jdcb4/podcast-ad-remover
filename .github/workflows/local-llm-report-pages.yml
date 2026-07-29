@@ -1,0 +1,46 @@
+name: Publish local LLM research report
+
+on:
+  push:
+    branches:
+      - experimental/local-llm-transcript-chunking
+    paths:
+      - Documentation/LOCAL_LLM_EVALUATION_REPORT.html
+      - .github/workflows/local-llm-report-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out experimental report
+        uses: actions/checkout@v4
+
+      - name: Prepare report-only site
+        run: |
+          mkdir _site
+          cp Documentation/LOCAL_LLM_EVALUATION_REPORT.html _site/index.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload report
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy report
+        id: deployment
+        uses: actions/deploy-pages@v4
