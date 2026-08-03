@@ -24,11 +24,11 @@
 {% endif %}
 
 <!-- Search & Stats Card -->
-<div class="card mb-8">
-    <h2 class="font-display text-2xl sm:text-3xl font-bold mb-6">Add Subscription</h2>
+<div class="card dashboard-add-card mb-4 sm:mb-8">
+    <h2 class="font-display text-xl sm:text-3xl font-bold mb-4 sm:mb-6">Add Subscription</h2>
 
     <!-- Search -->
-    <div class="mb-8">
+    <div class="mb-4 sm:mb-8">
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="relative flex-1">
                 <input type="text" id="search-input" placeholder="Search for podcasts..." aria-label="Search Podcasts"
@@ -51,21 +51,21 @@
     </div>
 
     <!-- Stats Grid -->
-    <div class="border-t border-white/[0.06] pt-8">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="stat-card text-center">
+    <div class="border-t border-white/[0.06] pt-4 sm:pt-8">
+        <div class="grid grid-cols-4 gap-2 sm:gap-4">
+            <div class="stat-card stat-card-compact text-center">
                 <div class="stat-value">{{ stats.podcasts }}</div>
                 <div class="stat-label">Podcasts</div>
             </div>
-            <div class="stat-card text-center">
+            <div class="stat-card stat-card-compact text-center">
                 <div class="stat-value">{{ stats.episodes }}</div>
                 <div class="stat-label">Episodes</div>
             </div>
-            <div class="stat-card text-center">
+            <div class="stat-card stat-card-compact text-center">
                 <div class="stat-value">{{ stats.hours }}</div>
                 <div class="stat-label">Hours</div>
             </div>
-            <div class="stat-card text-center">
+            <div class="stat-card stat-card-compact text-center">
                 <div class="stat-value">{{ stats.size_gb }}</div>
                 <div class="stat-label">GB Saved</div>
             </div>
@@ -74,13 +74,13 @@
 </div>
 
 <!-- Processing Queue -->
-{% if queue %}
-<div class="card mb-8">
+<section id="dashboard-queue-region" class="card mb-4 sm:mb-8{% if not queue %} hidden{% endif %}"
+    aria-live="polite" aria-busy="false">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <div class="flex items-center gap-3">
             <div class="w-3 h-3 bg-primary-500 rounded-full animate-pulse"></div>
             <h2 class="font-display text-xl font-bold">Actively processing</h2>
-            <span class="badge-info">{{ queue|length }} items</span>
+            <span id="queue-total-count" class="badge-info">{{ queue|length }} items</span>
         </div>
         <div class="flex items-center gap-3">
             <div class="flex items-center text-sm bg-surface-base px-3 py-2 rounded-xl border border-white/[0.08]">
@@ -97,7 +97,7 @@
                     class="text-xs font-mono font-bold bg-primary-500/20 text-primary-400 px-2.5 py-1 rounded-full min-w-[3rem] text-center"
                     id="refresh-countdown">30s</span>
             </div>
-            <a href="/" class="btn-secondary btn-sm">
+            <a href="/" class="btn-secondary btn-sm" title="Reload the full page if partial refresh is unavailable">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
@@ -117,9 +117,10 @@
         </svg>
     </button>
 
-    <div id="queue-content" class="mt-4 space-y-3">
+    <p id="queue-refresh-status" class="hidden mt-3 text-xs text-amber-300"></p>
+    <div id="queue-content" class="mt-4 space-y-3 max-h-[18rem] overflow-y-auto overscroll-contain pr-1">
         {% for ep in queue %}
-        <div class="p-4 bg-surface-elevated rounded-xl border border-white/[0.06]">
+        <div class="queue-item p-4 bg-surface-elevated rounded-xl border border-white/[0.06]">
             <div class="flex items-start justify-between mb-2">
                 <div class="flex-1 min-w-0 mr-4">
                     <p class="font-medium text-sm truncate">{{ ep.title }}</p>
@@ -151,7 +152,7 @@
         </div>
         {% endfor %}
     </div>
-</div>
+</section>
 <script nonce="{{ csp_nonce }}">
     function toggleQueue() {
         const content = document.getElementById('queue-content');
@@ -160,32 +161,32 @@
         chevron.classList.toggle('rotate-180');
     }
 </script>
-{% endif %}
 
 <!-- Unified RSS Feed -->
 {% if subscriptions %}
-<div class="card mb-8 border-l-4 border-primary-500">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6 text-center md:text-left">
-        <div class="flex flex-col items-center md:items-start">
-            <h3 class="font-display text-xl font-bold flex items-center gap-2">
+<div class="mb-4 sm:mb-8 rounded-xl border border-white/[0.06] bg-surface-elevated/50 px-3 py-2.5">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+            <h3 class="font-display text-sm font-semibold flex items-center gap-2 whitespace-nowrap">
                 <svg class="w-5 h-5 text-primary-400" fill="currentColor" viewBox="0 0 24 24">
                     <path
                         d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19 7.38 20 6.18 20C5 20 4 19 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1Z" />
                 </svg>
                 Unified RSS Feed
             </h3>
-            <p class="text-text-secondary text-sm mt-1">Subscribe to all podcasts in one feed</p>
+            <p class="hidden md:block text-text-muted text-xs">All podcasts in one feed</p>
             {% if settings.enable_feed_auth %}
-            <p class="text-xs text-amber-300/80 mt-2 max-w-xl">
-                These protected subscription links include feed tokens. Treat each full URL as a bearer secret because
-                anyone with it can read the feed and download audio until the token is revoked.
-            </p>
+            <span class="text-xs text-amber-300/80"
+                title="Protected links contain a bearer secret; anyone with the URL can use the feed until the token is revoked.">
+                Protected
+            </span>
             {% endif %}
         </div>
-        <div class="flex flex-wrap gap-3 justify-center md:justify-start items-center">
+        <div class="flex flex-wrap gap-2 items-center">
             {% for link in unified_links.app_links %}
             <a href="{{ link.url }}" class="badge-soft{% if link.key == 'direct' %} hover:glow-primary{% endif %}"
                 {% if link.target %}target="{{ link.target }}"{% endif %}
+                {% if link.key == 'apps' %}data-subscription-help data-feed-url="{{ unified_links.rss }}"{% endif %}
                 style="padding: 0 16px; height: 24px; line-height: 24px;">{{ link.label }}</a>
             {% endfor %}
         </div>
@@ -193,14 +194,17 @@
 </div>
 {% endif %}
 
+<section id="dashboard-library-region" aria-live="polite" aria-busy="false">
 {% if user and user.id and user.id > 0 %}
 <div class="flex flex-wrap items-center gap-2 mb-4">
-    <a href="/?view=mine"
+    <a href="/?view=mine" data-library-view-link="mine"
+        aria-current="{% if library_view == 'mine' %}page{% else %}false{% endif %}"
         class="{% if library_view == 'mine' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">
         My Podcasts
         <span id="my-podcast-count" class="badge-neutral ml-1">{{ my_podcast_count }}</span>
     </a>
-    <a href="/?view=library"
+    <a href="/?view=library" data-library-view-link="library"
+        aria-current="{% if library_view == 'library' %}page{% else %}false{% endif %}"
         class="{% if library_view == 'library' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">
         Library
         <span class="badge-neutral ml-1">{{ library_podcast_count }}</span>
@@ -209,7 +213,7 @@
 {% endif %}
 
 <!-- Podcast Filter Toolbar -->
-{% if subscriptions %}
+{% if subscriptions or (user and user.id and user.id > 0) %}
 <div class="flex flex-wrap items-center gap-3 mb-6 bg-surface-elevated rounded-xl border border-white/[0.08] p-3">
     <input type="text" id="podcast-search" placeholder="Search podcasts..."
         class="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-surface-base border border-white/[0.1] text-white placeholder:text-text-muted focus:border-primary-500 outline-none text-sm">
@@ -267,7 +271,7 @@
 </div>
 {% endif %}
 
-{% if user and subscriptions %}
+{% if user %}
 <form id="bulk-settings-form" action="/subscriptions/bulk-settings" method="post"
     class="hidden mb-6 rounded-xl border border-primary-500/25 bg-surface-elevated p-4 space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -377,6 +381,7 @@
     </div>
 </form>
 
+<div id="dashboard-podcast-results" data-library-view="{{ library_view }}">
 <div id="podcast-table-container" class="hidden mb-6 overflow-x-auto rounded-xl border border-white/[0.08] bg-surface-elevated">
     <table class="w-full min-w-[920px] text-sm">
         <thead class="bg-surface-base text-left text-xs uppercase tracking-wide text-text-muted">
@@ -452,7 +457,7 @@
 
 <!-- Podcast Grid -->
 <div id="podcast-grid" data-library-view="{{ library_view }}"
-    class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
     {% for item in subscriptions %}
     <article class="podcast-card" data-subscription-id="{{ item.sub.id }}"
         data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}"
@@ -474,7 +479,7 @@
         {% endif %}
 
         <!-- Content -->
-        <div class="podcast-content p-5">
+        <div class="podcast-content p-4 sm:p-5">
             <div class="flex items-start gap-3 mb-1">
                 <h3 class="font-display text-lg font-bold truncate flex-1">
                     <a href="/subscriptions/{{ item.sub.id }}" class="hover:text-primary-400 transition-colors">{{
@@ -512,7 +517,7 @@
             {% endif %}
 
             {% if item.sub.description %}
-            <p class="text-sm text-text-secondary line-clamp-2 mb-4">
+            <p class="hidden sm:block text-sm text-text-secondary line-clamp-2 mb-4">
                 {{ item.sub.description | striptags | truncate(100) }}
             </p>
             {% endif %}
@@ -521,7 +526,9 @@
             {% if item.episode_count > 0 %}
             <div class="podcast-badges flex flex-wrap gap-2 mb-4">
                 {% for link in item.links.app_links %}
-                <a href="{{ link.url }}" {% if link.target %}target="{{ link.target }}"{% endif %} class="badge-soft">{{ link.label }}</a>
+                <a href="{{ link.url }}" {% if link.target %}target="{{ link.target }}"{% endif %}
+                    {% if link.key == 'apps' %}data-subscription-help data-feed-url="{{ item.links.rss }}"{% endif %}
+                    class="badge-soft">{{ link.label }}</a>
                 {% endfor %}
             </div>
             {% else %}
@@ -531,7 +538,7 @@
             {% endif %}
 
             <!-- Episodes Preview -->
-            <div class="border-t border-white/[0.06] pt-4 mb-4">
+            <div class="hidden sm:block border-t border-white/[0.06] pt-4 mb-4">
                 <div class="flex justify-between items-center mb-3">
                     <div class="flex items-center gap-3">
                         <span class="text-xs text-text-muted uppercase tracking-wider font-medium">Episodes ({{
@@ -598,6 +605,8 @@
     </div>
     {% endfor %}
 </div>
+</div>
+</section>
 
 <script nonce="{{ csp_nonce }}">
     const GLOBAL_RETENTION_DEFAULT = {{ settings.default_retention_limit if settings.default_retention_limit is not none else 1 }};
@@ -681,66 +690,6 @@
         if (e.key === 'Enter') searchPodcasts();
     });
 
-    {% if queue %}
-    (function () {
-        const toggle = document.getElementById('auto-refresh-toggle');
-        const intervalInput = document.getElementById('refresh-interval');
-        const countdownDisplay = document.getElementById('refresh-countdown');
-
-        const savedInterval = localStorage.getItem('dashboard-refresh-interval');
-        const savedToggle = localStorage.getItem('dashboard-refresh-enabled');
-
-        if (savedInterval) intervalInput.value = savedInterval;
-        if (savedToggle !== null) toggle.checked = savedToggle === 'true';
-
-        let timeLeft = parseInt(intervalInput.value);
-        let intervalId = null;
-
-        function updateCountdown() {
-            if (!toggle.checked) return;
-            timeLeft--;
-            if (timeLeft <= 0) {
-                localStorage.setItem('dashboard-refresh-enabled', toggle.checked);
-                localStorage.setItem('dashboard-refresh-interval', intervalInput.value);
-                window.location.reload();
-            } else {
-                countdownDisplay.textContent = timeLeft + 's';
-            }
-        }
-
-        function startTimer() {
-            if (intervalId) clearInterval(intervalId);
-            timeLeft = parseInt(intervalInput.value);
-            if (isNaN(timeLeft) || timeLeft < 5) timeLeft = 5;
-            countdownDisplay.textContent = timeLeft + 's';
-            if (toggle.checked) {
-                intervalId = setInterval(updateCountdown, 1000);
-                countdownDisplay.classList.remove('bg-white/5', 'text-text-muted');
-                countdownDisplay.classList.add('bg-primary-500/20', 'text-primary-400');
-            } else {
-                countdownDisplay.textContent = 'Off';
-                countdownDisplay.classList.remove('bg-primary-500/20', 'text-primary-400');
-                countdownDisplay.classList.add('bg-white/5', 'text-text-muted');
-            }
-        }
-
-        toggle.onchange = function () {
-            localStorage.setItem('dashboard-refresh-enabled', toggle.checked);
-            startTimer();
-        };
-
-        intervalInput.onchange = function () {
-            let val = parseInt(this.value);
-            if (isNaN(val) || val < 5) { val = 5; this.value = 5; }
-            if (val > 300) { val = 300; this.value = 300; }
-            localStorage.setItem('dashboard-refresh-interval', val);
-            startTimer();
-        };
-
-        startTimer();
-    })();
-    {% endif %}
-
     // View Toggle Logic
     document.addEventListener('DOMContentLoaded', () => {
         function setView(mode) {
@@ -790,6 +739,9 @@
                 btn.addEventListener('click', () => setView(m));
             }
         });
+        document.addEventListener('dashboard-library-results-changed', () => {
+            setView(localStorage.getItem('dashboard-view-mode') || 'grid');
+        });
     });
 
     // Podcast Filter/Sort
@@ -798,14 +750,13 @@
         const filterSelect = document.getElementById('podcast-filter');
         const sortSelect = document.getElementById('podcast-sort');
         const countSpan = document.getElementById('podcast-count');
-        const grid = document.getElementById('podcast-grid');
-        if (!grid) return;
-
-        let cards = Array.from(grid.querySelectorAll('.podcast-card'));
-        const tableBody = document.getElementById('podcast-table-body');
-        let tableRows = tableBody ? Array.from(tableBody.querySelectorAll('.podcast-table-row')) : [];
 
         function applyFiltersAndSort() {
+            const grid = document.getElementById('podcast-grid');
+            if (!grid) return;
+            const cards = Array.from(grid.querySelectorAll('.podcast-card'));
+            const tableBody = document.getElementById('podcast-table-body');
+            const tableRows = tableBody ? Array.from(tableBody.querySelectorAll('.podcast-table-row')) : [];
             const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
             const filterVal = filterSelect ? filterSelect.value : 'all';
             const sortVal = sortSelect ? sortSelect.value : 'alpha';
@@ -880,13 +831,11 @@
         if (searchInput) searchInput.addEventListener('input', applyFiltersAndSort);
         if (filterSelect) filterSelect.addEventListener('change', applyFiltersAndSort);
         if (sortSelect) sortSelect.addEventListener('change', applyFiltersAndSort);
-        document.addEventListener('library-membership-changed', () => {
-            cards = Array.from(grid.querySelectorAll('.podcast-card'));
-            tableRows = tableBody ? Array.from(tableBody.querySelectorAll('.podcast-table-row')) : [];
-            applyFiltersAndSort();
-        });
+        document.addEventListener('library-membership-changed', applyFiltersAndSort);
+        document.addEventListener('dashboard-library-results-changed', applyFiltersAndSort);
     })();
 </script>
 <script src="/static/js/dashboard-library.js" defer></script>
+<script src="/static/js/dashboard-refresh.js" defer></script>
 <script src="/static/js/bulk-subscriptions.js" defer></script>
 {% endblock %}

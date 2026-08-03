@@ -67,7 +67,8 @@ Those research artifacts are not a production release gate.
 Automated coverage verifies:
 
 - new-subscription inheritance and the migration rule that only blank or NULL custom instructions inherit;
-- effective global values and restoration of stored podcast overrides;
+- effective global values, effective inherited-control display, restoration of stored podcast overrides,
+  and cleanup behavior after global retention changes;
 - backward-compatible API updates and all four inheritance flags;
 - artwork URL validation, image limits, compositing/cache behavior, cleanup, and RSS output;
 - in-place Library membership changes without dashboard navigation;
@@ -75,6 +76,13 @@ Automated coverage verifies:
 
 For UI changes, manually confirm the compact table at a desktop width, select multiple manageable
 podcasts, and verify that choosing an override enables only that group's controls.
+
+At a mobile width, also confirm the four compact statistics remain readable, feed actions retain
+accessible touch targets, and approximately three queue rows are visible before internal scrolling.
+Switch My Podcasts/Library after setting a search, filter, sort, and display mode; the toolbar,
+scroll position, and layout should remain in place. Let queue auto-refresh run once and confirm only
+the queue changes. Disable JavaScript or simulate a failed request to confirm the normal view links
+and full Refresh action still work.
 
 ## Migration Dry Run
 

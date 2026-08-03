@@ -3,6 +3,18 @@ from urllib.parse import quote
 
 
 SUBSCRIBE_CLIENTS = {
+    "apps": {
+        "label": "Use your favourite app",
+        "title": "Use your favourite podcast app",
+        "intro": "Private and self-hosted podcast feeds use the same reliable workflow in most podcast apps: copy the feed URL and use Add by URL, Follow by URL, or private RSS.",
+        "steps_title": "Add this feed",
+        "steps": [
+            "Copy the feed URL above.",
+            "Open your podcast app and find its Add by URL, Follow by URL, or private RSS option.",
+            "Paste the feed URL and confirm the subscription.",
+            "If your app does not support custom RSS feeds, choose another podcast app that does.",
+        ],
+    },
     "apple": {
         "label": "Apple",
         "title": "Subscribe on Apple Podcasts",
@@ -86,6 +98,7 @@ def build_subscription_links(rss_url: str) -> dict:
     links = {
         "rss": rss_url,
         "direct": rss_url,
+        "apps": subscribe_instruction_url("apps", rss_url),
         "apple": subscribe_instruction_url("apple", rss_url),
         "pocket_casts": subscribe_instruction_url("pocket_casts", rss_url),
         "overcast": f"overcast://x-callback-url/add?url={encoded_rss_url}",
@@ -94,11 +107,7 @@ def build_subscription_links(rss_url: str) -> dict:
     }
     links["app_links"] = [
         {"key": "direct", "label": "Direct link", "url": links["direct"], "target": "_blank"},
-        {"key": "pocket_casts", "label": "Pocket Casts", "url": links["pocket_casts"]},
-        {"key": "apple", "label": "Apple", "url": links["apple"]},
-        {"key": "overcast", "label": "Overcast", "url": links["overcast"]},
-        {"key": "castbox", "label": "Castbox", "url": links["castbox"]},
-        {"key": "podcast_addict", "label": "Podcast Addict", "url": links["podcast_addict"]},
+        {"key": "apps", "label": "Use your favourite app", "url": links["apps"]},
     ]
     return links
 

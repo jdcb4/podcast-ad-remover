@@ -35,7 +35,9 @@
         </div>
         <div class="flex flex-wrap gap-2">
             {% for link in unified_links.app_links %}
-            <a href="{{ link.url }}" {% if link.target %}target="{{ link.target }}"{% endif %} class="badge-soft">{{ link.label }}</a>
+            <a href="{{ link.url }}" {% if link.target %}target="{{ link.target }}"{% endif %}
+                {% if link.key == 'apps' %}data-subscription-help data-feed-url="{{ unified_links.rss }}"{% endif %}
+                class="badge-soft">{{ link.label }}</a>
             {% endfor %}
         </div>
     </div>
@@ -75,7 +77,9 @@
             {% if item.episode_count > 0 %}
             <div class="flex flex-wrap gap-2">
                 {% for link in item.links.app_links %}
-                <a href="{{ link.url }}" {% if link.target %}target="{{ link.target }}"{% endif %} class="badge-soft">{{ link.label }}</a>
+                <a href="{{ link.url }}" {% if link.target %}target="{{ link.target }}"{% endif %}
+                    {% if link.key == 'apps' %}data-subscription-help data-feed-url="{{ item.links.rss }}"{% endif %}
+                    class="badge-soft">{{ link.label }}</a>
                 {% endfor %}
             </div>
             {% else %}

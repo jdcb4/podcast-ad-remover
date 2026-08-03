@@ -33,6 +33,10 @@ This roadmap lists improvement candidates. It is not a release commitment.
 - Add optional ad-free artwork badging.
 - Add four explicit, reversible global-setting inheritance groups.
 - Add a compact podcast table and atomic, permission-checked bulk settings editing.
+- Make the mobile dashboard denser, reduce subscription choices to the direct feed and a generic app workflow, and deemphasize the unified feed.
+- Bound the current-processing panel and refresh its queue data without reloading the dashboard.
+- Switch between My Podcasts and Library in place while retaining filters, layout preference, scroll position, and normal-link fallbacks.
+- Show effective global values in inherited podcast controls while retaining and restoring stored overrides; verify current global retention in repository reads, feed discovery, and cleanup.
 
 ## Maintainability
 

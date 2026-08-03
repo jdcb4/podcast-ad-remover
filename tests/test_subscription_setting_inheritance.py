@@ -114,3 +114,15 @@ def test_new_subscription_inherits_all_groups_and_restores_stored_overrides(isol
     assert explicit.remove_ads is False
     assert explicit.retention_limit == 3
     assert explicit.custom_instructions == "Podcast rule"
+
+
+def test_settings_form_displays_effective_inherited_values_and_keeps_overrides_reversible():
+    template = open("app/web/templates/episodes.html", encoding="utf-8").read()
+    script = open("app/web/static/js/settings-inheritance.js", encoding="utf-8").read()
+
+    assert "displayed_retention_limit = subscription.retention_limit if subscription.inherit_retention" in template
+    assert 'data-effective-value="{{ settings.default_retention_limit' in template
+    assert 'data-override-value="{{ stored.get(\'retention_limit\')' in template
+    assert "storeOverride(control)" in script
+    assert "showValue(control, 'effective')" in script
+    assert "showValue(control, 'override')" in script

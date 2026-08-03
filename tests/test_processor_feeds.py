@@ -2,7 +2,10 @@ import pytest
 import asyncio
 from unittest.mock import patch, MagicMock
 
+from app.core.models import SubscriptionCreate
 from app.core.processor import Processor
+from app.infra.database import get_db_connection, init_db
+from app.infra.repository import SubscriptionRepository
 
 @pytest.fixture
 def mock_processor():
@@ -140,6 +143,42 @@ def test_check_feeds_with_zero_limit_skips_initial_downloads(mock_feed_manager, 
 
     call_args = mock_processor.ep_repo.create_or_ignore.call_args[0][0]
     assert call_args['status'] == 'unprocessed'
+
+
+@patch("app.core.processor.FeedManager")
+def test_check_feeds_uses_current_global_limit_for_inheriting_subscription(
+    mock_feed_manager,
+    mock_processor,
+    isolated_data_dir,
+):
+    init_db()
+    repository = SubscriptionRepository()
+    subscription = repository.create(
+        SubscriptionCreate(feed_url="https://example.com/real-footy.xml"),
+        "Real Footy",
+        "real-footy",
+        retention_limit=1,
+        inherit_retention=True,
+    )
+    with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE app_settings SET default_retention_limit = 3 WHERE id = 1"
+        )
+        conn.commit()
+
+    mock_processor.sub_repo = repository
+    mock_feed_manager.parse_episodes.return_value = [
+        {"title": f"Episode {index}", "guid": f"guid-{index}"}
+        for index in range(1, 5)
+    ]
+
+    asyncio.run(mock_processor.check_feeds(subscription_id=subscription.id))
+
+    statuses = [
+        call.args[0]["status"]
+        for call in mock_processor.ep_repo.create_or_ignore.call_args_list
+    ]
+    assert statuses == ["pending", "pending", "pending", "unprocessed"]
 
 
 if __name__ == '__main__':

@@ -87,3 +87,20 @@ def test_dashboard_membership_script_is_progressively_enhanced():
     assert 'src="/static/js/dashboard-library.js"' in template
     assert "event.preventDefault()" in script
     assert "library-membership-changed" in script
+
+
+def test_dashboard_view_switch_and_queue_refresh_preserve_page_state():
+    template = open("app/web/templates/index.html", encoding="utf-8").read()
+    script = open("app/web/static/js/dashboard-refresh.js", encoding="utf-8").read()
+
+    assert 'id="dashboard-library-region"' in template
+    assert 'id="dashboard-podcast-results"' in template
+    assert 'data-library-view-link="mine"' in template
+    assert "{% if subscriptions or (user and user.id and user.id > 0) %}" in template
+    assert '{% if user %}\n<form id="bulk-settings-form"' in template
+    assert 'max-h-[18rem]' in template
+    assert "window.location.reload()" not in template
+    assert "fetch('/api/dashboard/queue'" in script
+    assert "replaceChildren" in script
+    assert "history.pushState" in script
+    assert "window.location.assign" in script

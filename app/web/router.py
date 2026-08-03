@@ -1866,6 +1866,23 @@ def _build_public_subscribe_context(request: Request, global_settings: dict):
 async def index(request: Request):
     return _render_index(request)
 
+
+@router.get("/api/dashboard/queue")
+async def dashboard_queue():
+    """Return the small, user-facing processing queue payload for partial refreshes."""
+    items = []
+    for episode in ep_repo.get_queue():
+        items.append({
+            "id": episode.get("id"),
+            "title": episode.get("title") or "Untitled episode",
+            "podcast_title": episode.get("podcast_title") or "Unknown podcast",
+            "status": episode.get("status") or "pending",
+            "processing_step": episode.get("processing_step"),
+            "progress": max(0, min(100, int(episode.get("progress") or 0))),
+        })
+    return {"items": items, "total": len(items)}
+
+
 @router.get("/subscribe", response_class=HTMLResponse)
 async def public_subscribe(request: Request):
     global_settings = get_global_settings()

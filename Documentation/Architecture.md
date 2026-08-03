@@ -84,9 +84,10 @@ The dashboard defaults logged-in users to a "My Podcasts" view backed by `user_s
 
 `subscriptions.owner_user_id` records the user who first added a podcast. Admins can reassign or clear a podcast owner and can change settings for any podcast. Assigning a new owner also adds that podcast to the new owner's My Podcasts list. The owner can change settings for their podcast while they own it. Other users can view, subscribe, refresh, and trigger downloads, but cannot change per-podcast settings. Only admins can delete the global podcast and local files; when an owner removes a podcast from their own list, the podcast becomes unowned instead.
 
-Library membership changes use a JSON response when requested by the dashboard, allowing the star,
-membership counts, active filters, selected view, and scroll position to remain in place. A redirect
-response remains available for ordinary form submissions.
+Library membership changes use a JSON response when requested by the dashboard. My Podcasts and
+Library navigation progressively enhances ordinary links: the browser fetches the server-rendered
+view and replaces only the podcast-result region, preserving the toolbar, active filters, display
+mode, and scroll position. Failed enhancement falls back to normal navigation.
 
 The compact table displays retention and inheritance sources and supplies row selection for bulk
 updates. The server validates every selected podcast before opening one SQLite write transaction, so
@@ -106,6 +107,12 @@ Subscriptions have four explicit inheritance flags:
 it returns a subscription. The stored podcast-specific values remain available as internal
 `setting_overrides`; changing global settings affects inheriting podcasts immediately, and disabling
 inheritance restores the stored values. New subscriptions inherit all groups.
+
+Podcast detail controls show the effective global values while a group inherits. The browser keeps
+the stored overrides separately in data attributes, so disabling inheritance restores those values
+instead of converting the last global value into a podcast override. Processor feed discovery uses
+repository-resolved subscriptions, while retention cleanup resolves the same flags and current
+global values in its SQLite queries.
 
 Migration `20260725_0010_subscription_setting_inheritance` is additive. Existing settings remain
 explicit except blank or NULL custom instructions, which migrate to inheritance. This preserves the
@@ -162,7 +169,30 @@ RSS feeds and audio files remain public when feed authentication is disabled. Wh
 
 Tokens are stored as SHA-256 hashes in `feed_tokens` and can be listed or revoked from the admin Feed Access page. Basic Auth and the older `?auth=base64(username:password)` format are still accepted for compatibility with existing podcast-client subscriptions.
 
-Dashboard and public subscribe pages build podcast-client links through one server-side helper so tokenized feed URLs are encoded consistently. Direct RSS and Overcast links are emitted directly. Apple, Pocket Casts, Castbox, and Podcast Addict route through local instruction pages; Pocket Casts, Castbox, and Podcast Addict include a clearly labelled best-effort app link before the manual RSS instructions.
+Dashboard and public subscribe pages build links through one server-side helper so tokenized feed
+URLs are encoded consistently. The visible choices are Direct link and Use your favourite app. The
+latter opens a shared copy-and-paste guide because adding a private/custom RSS URL is the common,
+reliable workflow across clients. Older Apple, Pocket Casts, Overcast, Castbox, and Podcast Addict
+URLs remain available for backward compatibility, but uncertain platform-specific deep links are no
+longer promoted in the main UI.
+
+### Dashboard Refresh Islands
+
+The dashboard remains a FastAPI/Jinja application rather than a single-page app. Small
+progressively enhanced regions own live behavior:
+
+- `/api/dashboard/queue` returns only safe queue fields; the queue renderer updates that panel on
+  its saved schedule and leaves the rest of the page untouched.
+- My Podcasts and Library replace only `dashboard-podcast-results`, then reapply the existing
+  client-side filter, sort, and layout preferences.
+- ordinary links and a visible full Refresh action remain available when JavaScript or a partial
+  request fails.
+
+This approach addresses independent dashboard updates without introducing client-side routing,
+duplicating all server templates in JavaScript, or changing the Docker deployment model. A full SPA
+would be a substantially larger project involving an API contract for every dashboard action,
+client-side rendering and state management, authentication/error handling changes, and parallel
+accessibility and browser-test coverage; it is not currently justified.
 
 ### AI API Access
 

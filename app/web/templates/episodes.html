@@ -123,6 +123,7 @@
                         <a href="{{ link.url }}"
                             class="btn-secondary px-4 py-2 text-sm font-medium rounded-full"
                             {% if link.target %}target="{{ link.target }}"{% endif %}
+                            {% if link.key == 'apps' %}data-subscription-help data-feed-url="{{ links.rss }}"{% endif %}
                             title="{% if link.key == 'direct' %}Direct RSS Feed{% else %}Subscribe on {{ link.label }}{% endif %}">
                             {{ link.label }}
                         </a>
@@ -184,6 +185,9 @@
 
     {% if can_manage_subscription %}
     <form id="settings-form" action="/subscriptions/{{ subscription.id }}/settings" method="POST" class="hidden">
+        {% set stored = subscription.setting_overrides %}
+        {% set displayed_retention_limit = subscription.retention_limit if subscription.inherit_retention else (stored.get('retention_limit') if stored.get('retention_limit') is not none else 1) %}
+        {% set displayed_manual_retention_days = subscription.manual_retention_days if subscription.inherit_retention else (stored.get('manual_retention_days') if stored.get('manual_retention_days') is not none else 14) %}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
             <div class="space-y-6">
                 <section class="space-y-4" data-inheritance-group>
@@ -201,28 +205,36 @@
                 {% endif %}
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="remove_ads" value="true" data-inherited-control
-                        {% if subscription.setting_overrides.get('remove_ads') %}checked{% endif %}
+                        data-effective-checked="{{ 'true' if settings.default_remove_ads else 'false' }}"
+                        data-override-checked="{{ 'true' if stored.get('remove_ads') else 'false' }}"
+                        {% if (subscription.remove_ads if subscription.inherit_content_removal else stored.get('remove_ads')) %}checked{% endif %}
                         {% if subscription.inherit_content_removal %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Remove Ads</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="remove_promos" value="true" data-inherited-control
-                        {% if subscription.setting_overrides.get('remove_promos') %}checked{% endif %}
+                        data-effective-checked="{{ 'true' if settings.default_remove_promos else 'false' }}"
+                        data-override-checked="{{ 'true' if stored.get('remove_promos') else 'false' }}"
+                        {% if (subscription.remove_promos if subscription.inherit_content_removal else stored.get('remove_promos')) %}checked{% endif %}
                         {% if subscription.inherit_content_removal %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Remove Promos</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="remove_intros" value="true" data-inherited-control
-                        {% if subscription.setting_overrides.get('remove_intros') %}checked{% endif %}
+                        data-effective-checked="{{ 'true' if settings.default_remove_intros else 'false' }}"
+                        data-override-checked="{{ 'true' if stored.get('remove_intros') else 'false' }}"
+                        {% if (subscription.remove_intros if subscription.inherit_content_removal else stored.get('remove_intros')) %}checked{% endif %}
                         {% if subscription.inherit_content_removal %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Remove Intros</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="remove_outros" value="true" data-inherited-control
-                        {% if subscription.setting_overrides.get('remove_outros') %}checked{% endif %}
+                        data-effective-checked="{{ 'true' if settings.default_remove_outros else 'false' }}"
+                        data-override-checked="{{ 'true' if stored.get('remove_outros') else 'false' }}"
+                        {% if (subscription.remove_outros if subscription.inherit_content_removal else stored.get('remove_outros')) %}checked{% endif %}
                         {% if subscription.inherit_content_removal %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Remove Outros</span>
@@ -250,39 +262,41 @@
                             <label class="block text-sm text-text-secondary mb-2">Auto-Downloads (Episodes to
                                 Keep)</label>
                             <select name="retention_limit" class="select" data-inherited-control
+                                data-effective-value="{{ settings.default_retention_limit if settings.default_retention_limit is not none else 1 }}"
+                                data-override-value="{{ stored.get('retention_limit') if stored.get('retention_limit') is not none else 1 }}"
                                 {% if subscription.inherit_retention %}disabled{% endif %}>
-                                <option value="0" {% if subscription.setting_overrides.get('retention_limit')==0 %}selected{% endif %}>None
+                                <option value="0" {% if displayed_retention_limit==0 %}selected{% endif %}>None
                                     (Manual Only)</option>
-                                <option value="1" {% if (subscription.setting_overrides.get('retention_limit') is none or
-                                    subscription.setting_overrides.get('retention_limit')==1) %}selected{% endif %}>Keep Latest 1 (Default)
+                                <option value="1" {% if displayed_retention_limit==1 %}selected{% endif %}>Keep Latest 1 (Default)
                                 </option>
-                                <option value="2" {% if subscription.setting_overrides.get('retention_limit')==2 %}selected{% endif %}>Keep
+                                <option value="2" {% if displayed_retention_limit==2 %}selected{% endif %}>Keep
                                     Latest 2</option>
-                                <option value="3" {% if subscription.setting_overrides.get('retention_limit')==3 %}selected{% endif %}>Keep
+                                <option value="3" {% if displayed_retention_limit==3 %}selected{% endif %}>Keep
                                     Latest 3</option>
-                                <option value="5" {% if subscription.setting_overrides.get('retention_limit')==5 %}selected{% endif %}>Keep
+                                <option value="5" {% if displayed_retention_limit==5 %}selected{% endif %}>Keep
                                     Latest 5</option>
-                                <option value="10" {% if subscription.setting_overrides.get('retention_limit')==10 %}selected{% endif %}>Keep
+                                <option value="10" {% if displayed_retention_limit==10 %}selected{% endif %}>Keep
                                     Latest 10</option>
-                                <option value="20" {% if subscription.setting_overrides.get('retention_limit')==20 %}selected{% endif %}>Keep
+                                <option value="20" {% if displayed_retention_limit==20 %}selected{% endif %}>Keep
                                     Latest 20</option>
-                                <option value="1000" {% if (subscription.setting_overrides.get('retention_limit') or 0)>=1000 %}selected{% endif %}>Keep
+                                <option value="1000" {% if displayed_retention_limit>=1000 %}selected{% endif %}>Keep
                                     All</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-sm text-text-secondary mb-2">Manual Downloads</label>
                             <select name="manual_retention_days" class="select" data-inherited-control
+                                data-effective-value="{{ settings.default_manual_retention_days if settings.default_manual_retention_days is not none else 14 }}"
+                                data-override-value="{{ stored.get('manual_retention_days') if stored.get('manual_retention_days') is not none else 14 }}"
                                 {% if subscription.inherit_retention %}disabled{% endif %}>
-                                <option value="7" {% if subscription.setting_overrides.get('manual_retention_days')==7 %}selected{% endif %}>Keep
+                                <option value="7" {% if displayed_manual_retention_days==7 %}selected{% endif %}>Keep
                                     7 Days</option>
-                                <option value="14" {% if (subscription.setting_overrides.get('manual_retention_days') or 14)==14 %}selected{%
-                                    endif %}>Keep 14 Days</option>
-                                <option value="30" {% if subscription.setting_overrides.get('manual_retention_days')==30 %}selected{% endif %}>
+                                <option value="14" {% if displayed_manual_retention_days==14 %}selected{% endif %}>Keep 14 Days</option>
+                                <option value="30" {% if displayed_manual_retention_days==30 %}selected{% endif %}>
                                     Keep 30 Days</option>
-                                <option value="90" {% if subscription.setting_overrides.get('manual_retention_days')==90 %}selected{% endif %}>
+                                <option value="90" {% if displayed_manual_retention_days==90 %}selected{% endif %}>
                                     Keep 90 Days</option>
-                                <option value="365" {% if subscription.setting_overrides.get('manual_retention_days')==365 %}selected{% endif %}>
+                                <option value="365" {% if displayed_manual_retention_days==365 %}selected{% endif %}>
                                     Keep 1 Year</option>
                             </select>
                         </div>
@@ -306,28 +320,36 @@
                 {% endif %}
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="ai_rewrite_description" value="true" data-inherited-control
-                        {% if subscription.setting_overrides.get('ai_rewrite_description') %}checked{% endif %}
+                        data-effective-checked="{{ 'true' if settings.default_ai_rewrite_description else 'false' }}"
+                        data-override-checked="{{ 'true' if stored.get('ai_rewrite_description') else 'false' }}"
+                        {% if (subscription.ai_rewrite_description if subscription.inherit_default_features else stored.get('ai_rewrite_description')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Rewrite Description (AI Text)</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="ai_audio_summary" value="true" data-inherited-control
-                        {% if subscription.setting_overrides.get('ai_audio_summary') %}checked{% endif %}
+                        data-effective-checked="{{ 'true' if settings.default_ai_audio_summary else 'false' }}"
+                        data-override-checked="{{ 'true' if stored.get('ai_audio_summary') else 'false' }}"
+                        {% if (subscription.ai_audio_summary if subscription.inherit_default_features else stored.get('ai_audio_summary')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Append Audio Summary (AI TTS)</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="append_title_intro" value="true" data-inherited-control
-                        {% if subscription.setting_overrides.get('append_title_intro') %}checked{% endif %}
+                        data-effective-checked="{{ 'true' if settings.default_append_title_intro else 'false' }}"
+                        data-override-checked="{{ 'true' if stored.get('append_title_intro') else 'false' }}"
+                        {% if (subscription.append_title_intro if subscription.inherit_default_features else stored.get('append_title_intro')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Append Audio Title as Intro (TTS)</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="watermark_artwork" value="true" data-inherited-control
-                        {% if subscription.setting_overrides.get('watermark_artwork') %}checked{% endif %}
+                        data-effective-checked="{{ 'true' if settings.default_watermark_artwork else 'false' }}"
+                        data-override-checked="{{ 'true' if stored.get('watermark_artwork') else 'false' }}"
+                        {% if (subscription.watermark_artwork if subscription.inherit_default_features else stored.get('watermark_artwork')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
                     <span class="ml-3">Add “Ad Free” Artwork Badge</span>
@@ -350,8 +372,10 @@
                     </p>
                     {% endif %}
                     <textarea name="custom_instructions" rows="3" class="input font-mono text-sm"
+                        data-effective-value="{{ settings.default_custom_instructions or '' }}"
+                        data-override-value="{{ stored.get('custom_instructions') or '' }}"
                         data-inherited-control {% if subscription.inherit_custom_instructions %}disabled{% endif %}
-                        placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'">{{ subscription.setting_overrides.get('custom_instructions') or '' }}</textarea>
+                        placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'">{{ subscription.custom_instructions if subscription.inherit_custom_instructions else (stored.get('custom_instructions') or '') }}</textarea>
                 </section>
             </div>
         </div>

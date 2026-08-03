@@ -82,3 +82,12 @@ podcasts inherit all four groups. The additive migration keeps every existing co
 retention, and feature group explicit; only blank or NULL custom instructions migrate to inheritance,
 matching their previous behavior. Boolean values are therefore never overloaded with NULL to mean
 inheritance.
+
+## 2026-07-28: Use progressively enhanced dashboard islands instead of a SPA
+
+The server-rendered FastAPI/Jinja architecture remains the default. Live queue updates and
+My Podcasts/Library switching update bounded DOM regions while ordinary links and a manual full
+refresh remain functional fallbacks. This preserves scroll position and in-progress dashboard state
+without adding a client-side router or duplicating the full UI as a JavaScript application. Feed
+subscription choices expose the two reliable workflows—direct RSS and copy into a preferred
+podcast app—while legacy app-specific instruction routes remain compatible.

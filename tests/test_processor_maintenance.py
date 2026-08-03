@@ -5,7 +5,10 @@ import os
 import pytest
 
 from app.core.config import settings
+from app.core.models import SubscriptionCreate
 from app.core.processor import Processor
+from app.infra.database import get_db_connection, init_db
+from app.infra.repository import SubscriptionRepository
 
 
 def test_processor_log_cleanup_does_not_rewrite_app_log():
@@ -146,3 +149,89 @@ def test_validate_download_response_ignores_invalid_content_length(monkeypatch):
     )
 
     assert total == 0
+
+
+@pytest.mark.asyncio
+async def test_cleanup_uses_current_global_retention_for_inheriting_podcasts(
+    isolated_data_dir,
+    monkeypatch,
+):
+    init_db()
+    repository = SubscriptionRepository()
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            UPDATE app_settings
+            SET default_retention_limit = 3,
+                default_manual_retention_days = 30
+            WHERE id = 1
+            """
+        )
+        conn.commit()
+
+    subscription = repository.create(
+        SubscriptionCreate(feed_url="https://example.com/real-footy.xml"),
+        "Real Footy",
+        "real-footy",
+        retention_limit=1,
+        inherit_retention=True,
+    )
+    with get_db_connection() as conn:
+        for index in range(4):
+            conn.execute(
+                """
+                INSERT INTO episodes
+                    (subscription_id, guid, title, pub_date, original_url, status, processed_at, is_manual_download)
+                VALUES (?, ?, ?, datetime('now', ?), ?, 'completed', datetime('now', ?), 0)
+                """,
+                (
+                    subscription.id,
+                    f"auto-{index}",
+                    f"Auto {index}",
+                    f"-{index} days",
+                    f"https://example.com/auto-{index}.mp3",
+                    f"-{index} days",
+                ),
+            )
+        manual_id = conn.execute(
+            """
+            INSERT INTO episodes
+                (subscription_id, guid, title, pub_date, original_url, status, processed_at, is_manual_download)
+            VALUES (?, 'manual', 'Manual', datetime('now'), 'https://example.com/manual.mp3',
+                    'completed', datetime('now', '-20 days'), 1)
+            """,
+            (subscription.id,),
+        ).lastrowid
+        oldest_auto_id = conn.execute(
+            "SELECT id FROM episodes WHERE guid = 'auto-3'"
+        ).fetchone()["id"]
+        conn.commit()
+
+    deleted = []
+    processor = object.__new__(Processor)
+
+    async def record_delete(episode_id):
+        deleted.append(episode_id)
+
+    monkeypatch.setattr(processor, "delete_episode", record_delete)
+    await processor.cleanup_old_episodes()
+
+    assert deleted == [oldest_auto_id]
+    assert manual_id not in deleted
+
+    deleted.clear()
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            UPDATE app_settings
+            SET default_retention_limit = 2,
+                default_manual_retention_days = 14
+            WHERE id = 1
+            """
+        )
+        conn.commit()
+
+    await processor.cleanup_old_episodes()
+
+    assert manual_id in deleted
+    assert len(deleted) == 3
