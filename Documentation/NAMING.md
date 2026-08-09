@@ -48,8 +48,11 @@ Jobs use lowercase strings and describe worker state rather than the user-facing
 ## Docker
 
 - Release image: `jdcb4/podcast-ad-remover`.
+- Rolling development tag: `dev`.
+- Commit-specific development tag: `dev-<short-git-sha>`.
 - Version tags must be full SemVer, for example `1.3.0`.
 - Release publishes should also update `latest`.
+- Development publishes must never update `latest` or a SemVer tag.
 
 ## Documentation
 

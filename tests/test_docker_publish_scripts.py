@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+from scripts.publish_dev_docker import dev_tags, validate_dev_checkout
+from scripts.publish_docker import validate_release_checkout
 from scripts.publish_experimental_docker import validate_tags
 
 
@@ -31,3 +33,37 @@ def test_package_exposes_arm64_experimental_no_tts_build():
     assert "--platform linux/arm64" in script
     assert "--no-tts" in script
     assert "--tag experimental-arm64" in script
+
+
+def test_dev_tags_include_rolling_and_immutable_sha_tags():
+    assert dev_tags("example/podcast-ad-remover", "abc1234") == [
+        "example/podcast-ad-remover:dev",
+        "example/podcast-ad-remover:dev-abc1234",
+    ]
+
+
+def test_validate_dev_checkout_requires_dev_branch():
+    with pytest.raises(SystemExit, match="must be built from branch 'dev'"):
+        validate_dev_checkout("feature/test", True)
+
+
+def test_validate_dev_checkout_requires_clean_tree():
+    with pytest.raises(SystemExit, match="clean committed checkout"):
+        validate_dev_checkout("dev", False)
+
+
+def test_validate_release_checkout_requires_master_branch():
+    with pytest.raises(SystemExit, match="must be built from branch 'master'"):
+        validate_release_checkout("dev", True)
+
+
+def test_validate_release_checkout_requires_clean_tree():
+    with pytest.raises(SystemExit, match="clean committed checkout"):
+        validate_release_checkout("master", False)
+
+
+def test_package_exposes_separate_dev_build_and_publish_commands():
+    package_json = json.loads(Path("package.json").read_text(encoding="utf-8"))
+
+    assert package_json["scripts"]["docker:dev"] == "python scripts/publish_dev_docker.py"
+    assert package_json["scripts"]["docker:dev:publish"].endswith("--push")

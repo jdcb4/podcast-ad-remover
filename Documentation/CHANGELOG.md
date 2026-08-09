@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Made `dev` the primary integration branch, reserved `master` for explicitly approved production promotions, and added traceable Docker Dev builds tagged `dev` and `dev-<git-sha>`.
+- Updated the frontend dependency lock to resolve the high-severity `nanoid` audit advisory.
+
 ## 1.11.0 - 2026-07-28
 
 - Made the mobile dashboard more compact, reduced feed subscription choices to Direct link and a generic “Use your favourite app” workflow, and deemphasized the unified feed.

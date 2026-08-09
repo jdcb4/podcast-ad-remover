@@ -2,6 +2,10 @@
 
 This is a lightweight decision log. Keep entries short, dated, and focused on choices that future maintainers may otherwise revisit.
 
+## 2026-08-10: Integrate on dev and explicitly promote production releases
+
+`dev` is the primary integration branch and `master` is the production branch. Development images share the production Docker repository but use `dev` as a rolling tag and `dev-<git-sha>` as the traceable immutable tag. They never update SemVer tags or `latest`. After a Dev image has been tested, merging to `master` and publishing production tags still require Joe's explicit instruction.
+
 ## 2026-05-19: Keep SQLite and `/data` as the migration anchor
 
 Existing users already have SQLite databases and downloaded podcast artifacts under `/data`. Improvements should preserve that layout unless there is a clear migration path, backup guidance, and a versioned release note.

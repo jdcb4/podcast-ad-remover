@@ -34,6 +34,8 @@ npm ci
 npm run build:css
 npm run verify
 npm run verify:docker
+npm run docker:dev
+npm run docker:dev:publish
 npm run docker:build
 npm run docker:publish
 npm run docker:experimental:arm64
@@ -41,6 +43,8 @@ docker compose up -d --build
 ```
 
 `npm run verify` is the normal pre-change completion check. `npm run verify:docker` adds a local Docker image build and should be used before release tagging or publishing.
+
+Normal work integrates into `dev`. Dev images publish as `:dev` and `:dev-<git-sha>`; production promotion to `master`, SemVer, and `latest` requires explicit approval.
 
 ## Documentation Map
 

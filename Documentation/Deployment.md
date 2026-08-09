@@ -122,6 +122,27 @@ For a local image without Compose:
 docker build -t podcast-ad-remover:local .
 ```
 
+## Development Image Channel
+
+Committed builds from the `dev` branch use two tags in the normal Docker Hub repository:
+
+- `jdcb4/podcast-ad-remover:dev` follows the newest published Dev build.
+- `jdcb4/podcast-ad-remover:dev-<git-sha>` identifies an exact build and should be recorded when testing.
+
+Build locally from a clean `dev` checkout with:
+
+```bash
+npm run docker:dev
+```
+
+Publish both Dev tags with:
+
+```bash
+npm run docker:dev:publish
+```
+
+These commands do not update production SemVer tags or `latest`. Persistent Dev deployment configuration is intentionally handled separately from the image publishing workflow.
+
 The default image includes Piper TTS and is intended primarily for `linux/amd64`. Experimental Apple Silicon / ARM64 builds can skip Piper TTS:
 
 ```bash
@@ -131,6 +152,8 @@ npm run docker:experimental:arm64 -- --push
 This path targets `linux/arm64`, tags the image as `jdcb4/podcast-ad-remover:experimental-arm64`, and sets `INSTALL_TTS=0`. Piper is unavailable in that image, but spoken summaries and title intros can still be tested by selecting Gemini TTS and configuring a Gemini API key. Podcast download, transcription, ad detection, cutting, feed generation, and the web UI remain the intended test surface.
 
 ## Release Publishing
+
+Production releases are promoted from a tested Dev revision only after explicit approval. The release helper runs only from a clean `master` checkout.
 
 Before upgrading an existing install with important data, dry-run database migrations against a copy:
 

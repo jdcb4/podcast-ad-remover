@@ -100,13 +100,34 @@ npm run db:migration-dry-run -- --db-path /data/db/podcasts.db --keep-copy /tmp/
 
 The helper copies the source database into a temporary data directory, runs the normal startup migration path on the copy, and does not modify the source database.
 
-## Pull Request Check
+## Branch And Pull Request Check
 
-GitHub Actions runs `npm run verify` on pull requests and pushes to `master` and `audit-work`. The workflow sets `DATA_DIR` to a temporary Linux runner path so tests do not depend on `/data` being writable.
+GitHub Actions runs `npm run verify` on pull requests and pushes to `dev` and `master`. Pull requests normally target `dev`; `master` is reserved for explicitly approved production promotions. The workflow sets `DATA_DIR` to a temporary Linux runner path so tests do not depend on `/data` being writable.
+
+## Dev Image Check And Publish
+
+From a clean committed `dev` checkout, build the development image locally:
+
+```bash
+npm run docker:dev
+```
+
+To publish the development channel after verification:
+
+```bash
+npm run docker:dev:publish
+```
+
+Both commands produce:
+
+- `jdcb4/podcast-ad-remover:dev`
+- `jdcb4/podcast-ad-remover:dev-<git-sha>`
+
+The rolling tag is convenient for the Dev environment; the SHA tag records the exact tested build. The helper refuses dirty checkouts and branches other than `dev`.
 
 ## Release Publish Check
 
-The release helper reads the version from `package.json`, validates that it is `MAJOR.MINOR.PATCH`, runs verification, and builds two tags:
+Only run the production release path after the tested Dev revision has received explicit promotion approval and has been merged into `master`. The release helper requires a clean `master` checkout, reads the version from `package.json`, validates that it is `MAJOR.MINOR.PATCH`, runs verification, and builds two tags:
 
 ```bash
 npm run docker:build

@@ -204,6 +204,15 @@ For Docker/release work:
 npm run verify:docker
 ```
 
+Normal development integrates into `dev`. A clean committed Dev revision can be built or published with rolling and commit-specific tags:
+
+```bash
+npm run docker:dev
+npm run docker:dev:publish
+```
+
+These produce `jdcb4/podcast-ad-remover:dev` and `jdcb4/podcast-ad-remover:dev-<git-sha>` without changing production tags.
+
 Experimental branch images can be published without touching `latest`:
 
 ```bash
@@ -218,7 +227,7 @@ npm run docker:experimental:arm64 -- --push
 
 `linux/amd64` remains the primary release target. The ARM64 experimental image skips Piper because its phonemizer dependency is not currently available as a simple Linux arm64 wheel. Podcast download, local transcription, ad detection, cutting, feeds, and the web UI remain the target feature set. Spoken summaries and title intros can still be tested on no-Piper images by selecting Gemini TTS and configuring a Gemini API key.
 
-Release publishing is explicit and tags both the version and `latest`:
+Production promotion from `dev` to `master` requires explicit approval. Release publishing then runs from a clean `master` checkout and tags both the version and `latest`:
 
 ```bash
 npm run docker:publish

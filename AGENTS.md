@@ -50,12 +50,21 @@ Update relevant documentation as part of the same change. For user-visible behav
 
 Commit after each significant coherent change, once verification appropriate to that change has passed. Keep commits scoped and descriptive. Do not commit secrets, local data, downloaded media, generated models, or throwaway test artifacts.
 
+## Branch And Promotion Workflow
+
+- `dev` is the primary integration branch. Start normal feature and fix branches from `dev`, and merge completed work back into `dev`.
+- `master` is the production branch. Do not use it for day-to-day development.
+- Do not merge `dev` into `master`, push `master`, bump a production version, publish SemVer tags, or update `latest` unless Joe explicitly instructs you to promote a release.
+- Dev Docker images use the rolling `jdcb4/podcast-ad-remover:dev` tag plus the immutable `jdcb4/podcast-ad-remover:dev-<git-sha>` tag. They must never update `latest` or a SemVer tag.
+- A production promotion begins only after the Dev image has been tested and Joe gives explicit approval. Follow `Documentation/VERSIONING.md` for the promotion checklist.
+
 ## Hard Rules
 
 - Do not delete, rewrite, or reset existing `/data` content as part of a code change.
 - Any database schema change needs a backward-compatible migration path and a rollback/backup note.
 - Do not commit secrets, API keys, real session secrets, downloaded audio, transcripts, generated models, or local database files.
 - Do not push a Docker release unless explicitly asked.
+- Do not promote `dev` to `master` unless explicitly asked.
 - Keep `package.json` and `package-lock.json` versions aligned.
 - Update `Documentation/CHANGELOG.md` in the same change as a version bump.
 - Docker releases use `jdcb4/podcast-ad-remover:<version>` and `jdcb4/podcast-ad-remover:latest`.
@@ -80,7 +89,14 @@ Publishing a release image is explicit:
 npm run docker:publish
 ```
 
-`npm run verify` currently checks Python syntax with `compileall` and rebuilds Tailwind CSS. A proper Python test suite should be added before relying on this as the only release gate.
+Building or publishing the current committed `dev` revision uses:
+
+```bash
+npm run docker:dev
+npm run docker:dev:publish
+```
+
+`npm run verify` checks Python syntax, runs the Python test suite, rebuilds Tailwind CSS, and audits frontend dependencies.
 
 ## Local Development Notes
 

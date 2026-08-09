@@ -12,6 +12,8 @@
     "db:migration-dry-run": "python scripts/migration_dry_run.py",
     "docker:build": "python scripts/publish_docker.py",
     "docker:publish": "python scripts/publish_docker.py --push",
+    "docker:dev": "python scripts/publish_dev_docker.py",
+    "docker:dev:publish": "python scripts/publish_dev_docker.py --push",
     "docker:experimental": "python scripts/publish_experimental_docker.py",
     "docker:experimental:arm64": "python scripts/publish_experimental_docker.py --platform linux/arm64 --no-tts --tag experimental-arm64"
   },

@@ -22,12 +22,14 @@ Have a great idea? Open an issue to discuss it! We love hearing how to make the 
 ### Pull Requests
 
 1.  **Fork the repository**.
-2.  **Create a branch** for your feature or fix (`git checkout -b feature/amazing-feature`).
+2.  **Base your work on `dev`** and create a branch for your feature or fix (`git checkout -b feature/amazing-feature dev`).
 3.  **Commit your changes** (`git commit -m 'Add some amazing feature'`).
 4.  **Push to the branch** (`git push origin feature/amazing-feature`).
-5.  **Open a Pull Request**.
+5.  **Open a Pull Request targeting `dev`**.
 
 Please ensure your code is clean and, where possible, documented.
+
+`dev` is the normal integration branch. `master` represents production and receives changes only through an explicitly approved release promotion after the Dev image has been tested.
 
 ## Development Setup
 

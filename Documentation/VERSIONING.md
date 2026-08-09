@@ -17,6 +17,21 @@ jdcb4/podcast-ad-remover:1.3.0
 jdcb4/podcast-ad-remover:latest
 ```
 
+## Branches And Image Channels
+
+- `dev` is the primary integration branch for completed development work.
+- `master` is the production branch and must change only during an explicitly approved release promotion.
+- Normal feature and fix branches start from and merge back into `dev`.
+
+Dev images stay in the same Docker Hub repository but use non-release tags:
+
+```text
+jdcb4/podcast-ad-remover:dev
+jdcb4/podcast-ad-remover:dev-<git-sha>
+```
+
+`dev` is a convenient rolling tag for the persistent development instance. `dev-<git-sha>` is immutable in normal use and identifies exactly which commit was tested. Dev builds never publish a SemVer tag or update `latest`. The application version may continue to show the last production version while work is accumulating on `dev`; the image revision tag is the Dev build identity.
+
 ## Bump Rules
 
 - `PATCH`: bug fixes, documentation fixes, small internal improvements, and dependency updates that do not change user-visible behavior.
@@ -27,25 +42,38 @@ Because existing installs may have many downloaded podcasts, database and `/data
 
 ## Release Checklist
 
+During normal development, publish and test clean committed Dev builds as needed:
+
+```bash
+npm run docker:dev:publish
+```
+
+When Joe asks to prepare a release candidate:
+
 1. Decide the next SemVer number.
-2. Update `package.json` and `package-lock.json`.
-3. Update `Documentation/CHANGELOG.md`.
-4. Run local verification:
+2. Update `package.json`, `package-lock.json`, and `Documentation/CHANGELOG.md` on `dev`.
+3. Run local verification on `dev`:
 
 ```bash
 npm run verify
 ```
 
-5. Run Docker verification:
+4. Run Docker verification:
 
 ```bash
 npm run verify:docker
 ```
 
-6. Publish the Docker image when ready:
+5. Commit the release candidate, publish its Dev image, and test that exact `dev-<git-sha>` build.
+
+Do not continue until Joe explicitly approves production promotion of the tested candidate.
+
+6. Merge the approved `dev` revision into `master` without adding unrelated changes.
+7. From a clean `master` checkout, repeat required release verification and publish:
 
 ```bash
 npm run docker:publish
 ```
 
 This builds and pushes `jdcb4/podcast-ad-remover:<version>` and `jdcb4/podcast-ad-remover:latest`.
+The release helper refuses to run outside a clean `master` checkout.
