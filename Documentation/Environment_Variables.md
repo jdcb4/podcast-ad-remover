@@ -62,6 +62,7 @@ Current free-tier limits recorded for Gemini TTS:
 | `DATA_DIR` | Directory for internal data (DB, temp) | `/data` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `SESSION_SECRET_KEY` | Session signing key. Set a unique value before enabling dashboard or feed authentication. | `super-secret-session-key-change-me` |
+| `PROCESSOR_ENABLED` | Start the background feed polling and episode-processing process. Set `false` for an isolated web-only clone that must still run startup and database migrations. | `true` |
 | `CHECK_INTERVAL_MINUTES` | How often to check for new episodes | `60` |
 | `WHISPER_MODEL` | Whisper model size | `base` |
 | `HOST` | Host to bind to | `0.0.0.0` |

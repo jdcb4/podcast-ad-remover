@@ -108,20 +108,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error checking/updating app settings on startup: {e}")
     
-    # Start background scheduler in a separate process
-    from app.core.processor import start_processor_process
-    import multiprocessing
-    
-    # Use spawn start method for consistency across platforms (especially Mac)
-    try:
-        multiprocessing.set_start_method('spawn', force=True)
-    except RuntimeError:
-        pass
-        
-    p = multiprocessing.Process(target=start_processor_process, name="PodcastProcessor", daemon=True)
-    p.start()
-    app.state.processor_process = p
-    logger.info(f"Background processor started in separate process (PID: {p.pid})")
+    if settings.PROCESSOR_ENABLED:
+        # Start background scheduler in a separate process
+        from app.core.processor import start_processor_process
+        import multiprocessing
+
+        # Use spawn start method for consistency across platforms (especially Mac)
+        try:
+            multiprocessing.set_start_method('spawn', force=True)
+        except RuntimeError:
+            pass
+
+        p = multiprocessing.Process(target=start_processor_process, name="PodcastProcessor", daemon=True)
+        p.start()
+        app.state.processor_process = p
+        logger.info(f"Background processor started in separate process (PID: {p.pid})")
+    else:
+        logger.warning("Background processor is disabled by PROCESSOR_ENABLED=false")
     
     yield
     

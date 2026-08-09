@@ -4,6 +4,7 @@
 
 - Made `dev` the primary integration branch, reserved `master` for explicitly approved production promotions, and added traceable Docker Dev builds tagged `dev` and `dev-<git-sha>`.
 - Updated the frontend dependency lock to resolve the high-severity `nanoid` audit advisory.
+- Added `PROCESSOR_ENABLED=false` for isolated Dev clones that need normal startup and migration checks without background polling or episode processing.
 
 ## 1.11.0 - 2026-07-28
 
