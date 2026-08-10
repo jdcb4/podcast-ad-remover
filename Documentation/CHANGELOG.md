@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed the My Podcasts/Library **Select all** checkbox after in-place view changes by binding it through the stable document and resolving the current results control dynamically.
 - Added public YouTube channel and explicit-playlist subscriptions with bounded discovery, pinned audio-only yt-dlp/Deno extraction, native-format pipeline input, canonical deduplication, and discovery-based YouTube retention.
 - Added read-only SponsorBlock timestamp merging with report provenance behind `SPONSORBLOCK_ENABLED=false`, including fail-open behavior and licence documentation.
 - Made `dev` the primary integration branch, reserved `master` for explicitly approved production promotions, and added traceable Docker Dev builds tagged `dev` and `dev-<git-sha>`.

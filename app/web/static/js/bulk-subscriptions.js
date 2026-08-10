@@ -3,7 +3,7 @@
     if (!form) return;
 
     const checkboxes = () => Array.from(document.querySelectorAll('.podcast-bulk-checkbox'));
-    const selectAll = document.getElementById('select-all-podcasts');
+    const selectAll = () => document.getElementById('select-all-podcasts');
     const count = document.getElementById('bulk-selection-count');
 
     function syncSelection() {
@@ -11,19 +11,21 @@
         const selected = checkboxes().filter((checkbox) => checkbox.checked);
         form.classList.toggle('hidden', selected.length === 0);
         if (count) count.textContent = String(selected.length);
-        if (selectAll) {
-            selectAll.checked = available.length > 0 && available.every((checkbox) => checkbox.checked);
-            selectAll.indeterminate = available.some((checkbox) => checkbox.checked) && !selectAll.checked;
+        const selectAllCheckbox = selectAll();
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = available.length > 0 && available.every((checkbox) => checkbox.checked);
+            selectAllCheckbox.indeterminate = available.some((checkbox) => checkbox.checked) && !selectAllCheckbox.checked;
         }
     }
 
-    selectAll?.addEventListener('change', () => {
-        checkboxes().forEach((checkbox) => {
-            if (checkbox.closest('tr')?.style.display !== 'none') checkbox.checked = selectAll.checked;
-        });
-        syncSelection();
-    });
     document.addEventListener('change', (event) => {
+        if (event.target.matches('#select-all-podcasts')) {
+            checkboxes().forEach((checkbox) => {
+                if (checkbox.closest('tr')?.style.display !== 'none') checkbox.checked = event.target.checked;
+            });
+            syncSelection();
+            return;
+        }
         if (event.target.matches('.podcast-bulk-checkbox')) syncSelection();
     });
     document.addEventListener('dashboard-library-results-changed', syncSelection);

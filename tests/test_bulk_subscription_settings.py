@@ -163,3 +163,12 @@ def test_dashboard_contains_compact_table_and_bulk_editor():
     assert 'id="bulk-settings-form"' in template
     assert 'name="subscription_ids"' in template
     assert "appConfirm" in script
+
+
+def test_select_all_uses_live_checkbox_after_dashboard_view_replacement():
+    script = open("app/web/static/js/bulk-subscriptions.js", encoding="utf-8").read()
+
+    assert "const selectAll = () => document.getElementById('select-all-podcasts');" in script
+    assert "event.target.matches('#select-all-podcasts')" in script
+    assert "checkbox.checked = event.target.checked" in script
+    assert "const selectAll = document.getElementById('select-all-podcasts');" not in script
