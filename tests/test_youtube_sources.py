@@ -163,7 +163,7 @@ def test_playlist_discovery_initial_cap_and_new_old_member(isolated_data_dir, mo
         SimpleNamespace(entries=first_entries, truncated=False),
         SimpleNamespace(entries=first_entries + [{"id": "old-video"}], truncated=False),
     ]
-    monkeypatch.setattr("app.core.processor.discover_youtube_entries", lambda *_args: discoveries.pop(0))
+    monkeypatch.setattr("app.core.sources.discover_youtube_entries", lambda *_args: discoveries.pop(0))
 
     def hydrate(video_id):
         return ({
@@ -221,7 +221,7 @@ def test_playlist_reconciliation_marks_removed_members_without_deleting_episode(
         SimpleNamespace(entries=[{"id": "keep"}, {"id": "removed"}], truncated=False),
         SimpleNamespace(entries=[{"id": "keep"}], truncated=False),
     ]
-    monkeypatch.setattr("app.core.processor.discover_youtube_entries", lambda *_args: discoveries.pop(0))
+    monkeypatch.setattr("app.core.sources.discover_youtube_entries", lambda *_args: discoveries.pop(0))
     monkeypatch.setattr(
         "app.core.processor.hydrate_youtube_entry",
         lambda video_id: ({
@@ -266,7 +266,7 @@ def test_transiently_excluded_video_is_queued_when_it_becomes_eligible(isolated_
     processor.ep_repo = EpisodeRepository()
     processor.source_item_repo = SourceItemRepository()
     monkeypatch.setattr(
-        "app.core.processor.discover_youtube_entries",
+        "app.core.sources.discover_youtube_entries",
         lambda *_args: SimpleNamespace(entries=[{"id": "eventual"}], truncated=False),
     )
     hydration = [
@@ -318,7 +318,7 @@ def test_one_youtube_source_failure_does_not_abort_other_sources(isolated_data_d
             raise RuntimeError("extractor unavailable")
         return SimpleNamespace(entries=[{"id": "working-video"}], truncated=False)
 
-    monkeypatch.setattr("app.core.processor.discover_youtube_entries", discover)
+    monkeypatch.setattr("app.core.sources.discover_youtube_entries", discover)
     monkeypatch.setattr(
         "app.core.processor.hydrate_youtube_entry",
         lambda video_id: ({

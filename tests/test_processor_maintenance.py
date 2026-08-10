@@ -60,11 +60,11 @@ def test_remove_file_if_exists_removes_regular_file(tmp_path):
 
 
 def test_episode_download_uses_partial_file_before_final_audio():
-    source = Path("app/core/processor.py").read_text(encoding="utf-8")
+    source = Path("app/core/sources.py").read_text(encoding="utf-8")
 
-    assert 'temp_input_path = f"{input_path}.part"' in source
-    assert 'aiofiles.open(temp_input_path, "wb")' in source
-    assert "os.replace(temp_input_path, input_path)" in source
+    assert 'partial_path = directory / "original.mp3.part"' in source
+    assert 'aiofiles.open(partial_path, "wb")' in source
+    assert "os.replace(partial_path, final_path)" in source
 
 
 def test_cleanup_stale_temporary_files_only_removes_old_temp_files(monkeypatch, tmp_path):

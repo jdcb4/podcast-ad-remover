@@ -1,7 +1,6 @@
 import asyncio
 import os
 import logging
-import httpx
 import aiofiles
 import html
 import json
@@ -14,21 +13,18 @@ from app.infra.repository import EpisodeRepository, SubscriptionRepository, Sour
 from app.core.ai_services import Transcriber, AdDetector, RateLimitError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
-from app.core.feed import FeedManager
 from app.core.youtube import (
     YouTubeDownloadCancelled,
-    discover_youtube_entries,
     hydrate_youtube_entry,
-    download_youtube_audio,
     video_id_from_url,
 )
+from app.core.sources import get_source_adapter, validate_rss_download_response
 from app.core.notifications import (
     EVENT_BREAKING_ERROR,
     EVENT_EPISODE_DOWNLOAD,
     send_notification_async,
 )
 from app.core.sponsorblock import SponsorBlockClient, categories_for_subscription
-from app.core.url_utils import validate_http_url, validate_redirect_target, is_audio_content_type
 
 logger = logging.getLogger(__name__)
 
@@ -146,23 +142,7 @@ class Processor:
 
     def _validate_download_response(self, original_url: str, final_url: str, headers, free_space: int) -> int:
         """Validate response metadata before writing episode audio to disk."""
-        validate_redirect_target(original_url, final_url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
-
-        content_length_header = headers.get("Content-Length", 0)
-        try:
-            total = int(content_length_header or 0)
-        except (TypeError, ValueError):
-            logger.warning(f"Ignoring invalid Content-Length for {original_url}: {content_length_header}")
-            total = 0
-
-        if total and total > settings.MAX_DOWNLOAD_BYTES:
-            raise RuntimeError("Episode download exceeds configured maximum size")
-        if total and free_space - total < settings.MIN_FREE_SPACE_BYTES:
-            raise RuntimeError("Episode download would leave less than the configured minimum free disk space")
-        if not is_audio_content_type(headers.get("Content-Type")):
-            raise RuntimeError(f"Episode URL did not return audio content: {headers.get('Content-Type')}")
-
-        return total
+        return validate_rss_download_response(original_url, final_url, headers, free_space)
 
     async def check_feeds(self, subscription_id: int = None, limit: int = 5):
         """Check subscriptions for new episodes."""
@@ -175,8 +155,16 @@ class Processor:
             
         for sub in subs:
             try:
-                if sub.source_type in {"youtube_channel", "youtube_playlist"}:
-                    await self._check_youtube_source(sub, initial_limit=min(max(int(limit), 0), 5))
+                source_type = getattr(sub, "source_type", "rss")
+                if not isinstance(source_type, str):
+                    source_type = "rss"
+                source_adapter = get_source_adapter(source_type)
+                if source_type in {"youtube_channel", "youtube_playlist"}:
+                    await self._check_youtube_source(
+                        sub,
+                        source_adapter,
+                        initial_limit=min(max(int(limit), 0), 5),
+                    )
                     continue
 
                 # Use subscription limit if set, else default. 
@@ -185,7 +173,8 @@ class Processor:
                 logger.info(f"Checking {sub.title} (Sub Limit: {sub.retention_limit}, Ref Limit: {limit}, Final Limit: {actual_limit})...")
 
                 # Fetch ALL episodes
-                episodes = FeedManager.parse_episodes(sub.feed_url)
+                discovery = await source_adapter.discover(source_type, sub.feed_url)
+                episodes = discovery.entries
                 
                 for i, ep_data in enumerate(episodes):
                     ep_data['subscription_id'] = sub.id
@@ -217,14 +206,10 @@ class Processor:
                 logger.error(f"Error checking feed {sub.feed_url}: {e}")
                 self.sub_repo.record_check_error(sub.id, str(e))
 
-    async def _check_youtube_source(self, sub, initial_limit: int) -> None:
+    async def _check_youtube_source(self, sub, source_adapter, initial_limit: int) -> None:
         """Discover bounded public YouTube entries and queue each new item once."""
         is_initial = self.source_item_repo.count(sub.id) == 0
-        discovery = await asyncio.to_thread(
-            discover_youtube_entries,
-            sub.source_type,
-            sub.feed_url,
-        )
+        discovery = await source_adapter.discover(sub.source_type, sub.feed_url)
         if sub.source_type == "youtube_playlist" and not discovery.truncated:
             self.source_item_repo.begin_reconciliation(sub.id)
 
@@ -704,45 +689,15 @@ class Processor:
             asyncio.create_task(self.process_queue())
 
     async def _download_rss_audio(self, ep: Episode, input_path: str) -> None:
-        validate_http_url(ep.original_url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
-        free_space = shutil.disk_usage(settings.DATA_DIR).free
-        if free_space < settings.MIN_FREE_SPACE_BYTES:
-            raise RuntimeError("Not enough free disk space to download episode")
-
-        temp_input_path = f"{input_path}.part"
-        self._remove_file_if_exists(temp_input_path, "stale partial download")
-        async with httpx.AsyncClient() as client:
-            try:
-                async with client.stream("GET", ep.original_url, follow_redirects=True, timeout=300.0) as resp:
-                    resp.raise_for_status()
-                    total = self._validate_download_response(
-                        ep.original_url, str(resp.url), resp.headers, free_space
-                    )
-                    downloaded = 0
-                    last_logged_percent = -1
-                    last_cancel_check = datetime.now()
-                    async with aiofiles.open(temp_input_path, "wb") as handle:
-                        async for chunk in resp.aiter_bytes():
-                            await handle.write(chunk)
-                            downloaded += len(chunk)
-                            if downloaded > settings.MAX_DOWNLOAD_BYTES:
-                                raise RuntimeError("Episode download exceeds configured maximum size")
-                            if (datetime.now() - last_cancel_check).total_seconds() > 2.0:
-                                if not self._check_cancellation(ep):
-                                    raise RuntimeError("CancelledByUser")
-                                last_cancel_check = datetime.now()
-                            if total > 0:
-                                percent = int((downloaded / total) * 100)
-                                if percent % 5 == 0 and percent != last_logged_percent:
-                                    self.ep_repo.update_progress(ep.id, "downloading", percent)
-                                    last_logged_percent = percent
-            except Exception:
-                self._remove_file_if_exists(temp_input_path, "partial download")
-                raise
-        if not self._check_cancellation(ep):
-            self._remove_file_if_exists(temp_input_path, "partial download")
-            raise RuntimeError("CancelledByUser")
-        os.replace(temp_input_path, input_path)
+        episode_dir = str(Path(input_path).parent)
+        await get_source_adapter("rss").download(
+            ep.original_url,
+            episode_dir,
+            progress_callback=lambda percent: self.ep_repo.update_progress(
+                ep.id, "downloading", percent
+            ),
+            cancellation_callback=lambda: not self._check_cancellation(ep),
+        )
 
     async def _fetch_sponsorblock_segments(self, sub, ep: Episode) -> list[dict]:
         if not settings.SPONSORBLOCK_ENABLED:
@@ -821,24 +776,21 @@ class Processor:
             if not os.path.exists(input_path):
                 if not self._check_cancellation(ep): return
                 logger.info(f"Downloading {ep.title}...")
+                source_adapter = get_source_adapter(sub.source_type)
+                try:
+                    input_path = await source_adapter.download(
+                        ep.original_url,
+                        episode_dir,
+                        progress_callback=lambda percent: self.ep_repo.update_progress(
+                            ep.id, "downloading", percent
+                        ),
+                        cancellation_callback=lambda: not self._check_cancellation(ep),
+                    )
+                except YouTubeDownloadCancelled:
+                    self._acknowledge_cancellation(ep)
+                    return
                 if sub.source_type in {"youtube_channel", "youtube_playlist"}:
-                    def youtube_progress(percent: int) -> None:
-                        self.ep_repo.update_progress(ep.id, "downloading", percent)
-
-                    try:
-                        input_path = await asyncio.to_thread(
-                            download_youtube_audio,
-                            ep.original_url,
-                            episode_dir,
-                            progress_callback=youtube_progress,
-                            cancellation_callback=lambda: not self._check_cancellation(ep),
-                        )
-                    except YouTubeDownloadCancelled:
-                        self._acknowledge_cancellation(ep)
-                        return
                     self.ep_repo.update_source_media_path(ep.id, input_path)
-                else:
-                    await self._download_rss_audio(ep, input_path)
 
                 file_size_mb = os.path.getsize(input_path) / (1024 * 1024)
                 logger.info(f"Download complete: {file_size_mb:.2f} MB")

@@ -48,7 +48,7 @@ Supporting modules include:
 - `app/core/artwork.py`: safe source-image retrieval and cached ad-free artwork generation.
 - `app/core/rss_gen.py`: generated feed output.
 - `app/core/feed.py`: feed parsing.
-- `app/core/sources.py`: source resolution shared by RSS and YouTube subscriptions.
+- `app/core/sources.py`: formal RSS/YouTube adapter boundary for source resolution, discovery, and media download.
 - `app/core/youtube.py`: strict public YouTube URL handling, bounded discovery, and audio-only yt-dlp downloads.
 - `app/core/sponsorblock.py`: read-only, fail-open SponsorBlock timestamp lookup.
 - `app/core/subscription_settings.py`: effective per-podcast setting resolution.

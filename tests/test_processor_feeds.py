@@ -20,7 +20,7 @@ def mock_processor():
         processor = Processor()
         yield processor
 
-@patch("app.core.processor.FeedManager")
+@patch("app.core.sources.FeedManager")
 def test_check_feeds_creates_new_episodes_from_feed(mock_feed_manager, mock_processor):
     """Test that new episodes are queued (status: pending) from feed."""
     mock_sub = MagicMock()
@@ -50,7 +50,7 @@ def test_check_feeds_creates_new_episodes_from_feed(mock_feed_manager, mock_proc
     assert saved_ep_data['status'] == 'pending'
 
 
-@patch("app.core.processor.FeedManager")
+@patch("app.core.sources.FeedManager")
 def test_check_feeds_skips_existing_episodes(mock_feed_manager, mock_processor):
     """Test that existing episodes are handled correctly (skipped or backfilled)."""
     mock_sub = MagicMock()
@@ -73,7 +73,7 @@ def test_check_feeds_skips_existing_episodes(mock_feed_manager, mock_processor):
     )
 
 
-@patch("app.core.processor.FeedManager")
+@patch("app.core.sources.FeedManager")
 def test_check_feeds_respects_retention_limit(mock_feed_manager, mock_processor):
     """Test that retention limit is respected by marking older episodes unprocessed."""
     mock_sub = MagicMock()
@@ -98,7 +98,7 @@ def test_check_feeds_respects_retention_limit(mock_feed_manager, mock_processor)
     assert call_2_args['status'] == 'unprocessed'
 
 
-@patch("app.core.processor.FeedManager")
+@patch("app.core.sources.FeedManager")
 def test_check_feeds_handles_feed_parsing_error(mock_feed_manager, mock_processor):
     """Test that feed parsing errors are handled gracefully without crashing the loop."""
     mock_sub = MagicMock()
@@ -113,7 +113,7 @@ def test_check_feeds_handles_feed_parsing_error(mock_feed_manager, mock_processo
     mock_processor.ep_repo.create_or_ignore.assert_not_called()
 
 
-@patch("app.core.processor.FeedManager")
+@patch("app.core.sources.FeedManager")
 def test_check_feeds_all_subscriptions(mock_feed_manager, mock_processor):
     """Test processing loops over all active subscriptions."""
     mock_sub1 = MagicMock(id=1, feed_url="https://feed1.com")
@@ -127,7 +127,7 @@ def test_check_feeds_all_subscriptions(mock_feed_manager, mock_processor):
     assert mock_feed_manager.parse_episodes.call_count == 2
 
 
-@patch("app.core.processor.FeedManager")
+@patch("app.core.sources.FeedManager")
 def test_check_feeds_with_zero_limit_skips_initial_downloads(mock_feed_manager, mock_processor):
     """Test that a retention limit of zero sets status to unprocessed (skips downloads)."""
     mock_sub = MagicMock()
@@ -145,7 +145,7 @@ def test_check_feeds_with_zero_limit_skips_initial_downloads(mock_feed_manager, 
     assert call_args['status'] == 'unprocessed'
 
 
-@patch("app.core.processor.FeedManager")
+@patch("app.core.sources.FeedManager")
 def test_check_feeds_uses_current_global_limit_for_inheriting_subscription(
     mock_feed_manager,
     mock_processor,
