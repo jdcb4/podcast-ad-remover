@@ -1,11 +1,11 @@
 # Data Flow
 
 ## 1. Subscription & Polling
-1.  **User** adds a Podcast RSS URL via Web UI.
+1.  **User** searches for a podcast or pastes a direct RSS, YouTube channel, or explicit YouTube playlist URL.
 2.  **System** saves one global podcast row to `subscriptions`, or reuses the existing global row if the feed is already known. New rows inherit the current global content-removal, retention, default-feature, and custom-instruction groups.
 3.  **System** adds the podcast to the user's `user_subscriptions` list. New podcasts record the first adding user as `subscriptions.owner_user_id`.
 4.  **Scheduler** wakes up (e.g., every hour) and iterates active subscriptions.
-5.  **Feed Manager** fetches the remote RSS feed.
+5.  **Source adapter** fetches RSS entries or performs bounded YouTube discovery (50 recent channel entries or 500 flat playlist members).
 6.  **System** compares remote episodes with `episodes` table (by GUID).
 7.  **System** queues new episodes for processing.
 
@@ -13,23 +13,27 @@
 For each queued episode:
 
 1.  **Download**:
-    - Fetch audio from `enclosure` URL.
+    - Fetch RSS audio from its enclosure, or use pinned yt-dlp to download a YouTube video's best audio-only format.
     - Save episode artifacts under `/data/podcasts/{podcast_slug}/{episode_slug}/`.
 
 2.  **Transcribe (Whisper)**:
     - Load Whisper model (if not loaded).
     - Process audio file -> generate text segments with timestamps.
 
-3.  **Ad Detection (Gemini)**:
+3.  **Ad Detection (configured LLM)**:
     - Send transcript to Gemini API with a prompt to identify ad segments.
     - Receive JSON response containing start/end times of ads.
 
-4.  **Ad Removal (FFmpeg)**:
+4.  **Optional SponsorBlock Evidence**:
+    - Only for YouTube episodes and only when `SPONSORBLOCK_ENABLED=true`, query read-only crowdsourced timestamps for categories enabled by the podcast's existing removal settings.
+    - Fail open and merge valid timestamps with LLM intervals on the original media timeline.
+
+5.  **Ad Removal (FFmpeg)**:
     - Calculate "keep" segments (total duration minus ad segments).
     - Use FFmpeg to cut and concatenate "keep" segments.
     - Save processed audio in the episode artifact directory.
 
-5.  **Finalize**:
+6.  **Finalize**:
     - Update database with processing stats (time saved, ad count).
     - Clean up temporary/intermediate files according to the processor settings.
     - Regenerate the podcast's local RSS feed XML in `/data/feeds/`.

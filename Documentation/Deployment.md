@@ -122,6 +122,11 @@ For a local image without Compose:
 docker build -t podcast-ad-remover:local .
 ```
 
+The image pins yt-dlp plus its matching EJS scripts and copies Deno from a pinned multi-architecture
+image stage. YouTube extraction does not self-update or download remote components at runtime.
+`SPONSORBLOCK_ENABLED` remains `false` unless the operator deliberately enables it after reviewing
+the SponsorBlock API/data licence.
+
 ## Development Image Channel
 
 Committed builds from the `dev` branch use two tags in the normal Docker Hub repository:

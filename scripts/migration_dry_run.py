@@ -8,6 +8,7 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,7 +29,7 @@ class MigrationDryRunResult:
 
 
 def _read_schema_versions(db_path: Path) -> list[str]:
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         try:
             rows = conn.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall()
         except sqlite3.OperationalError:
@@ -37,7 +38,7 @@ def _read_schema_versions(db_path: Path) -> list[str]:
 
 
 def _read_table_names(db_path: Path) -> list[str]:
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         rows = conn.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
         ).fetchall()

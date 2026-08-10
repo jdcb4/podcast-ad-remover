@@ -102,6 +102,7 @@ class RSSGenerator:
             item = SubElement(channel, 'item')
             SubElement(item, 'title').text = ep['title']
             SubElement(item, 'guid').text = ep['guid']
+            SubElement(item, 'link').text = ep['original_url']
             
             # PubDate
             if ep['pub_date']:
@@ -183,6 +184,7 @@ class RSSGenerator:
             # Prefix title with Podcast Name
             SubElement(item, 'title').text = f"[{ep['podcast_title']}] {ep['title']}"
             SubElement(item, 'guid').text = ep['guid']
+            SubElement(item, 'link').text = ep['original_url']
             
             if ep['pub_date']:
                 dt = datetime.fromisoformat(ep['pub_date']) if isinstance(ep['pub_date'], str) else ep['pub_date']

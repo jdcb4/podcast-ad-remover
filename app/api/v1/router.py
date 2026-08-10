@@ -1,5 +1,6 @@
 import json
 import os
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, status
@@ -25,6 +26,7 @@ from app.core.models import Subscription, SubscriptionCreate
 from app.core.notifications import EVENT_NEW_PODCAST, send_notification_async
 from app.core.processor import Processor
 from app.core.search import PodcastSearcher
+from app.core.sources import resolve_source
 from app.core.system_status import get_operation_status
 from app.core.url_utils import validate_http_url
 from app.infra.database import get_db_connection
@@ -229,7 +231,10 @@ async def get_episode_report(episode_id: int, _principal: ApiPrincipal = Depends
 
 @router.post("/search")
 async def search_podcasts(request_body: SearchRequest, _principal: ApiPrincipal = Depends(require_scopes(["read"]))):
-    return await PodcastSearcher.search(request_body.query)
+    try:
+        return await PodcastSearcher.search(request_body.query)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/subscriptions", response_model=Subscription)
@@ -238,30 +243,32 @@ async def create_subscription(
     principal: ApiPrincipal = Depends(require_scopes(["write"])),
 ):
     try:
-        validate_http_url(request_body.feed_url)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    existing = sub_repo.get_by_url(request_body.feed_url)
-    if existing:
-        if principal.user_id:
-            sub_repo.add_to_user_library(principal.user_id, existing.id)
-        return existing
-
-    try:
-        title, slug, image_url, description = FeedManager.parse_feed(request_body.feed_url)
+        source = await asyncio.to_thread(resolve_source, request_body.feed_url)
+        if source.source_type.startswith("youtube_") and request_body.initial_count not in {0, 1, 3, 5}:
+            raise ValueError("YouTube initial import must be 0, 1, 3, or 5 videos")
+        existing = (
+            sub_repo.get_by_source_identity(source.source_type, source.external_id)
+            or sub_repo.get_by_url(source.canonical_url)
+        )
+        if existing:
+            if principal.user_id:
+                sub_repo.add_to_user_library(principal.user_id, existing.id)
+            return existing
+        slug = sub_repo.available_slug(source.slug, source.external_id)
         new_sub = sub_repo.create(
-            sub=SubscriptionCreate(feed_url=request_body.feed_url),
-            title=title,
+            sub=SubscriptionCreate(feed_url=source.canonical_url),
+            title=source.title,
             slug=slug,
-            image_url=image_url,
-            description=description,
+            image_url=source.image_url,
+            description=source.description,
             owner_user_id=principal.user_id,
+            source_type=source.source_type,
+            source_external_id=source.external_id,
         )
         await send_notification_async(
             EVENT_NEW_PODCAST,
             "Podcast added",
-            f"{title} was added to the global podcast library.",
+            f"{source.title} was added to the global podcast library.",
             severity="success",
         )
         await _processor().check_feeds(subscription_id=new_sub.id, limit=request_body.initial_count)

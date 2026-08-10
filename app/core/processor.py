@@ -3,22 +3,31 @@ import os
 import logging
 import httpx
 import aiofiles
+import html
 import json
 import shutil
 from datetime import datetime
 from pathlib import Path
 from app.core.config import settings
 from app.core.models import Episode
-from app.infra.repository import EpisodeRepository, SubscriptionRepository, JobRepository
+from app.infra.repository import EpisodeRepository, SubscriptionRepository, SourceItemRepository, JobRepository
 from app.core.ai_services import Transcriber, AdDetector, RateLimitError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
 from app.core.feed import FeedManager
+from app.core.youtube import (
+    YouTubeDownloadCancelled,
+    discover_youtube_entries,
+    hydrate_youtube_entry,
+    download_youtube_audio,
+    video_id_from_url,
+)
 from app.core.notifications import (
     EVENT_BREAKING_ERROR,
     EVENT_EPISODE_DOWNLOAD,
     send_notification_async,
 )
+from app.core.sponsorblock import SponsorBlockClient, categories_for_subscription
 from app.core.url_utils import validate_http_url, validate_redirect_target, is_audio_content_type
 
 logger = logging.getLogger(__name__)
@@ -32,10 +41,12 @@ class Processor:
     def __init__(self):
         self.ep_repo = EpisodeRepository()
         self.sub_repo = SubscriptionRepository()
+        self.source_item_repo = SourceItemRepository()
         self.job_repo = JobRepository()
         self.transcriber = Transcriber()
         self.ad_detector = AdDetector()
         self.rss_gen = RSSGenerator()
+        self.sponsorblock = SponsorBlockClient()
 
     def _remove_episode_directory(self, episode_dir: str, action: str) -> bool:
         """Remove an episode directory only if it is contained by PODCASTS_DIR."""
@@ -164,6 +175,10 @@ class Processor:
             
         for sub in subs:
             try:
+                if sub.source_type in {"youtube_channel", "youtube_playlist"}:
+                    await self._check_youtube_source(sub, initial_limit=min(max(int(limit), 0), 5))
+                    continue
+
                 # Use subscription limit if set, else default. 
                 # Limit of 0 is valid (means skip initial downloads)
                 actual_limit = sub.retention_limit if sub.retention_limit is not None else limit
@@ -197,8 +212,68 @@ class Processor:
                                 'pending', 
                                 condition_status='unprocessed'
                             )
+                self.sub_repo.record_check_success(sub.id)
             except Exception as e:
                 logger.error(f"Error checking feed {sub.feed_url}: {e}")
+                self.sub_repo.record_check_error(sub.id, str(e))
+
+    async def _check_youtube_source(self, sub, initial_limit: int) -> None:
+        """Discover bounded public YouTube entries and queue each new item once."""
+        is_initial = self.source_item_repo.count(sub.id) == 0
+        discovery = await asyncio.to_thread(
+            discover_youtube_entries,
+            sub.source_type,
+            sub.feed_url,
+        )
+        if sub.source_type == "youtube_playlist" and not discovery.truncated:
+            self.source_item_repo.begin_reconciliation(sub.id)
+
+        eligible_initial = 0
+        for flat_entry in discovery.entries:
+            external_id = str(flat_entry.get("id") or "").strip()
+            if not external_id:
+                continue
+            canonical_url = f"https://www.youtube.com/watch?v={external_id}"
+            observed, is_new = self.source_item_repo.observe(sub.id, external_id, canonical_url)
+
+            if (
+                sub.source_type == "youtube_channel"
+                and not is_new
+                and observed.get("eligibility") == "eligible"
+            ):
+                break
+
+            should_hydrate = is_new or observed.get("eligibility") in {"unknown", "transient"}
+            if not should_hydrate:
+                continue
+            if "/shorts/" in str(flat_entry.get("url") or ""):
+                self.source_item_repo.set_eligibility(sub.id, external_id, "excluded", "short")
+                continue
+            episode_data, exclusion_reason, transient = await asyncio.to_thread(
+                hydrate_youtube_entry,
+                external_id,
+            )
+            if not episode_data:
+                self.source_item_repo.set_eligibility(
+                    sub.id,
+                    external_id,
+                    "transient" if transient else "excluded",
+                    exclusion_reason,
+                )
+                continue
+
+            self.source_item_repo.set_eligibility(sub.id, external_id, "eligible")
+            episode_data["subscription_id"] = sub.id
+            if is_initial:
+                should_queue = eligible_initial < initial_limit
+                eligible_initial += 1
+            else:
+                should_queue = is_new or observed.get("eligibility") == "transient"
+            episode_data["status"] = "pending" if should_queue else "unprocessed"
+            if self.ep_repo.create_or_ignore(episode_data) and should_queue:
+                logger.info("New YouTube episode queued: %s", episode_data["title"])
+
+        self.sub_repo.record_check_success(sub.id, truncated=discovery.truncated)
 
     async def process_episode(self, episode_id: int):
         """Force process a specific episode."""
@@ -359,7 +434,8 @@ class Processor:
                     local_filename = ?, 
                     transcript_path = ?, 
                     ad_report_path = ?, 
-                    report_path = ? 
+                    report_path = ?,
+                    source_media_path = ?
                 WHERE id = ?
             """, (
                 new_guid, 
@@ -368,6 +444,7 @@ class Processor:
                 update_path(ep.transcript_path),
                 update_path(ep.ad_report_path),
                 update_path(ep.report_path),
+                update_path(ep.source_media_path),
                 episode_id
             ))
             
@@ -422,6 +499,12 @@ class Processor:
         normalized = segment.copy()
         normalized["start"] = start
         normalized["end"] = end
+        if normalized.get("evidence"):
+            normalized["sources"] = sorted({
+                str(item.get("source") or "unknown")
+                for item in normalized["evidence"]
+                if isinstance(item, dict)
+            })
         return normalized
 
     @staticmethod
@@ -437,6 +520,16 @@ class Processor:
             if merged_segments and segment["start"] - merged_segments[-1]["end"] < merge_gap:
                 old_end = merged_segments[-1]["end"]
                 merged_segments[-1]["end"] = max(merged_segments[-1]["end"], segment["end"])
+                if merged_segments[-1].get("evidence") or segment.get("evidence"):
+                    existing_evidence = merged_segments[-1].setdefault("evidence", [])
+                    for evidence in segment.get("evidence", []):
+                        if evidence not in existing_evidence:
+                            existing_evidence.append(evidence)
+                    merged_segments[-1]["sources"] = sorted({
+                        str(item.get("source") or "unknown")
+                        for item in existing_evidence
+                        if isinstance(item, dict)
+                    })
                 logger.info(
                     f"Merged segment {segment['start']}-{segment['end']} into "
                     f"{merged_segments[-1]['start']}-{merged_segments[-1]['end']}"
@@ -610,6 +703,62 @@ class Processor:
             # Proactively check queue again after finishing to keep pipeline full
             asyncio.create_task(self.process_queue())
 
+    async def _download_rss_audio(self, ep: Episode, input_path: str) -> None:
+        validate_http_url(ep.original_url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
+        free_space = shutil.disk_usage(settings.DATA_DIR).free
+        if free_space < settings.MIN_FREE_SPACE_BYTES:
+            raise RuntimeError("Not enough free disk space to download episode")
+
+        temp_input_path = f"{input_path}.part"
+        self._remove_file_if_exists(temp_input_path, "stale partial download")
+        async with httpx.AsyncClient() as client:
+            try:
+                async with client.stream("GET", ep.original_url, follow_redirects=True, timeout=300.0) as resp:
+                    resp.raise_for_status()
+                    total = self._validate_download_response(
+                        ep.original_url, str(resp.url), resp.headers, free_space
+                    )
+                    downloaded = 0
+                    last_logged_percent = -1
+                    last_cancel_check = datetime.now()
+                    async with aiofiles.open(temp_input_path, "wb") as handle:
+                        async for chunk in resp.aiter_bytes():
+                            await handle.write(chunk)
+                            downloaded += len(chunk)
+                            if downloaded > settings.MAX_DOWNLOAD_BYTES:
+                                raise RuntimeError("Episode download exceeds configured maximum size")
+                            if (datetime.now() - last_cancel_check).total_seconds() > 2.0:
+                                if not self._check_cancellation(ep):
+                                    raise RuntimeError("CancelledByUser")
+                                last_cancel_check = datetime.now()
+                            if total > 0:
+                                percent = int((downloaded / total) * 100)
+                                if percent % 5 == 0 and percent != last_logged_percent:
+                                    self.ep_repo.update_progress(ep.id, "downloading", percent)
+                                    last_logged_percent = percent
+            except Exception:
+                self._remove_file_if_exists(temp_input_path, "partial download")
+                raise
+        if not self._check_cancellation(ep):
+            self._remove_file_if_exists(temp_input_path, "partial download")
+            raise RuntimeError("CancelledByUser")
+        os.replace(temp_input_path, input_path)
+
+    async def _fetch_sponsorblock_segments(self, sub, ep: Episode) -> list[dict]:
+        if not settings.SPONSORBLOCK_ENABLED:
+            return []
+        if sub.source_type not in {"youtube_channel", "youtube_playlist"}:
+            return []
+        categories = categories_for_subscription(sub)
+        video_id = video_id_from_url(ep.original_url)
+        if not categories or not video_id:
+            return []
+        return await asyncio.to_thread(
+            self.sponsorblock.fetch_segments,
+            video_id,
+            categories,
+        )
+
     async def _process_episode_inner(self, ep: Episode, sub, ep_dict: dict):
         """Core multi-step processing logic for a single episode."""
         logger.info(f"Processing {ep.title}...")
@@ -643,7 +792,7 @@ class Processor:
             episode_dir = settings.get_episode_dir(sub.slug, episode_slug)
             os.makedirs(episode_dir, exist_ok=True)
             
-            input_path = os.path.join(episode_dir, "original.mp3")
+            input_path = ep.source_media_path or os.path.join(episode_dir, "original.mp3")
             transcript_path = None
             
             if skip_transcription and ep.transcript_path and os.path.exists(ep.transcript_path):
@@ -671,61 +820,25 @@ class Processor:
             # 1. Ensure Audio Exists (Download if missing)
             if not os.path.exists(input_path):
                 if not self._check_cancellation(ep): return
-                
                 logger.info(f"Downloading {ep.title}...")
-                validate_http_url(ep.original_url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
-                free_space = shutil.disk_usage(settings.DATA_DIR).free
-                if free_space < settings.MIN_FREE_SPACE_BYTES:
-                    raise RuntimeError("Not enough free disk space to download episode")
-                
-                temp_input_path = f"{input_path}.part"
-                self._remove_file_if_exists(temp_input_path, "stale partial download")
+                if sub.source_type in {"youtube_channel", "youtube_playlist"}:
+                    def youtube_progress(percent: int) -> None:
+                        self.ep_repo.update_progress(ep.id, "downloading", percent)
 
-                async with httpx.AsyncClient() as client:
                     try:
-                        async with client.stream("GET", ep.original_url, follow_redirects=True, timeout=300.0) as resp:
-                            resp.raise_for_status()
-                            total = self._validate_download_response(
-                                ep.original_url,
-                                str(resp.url),
-                                resp.headers,
-                                free_space,
-                            )
-
-                            downloaded = 0
-                            last_logged_percent = -1
-                            last_cancel_check = datetime.now()
-
-                            async with aiofiles.open(temp_input_path, "wb") as f:
-                                async for chunk in resp.aiter_bytes():
-                                    await f.write(chunk)
-                                    downloaded += len(chunk)
-                                    if downloaded > settings.MAX_DOWNLOAD_BYTES:
-                                        raise RuntimeError("Episode download exceeds configured maximum size")
-
-                                    # Periodic cancellation check (Time-based + Percent-based)
-                                    if (datetime.now() - last_cancel_check).total_seconds() > 2.0:
-                                         if not self._check_cancellation(ep):
-                                             self._remove_file_if_exists(temp_input_path, "partial download")
-                                             return
-                                         last_cancel_check = datetime.now()
-
-                                    if total > 0:
-                                        percent = int((downloaded / total) * 100)
-                                        # Update DB every 5%
-                                        if percent % 5 == 0 and percent != last_logged_percent:
-                                            self.ep_repo.update_progress(ep.id, "downloading", percent)
-                                            logger.info(f"Downloading {ep.title}: {percent}%")
-                                            last_logged_percent = percent
-                    except Exception:
-                        self._remove_file_if_exists(temp_input_path, "partial download")
-                        raise
-                
-                if not self._check_cancellation(ep):
-                    self._remove_file_if_exists(temp_input_path, "partial download")
-                    return # Check after download
-
-                os.replace(temp_input_path, input_path)
+                        input_path = await asyncio.to_thread(
+                            download_youtube_audio,
+                            ep.original_url,
+                            episode_dir,
+                            progress_callback=youtube_progress,
+                            cancellation_callback=lambda: not self._check_cancellation(ep),
+                        )
+                    except YouTubeDownloadCancelled:
+                        self._acknowledge_cancellation(ep)
+                        return
+                    self.ep_repo.update_source_media_path(ep.id, input_path)
+                else:
+                    await self._download_rss_audio(ep, input_path)
 
                 file_size_mb = os.path.getsize(input_path) / (1024 * 1024)
                 logger.info(f"Download complete: {file_size_mb:.2f} MB")
@@ -830,6 +943,25 @@ class Processor:
 
             total_duration = AudioProcessor.get_duration(input_path) if whitelist_mode else None
             ad_segments = self._prepare_remove_segments(ad_segments, whitelist_mode, total_duration=total_duration)
+            for segment in ad_segments:
+                segment.setdefault("source", "llm")
+                segment.setdefault("evidence", [{
+                    "source": "llm",
+                    "label": segment.get("label"),
+                    "reason": segment.get("reason"),
+                }])
+                segment.setdefault("sources", ["llm"])
+            sponsor_segments = await self._fetch_sponsorblock_segments(sub, ep)
+            if sponsor_segments:
+                if total_duration is None:
+                    total_duration = AudioProcessor.get_duration(input_path)
+                sponsor_segments = [
+                    normalized
+                    for segment in sponsor_segments
+                    if (normalized := self._normalize_segment(segment, total_duration)) is not None
+                ]
+                ad_segments = self._merge_remove_segments(ad_segments + sponsor_segments)
+                logger.info("Added %s SponsorBlock segments", len(sponsor_segments))
             logger.info(f"After merging: {len(ad_segments)} ad segments")
             
             # Enrich with Text
@@ -852,13 +984,32 @@ class Processor:
             
             rows_html = ""
             for s in ad_segments:
+                sponsorblock_evidence = []
+                for evidence in s.get("evidence", []):
+                    if evidence.get("source") != "sponsorblock":
+                        continue
+                    sponsorblock_evidence.append(
+                        "<li>"
+                        f"category={html.escape(str(evidence.get('category') or 'unknown'))}; "
+                        f"UUID={html.escape(str(evidence.get('uuid') or 'unknown'))}; "
+                        f"votes={html.escape(str(evidence.get('votes')))}; "
+                        f"locked={html.escape(str(evidence.get('locked')))}; "
+                        f"action={html.escape(str(evidence.get('action_type') or 'skip'))}"
+                        "</li>"
+                    )
+                evidence_html = (
+                    '<ul class="evidence">' + "".join(sponsorblock_evidence) + "</ul>"
+                    if sponsorblock_evidence
+                    else ""
+                )
                 rows_html += f"""
                 <div class="segment">
                     <div class="flex justify-between">
                         <strong>{s['start']}s - {s['end']}s</strong>
-                        <span class="badge">{s.get('label', 'Ad')}</span>
+                        <span class="badge">{s.get('label', 'Ad')} · {', '.join(s.get('sources', ['llm']))}</span>
                     </div>
                     <p class="reason">{s.get('reason', 'No reason provided')}</p>
+                    {evidence_html}
                     <div class="transcript-text">
                         "{s.get('text', 'No text extracted')}"
                     </div>
@@ -1282,9 +1433,17 @@ class Processor:
                     cursor = conn.execute("""
                         SELECT t.id, t.title 
                         FROM (
-                           SELECT id, title, subscription_id,
-                                  ROW_NUMBER() OVER (PARTITION BY subscription_id ORDER BY pub_date DESC) as rn
-                           FROM episodes
+                           SELECT e.id, e.title, e.subscription_id,
+                                  ROW_NUMBER() OVER (
+                                      PARTITION BY e.subscription_id
+                                      ORDER BY CASE
+                                          WHEN s2.source_type IN ('youtube_channel', 'youtube_playlist')
+                                              THEN COALESCE(e.discovered_at, e.pub_date)
+                                          ELSE e.pub_date
+                                      END DESC
+                                  ) as rn
+                           FROM episodes e
+                           JOIN subscriptions s2 ON s2.id = e.subscription_id
                            WHERE status='completed' 
                              AND (is_manual_download IS NULL OR is_manual_download=0)
                         ) t

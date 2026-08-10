@@ -1,3 +1,5 @@
+FROM denoland/deno:2.9.5 AS deno
+
 FROM python:3.11-slim
 
 ARG INSTALL_TTS=1
@@ -11,6 +13,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
+
+# yt-dlp uses Deno for YouTube's JavaScript challenges. Both yt-dlp and its
+# matching EJS scripts are explicitly pinned, so no runtime component download
+# or self-update is needed.
+COPY --from=deno /usr/bin/deno /usr/local/bin/deno
 
 WORKDIR /app
 

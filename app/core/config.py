@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     
     # Processing
     PROCESSOR_ENABLED: bool = True
+    SPONSORBLOCK_ENABLED: bool = False
     CHECK_INTERVAL_MINUTES: int = 60
     WHISPER_MODEL: str = "base"
     LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10 MB

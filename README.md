@@ -34,7 +34,7 @@ The admin queue shows active jobs, queued/retry states, disk usage, next feed ch
 
 ## Features
 
-- Podcast search and RSS subscription management.
+- Podcast search, RSS subscription management, and direct YouTube channel/playlist subscriptions.
 - Global podcast library with per-user My Podcasts lists and one shared copy of each podcast.
 - In-place Library starring and My Podcasts/Library switching plus grid, artwork, and compact table views.
 - Podcast ownership rules for per-podcast settings, with admin owner reassignment and admin-only global deletion.
@@ -56,6 +56,24 @@ The admin queue shows active jobs, queued/retry states, disk usage, next feed ch
 - Optional public read-only subscribe page for frictionless podcast-client setup.
 - Optional Apprise-backed admin notifications for access requests, new podcasts, completed episodes, and breaking processing errors.
 - Resource controls for Whisper CPU threads, FFmpeg threads, and unloading Whisper after jobs.
+
+## YouTube Sources
+
+Paste a direct public YouTube channel URL or an explicit `youtube.com/playlist?list=...` URL into the
+dashboard search bar. The app resolves it as one subscription, checks it on the normal feed interval,
+downloads best audio-only with pinned yt-dlp tooling, and sends that audio through the same
+Whisper/LLM/FFmpeg pipeline. Individual videos, Shorts, streams, private/member content, login
+cookies, and YouTube search are not supported.
+
+YouTube extraction is intended for self-hosted, opt-in use with public content. Operators are
+responsible for ensuring they have permission to download and process the content and that their use
+complies with applicable law and platform terms.
+
+SponsorBlock timestamp lookup is implemented but disabled by default. It makes no API request unless
+`SPONSORBLOCK_ENABLED=true` is explicitly set. SponsorBlock API/database data is licensed
+[CC BY-NC-SA 4.0](https://github.com/ajayyy/SponsorBlock/wiki/Database-and-API-License); enabling it
+means the operator has determined that their use complies with that licence. SponsorBlock is
+attributed to the [SponsorBlock project](https://github.com/ajayyy/SponsorBlock).
 
 ## Quick Start
 

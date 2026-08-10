@@ -16,5 +16,6 @@ services:
       - ANTHROPIC_API_KEY=
       - OPENROUTER_API_KEY=
       - LOG_LEVEL=INFO
+      - SPONSORBLOCK_ENABLED=false
       - COOKIE_SECURE=false
       - TRUST_PROXY_HEADERS=false

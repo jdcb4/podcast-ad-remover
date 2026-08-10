@@ -95,3 +95,12 @@ refresh remain functional fallbacks. This preserves scroll position and in-progr
 without adding a client-side router or duplicating the full UI as a JavaScript application. Feed
 subscription choices expose the two reliable workflows—direct RSS and copy into a preferred
 podcast app—while legacy app-specific instruction routes remain compatible.
+
+## 2026-08-10: Treat YouTube as a source adapter and gate SponsorBlock at deployment
+
+Public YouTube channels and explicit playlists use pinned yt-dlp plus bundled EJS scripts and Deno,
+not the official YouTube Data API or another long-running sidecar. Discovery remains bounded and
+provider-specific while downstream transcription, detection, cutting, retention, and RSS generation
+stay shared. SponsorBlock timestamps complement rather than pre-cut the LLM workflow, fail open, and
+are protected by an environment-only flag that defaults off because the API/database licence is
+CC BY-NC-SA 4.0.

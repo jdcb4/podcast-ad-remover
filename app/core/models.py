@@ -19,6 +19,11 @@ class Subscription(SubscriptionBase):
     is_active: bool
     created_at: datetime
     last_checked_at: Optional[datetime] = None
+    source_type: str = "rss"
+    source_external_id: Optional[str] = None
+    last_check_error: Optional[str] = None
+    last_check_error_at: Optional[datetime] = None
+    source_truncated: bool = False
     deletion_status: Optional[str] = None
     deletion_started_at: Optional[datetime] = None
     deletion_updated_at: Optional[datetime] = None
@@ -83,6 +88,8 @@ class Episode(EpisodeBase):
     next_retry_at: Optional[datetime] = None
     is_manual_download: bool = False
     listen_count: int = 0
+    discovered_at: Optional[datetime] = None
+    source_media_path: Optional[str] = None
 
 class User(BaseModel):
     model_config = ConfigDict(from_attributes=True)

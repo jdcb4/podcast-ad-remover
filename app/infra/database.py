@@ -223,6 +223,46 @@ FORMAL_MIGRATIONS = [
             "ALTER TABLE app_settings ADD COLUMN default_watermark_artwork INTEGER NOT NULL DEFAULT 0",
         ],
     ),
+    (
+        "20260810_0012_youtube_sources",
+        [
+            "ALTER TABLE subscriptions ADD COLUMN source_type TEXT NOT NULL DEFAULT 'rss'",
+            "ALTER TABLE subscriptions ADD COLUMN source_external_id TEXT",
+            "ALTER TABLE subscriptions ADD COLUMN last_check_error TEXT",
+            "ALTER TABLE subscriptions ADD COLUMN last_check_error_at TIMESTAMP",
+            "ALTER TABLE subscriptions ADD COLUMN source_truncated INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE episodes ADD COLUMN discovered_at TIMESTAMP",
+            "ALTER TABLE episodes ADD COLUMN source_media_path TEXT",
+            """
+            UPDATE episodes
+            SET discovered_at = CURRENT_TIMESTAMP
+            WHERE discovered_at IS NULL
+            """,
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_source_identity
+            ON subscriptions(source_type, source_external_id)
+            WHERE source_external_id IS NOT NULL
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS source_items (
+                subscription_id INTEGER NOT NULL,
+                external_id TEXT NOT NULL,
+                canonical_url TEXT NOT NULL,
+                first_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                is_present INTEGER NOT NULL DEFAULT 1,
+                eligibility TEXT NOT NULL DEFAULT 'unknown',
+                exclusion_reason TEXT,
+                PRIMARY KEY (subscription_id, external_id),
+                FOREIGN KEY (subscription_id) REFERENCES subscriptions (id) ON DELETE CASCADE
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_source_items_subscription_present
+            ON source_items(subscription_id, is_present, last_seen_at)
+            """,
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

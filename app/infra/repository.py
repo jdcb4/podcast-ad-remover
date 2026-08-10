@@ -28,6 +28,8 @@ class SubscriptionRepository:
         retention_limit: int = 1,
         owner_user_id: int | None = None,
         inherit_retention: bool = True,
+        source_type: str = "rss",
+        source_external_id: str | None = None,
     ) -> Subscription:
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -36,9 +38,9 @@ class SubscriptionRepository:
                     """
                     INSERT INTO subscriptions
                         (feed_url, title, slug, image_url, description, retention_limit, owner_user_id,
-                         inherit_content_removal, inherit_retention,
+                         inherit_content_removal, inherit_retention, source_type, source_external_id,
                          inherit_default_features, inherit_custom_instructions)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 1, 1)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1, 1)
                     """,
                     (
                         sub.feed_url,
@@ -49,6 +51,8 @@ class SubscriptionRepository:
                         retention_limit,
                         owner_user_id,
                         int(inherit_retention),
+                        source_type,
+                        source_external_id,
                     )
                 )
                 sub_id = cursor.lastrowid
@@ -178,6 +182,58 @@ class SubscriptionRepository:
             if row:
                 return self._subscription_from_row(row, self._global_settings(conn))
             return None
+
+    def get_by_source_identity(self, source_type: str, external_id: str | None) -> Optional[Subscription]:
+        if not external_id:
+            return None
+        with get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM subscriptions WHERE source_type = ? AND source_external_id = ?",
+                (source_type, external_id),
+            ).fetchone()
+            if row:
+                return self._subscription_from_row(row, self._global_settings(conn))
+            return None
+
+    def available_slug(self, base_slug: str, source_external_id: str | None = None) -> str:
+        candidate = base_slug or "podcast"
+        with get_db_connection() as conn:
+            if not conn.execute("SELECT 1 FROM subscriptions WHERE slug = ?", (candidate,)).fetchone():
+                return candidate
+            suffix = (source_external_id or "source")[-8:].lower()
+            candidate = f"{candidate}-{suffix}"
+            counter = 2
+            while conn.execute("SELECT 1 FROM subscriptions WHERE slug = ?", (candidate,)).fetchone():
+                candidate = f"{base_slug or 'podcast'}-{suffix}-{counter}"
+                counter += 1
+            return candidate
+
+    def record_check_success(self, subscription_id: int, *, truncated: bool = False) -> None:
+        with get_db_connection() as conn:
+            conn.execute(
+                """
+                UPDATE subscriptions
+                SET last_checked_at = CURRENT_TIMESTAMP,
+                    last_check_error = NULL,
+                    last_check_error_at = NULL,
+                    source_truncated = ?
+                WHERE id = ?
+                """,
+                (int(truncated), subscription_id),
+            )
+            conn.commit()
+
+    def record_check_error(self, subscription_id: int, error: str) -> None:
+        with get_db_connection() as conn:
+            conn.execute(
+                """
+                UPDATE subscriptions
+                SET last_check_error = ?, last_check_error_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (error[:1000], subscription_id),
+            )
+            conn.commit()
 
     def get_by_slug(self, slug: str) -> Optional[Subscription]:
         with get_db_connection() as conn:
@@ -354,6 +410,7 @@ class SubscriptionRepository:
                 (id,),
             )
             conn.execute("DELETE FROM episodes WHERE subscription_id = ?", (id,))
+            conn.execute("DELETE FROM source_items WHERE subscription_id = ?", (id,))
             conn.execute("DELETE FROM user_subscriptions WHERE subscription_id = ?", (id,))
             conn.execute("DELETE FROM subscriptions WHERE id = ?", (id,))
             conn.commit()
@@ -422,15 +479,92 @@ class SubscriptionRepository:
             ))
             conn.commit()
 
+
+class SourceItemRepository:
+    """Track provider membership independently of retained episode rows."""
+
+    def get(self, subscription_id: int, external_id: str) -> dict | None:
+        with get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM source_items WHERE subscription_id = ? AND external_id = ?",
+                (subscription_id, external_id),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def count(self, subscription_id: int) -> int:
+        with get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS count FROM source_items WHERE subscription_id = ?",
+                (subscription_id,),
+            ).fetchone()
+            return int(row["count"] if row else 0)
+
+    def begin_reconciliation(self, subscription_id: int) -> None:
+        with get_db_connection() as conn:
+            conn.execute(
+                "UPDATE source_items SET is_present = 0 WHERE subscription_id = ?",
+                (subscription_id,),
+            )
+            conn.commit()
+
+    def observe(
+        self,
+        subscription_id: int,
+        external_id: str,
+        canonical_url: str,
+    ) -> tuple[dict, bool]:
+        with get_db_connection() as conn:
+            existing = conn.execute(
+                "SELECT * FROM source_items WHERE subscription_id = ? AND external_id = ?",
+                (subscription_id, external_id),
+            ).fetchone()
+            conn.execute(
+                """
+                INSERT INTO source_items
+                    (subscription_id, external_id, canonical_url, is_present)
+                VALUES (?, ?, ?, 1)
+                ON CONFLICT(subscription_id, external_id) DO UPDATE SET
+                    canonical_url = excluded.canonical_url,
+                    last_seen_at = CURRENT_TIMESTAMP,
+                    is_present = 1
+                """,
+                (subscription_id, external_id, canonical_url),
+            )
+            row = conn.execute(
+                "SELECT * FROM source_items WHERE subscription_id = ? AND external_id = ?",
+                (subscription_id, external_id),
+            ).fetchone()
+            conn.commit()
+            return dict(row), existing is None
+
+    def set_eligibility(
+        self,
+        subscription_id: int,
+        external_id: str,
+        eligibility: str,
+        exclusion_reason: str | None = None,
+    ) -> None:
+        with get_db_connection() as conn:
+            conn.execute(
+                """
+                UPDATE source_items
+                SET eligibility = ?, exclusion_reason = ?
+                WHERE subscription_id = ? AND external_id = ?
+                """,
+                (eligibility, exclusion_reason, subscription_id, external_id),
+            )
+            conn.commit()
+
+
 class EpisodeRepository:
     def create_or_ignore(self, episode: dict) -> bool:
         """Returns True if created, False if already exists."""
         with get_db_connection() as conn:
             try:
                 cursor = conn.execute("""
-                    INSERT INTO episodes (subscription_id, guid, title, pub_date, original_url, duration, description, status, file_size)
+                    INSERT INTO episodes (subscription_id, guid, title, pub_date, original_url, duration, description, status, file_size, discovered_at)
                     SELECT :subscription_id, :guid, :title, :pub_date, :original_url,
-                           :duration, :description, :status, :file_size
+                           :duration, :description, :status, :file_size, CURRENT_TIMESTAMP
                     WHERE EXISTS (
                         SELECT 1 FROM subscriptions
                         WHERE id = :subscription_id
@@ -761,6 +895,14 @@ class EpisodeRepository:
     def update_description(self, id: int, description: str):
         with get_db_connection() as conn:
             conn.execute("UPDATE episodes SET description = ? WHERE id = ?", (description, id))
+            conn.commit()
+
+    def update_source_media_path(self, id: int, source_media_path: str) -> None:
+        with get_db_connection() as conn:
+            conn.execute(
+                "UPDATE episodes SET source_media_path = ? WHERE id = ?",
+                (source_media_path, id),
+            )
             conn.commit()
 
     def update_ai_summary(self, id: int, summary: str):

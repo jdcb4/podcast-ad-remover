@@ -48,6 +48,9 @@ Supporting modules include:
 - `app/core/artwork.py`: safe source-image retrieval and cached ad-free artwork generation.
 - `app/core/rss_gen.py`: generated feed output.
 - `app/core/feed.py`: feed parsing.
+- `app/core/sources.py`: source resolution shared by RSS and YouTube subscriptions.
+- `app/core/youtube.py`: strict public YouTube URL handling, bounded discovery, and audio-only yt-dlp downloads.
+- `app/core/sponsorblock.py`: read-only, fail-open SponsorBlock timestamp lookup.
 - `app/core/subscription_settings.py`: effective per-podcast setting resolution.
 
 ### Text Analysis Providers
@@ -79,6 +82,13 @@ The currently exposed Gemini voices are `Orus`, `Enceladus`, and `Laomedeia`.
 ```text
 user_subscriptions(user_id, subscription_id, added_at)
 ```
+
+Subscriptions carry a source type and canonical external identity. Existing rows remain `rss`.
+YouTube channel aliases resolve to a canonical channel ID and explicit playlists to their list ID,
+preventing duplicate global subscriptions. `source_items` records provider membership independently
+of retained episode media, so an old video newly added to a playlist queues once and removed playlist
+members are not deleted or rediscovered. YouTube output retention uses discovery time while RSS and
+the generated feed continue to expose original publication/upload dates.
 
 The dashboard defaults logged-in users to a "My Podcasts" view backed by `user_subscriptions`, with a Library view for all global podcasts. Adding an existing podcast from search or the Library only adds that global podcast to the user's list.
 

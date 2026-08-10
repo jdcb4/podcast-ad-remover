@@ -52,6 +52,19 @@ npm run verify:docker
 
 This runs the standard check and builds a local image tagged `podcast-ad-remover:verify`.
 
+## Opt-In Live YouTube Smoke Test
+
+The deterministic suite mocks YouTube and SponsorBlock. To verify the currently pinned extractor
+against live public sources, supply a channel, explicit playlist, and short public video fixture:
+
+```bash
+python scripts/youtube_smoke_test.py --channel "https://www.youtube.com/@handle" --playlist "https://www.youtube.com/playlist?list=LIST_ID" --download-video "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+The script resolves both sources and downloads best audio-only into a temporary directory. It uses
+no cookies or captions and deletes the fixture when complete. This network-dependent test is kept
+outside `npm run verify` so upstream availability cannot make the deterministic gate flaky.
+
 ## Custom OpenAI-Compatible Endpoint Checks
 
 Automated coverage uses a temporary OpenAI-compatible HTTP server and verifies keyed/keyless model

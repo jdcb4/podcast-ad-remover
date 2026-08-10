@@ -31,7 +31,7 @@
     <div class="mb-4 sm:mb-8">
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="relative flex-1">
-                <input type="text" id="search-input" placeholder="Search for podcasts..." aria-label="Search Podcasts"
+                <input type="text" id="search-input" placeholder="Search podcasts or paste a YouTube channel/playlist URL..." aria-label="Search Podcasts"
                     class="input-lg pl-12">
                 <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" fill="none"
                     stroke="currentColor" viewBox="0 0 24 24">
@@ -638,6 +638,9 @@
                 body: JSON.stringify({ query })
             });
             const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.detail || 'Search failed');
+            }
 
             resultsDiv.innerHTML = '';
             if (data.length === 0) {
@@ -645,28 +648,32 @@
                 return;
             }
 
-            const limits = [0, 1, 3, 5, 10];
-            if (!limits.includes(GLOBAL_RETENTION_DEFAULT)) limits.push(GLOBAL_RETENTION_DEFAULT);
-            limits.sort((a, b) => a - b);
-
-            let optionsHtml = '<option value="inherit" selected>Use global setting</option>';
-            limits.forEach(limit => {
-                const label = limit === 0 ? '0 eps' : (limit === 1 ? '1 ep' : `${limit} eps`);
-                optionsHtml += `<option value="${limit}">${label}</option>`;
-            });
-
             data.forEach(pod => {
                 const image = escapeHtml(pod.image || '');
                 const title = escapeHtml(pod.title || 'Untitled podcast');
                 const description = escapeHtml(pod.description || '');
                 const feedUrl = escapeHtml(pod.feed_url || '');
+                const sourceType = pod.source_type || 'rss';
+                const isYouTube = sourceType.startsWith('youtube_');
+                const limits = isYouTube ? [0, 1, 3, 5] : [0, 1, 3, 5, 10];
+                if (!isYouTube && !limits.includes(GLOBAL_RETENTION_DEFAULT)) limits.push(GLOBAL_RETENTION_DEFAULT);
+                limits.sort((a, b) => a - b);
+                let optionsHtml = '<option value="inherit" selected>Use global setting</option>';
+                limits.forEach(limit => {
+                    const noun = isYouTube ? 'video' : 'ep';
+                    const label = `${limit} ${noun}${limit === 1 ? '' : 's'}`;
+                    optionsHtml += `<option value="${limit}">${label}</option>`;
+                });
+                const sourceBadge = isYouTube
+                    ? '<span class="badge-soft ml-2">YouTube</span>'
+                    : '';
                 const el = document.createElement('div');
                 el.className = 'flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-surface-base rounded-xl border border-white/[0.06] hover:border-primary-500/30 transition-colors';
                 el.innerHTML = `
                 <div class="flex items-center gap-4 flex-1 min-w-0">
                     <img src="${image}" class="w-14 h-14 shrink-0 rounded-lg object-cover bg-surface-hover">
                     <div class="min-w-0">
-                        <h4 class="font-bold text-sm sm:truncate">${title}</h4>
+                        <h4 class="font-bold text-sm sm:truncate">${title}${sourceBadge}</h4>
                         <p class="text-xs text-text-muted line-clamp-2 sm:truncate">${description}</p>
                     </div>
                 </div>
@@ -681,7 +688,7 @@
                 resultsDiv.appendChild(el);
             });
         } catch (e) {
-            resultsDiv.innerHTML = '<div class="text-red-400 p-4">Search failed. Please try again.</div>';
+            resultsDiv.innerHTML = `<div class="text-red-400 p-4">${escapeHtml(e.message || 'Search failed. Please try again.')}</div>`;
         }
     }
 

@@ -8,6 +8,8 @@ from app.core.search import PodcastSearcher
 from app.core.notifications import EVENT_NEW_PODCAST, send_notification_async
 from app.web.auth import require_auth
 from pydantic import BaseModel
+import asyncio
+from app.core.sources import resolve_source
 
 
 router = APIRouter()
@@ -35,23 +37,36 @@ async def list_subscriptions(user = Depends(require_auth)):
 
 @router.post("/subscriptions", response_model=Subscription)
 async def create_subscription(sub: SubscriptionCreate, initial_count: int = 5, user = Depends(require_auth)):
-    existing = repo.get_by_url(sub.feed_url)
-    if existing:
-        added = repo.add_to_user_library(_real_user_id(user), existing.id)
-        if added:
-            return existing
-        raise HTTPException(status_code=400, detail="Subscription already exists in your podcasts")
-    
     try:
-        # Parse feed to get title
-        title, slug, image_url, description = FeedManager.parse_feed(sub.feed_url)
-        
-        # Save to DB
-        new_sub = repo.create(sub, title, slug, image_url, description=description, owner_user_id=_real_user_id(user))
+        source = await asyncio.to_thread(resolve_source, sub.feed_url)
+        if source.source_type.startswith("youtube_") and initial_count not in {0, 1, 3, 5}:
+            raise ValueError("YouTube initial import must be 0, 1, 3, or 5 videos")
+        identity_lookup = getattr(repo, "get_by_source_identity", lambda *_args: None)
+        existing = identity_lookup(source.source_type, source.external_id) or repo.get_by_url(source.canonical_url)
+        if existing:
+            added = repo.add_to_user_library(_real_user_id(user), existing.id)
+            if added:
+                return existing
+            raise ValueError("Subscription already exists in your podcasts")
+        slug_method = getattr(repo, "available_slug", lambda base, _external: base)
+        slug = slug_method(source.slug, source.external_id)
+        create_args = {
+            "description": source.description,
+            "owner_user_id": _real_user_id(user),
+        }
+        if source.source_type != "rss":
+            create_args.update(source_type=source.source_type, source_external_id=source.external_id)
+        new_sub = repo.create(
+            SubscriptionCreate(feed_url=source.canonical_url),
+            source.title,
+            slug,
+            source.image_url,
+            **create_args,
+        )
         await send_notification_async(
             EVENT_NEW_PODCAST,
             "Podcast added",
-            f"{title} was added to the global podcast library.",
+            f"{source.title} was added to the global podcast library.",
             severity="success",
         )
         
@@ -132,7 +147,10 @@ class SearchQuery(BaseModel):
 
 @router.post("/search")
 async def search_podcasts(q: SearchQuery, user = Depends(require_auth)):
-    return await PodcastSearcher.search(q.query)
+    try:
+        return await PodcastSearcher.search(q.query)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 @router.post("/episodes/{id}/track-listen")
 async def track_listen(id: int, user = Depends(require_auth)):

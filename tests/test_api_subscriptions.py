@@ -1,6 +1,8 @@
 from datetime import datetime
+from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 
 from app.api import subscriptions
 from app.core.models import Subscription, SubscriptionCreate
@@ -66,6 +68,25 @@ async def test_create_subscription_accepts_parse_feed_description(monkeypatch):
     assert created.description == "Feed notes"
     assert fake_repo.created["description"] == "Feed notes"
     assert fake_processor.checked == {"subscription_id": 1, "limit": 3}
+
+
+@pytest.mark.asyncio
+async def test_create_youtube_subscription_rejects_unsupported_initial_count(monkeypatch):
+    monkeypatch.setattr(
+        subscriptions,
+        "resolve_source",
+        lambda _url: SimpleNamespace(source_type="youtube_channel"),
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await subscriptions.create_subscription(
+            SubscriptionCreate(feed_url="https://www.youtube.com/@example"),
+            initial_count=2,
+            user=object(),
+        )
+
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "YouTube initial import must be 0, 1, 3, or 5 videos"
 
 
 @pytest.mark.asyncio

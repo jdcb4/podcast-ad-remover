@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added public YouTube channel and explicit-playlist subscriptions with bounded discovery, pinned audio-only yt-dlp/Deno extraction, native-format pipeline input, canonical deduplication, and discovery-based YouTube retention.
+- Added read-only SponsorBlock timestamp merging with report provenance behind `SPONSORBLOCK_ENABLED=false`, including fail-open behavior and licence documentation.
 - Made `dev` the primary integration branch, reserved `master` for explicitly approved production promotions, and added traceable Docker Dev builds tagged `dev` and `dev-<git-sha>`.
 - Updated the frontend dependency lock to resolve the high-severity `nanoid` audit advisory.
 - Added `PROCESSOR_ENABLED=false` for isolated Dev clones that need normal startup and migration checks without background polling or episode processing.

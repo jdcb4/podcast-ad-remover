@@ -6,6 +6,7 @@ from app.core.feed import FeedManager
 from app.core.models import SubscriptionCreate
 from app.core.system_status import get_operation_status
 from app.core.url_utils import validate_http_url
+from app.core.sources import resolve_source
 from app.core.notifications import (
     EVENT_ACCESS_REQUEST,
     EVENT_BREAKING_ERROR,
@@ -1973,25 +1974,40 @@ async def add_subscription(
     user = Depends(require_auth),
 ):
     try:
-        validate_http_url(feed_url, allow_private=runtime_settings.ALLOW_PRIVATE_FEEDS)
+        source = await asyncio.to_thread(resolve_source, feed_url)
+        feed_url = source.canonical_url
 
-        # Check if exists (quick DB check)
-        existing = sub_repo.get_by_url(feed_url)
+        existing = (
+            sub_repo.get_by_source_identity(source.source_type, source.external_id)
+            or sub_repo.get_by_url(feed_url)
+        )
         if existing:
             added = sub_repo.add_to_user_library(_real_user_id(user), existing.id)
             message = "Podcast added to My Podcasts from the library" if added else "Podcast is already in My Podcasts"
             return RedirectResponse(url=f"/?view=mine&success={quote(message)}", status_code=303)
         
-        # Create subscription with placeholder data
-        # Fetch global defaults first
         with get_db_connection() as conn:
             app_settings = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
-            
+
         inherit_retention = str(initial_count).strip().lower() == "inherit"
-        if inherit_retention:
-            retention_limit = app_settings["default_retention_limit"]
-            if retention_limit is None:
-                retention_limit = 1
+        default_retention_limit = app_settings["default_retention_limit"]
+        if default_retention_limit is None:
+            default_retention_limit = 1
+        if source.source_type.startswith("youtube_"):
+            retention_limit = default_retention_limit
+            inherit_retention = True
+            if str(initial_count).strip().lower() == "inherit":
+                initial_limit = min(max(int(default_retention_limit), 0), 5)
+            else:
+                try:
+                    initial_limit = int(initial_count)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("Invalid initial video count") from exc
+                if initial_limit not in {0, 1, 3, 5}:
+                    raise ValueError("YouTube initial import must be 0, 1, 3, or 5 videos")
+        elif inherit_retention:
+            retention_limit = default_retention_limit
+            initial_limit = retention_limit
         else:
             try:
                 retention_limit = int(initial_count)
@@ -1999,17 +2015,21 @@ async def add_subscription(
                 raise ValueError("Invalid initial episode count") from exc
             if retention_limit < 0:
                 raise ValueError("Initial episode count cannot be negative")
-        
+            initial_limit = retention_limit
+
+        slug = sub_repo.available_slug(source.slug, source.external_id)
         sub_create = SubscriptionCreate(feed_url=feed_url)
         new_sub = sub_repo.create(
             sub_create,
-            "Loading...",
-            f"loading-{int(__import__('time').time())}",
-            None,
-            "Fetching feed information...",
+            source.title,
+            slug,
+            source.image_url,
+            source.description,
             retention_limit=retention_limit,
             owner_user_id=_real_user_id(user),
             inherit_retention=inherit_retention,
+            source_type=source.source_type,
+            source_external_id=source.external_id,
         )
         
         # Apply other global defaults immediately
@@ -2030,26 +2050,9 @@ async def add_subscription(
         )
 
         
-        # All heavy lifting happens in background
-        async def setup_subscription(sub_id: int, url: str, limit: int):
+        async def setup_subscription(sub_id: int, title: str, limit: int):
             from app.core.processor import Processor
-            from app.core.feed import FeedManager
-            from app.infra.database import get_db_connection
-            
             try:
-                # Parse feed (network call)
-                title, slug, image_url, description = FeedManager.parse_feed(url)
-                
-                # Update subscription with real data
-                # Keep the settings we just set! Only update metadata.
-                with get_db_connection() as conn:
-                    conn.execute("""
-                        UPDATE subscriptions 
-                        SET title = ?, slug = ?, image_url = ?, description = ?
-                        WHERE id = ?
-                    """, (title, slug, image_url, description, sub_id))
-                    conn.commit()
-
                 try:
                     ArtworkWatermarker().reconcile(sub_id)
                 except Exception as exc:
@@ -2076,7 +2079,7 @@ async def add_subscription(
                     severity="error",
                 )
         
-        background_tasks.add_task(setup_subscription, new_sub.id, feed_url, retention_limit)
+        background_tasks.add_task(setup_subscription, new_sub.id, source.title, initial_limit)
         
         return RedirectResponse(url="/", status_code=303)
     except Exception as e:
