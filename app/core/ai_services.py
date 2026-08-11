@@ -83,10 +83,12 @@ class Transcriber:
     def __init__(self):
         self.model = None
         self.model_config = None
+        self.transcription_engine = None
 
     def _load_runtime_settings(self) -> Dict:
         runtime = {
             "whisper_model": "base",
+            "transcription_engine": "faster-whisper",
             "whisper_cpu_threads": 0,
             "ffmpeg_threads": 0,
         }
@@ -94,11 +96,12 @@ class Transcriber:
             from app.infra.database import get_db_connection
             with get_db_connection() as conn:
                 row = conn.execute("""
-                    SELECT whisper_model, whisper_cpu_threads, ffmpeg_threads
+                    SELECT whisper_model, transcription_engine, whisper_cpu_threads, ffmpeg_threads
                     FROM app_settings WHERE id = 1
                 """).fetchone()
                 if row:
                     runtime["whisper_model"] = row["whisper_model"] or "base"
+                    runtime["transcription_engine"] = row["transcription_engine"] or "faster-whisper"
                     runtime["whisper_cpu_threads"] = int(row["whisper_cpu_threads"] or 0)
                     runtime["ffmpeg_threads"] = int(row["ffmpeg_threads"] or 0)
         except Exception as e:
@@ -108,43 +111,55 @@ class Transcriber:
     def unload_model(self):
         if self.model is None:
             return
-        logger.info("Unloading Faster-Whisper model from memory.")
+        engine = self.transcription_engine or "faster-whisper"
+        logger.info(f"Unloading {engine} model from memory.")
         self.model = None
         self.model_config = None
+        self.transcription_engine = None
         gc.collect()
 
     def load_model(self, runtime_settings: Dict | None = None):
         runtime_settings = runtime_settings or self._load_runtime_settings()
         idx = runtime_settings.get("whisper_model") or "base"
+        engine = runtime_settings.get("transcription_engine") or "faster-whisper"
         cpu_threads = int(runtime_settings.get("whisper_cpu_threads") or 0)
-        desired_config = (idx, cpu_threads)
+        desired_config = (engine, idx, cpu_threads)
+        
         if self.model and self.model_config != desired_config:
-            logger.info("Whisper settings changed; reloading Faster-Whisper model.")
+            logger.info(f"Whisper settings changed; reloading {engine} model.")
             self.unload_model()
 
         if not self.model:
-            # Use float32 for maximum compatibility and stability on CPU (especially ARM64)
-            compute_type = "float32"
-            logger.info(f"Loading Faster-Whisper model: {idx} (Download Root: {settings.MODELS_DIR})")
-            logger.info(f"Using {compute_type} compute type for optimization.")
-            if cpu_threads > 0:
-                logger.info(f"Limiting Faster-Whisper CPU threads to {cpu_threads}.")
-
             import time
             start_load = time.time()
+            
+            if engine == "whisperx":
+                logger.info(f"Loading WhisperX model: {idx} (Download Root: {settings.MODELS_DIR})")
+                import whisperx
+                self.model = whisperx.load_model(idx, device="cpu", compute_type="float32", download_root=settings.MODELS_DIR)
+                self.model_config = desired_config
+                self.transcription_engine = engine
+            else:
+                # Use float32 for maximum compatibility and stability on CPU (especially ARM64)
+                compute_type = "float32"
+                logger.info(f"Loading Faster-Whisper model: {idx} (Download Root: {settings.MODELS_DIR})")
+                logger.info(f"Using {compute_type} compute type for optimization.")
+                if cpu_threads > 0:
+                    logger.info(f"Limiting Faster-Whisper CPU threads to {cpu_threads}.")
 
-            model_kwargs = {
-                "device": "cpu",
-                "compute_type": compute_type,
-                "download_root": settings.MODELS_DIR,
-            }
-            if cpu_threads > 0:
-                model_kwargs["cpu_threads"] = cpu_threads
+                model_kwargs = {
+                    "device": "cpu",
+                    "compute_type": compute_type,
+                    "download_root": settings.MODELS_DIR,
+                }
+                if cpu_threads > 0:
+                    model_kwargs["cpu_threads"] = cpu_threads
 
-            # Use float32 for stability
-            import faster_whisper
-            self.model = faster_whisper.WhisperModel(idx, **model_kwargs)
-            self.model_config = desired_config
+                # Use float32 for stability
+                import faster_whisper
+                self.model = faster_whisper.WhisperModel(idx, **model_kwargs)
+                self.model_config = desired_config
+                self.transcription_engine = engine
 
             load_duration = time.time() - start_load
             logger.info(f"Model loaded in {load_duration:.2f}s")
@@ -155,10 +170,20 @@ class Transcriber:
         runtime_settings = self._load_runtime_settings()
         self.load_model(runtime_settings)
         ffmpeg_threads = int(runtime_settings.get("ffmpeg_threads") or 0)
+        engine = runtime_settings.get("transcription_engine") or "faster-whisper"
 
         # Get total duration for progress calculation
         audio_duration = AudioProcessor.get_duration(audio_path)
-        logger.info(f"Transcribing {audio_path} (Duration: {audio_duration:.2f}s)...")
+        logger.info(f"Transcribing {audio_path} (Duration: {audio_duration:.2f}s) with {engine}...")
+
+        # Route to appropriate transcription method
+        if engine == "whisperx":
+            return self._transcribe_whisperx(audio_path, audio_duration, progress_callback, ffmpeg_threads=ffmpeg_threads)
+        else:
+            return self._transcribe_faster_whisper(audio_path, audio_duration, progress_callback, ffmpeg_threads=ffmpeg_threads)
+
+    def _transcribe_faster_whisper(self, audio_path: str, audio_duration: float, progress_callback=None, ffmpeg_threads: int = 0) -> Dict:
+        from app.core.audio import AudioProcessor
 
         # Determine if we should use chunked transcription
         # Threshold: 20 minutes (1200 seconds)
@@ -217,6 +242,122 @@ class Transcriber:
             logger.info(f"Transcription complete. Found {len(segments_result)} segments.")
 
             return result
+        finally:
+            # Clean up temporary audio file
+            if os.path.exists(clean_audio_path):
+                try:
+                    os.remove(clean_audio_path)
+                    logger.info("Cleaned up temporary transcription audio.")
+                except Exception as e:
+                    logger.warning(f"Failed to cleanup temp audio: {e}")
+
+    def _transcribe_whisperx(self, audio_path: str, audio_duration: float, progress_callback=None, ffmpeg_threads: int = 0) -> Dict:
+        from app.core.audio import AudioProcessor
+
+        # Prepare clean audio for transcription
+        clean_audio_path = audio_path + ".clean.wav"
+        AudioProcessor.prepare_for_transcription(audio_path, clean_audio_path, ffmpeg_threads=ffmpeg_threads)
+
+        try:
+            import whisperx
+
+            # Load audio using WhisperX
+            audio = whisperx.load_audio(clean_audio_path)
+            
+            # WhisperX transcribe
+            logger.info("Running WhisperX transcription...")
+            try:
+                result = self.model.transcribe(audio, batch_size=16)
+            except Exception as e:
+                logger.error(f"WhisperX transcribe failed: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise
+            
+            if not isinstance(result, dict):
+                logger.error(f"WhisperX transcribe returned unexpected type: {type(result)}. Result: {result}")
+                raise ValueError(f"WhisperX transcribe returned {type(result)} instead of dict")
+            
+            logger.info(f"Detected language: {result.get('language', 'unknown')}")
+
+            # Align segments (required for diarization)
+            logger.info("Running WhisperX alignment...")
+            try:
+                model_a, metadata = whisperx.load_align_model(
+                    language_code=result["language"], 
+                    device="cpu"
+                )
+                result = whisperx.align(
+                    result["segments"], 
+                    model_a, 
+                    metadata, 
+                    audio, 
+                    "cpu", 
+                    return_char_alignments=False
+                )
+                del model_a
+                import gc
+                gc.collect()
+            except Exception as e:
+                logger.error(f"WhisperX alignment failed: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise
+
+            # Diarization (speaker identification)
+            logger.info("Running WhisperX diarization...")
+            try:
+                from whisperx.diarize import DiarizationPipeline
+                from app.core.config import settings
+                
+                hf_token = settings.HF_TOKEN
+                if not hf_token:
+                    logger.warning("Diarization requested but no HF token provided. Skipping diarization.")
+                else:
+                    diarize_model = DiarizationPipeline(
+                        token=hf_token,
+                        device="cpu"
+                    )
+                    diarize_segments = diarize_model(audio)
+                    result = whisperx.assign_word_speakers(diarize_segments, result)
+            except Exception as e:
+                logger.error(f"WhisperX diarization failed: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise
+
+            # Convert WhisperX segments to standard format with speaker tags
+            segments_result = []
+            for i, segment in enumerate(result["segments"]):
+                seg_dict = {
+                    "id": i,
+                    "seek": 0,
+                    "start": segment["start"],
+                    "end": segment["end"],
+                    "text": segment["text"],
+                    "tokens": [],
+                    "temperature": 0.0,
+                    "avg_logprob": 0.0,
+                    "compression_ratio": 0.0,
+                    "no_speech_prob": 0.0
+                }
+                # Add speaker information if available
+                if "speaker" in segment:
+                    seg_dict["speaker"] = segment["speaker"]
+                segments_result.append(seg_dict)
+                
+                if progress_callback:
+                    progress_callback(segment["end"], audio_duration)
+
+            final_result = {
+                "text": "".join([s['text'] for s in segments_result]),
+                "segments": segments_result,
+                "language": result.get('language', 'en')
+            }
+
+            logger.info(f"WhisperX transcription complete. Found {len(segments_result)} segments.")
+
+            return final_result
         finally:
             # Clean up temporary audio file
             if os.path.exists(clean_audio_path):
@@ -703,10 +844,15 @@ class AdDetector:
         # Prepare transcript text
         text_data = ""
         for seg in transcript['segments']:
-            text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
+            if 'speaker' not in seg:
+                text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
+            else:
+                text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] [{seg['speaker']}] {seg['text']}\n"
 
         # Build Prompt
         prompt = self._build_ad_prompt(options, text_data, whitelist_mode=whitelist_mode)
+
+        logger.info(f"Ad detection prompt: {prompt}")
 
         # Execute
         try:

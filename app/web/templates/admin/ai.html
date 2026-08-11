@@ -52,14 +52,30 @@
         {% if ai_section == 'ai_transcription' %}
         <div>
             <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Transcription</h4>
-            <label class="block text-sm font-medium text-text-secondary mb-2">Whisper Model</label>
-            <select name="whisper_model" class="select">
-                {% for model in ['tiny', 'base', 'small', 'medium', 'large'] %}
-                <option value="{{ model }}" {% if settings.whisper_model==model %}selected{% endif %}>
-                    {{ model|title }} {% if model == 'base' %}(Default){% endif %}
-                </option>
-                {% endfor %}
-            </select>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Transcription Engine</label>
+                    <select name="transcription_engine" class="select">
+                        <option value="faster-whisper" {% if (settings.transcription_engine or 'faster-whisper')=='faster-whisper' %}selected{% endif %}>
+                            Faster-Whisper (Default)
+                        </option>
+                        <option value="whisperx" {% if settings.transcription_engine=='whisperx' %}selected{% endif %}>
+                            WhisperX (with alignment and diarization) - Note: experimental
+                        </option>
+                    </select>
+                    <p class="text-xs text-text-muted mt-2">WhisperX (experimental) provides better alignment and diarization support but may be slower.  WhisperX support is still in development and may not be stable.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Whisper Model</label>
+                    <select name="whisper_model" class="select">
+                        {% for model in ['tiny', 'base', 'small', 'medium', 'large'] %}
+                        <option value="{{ model }}" {% if settings.whisper_model==model %}selected{% endif %}>
+                            {{ model|title }} {% if model == 'base' %}(Default){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
         </div>
         {% endif %}
 

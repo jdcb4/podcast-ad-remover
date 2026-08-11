@@ -89,6 +89,7 @@ inheritance toggle is enabled. `default_watermark_artwork` is off by default.
 
 | Setting | Description | Default |
 |---------|-------------|---------|
+| `transcription_engine` | Transcription engine to use: `faster-whisper` or `whisperx`. WhisperX provides better alignment and diarization support but may be slower. | `faster-whisper` |
 | `whisper_cpu_threads` | Faster-Whisper CPU thread cap. `0` uses the library default. | `0` |
 | `ffmpeg_threads` | FFmpeg thread cap. `0` lets FFmpeg choose automatically. | `0` |
 | `unload_whisper_after_job` | Unload the local Whisper model after the queue empties to reduce idle RAM. | `0` |

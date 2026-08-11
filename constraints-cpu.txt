@@ -1,0 +1,16 @@
+# Force CPU-only PyTorch and prevent CUDA dependencies, this ensures maximum compatibility
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+torchaudio==2.5.1+cpu
+# Exclude CUDA packages
+triton<3.0.0
+nvidia-cuda-runtime-cu12<0.0.1
+nvidia-cudnn-cu12<0.0.1
+nvidia-cublas-cu12<0.0.1
+nvidia-cufft-cu12<0.0.1
+nvidia-curand-cu12<0.0.1
+nvidia-cusolver-cu12<0.0.1
+nvidia-cusparse-cu12<0.0.1
+nvidia-cuda-nvrtc-cu12<0.0.1
+# Pin WhisperX to version before triton requirement
+whisperx==3.4.5

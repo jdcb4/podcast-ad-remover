@@ -360,6 +360,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS app_settings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         whisper_model TEXT DEFAULT 'base',
+        transcription_engine TEXT DEFAULT 'faster-whisper',
         ai_model_cascade TEXT DEFAULT '["gemini-3.5-flash", "gemini-3-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]',
         piper_model TEXT DEFAULT 'en_GB-cori-high.onnx',
         concurrent_downloads INTEGER DEFAULT 2,
@@ -561,7 +562,10 @@ Transcript Context: {transcript_context}""",))
         "ALTER TABLE app_settings ADD COLUMN gemini_api_keys TEXT",
 
         # Whitelist mode: inverts filtering to keep only Content segments
-        "ALTER TABLE app_settings ADD COLUMN whitelist_mode INTEGER DEFAULT 0"
+        "ALTER TABLE app_settings ADD COLUMN whitelist_mode INTEGER DEFAULT 0",
+
+        # Transcription engine selection (faster-whisper or whisperx)
+        "ALTER TABLE app_settings ADD COLUMN transcription_engine TEXT DEFAULT 'faster-whisper'"
     ]
     
     for sql in migrations:

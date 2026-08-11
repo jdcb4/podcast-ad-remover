@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = Field(None, description="OpenAI API Key")
     ANTHROPIC_API_KEY: str | None = Field(None, description="Anthropic API Key")
     OPENROUTER_API_KEY: str | None = Field(None, description="OpenRouter API Key")
+    HF_TOKEN: str | None = Field(None, description="HuggingFace token for WhisperX diarization")
     LOG_LEVEL: str = "INFO"
     SESSION_SECRET_KEY: str = Field(DEFAULT_SESSION_SECRET_KEY, description="Secret key for session encryption")
     
