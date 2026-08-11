@@ -7,6 +7,18 @@ from app.core.ai_services import AdDetector, OpenAIProvider, piper_tts_available
 from app.infra.database import get_db_connection, init_db
 
 
+@pytest.fixture(autouse=True)
+def isolate_provider_environment(monkeypatch):
+    """Keep configured workstation credentials out of deterministic provider tests."""
+    for setting_name in (
+        "GEMINI_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OPENROUTER_API_KEY",
+    ):
+        monkeypatch.setattr(f"app.core.ai_services.settings.{setting_name}", None)
+
+
 def test_gemini_uses_openai_compatible_provider_with_multiple_keys():
     detector = AdDetector()
     detector.settings = {"gemini_api_keys": '["key-one", "key-two"]'}
