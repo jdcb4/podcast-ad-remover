@@ -50,13 +50,7 @@
         if (ownerSelect) ownerSelect.disabled = ownerMode.value !== 'set';
     });
 
-    let bypassConfirmation = false;
     form.addEventListener('submit', async (event) => {
-        if (bypassConfirmation) {
-            bypassConfirmation = false;
-            return;
-        }
-
         const selected = checkboxes().filter((checkbox) => checkbox.checked).length;
         if (!selected) {
             event.preventDefault();
@@ -78,9 +72,12 @@
             : window.confirm(message);
         if (confirmed) {
             if (deleting && confirmation) confirmation.value = 'delete';
-            bypassConfirmation = true;
-            if (submitter) form.requestSubmit(submitter);
-            else form.requestSubmit();
+            form.setAttribute(
+                'action',
+                deleting ? '/subscriptions/bulk-delete' : '/subscriptions/bulk-settings'
+            );
+            form.setAttribute('method', 'post');
+            HTMLFormElement.prototype.submit.call(form);
         }
     });
 

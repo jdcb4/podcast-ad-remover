@@ -233,6 +233,9 @@ def test_bulk_delete_control_is_admin_only_and_warns_about_file_removal():
     assert "downloaded audio, processed files, transcripts, reports" in script
     assert "{ danger: true }" in script
     assert "confirmation.value = 'delete'" in script
+    assert "deleting ? '/subscriptions/bulk-delete' : '/subscriptions/bulk-settings'" in script
+    assert "HTMLFormElement.prototype.submit.call(form)" in script
+    assert "form.requestSubmit" not in script
 
 
 def test_select_all_uses_live_checkbox_after_dashboard_view_replacement():
