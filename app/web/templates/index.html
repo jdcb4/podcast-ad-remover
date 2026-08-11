@@ -853,7 +853,7 @@
         document.addEventListener('dashboard-library-results-changed', applyFiltersAndSort);
     })();
 </script>
-<script src="/static/js/dashboard-library.js" defer></script>
-<script src="/static/js/dashboard-refresh.js" defer></script>
-<script src="/static/js/bulk-subscriptions.js" defer></script>
+<script src="/static/js/dashboard-library.js?v={{ static_asset_version('js/dashboard-library.js') }}" defer></script>
+<script src="/static/js/dashboard-refresh.js?v={{ static_asset_version('js/dashboard-refresh.js') }}" defer></script>
+<script src="/static/js/bulk-subscriptions.js?v={{ static_asset_version('js/bulk-subscriptions.js') }}" defer></script>
 {% endblock %}

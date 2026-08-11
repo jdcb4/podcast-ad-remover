@@ -84,7 +84,7 @@ def test_dashboard_membership_script_is_progressively_enhanced():
     script = open("app/web/static/js/dashboard-library.js", encoding="utf-8").read()
 
     assert 'class="shrink-0 library-membership-form"' in template
-    assert 'src="/static/js/dashboard-library.js"' in template
+    assert 'src="/static/js/dashboard-library.js?v={{' in template
     assert "event.preventDefault()" in script
     assert "library-membership-changed" in script
 

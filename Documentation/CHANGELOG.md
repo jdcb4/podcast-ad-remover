@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Added administrator-only bulk subscription deletion with an explicit permanent-file-removal warning and the existing durable, retryable cleanup workflow; confirmed actions explicitly target the deletion endpoint instead of falling back to a no-op bulk-settings update.
+- Added administrator-only bulk subscription deletion with an explicit permanent-file-removal warning and the existing durable, retryable cleanup workflow; confirmed actions explicitly target the deletion endpoint instead of falling back to a no-op bulk-settings update, and content-derived static-asset URLs prevent Cloudflare from serving obsolete dashboard JavaScript after deployment.
 - Fixed the My Podcasts/Library **Select all** checkbox after in-place view changes by binding it through the stable document and resolving the current results control dynamically.
 - Added public YouTube channel and explicit-playlist subscriptions with bounded discovery, pinned audio-only yt-dlp/Deno extraction, native-format pipeline input, canonical deduplication, and discovery-based YouTube retention.
 - Added read-only SponsorBlock timestamp merging with report provenance behind `SPONSORBLOCK_ENABLED=false`, including fail-open behavior and licence documentation.

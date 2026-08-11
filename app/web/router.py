@@ -19,6 +19,7 @@ from app.web.auth import get_current_user, require_auth, require_admin, log_logi
 from app.web.auth_utils import hash_password, verify_feed_password, verify_password, generate_secure_password, get_client_ip
 from app.web.rate_limiter import login_rate_limiter, check_rate_limit
 from app.web.subscription_links import build_subscribe_instruction_context, build_subscription_links
+from app.web.static_assets import configure_static_asset_versioning
 from app.web.template_filters import compact_datetime
 from app.web.template_filters import clean_description as safe_clean_description
 from app.web.template_filters import simple_markdown as safe_simple_markdown
@@ -48,6 +49,7 @@ def get_csp_nonce(request: Request) -> str:
 templates.env.filters['simple_markdown'] = safe_simple_markdown
 templates.env.filters['clean_description'] = safe_clean_description
 templates.env.filters['compact_datetime'] = compact_datetime
+configure_static_asset_versioning(templates)
 
 sub_repo = SubscriptionRepository()
 ep_repo = EpisodeRepository()

@@ -6,6 +6,7 @@ Provides generic error pages without exposing system details.
 from fastapi import Request, status
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from app.web.static_assets import configure_static_asset_versioning
 import logging
 import os
 
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 # Templates for error pages
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
+configure_static_asset_versioning(templates)
 
 
 async def generic_error_handler(request: Request, exc: Exception) -> HTMLResponse:

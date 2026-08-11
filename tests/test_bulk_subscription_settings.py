@@ -1,3 +1,5 @@
+import hashlib
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -6,7 +8,11 @@ from fastapi import BackgroundTasks, HTTPException
 from app.core.models import SubscriptionCreate
 from app.infra.database import get_db_connection, init_db
 from app.infra.repository import SubscriptionRepository
-from app.web.router import bulk_delete_subscriptions, bulk_update_subscription_settings
+from app.web.router import (
+    bulk_delete_subscriptions,
+    bulk_update_subscription_settings,
+)
+from app.web.static_assets import static_asset_version
 
 
 async def _bulk(user, ids, **overrides):
@@ -236,6 +242,21 @@ def test_bulk_delete_control_is_admin_only_and_warns_about_file_removal():
     assert "deleting ? '/subscriptions/bulk-delete' : '/subscriptions/bulk-settings'" in script
     assert "HTMLFormElement.prototype.submit.call(form)" in script
     assert "form.requestSubmit" not in script
+
+
+def test_dashboard_scripts_use_content_derived_cache_busting():
+    template = Path("app/web/templates/index.html").read_text(encoding="utf-8")
+    script_path = Path("app/web/static/js/bulk-subscriptions.js")
+    expected = hashlib.sha256(script_path.read_bytes()).hexdigest()[:12]
+
+    assert static_asset_version("js/bulk-subscriptions.js") == expected
+    assert (
+        "/static/js/bulk-subscriptions.js?v={{ "
+        "static_asset_version('js/bulk-subscriptions.js') }}"
+    ) in template
+
+    from app.web.error_handlers import templates as error_templates
+    assert error_templates.env.globals["static_asset_version"] is static_asset_version
 
 
 def test_select_all_uses_live_checkbox_after_dashboard_view_replacement():
