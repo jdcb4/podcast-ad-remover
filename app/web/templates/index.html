@@ -279,8 +279,19 @@
             <h3 class="font-semibold">Bulk settings</h3>
             <p class="text-xs text-text-muted"><span id="bulk-selection-count">0</span> podcasts selected.
                 Unchanged groups retain their current values.</p>
+            {% if user.is_admin %}
+            <p class="mt-1 text-xs text-red-400">Bulk deletion permanently removes the selected podcasts and
+                their local files.</p>
+            {% endif %}
         </div>
-        <button type="submit" class="btn-primary btn-sm">Apply Changes</button>
+        <div class="flex flex-wrap items-center gap-2">
+            {% if user.is_admin %}
+            <input type="hidden" name="delete_confirmation" value="" data-delete-confirmation>
+            <button type="submit" class="btn-danger btn-sm" formaction="/subscriptions/bulk-delete"
+                formmethod="post" data-bulk-action="delete">Delete Selected</button>
+            {% endif %}
+            <button type="submit" class="btn-primary btn-sm">Apply Changes</button>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">

@@ -6,7 +6,7 @@ from fastapi import BackgroundTasks, HTTPException
 from app.core.models import SubscriptionCreate
 from app.infra.database import get_db_connection, init_db
 from app.infra.repository import SubscriptionRepository
-from app.web.router import bulk_update_subscription_settings
+from app.web.router import bulk_delete_subscriptions, bulk_update_subscription_settings
 
 
 async def _bulk(user, ids, **overrides):
@@ -163,6 +163,76 @@ def test_dashboard_contains_compact_table_and_bulk_editor():
     assert 'id="bulk-settings-form"' in template
     assert 'name="subscription_ids"' in template
     assert "appConfirm" in script
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_requires_explicit_confirmation_before_scheduling(isolated_data_dir):
+    init_db()
+    repo = SubscriptionRepository()
+    sub = repo.create(
+        SubscriptionCreate(feed_url="https://example.com/delete.xml"),
+        "Delete Me",
+        "delete-me",
+    )
+    tasks = BackgroundTasks()
+
+    with pytest.raises(HTTPException) as exc:
+        await bulk_delete_subscriptions(
+            background_tasks=tasks,
+            subscription_ids=[sub.id],
+            delete_confirmation="",
+            admin_user=SimpleNamespace(id=1, is_admin=True),
+        )
+
+    assert exc.value.status_code == 400
+    assert repo.get_by_id(sub.id) is not None
+    assert len(tasks.tasks) == 0
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_uses_durable_subscription_cleanup(isolated_data_dir):
+    init_db()
+    repo = SubscriptionRepository()
+    first = repo.create(
+        SubscriptionCreate(feed_url="https://example.com/delete-one.xml"),
+        "Delete One",
+        "delete-one",
+    )
+    second = repo.create(
+        SubscriptionCreate(feed_url="https://example.com/delete-two.xml"),
+        "Delete Two",
+        "delete-two",
+    )
+    tasks = BackgroundTasks()
+
+    response = await bulk_delete_subscriptions(
+        background_tasks=tasks,
+        subscription_ids=[first.id, second.id, first.id],
+        delete_confirmation="delete",
+        admin_user=SimpleNamespace(id=1, is_admin=True),
+    )
+
+    assert response.status_code == 303
+    assert len(tasks.tasks) == 1
+    assert repo.get_by_id(first.id).deletion_status == "pending"
+    assert repo.get_by_id(second.id).deletion_status == "pending"
+
+    await tasks()
+
+    assert repo.get_by_id(first.id) is None
+    assert repo.get_by_id(second.id) is None
+
+
+def test_bulk_delete_control_is_admin_only_and_warns_about_file_removal():
+    template = open("app/web/templates/index.html", encoding="utf-8").read()
+    script = open("app/web/static/js/bulk-subscriptions.js", encoding="utf-8").read()
+
+    assert '{% if user.is_admin %}' in template
+    assert 'formaction="/subscriptions/bulk-delete"' in template
+    assert 'data-bulk-action="delete"' in template
+    assert "downloaded audio, processed files, transcripts, reports" in script
+    assert "{ danger: true }" in script
+    assert "confirmation.value = 'delete'" in script
 
 
 def test_select_all_uses_live_checkbox_after_dashboard_view_replacement():

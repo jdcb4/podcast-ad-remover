@@ -50,18 +50,37 @@
         if (ownerSelect) ownerSelect.disabled = ownerMode.value !== 'set';
     });
 
+    let bypassConfirmation = false;
     form.addEventListener('submit', async (event) => {
+        if (bypassConfirmation) {
+            bypassConfirmation = false;
+            return;
+        }
+
         const selected = checkboxes().filter((checkbox) => checkbox.checked).length;
         if (!selected) {
             event.preventDefault();
             return;
         }
-        if (window.appConfirm) {
-            event.preventDefault();
-            const confirmed = await window.appConfirm(
-                `Apply the selected bulk settings to ${selected} podcast${selected === 1 ? '' : 's'}?`
-            );
-            if (confirmed) HTMLFormElement.prototype.submit.call(form);
+
+        event.preventDefault();
+        const submitter = event.submitter;
+        const deleting = submitter?.dataset.bulkAction === 'delete';
+        const confirmation = form.querySelector('[data-delete-confirmation]');
+        if (confirmation) confirmation.value = '';
+
+        const message = deleting
+            ? `Permanently delete ${selected} selected podcast${selected === 1 ? '' : 's'}?\n\nThis removes downloaded audio, processed files, transcripts, reports, generated feeds, artwork, and related database records. This cannot be undone from the app.`
+            : `Apply the selected bulk settings to ${selected} podcast${selected === 1 ? '' : 's'}?`;
+        const options = deleting ? { danger: true } : {};
+        const confirmed = window.appConfirm
+            ? await window.appConfirm(message, options)
+            : window.confirm(message);
+        if (confirmed) {
+            if (deleting && confirmation) confirmation.value = 'delete';
+            bypassConfirmation = true;
+            if (submitter) form.requestSubmit(submitter);
+            else form.requestSubmit();
         }
     });
 

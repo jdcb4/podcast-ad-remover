@@ -85,10 +85,14 @@ Automated coverage verifies:
 - backward-compatible API updates and all four inheritance flags;
 - artwork URL validation, image limits, compositing/cache behavior, cleanup, and RSS output;
 - in-place Library membership changes without dashboard navigation;
-- atomic bulk updates, rejection of mixed unauthorised selections, and admin owner assignment.
+- atomic bulk updates, rejection of mixed unauthorised selections, and admin owner assignment;
+- admin-only bulk deletion, its explicit destructive confirmation, and durable file cleanup.
 
 For UI changes, manually confirm the compact table at a desktop width, select multiple manageable
 podcasts, and verify that choosing an override enables only that group's controls.
+As an administrator, cancel the Delete Selected warning and confirm no podcasts change. Then verify a
+confirmed deletion removes each selected podcast and its local files. Confirm that non-admin users do
+not see the bulk-delete control.
 
 At a mobile width, also confirm the four compact statistics remain readable, feed actions retain
 accessible touch targets, and approximately three queue rows are visible before internal scrolling.

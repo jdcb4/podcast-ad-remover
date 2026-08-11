@@ -2317,6 +2317,51 @@ async def bulk_update_subscription_settings(
     )
 
 
+@router.post("/subscriptions/bulk-delete")
+async def bulk_delete_subscriptions(
+    background_tasks: BackgroundTasks,
+    subscription_ids: list[int] = Form(...),
+    delete_confirmation: str = Form(""),
+    admin_user = Depends(require_admin),
+):
+    """Start the normal durable deletion workflow for selected subscriptions."""
+    ids = list(dict.fromkeys(subscription_ids))
+    if not ids:
+        raise HTTPException(status_code=400, detail="Select at least one podcast")
+    if len(ids) > 500:
+        raise HTTPException(status_code=400, detail="Bulk deletion is limited to 500 podcasts")
+    if delete_confirmation != "delete":
+        raise HTTPException(status_code=400, detail="Confirm the permanent bulk deletion")
+
+    subscriptions = [sub_repo.get_by_id(subscription_id) for subscription_id in ids]
+    if any(sub is None for sub in subscriptions):
+        raise HTTPException(status_code=404, detail="One or more podcasts no longer exist")
+
+    processor = Processor()
+    for subscription_id in ids:
+        await asyncio.to_thread(processor.sub_repo.begin_deletion, subscription_id)
+
+    async def finish_bulk_deletion():
+        for subscription_id in ids:
+            try:
+                await processor.delete_subscription(subscription_id)
+            except Exception:
+                logger.exception(
+                    "Background cleanup failed for bulk-deleted subscription %s; "
+                    "the durable deletion state will be retried",
+                    subscription_id,
+                )
+
+    background_tasks.add_task(finish_bulk_deletion)
+    return RedirectResponse(
+        url="/?view=library&success="
+        + quote(
+            f"Deletion started for {len(ids)} podcast{'s' if len(ids) != 1 else ''}"
+        ),
+        status_code=303,
+    )
+
+
 @router.get("/subscriptions/{id}", response_class=HTMLResponse)
 async def view_subscription(request: Request, id: int):
     sub = sub_repo.get_by_id(id)

@@ -102,7 +102,10 @@ mode, and scroll position. Failed enhancement falls back to normal navigation.
 The compact table displays retention and inheritance sources and supplies row selection for bulk
 updates. The server validates every selected podcast before opening one SQLite write transaction, so
 a mixed unauthorised selection changes nothing. Owners can bulk-edit podcasts they manage; ownership
-reassignment remains admin-only.
+reassignment remains admin-only. Administrators can also bulk-delete selected podcasts. The dashboard
+shows a destructive-action warning and requires an explicit confirmation before submitting, while the
+server requires a separate confirmation value and starts the same durable, retryable cleanup lifecycle
+used by single-subscription deletion.
 
 ### Subscription Setting Inheritance
 
