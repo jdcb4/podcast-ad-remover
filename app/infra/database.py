@@ -263,6 +263,15 @@ FORMAL_MIGRATIONS = [
             """,
         ],
     ),
+    (
+        "20260824_0013_unified_feed_preferences",
+        [
+            "ALTER TABLE app_settings ADD COLUMN unified_feed_title TEXT NOT NULL DEFAULT 'Unified Feed (Ad-Free)'",
+            "ALTER TABLE app_settings ADD COLUMN unified_feed_description TEXT NOT NULL DEFAULT 'All your ad-free podcasts in one place.'",
+            "ALTER TABLE app_settings ADD COLUMN unified_feed_include_podcast_name INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE app_settings ADD COLUMN unified_feed_artwork_url TEXT",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

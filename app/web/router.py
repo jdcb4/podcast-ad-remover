@@ -26,6 +26,12 @@ from app.web.template_filters import simple_markdown as safe_simple_markdown
 from app.infra.database import get_db_connection
 from app.core.config import is_default_session_secret, settings as runtime_settings
 from app.core.artwork import ArtworkWatermarker, effective_artwork_url
+from app.core.unified_feed import (
+    DEFAULT_UNIFIED_FEED_DESCRIPTION,
+    DEFAULT_UNIFIED_FEED_TITLE,
+    normalize_unified_feed_settings,
+    resolve_unified_feed_settings,
+)
 from datetime import datetime
 import asyncio
 import os
@@ -1897,6 +1903,110 @@ async def public_subscribe(request: Request):
     )
 
 from app.core.processor import Processor
+
+# --- Admin: Podcast Preferences ---
+@router.get("/admin/unified-feed", response_class=HTMLResponse)
+async def admin_unified_feed(
+    request: Request,
+    admin_user=Depends(require_admin),
+):
+    global_settings = get_global_settings()
+    base_url = get_app_base_url(global_settings, request)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/unified_feed.html",
+        context={
+            "csp_nonce": get_csp_nonce(request),
+            "user": admin_user,
+            "settings": resolve_unified_feed_settings(global_settings, base_url),
+            "feed_url": f"{base_url}/feed/unified.xml",
+            "default_title": DEFAULT_UNIFIED_FEED_TITLE,
+            "default_description": DEFAULT_UNIFIED_FEED_DESCRIPTION,
+            "active_tab": "unified_feed",
+        },
+    )
+
+
+@router.post("/admin/unified-feed/update")
+async def update_unified_feed_settings(
+    background_tasks: BackgroundTasks,
+    unified_feed_title: str = Form(...),
+    unified_feed_description: str = Form(...),
+    unified_feed_include_podcast_name: bool = Form(False),
+    unified_feed_artwork_url: str = Form(""),
+    admin_user=Depends(require_admin),
+):
+    try:
+        normalized = normalize_unified_feed_settings(
+            unified_feed_title,
+            unified_feed_description,
+            unified_feed_include_podcast_name,
+            unified_feed_artwork_url,
+        )
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/admin/unified-feed?error={quote(str(exc))}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            UPDATE app_settings
+            SET unified_feed_title = ?,
+                unified_feed_description = ?,
+                unified_feed_include_podcast_name = ?,
+                unified_feed_artwork_url = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = 1
+            """,
+            (
+                normalized["title"],
+                normalized["description"],
+                1 if normalized["include_podcast_name"] else 0,
+                normalized["custom_artwork_url"],
+            ),
+        )
+        conn.commit()
+
+    from app.core.rss_gen import RSSGenerator
+
+    background_tasks.add_task(RSSGenerator().generate_unified_feed)
+    return RedirectResponse(
+        url="/admin/unified-feed?success=Unified+feed+settings+updated",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.post("/admin/unified-feed/reset")
+async def reset_unified_feed_settings(
+    background_tasks: BackgroundTasks,
+    admin_user=Depends(require_admin),
+):
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            UPDATE app_settings
+            SET unified_feed_title = ?,
+                unified_feed_description = ?,
+                unified_feed_include_podcast_name = 1,
+                unified_feed_artwork_url = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = 1
+            """,
+            (DEFAULT_UNIFIED_FEED_TITLE, DEFAULT_UNIFIED_FEED_DESCRIPTION),
+        )
+        conn.commit()
+
+    from app.core.rss_gen import RSSGenerator
+
+    background_tasks.add_task(RSSGenerator().generate_unified_feed)
+    return RedirectResponse(
+        url="/admin/unified-feed?success=Unified+feed+defaults+restored",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
 
 # --- Admin: Global Subscription Settings ---
 @router.get("/admin/global-subscription-settings", response_class=HTMLResponse)

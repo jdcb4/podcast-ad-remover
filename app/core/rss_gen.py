@@ -7,6 +7,7 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 from app.core.config import settings
 from app.infra.repository import SubscriptionRepository, EpisodeRepository
 from app.core.artwork import effective_artwork_url
+from app.core.unified_feed import resolve_unified_feed_settings
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,7 @@ class RSSGenerator:
         from app.core.utils import get_global_settings
         global_settings = get_global_settings()
         base_url = _get_feed_base_url(global_settings)
+        feed_settings = resolve_unified_feed_settings(global_settings, base_url)
 
         episodes = self.ep_repo.get_completed_with_subscription_info()
         subscriptions = {sub.id: sub for sub in self.sub_repo.get_all()}
@@ -169,20 +171,20 @@ class RSSGenerator:
         rss = Element('rss', version='2.0', **{'xmlns:itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'})
         channel = SubElement(rss, 'channel')
         
-        SubElement(channel, 'title').text = "Unified Feed (Ad-Free)"
-        SubElement(channel, 'description').text = "All your ad-free podcasts in one place."
+        SubElement(channel, 'title').text = feed_settings["title"]
+        SubElement(channel, 'description').text = feed_settings["description"]
         SubElement(channel, 'link').text = base_url
         
-        # Use custom unified feed cover image
-        unified_cover_url = f"{base_url}/static/unified_feed_cover.png"
         itunes_image = SubElement(channel, 'itunes:image')
-        itunes_image.set('href', unified_cover_url)
+        itunes_image.set('href', feed_settings["artwork_url"])
 
         for ep_row in episodes:
             ep = dict(ep_row)
             item = SubElement(channel, 'item')
-            # Prefix title with Podcast Name
-            SubElement(item, 'title').text = f"[{ep['podcast_title']}] {ep['title']}"
+            episode_title = ep['title']
+            if feed_settings["include_podcast_name"] and ep.get('podcast_title'):
+                episode_title = f"[{ep['podcast_title']}] {episode_title}"
+            SubElement(item, 'title').text = episode_title
             SubElement(item, 'guid').text = ep['guid']
             SubElement(item, 'link').text = ep['original_url']
             

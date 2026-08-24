@@ -1,0 +1,83 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Unified Feed Preferences{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-4xl">
+    <h2 class="font-display text-2xl font-bold">Unified Feed Preferences</h2>
+    <p class="text-text-secondary mt-2 mb-6">
+        Customize how the combined feed appears in podcast apps. These settings do not change
+        individual podcast feeds or the unified feed address.
+    </p>
+
+    <div class="mb-6 rounded-lg border border-white/[0.06] bg-surface-elevated p-4">
+        <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Feed address</p>
+        <code class="text-sm text-primary-400 break-all">{{ feed_url }}</code>
+    </div>
+
+    <form method="post" action="/admin/unified-feed/update" class="space-y-6">
+        <div>
+            <label for="unified_feed_title" class="block text-sm font-medium text-text-secondary mb-2">
+                Feed name
+            </label>
+            <input type="text" id="unified_feed_title" name="unified_feed_title"
+                value="{{ settings.title }}" maxlength="200" required class="input">
+            <p class="text-xs text-text-muted mt-1">
+                The name shown in your podcast app. Default: {{ default_title }}
+            </p>
+        </div>
+
+        <div>
+            <label for="unified_feed_description" class="block text-sm font-medium text-text-secondary mb-2">
+                Feed description
+            </label>
+            <textarea id="unified_feed_description" name="unified_feed_description" rows="4"
+                maxlength="4000" required class="input">{{ settings.description }}</textarea>
+            <p class="text-xs text-text-muted mt-1">Default: {{ default_description }}</p>
+        </div>
+
+        <div class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" name="unified_feed_include_podcast_name" value="true"
+                    {% if settings.include_podcast_name %}checked{% endif %}
+                    class="mt-1 h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                <span>
+                    <span class="block text-sm font-medium text-text-secondary">
+                        Include podcast name in episode titles
+                    </span>
+                    <span class="block text-xs text-text-muted mt-1">
+                        Enabled: [Podcast Name] Episode Title. Disabled: Episode Title.
+                    </span>
+                </span>
+            </label>
+        </div>
+
+        <div>
+            <label for="unified_feed_artwork_url" class="block text-sm font-medium text-text-secondary mb-2">
+                External artwork URL
+            </label>
+            <input type="url" id="unified_feed_artwork_url" name="unified_feed_artwork_url"
+                value="{{ settings.custom_artwork_url or '' }}" maxlength="2048"
+                placeholder="https://example.com/podcast-cover.png" class="input">
+            <p class="text-xs text-text-muted mt-1">
+                Optional. Use a direct HTTP or HTTPS image URL reachable by your podcast app.
+                Leave blank to use the bundled unified-feed artwork.
+            </p>
+        </div>
+
+        <div class="rounded-lg border border-white/[0.06] bg-surface-elevated p-4">
+            <p class="text-xs uppercase tracking-wide text-text-muted mb-3">Current artwork</p>
+            <img src="{{ settings.artwork_url }}" alt="Current unified feed artwork"
+                referrerpolicy="no-referrer" class="w-32 h-32 rounded-lg object-cover border border-white/[0.08]">
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-white/[0.08]">
+            <button type="submit" class="btn-primary">Save Unified Feed</button>
+        </div>
+    </form>
+
+    <form method="post" action="/admin/unified-feed/reset" class="mt-3">
+        <button type="submit" class="btn-secondary">Restore Defaults</button>
+    </form>
+</div>
+{% endblock %}

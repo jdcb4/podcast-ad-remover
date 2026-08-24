@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added administrator-managed unified-feed preferences for its podcast-app name, description, optional podcast-name episode-title prefix, and external artwork URL while preserving the existing feed address and defaults.
+
 ## 1.12.0 - 2026-08-11
 
 - Isolated deterministic AI-provider tests from workstation credential fallbacks so release verification cannot change retry behavior or expose configured keys in assertion output.

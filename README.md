@@ -45,7 +45,8 @@ The admin queue shows active jobs, queued/retry states, disk usage, next feed ch
 - Local transcription with Whisper/faster-whisper.
 - LLM-based ad, promo, intro, and outro detection.
 - FFmpeg-based audio cutting and rewritten RSS feed generation.
-- Per-podcast feeds plus a unified feed.
+- Per-podcast feeds plus a unified feed with configurable name, description, episode-title prefix,
+  and optional external artwork.
 - Optional AI episode summaries and spoken title intros using either local Piper TTS or Gemini TTS.
 - Durable SQLite-backed processing jobs with retry and rate-limit states.
 - A bounded, independently refreshed current-processing panel that does not disturb dashboard state.

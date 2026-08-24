@@ -172,6 +172,19 @@ Subscription deletion uses a durable two-phase lifecycle because the web app and
 
 After a bounded asynchronous wait, cleanup is claimed through the subscription row and runs outside the FastAPI event loop. It removes the contained podcast directory and feed file, regenerates the unified feed once, and then removes the subscription, episode, and job rows. Failures leave the inactive subscription in `deletion_status = failed`; the processor loop retries failed or interrupted cleanup idempotently. A stale `cleaning` claim can be reclaimed after five minutes.
 
+### Unified Feed Preferences
+
+The unified feed remains available at `/feed/unified.xml`. Administrators can change its channel
+title and description, choose whether item titles use the `[Podcast Name] Episode Title` prefix, and
+provide an optional external HTTP(S) channel-artwork URL from **Podcast Preferences > Unified
+Feed**. Defaults preserve the original generated RSS output, and clearing the external artwork URL
+restores the bundled cover. The server validates but does not retrieve external unified-feed
+artwork; the URL must therefore be reachable by each podcast client.
+
+Per-episode unified-feed descriptions continue to identify the source podcast, and item artwork
+continues to use the corresponding podcast artwork. Presentation-setting changes regenerate only
+the unified RSS file and do not reprocess audio.
+
 ### Feed Access
 
 RSS feeds and audio files remain public when feed authentication is disabled. When feed authentication is enabled, generated dashboard links use bearer tokens:

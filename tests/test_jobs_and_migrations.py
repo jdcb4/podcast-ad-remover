@@ -59,6 +59,7 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
     assert "20260722_0008_subscription_deletion" in migrations
     assert "20260725_0010_subscription_setting_inheritance" in migrations
     assert "20260725_0011_artwork_watermark" in migrations
+    assert "20260824_0013_unified_feed_preferences" in migrations
 
     with get_db_connection() as conn:
         access_request_columns = {
@@ -103,6 +104,10 @@ def test_init_db_creates_formal_migration_tables(isolated_data_dir):
         "ai_api_default_requests_per_day",
         "ai_api_unauth_requests_per_minute",
         "default_watermark_artwork",
+        "unified_feed_title",
+        "unified_feed_description",
+        "unified_feed_include_podcast_name",
+        "unified_feed_artwork_url",
     }.issubset(settings_columns)
 
 
@@ -118,7 +123,9 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
                    notify_episode_downloads, notify_breaking_errors,
                    tts_provider, gemini_tts_voice, gemini_tts_model_cascade,
                    ai_api_enabled, ai_api_default_requests_per_minute,
-                   ai_api_default_requests_per_day, ai_api_unauth_requests_per_minute
+                   ai_api_default_requests_per_day, ai_api_unauth_requests_per_minute,
+                   unified_feed_title, unified_feed_description,
+                   unified_feed_include_podcast_name, unified_feed_artwork_url
             FROM app_settings WHERE id = 1
         """).fetchone()
 
@@ -145,6 +152,10 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
     assert row["ai_api_default_requests_per_minute"] == 60
     assert row["ai_api_default_requests_per_day"] == 1000
     assert row["ai_api_unauth_requests_per_minute"] == 10
+    assert row["unified_feed_title"] == "Unified Feed (Ad-Free)"
+    assert row["unified_feed_description"] == "All your ad-free podcasts in one place."
+    assert row["unified_feed_include_podcast_name"] == 1
+    assert row["unified_feed_artwork_url"] is None
 
 
 def test_database_connections_use_wal_and_busy_timeout(isolated_data_dir):
