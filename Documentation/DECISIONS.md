@@ -118,6 +118,23 @@ stay shared. SponsorBlock timestamps complement rather than pre-cut the LLM work
 are protected by an environment-only flag that defaults off because the API/database licence is
 CC BY-NC-SA 4.0.
 
+## 2026-08-27: Store and compare every timestamp as naive UTC
+
+Every timestamp stored in or compared against the database must be naive UTC, matching SQLite's
+`CURRENT_TIMESTAMP`; generate it with `app/core/time_utils.now_utc()`, never `datetime.now()`. This
+invariant previously lived only in `time_utils.py`'s module docstring, which is exactly where the
+next contributor won't look before reaching for `datetime.now()` again — this entry makes it
+discoverable. Deliberate exceptions: elapsed/duration-only measurements that are never stored or
+compared, and the backup filename timestamp at `app/infra/database.py:288`, which intentionally
+uses local server time because it is only for a human reading filenames on disk.
+
+Rendering follows the same split: `local_time` (in `app/web/template_filters.py`) renders a whole
+`<time datetime="...Z">` element and is for element text only; `utc_isoformat` renders a bare
+`...Z` string and is for HTML attribute contexts, because a `<time>` element's own quotes would
+corrupt the enclosing tag if `local_time` were used inside one. A repo-wide test
+(`tests/test_template_filters.py::test_no_template_pipes_local_time_into_an_html_attribute`) scans
+every template and fails if `local_time` is ever piped into an attribute.
+
 ## 2026-09-05: retain publications and fence attempts
 
 Episode identity remains the SQLite ID and source GUID. New artifacts live in

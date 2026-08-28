@@ -2,8 +2,8 @@ from app.core.http_downloads import stream_get
 import feedparser
 import httpx
 import re
-from datetime import datetime
-from time import mktime
+from calendar import timegm
+from datetime import datetime, timezone
 from typing import Optional, Tuple
 from app.core.config import settings
 from app.core.url_utils import validate_http_url, validate_redirect_target
@@ -73,7 +73,10 @@ class FeedManager:
 
             pub_date = None
             if hasattr(entry, 'published_parsed'):
-                pub_date = datetime.fromtimestamp(mktime(entry.published_parsed))
+                # published_parsed is already a UTC struct_time; use timegm (not
+                # mktime, which would reinterpret it against the server's local
+                # DST rules and skew it by the DST offset for part of the year).
+                pub_date = datetime.fromtimestamp(timegm(entry.published_parsed), tz=timezone.utc).replace(tzinfo=None)
 
             description = entry.get('summary', entry.get('description', ''))
 

@@ -48,7 +48,7 @@
                     </button>
                 </td>
                 <td class="text-text-secondary truncate">{{ req.email or '-' }}</td>
-                <td class="text-text-secondary">{{ req.requested_at | compact_datetime }}</td>
+                <td class="text-text-secondary">{{ req.requested_at | local_time }}</td>
                 <td class="text-text-secondary truncate">{{ req.ip_address }}</td>
                 <td class="text-right">
                     <form method="post" action="/admin/access-requests/{{ req.id }}/approve" class="inline">
@@ -82,7 +82,7 @@
                 </button>
                 <p class="text-xs text-text-muted">{{ req.email or 'No email' }}</p>
             </div>
-            <span class="badge-neutral">{{ req.requested_at | compact_datetime }}</span>
+            <span class="badge-neutral">{{ req.requested_at | local_time }}</span>
         </div>
         {% if req.reason %}
         <p class="text-sm text-text-secondary mt-3">{{ req.reason }}</p>

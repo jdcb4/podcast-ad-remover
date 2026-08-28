@@ -7,6 +7,7 @@ import secrets
 import time
 from typing import List, Optional
 from datetime import datetime
+from app.core.time_utils import now_utc
 from app.infra.database import get_db_connection
 from app.core.models import SubscriptionCreate, Subscription, Episode
 from app.core.subscription_settings import resolve_subscription_row
@@ -875,7 +876,7 @@ class EpisodeRepository:
                     processed_at = COALESCE(?, processed_at), next_retry_at = NULL
                 WHERE id = ? {eligibility}
                 """,
-                (status, error, filename, file_size, datetime.now() if status == 'completed' else None, id),
+                (status, error, filename, file_size, now_utc() if status == 'completed' else None, id),
             )
             if status == 'completed' and cursor.rowcount:
                 if self.pending_metadata:

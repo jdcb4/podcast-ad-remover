@@ -4,6 +4,11 @@
 
 - Add administrator-managed unified-feed preferences for its name, description, podcast-name episode-title prefix, and external artwork URL, contributed by [Paul McManus (@pmacca) in PR #20](https://github.com/jdcb4/podcast-ad-remover/pull/20). Preserve the existing address and defaults, validate RSS-safe metadata, include authentication in the settings-page feed address, and explain unavailable HTTP artwork previews.
 - Make `dev` the GitHub default and rename production `master` to `main`; align CI, release guards and Unraid template URLs. Require verification on both long-lived branches, clean up merged branches, and retain the abandoned local-LLM experiment under an archive tag.
+- Made every date and time in the web UI (dashboard, episode lists, transcript page, admin queue, public subscribe page) render in the viewer's own browser-local timezone instead of the server's.
+- Normalized all stored timestamps to naive UTC, including feed publish dates, which were previously written using the server's local DST offset at ingest and could be off by an hour depending on when an episode was discovered.
+- Fixed a subscription with no episodes at all (e.g. just created, before its first feed poll) wrongly appearing under the dashboard's "Recently updated" filter.
+- **API wire-format change:** `GET /api/v1/system/status` and `GET /api/v1/queue` now return Z-suffixed ISO timestamps (e.g. `"2026-03-04T05:06:07Z"`) instead of `"2026-03-04 05:06:07"`. This affects `next_feed_check`, `next_retry.next_run_at`, `active_job`'s timestamp fields, and the timestamp fields on `queue` and `recently_processed` rows. `Documentation/API.md` only documents that response keys may grow, not that value formats may change, so API consumers parsing these fields as bare local-naive strings should update to expect the `Z` suffix.
+- The admin log viewer is unchanged: its timestamps come from the logging formatter, not the database.
 
 ## 1.13.0 - 2026-09-06
 

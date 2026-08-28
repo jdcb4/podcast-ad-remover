@@ -1,7 +1,7 @@
     {% for ep in episodes %}
     <div class="episode-card card flex flex-col relative overflow-visible group transition-all duration-300 h-full border hover:border-white/10"
         data-status="{{ ep.status }}" data-manual="{{ 'true' if ep.is_manual_download else 'false' }}"
-        data-title="{{ ep.title|lower }}" data-date="{{ ep.pub_date }}" data-listen-count="{{ ep.listen_count or 0 }}"
+        data-title="{{ ep.title|lower }}" data-date="{{ ep.pub_date|utc_isoformat }}" data-listen-count="{{ ep.listen_count or 0 }}"
         id="card-{{ ep.id }}">
 
         <!-- Batch Selection Checkbox -->
@@ -18,7 +18,7 @@
             <!-- Metadata Row -->
             <div class="episode-metadata flex justify-between items-start mb-3">
                 <div class="episode-meta-values flex items-center gap-2 text-[11px] font-bold tracking-wider text-text-muted uppercase">
-                    <span class="date-relative" data-date="{{ ep.pub_date }}">{{ ep.pub_date }}</span>
+                    <span class="date-relative">{{ ep.pub_date|local_time('relative') }}</span>
                     <span class="text-white/10 dot-separator">•</span>
                     <span>{{ format_duration(ep.duration) }}</span>
                 </div>

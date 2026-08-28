@@ -70,7 +70,7 @@
             <div class="flex flex-wrap items-center gap-2 mb-4">
                 <span class="badge-neutral">{{ item.episode_count }} episode{% if item.episode_count != 1 %}s{% endif %}</span>
                 {% if item.latest_episode %}
-                <span class="badge-soft">Latest: {{ item.latest_episode.pub_date|string|truncate(10, True, '') }}</span>
+                <span class="badge-soft">Latest: {{ item.latest_episode.pub_date|local_time('date') }}</span>
                 {% endif %}
             </div>
 

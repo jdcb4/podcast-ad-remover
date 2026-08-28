@@ -311,7 +311,7 @@
                         {{ token.requests_per_minute or settings.ai_api_default_requests_per_minute or 60 }}/min,
                         {{ token.requests_per_day or settings.ai_api_default_requests_per_day or 1000 }}/day
                     </td>
-                    <td class="p-3 text-text-secondary">{{ token.last_used_at | compact_datetime }}</td>
+                    <td class="p-3 text-text-secondary">{{ token.last_used_at | local_time }}</td>
                     <td class="p-3 text-right">
                         <form method="post" action="/admin/api-tokens/{{ token.id }}/revoke" class="inline">
                             <button type="submit" class="btn-danger btn-sm"

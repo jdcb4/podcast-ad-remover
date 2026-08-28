@@ -14,6 +14,7 @@ from app.core.resource_budget import require_scratch
 from app.core.reports import render_ad_report
 from app.core.config import settings
 from app.core.models import Episode
+from app.core.time_utils import now_utc
 from app.infra.repository import EpisodeRepository, SubscriptionRepository, SourceItemRepository, JobRepository, StaleAttempt
 from app.core.ai_services import Transcriber, AdDetector, RateLimitError, PermanentProviderError
 from app.core.audio import AudioProcessor
@@ -1111,7 +1112,7 @@ class Processor:
                 # Exponential backoff: 5, 10, 20, 40, 80 minutes
                 delay_minutes = 5 * (2 ** (retry_count - 1))
                 from datetime import timedelta
-                next_retry = datetime.utcnow() + timedelta(minutes=delay_minutes)
+                next_retry = now_utc() + timedelta(minutes=delay_minutes)
                 
                 logger.info(f"Scheduling retry {retry_count}/5 for {ep.title} in {delay_minutes} minutes")
                 self.ep_repo.update_retry(ep.id, retry_count, next_retry, str(e))
@@ -1183,13 +1184,13 @@ class Processor:
 
     async def cleanup_old_logs(self):
         """Clean up old login-attempt rows; log files are handled by rotation."""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
         from app.infra.database import get_db_connection
         
         try:
             await asyncio.to_thread(self._cleanup_abandoned_attempts)
             # Clean up login_attempts table
-            thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+            thirty_days_ago = (now_utc() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
             with get_db_connection() as conn:
                 result = conn.execute(
                     "DELETE FROM login_attempts WHERE timestamp < ?",

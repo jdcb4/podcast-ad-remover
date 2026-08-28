@@ -28,6 +28,7 @@ from app.core.notifications import EVENT_NEW_PODCAST, send_notification_async
 from app.core.processor import Processor
 from app.core.search import PodcastSearcher
 from app.core.sources import resolve_source
+from app.core.queue_status import get_queue_payload
 from app.core.system_status import get_operation_status
 from app.core.url_utils import validate_http_url
 from app.infra.database import get_db_connection
@@ -144,11 +145,7 @@ async def system_status(principal: ApiPrincipal = Depends(require_scopes(["admin
 
 @router.get("/queue", response_model=QueueResponse)
 async def queue_status(_principal: ApiPrincipal = Depends(require_scopes(["read"]))):
-    return {
-        "queue": ep_repo.get_queue(),
-        "recently_processed": ep_repo.get_recently_processed(days=3),
-        "operation_status": get_operation_status(),
-    }
+    return get_queue_payload()
 
 
 @router.get("/subscriptions", response_model=list[Subscription])

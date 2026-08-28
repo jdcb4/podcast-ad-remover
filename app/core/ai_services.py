@@ -60,7 +60,8 @@ class RateLimitError(Exception):
             return midnight_pt.astimezone(ZoneInfo('UTC')).replace(tzinfo=None)
         else:
             # Per-minute limit: short 2-minute retry
-            return datetime.utcnow() + timedelta(minutes=2)
+            from app.core.time_utils import now_utc
+            return now_utc() + timedelta(minutes=2)
 
 
 def rate_limit_error(error, provider):
