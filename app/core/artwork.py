@@ -23,17 +23,25 @@ logger = logging.getLogger(__name__)
 
 MAX_ARTWORK_BYTES = 12 * 1024 * 1024
 MAX_ARTWORK_EDGE = 8000
-OUTPUT_MAX_EDGE = 3000
+# Apple's podcast artwork spec allows 1400-3000px square. 1400 is the smallest
+# compliant size, and clients only ever draw a thumbnail from it.
+OUTPUT_MAX_EDGE = 1400
+JPEG_QUALITY = 82
 BADGE_SCALE = 0.30
 BADGE_MARGIN = 0.035
 BADGE_PATH = Path(__file__).resolve().parents[1] / "web" / "static" / "ad_free_badge.png"
+LEGACY_OUTPUT_SUFFIX = ".png"
+# Part of the cache digest, so changing the encoding regenerates every file and
+# publishes a new ?v= for URLs that clients cache as immutable for a year.
+ENCODE_SALT = f"artwork-v2:jpeg:{OUTPUT_MAX_EDGE}:q{JPEG_QUALITY}".encode()
 
 
 def effective_artwork_url(subscription, base_url: str) -> str | None:
     path = getattr(subscription, "watermarked_image_path", None)
     if getattr(subscription, "watermark_artwork", False) and path and Path(path).is_file():
         version = getattr(subscription, "watermarked_image_hash", None) or "current"
-        return f"{base_url.rstrip('/')}/artwork/{subscription.id}.png?v={version[:12]}"
+        suffix = Path(path).suffix or ".jpg"
+        return f"{base_url.rstrip('/')}/artwork/{subscription.id}{suffix}?v={version[:12]}"
     return getattr(subscription, "image_url", None)
 
 
@@ -70,13 +78,28 @@ class ArtworkWatermarker:
 
     @staticmethod
     def _output_path(subscription_id: int) -> Path:
-        return Path(settings.ARTWORK_DIR) / f"{int(subscription_id)}.png"
+        return Path(settings.ARTWORK_DIR) / f"{int(subscription_id)}.jpg"
+
+    @staticmethod
+    def _remove_legacy_output(subscription_id: int) -> None:
+        """Delete the PNG output written by releases before the JPEG switch."""
+        legacy = Path(settings.ARTWORK_DIR) / f"{int(subscription_id)}{LEGACY_OUTPUT_SUFFIX}"
+        root = Path(settings.ARTWORK_DIR).resolve()
+        try:
+            resolved = legacy.resolve()
+            if resolved.parent == root and resolved.is_file():
+                resolved.unlink()
+        except OSError as exc:
+            logger.warning(
+                "Could not remove legacy artwork for subscription %s: %s", subscription_id, exc
+            )
 
     def clear(self, subscription_id: int) -> None:
         output = self._output_path(subscription_id).resolve()
         root = Path(settings.ARTWORK_DIR).resolve()
         if output.parent == root and output.exists():
             output.unlink()
+        self._remove_legacy_output(subscription_id)
         with get_db_connection() as conn:
             conn.execute(
                 """
@@ -96,7 +119,7 @@ class ArtworkWatermarker:
 
         source = self._download(sub.image_url)
         badge_bytes = BADGE_PATH.read_bytes()
-        digest = hashlib.sha256(source + badge_bytes + b"artwork-v1").hexdigest()
+        digest = hashlib.sha256(source + badge_bytes + ENCODE_SALT).hexdigest()
         output = self._output_path(subscription_id)
         if (
             sub.watermarked_image_hash == digest
@@ -132,10 +155,21 @@ class ArtworkWatermarker:
         )
         artwork.alpha_composite(badge, position)
 
+        # JPEG has no alpha channel, so composite the result onto white.
+        flattened = Image.new("RGB", artwork.size, (255, 255, 255))
+        flattened.paste(artwork, mask=artwork.getchannel("A"))
+
         output.parent.mkdir(parents=True, exist_ok=True)
-        temporary = output.with_suffix(".tmp.png")
-        artwork.save(temporary, format="PNG", optimize=True)
+        temporary = output.with_suffix(".tmp.jpg")
+        flattened.save(
+            temporary,
+            format="JPEG",
+            quality=JPEG_QUALITY,
+            optimize=True,
+            progressive=True,
+        )
         os.replace(temporary, output)
+        self._remove_legacy_output(subscription_id)
 
         with get_db_connection() as conn:
             conn.execute(
