@@ -111,12 +111,17 @@ class AudioProcessor:
         Logic: Calculate 'keep' segments and concatenate them.
         """
         if not remove_segments:
-            logger.info("No ads to remove, copying file.")
+            probe = AudioProcessor._run_ffmpeg([
+                "ffprobe", "-v", "error", "-select_streams", "a:0",
+                "-show_entries", "stream=codec_name", "-of", "default=noprint_wrappers=1:nokey=1", input_path,
+            ], "FFprobe codec check")
+            codec_args = ["-c:a", "copy"] if probe.stdout.strip() == "mp3" else ["-c:a", "libmp3lame", "-q:a", "2"]
+            logger.info("No ads to remove; writing MP3-compatible audio.")
             cmd = [
                 "ffmpeg", "-y",
                 "-i", input_path,
                 *AudioProcessor._thread_args(ffmpeg_threads),
-                "-c", "copy",
+                "-map", "0:a:0", "-vn", *codec_args,
                 output_path,
             ]
             AudioProcessor._run_ffmpeg(cmd, "FFmpeg copy")

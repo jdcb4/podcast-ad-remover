@@ -1,4 +1,5 @@
 import base64
+import math
 import json
 import logging
 import asyncio
@@ -19,6 +20,10 @@ def piper_tts_available() -> bool:
     if os.getenv("TTS_ENABLED", "1").lower() in {"0", "false", "no", "off"}:
         return False
     return importlib.util.find_spec("piper") is not None
+
+
+class AnalysisError(ValueError):
+    """The provider did not return a complete, usable segmentation result."""
 
 
 class RateLimitError(Exception):
@@ -833,65 +838,42 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
              return base + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
 
     def _parse_ad_response(self, text: str):
-        text = text.strip()
-        # Common markdown cleanup
-        if text.startswith("```json"):
-            text = text[7:]
-        elif text.startswith("```"):
-            text = text[3:]
-
-        if text.endswith("```"):
-            text = text[:-3]
-
-        text = text.strip()
-
+        import re
+        cleaned = (text or "").strip()
+        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned).strip()
         try:
-            return self._normalize_ad_segments(json.loads(text))
-        except json.JSONDecodeError:
-            # Try to find JSON array pattern
-            import re
-            match = re.search(r'\[.*\]', text, re.DOTALL)
-            if match:
-                try:
-                    return self._normalize_ad_segments(json.loads(match.group(0)))
-                except: pass
-
-            logger.error(f"Failed to parse JSON response: {text[:200]}...")
-            return []
+            payload = json.loads(cleaned)
+        except json.JSONDecodeError as exc:
+            # Tolerate surrounding prose but never interpret a refusal as no ads.
+            match = re.search(r"(\[.*\]|\{.*\})", cleaned, re.DOTALL)
+            if not match:
+                raise AnalysisError("Ad analysis did not contain JSON") from exc
+            try:
+                payload = json.loads(match.group(0))
+            except json.JSONDecodeError as invalid:
+                raise AnalysisError("Ad analysis JSON was incomplete or invalid") from invalid
+        return self._normalize_ad_segments(payload)
 
     def _normalize_ad_segments(self, payload) -> List[Dict[str, float]]:
         if isinstance(payload, dict) and isinstance(payload.get("segments"), list):
             payload = payload["segments"]
-
         if not isinstance(payload, list):
-            logger.warning("Ad detector response was not a JSON array.")
-            return []
-
+            raise AnalysisError("Ad analysis must be an array of segments")
         normalized = []
+        labels = {label.lower(): label for label in ("Ad", "Promo", "Intro", "Outro", "Content")}
         for item in payload:
             if not isinstance(item, dict):
-                continue
-
+                raise AnalysisError("Each ad segment must be an object")
             try:
-                start = float(item["start"])
-                end = float(item["end"])
-            except (KeyError, TypeError, ValueError):
-                logger.warning(f"Skipping ad segment with invalid timestamps: {item}")
-                continue
-
-            if start < 0:
-                start = 0.0
-            if end <= start:
-                logger.warning(f"Skipping ad segment with non-positive duration: {item}")
-                continue
-
-            normalized.append({
-                "start": start,
-                "end": end,
-                "label": str(item.get("label") or "Ad"),
-                "reason": str(item.get("reason") or ""),
-            })
-
+                start, end = float(item["start"]), float(item["end"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise AnalysisError("Ad segment has invalid timestamps") from exc
+            if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start:
+                raise AnalysisError("Ad timestamps must be finite and ordered")
+            label = labels.get(str(item.get("label", "Ad")).lower())
+            if label is None:
+                raise AnalysisError("Ad segment has an unknown label")
+            normalized.append({"start": start, "end": end, "label": label, "reason": str(item.get("reason") or "")})
         return normalized
 
     # Static method to list Gemini models

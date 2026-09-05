@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject invalid AI segmentation responses instead of publishing them as no-ads results, and encode non-MP3 sources correctly when no cuts are needed.
+
 - Enforce owner/admin episode permissions, fix library membership responses, return deliberate 403 responses, and attribute audio listens by full path.
 
 - Reject known session-secret placeholders and honor Compose environment values.
