@@ -84,7 +84,8 @@ def rate_limit_error(error, provider):
 def raise_permanent_provider_error(error):
     if isinstance(error, (ProviderBudgetExceeded, PermanentProviderError)):
         raise error
-    if getattr(error, 'status_code', None) in (401, 403) or any(code in str(error).lower() for code in ('insufficient_quota', 'billing_hard_limit')):
+    status = getattr(error, 'status_code', None) or getattr(getattr(error, 'response', None), 'status_code', None)
+    if status in (401, 403) or any(code in str(error).lower() for code in ('insufficient_quota', 'billing_hard_limit')):
         raise PermanentProviderError('Provider authentication or billing failed; review provider settings') from error
 
 
@@ -1056,10 +1057,14 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
         }
 
         last_error = None
-        async with httpx.AsyncClient(timeout=120) as client:
+        call_count = 0
+        async with httpx.AsyncClient(timeout=settings.PROVIDER_TIMEOUT_SECONDS) as client:
             for model in models:
                 url = f"{self.GEMINI_REST_BASE_URL}/models/{model}:generateContent"
                 for key_idx, api_key in enumerate(api_keys):
+                    call_count += 1
+                    if call_count > settings.MAX_PROVIDER_CALLS_PER_JOB:
+                        raise ProviderBudgetExceeded('Speech request budget exhausted; review provider settings')
                     try:
                         logger.info(f"Generating TTS with Gemini model {model}, key #{key_idx + 1}.")
                         with provider_request('gemini_tts', model):
@@ -1072,7 +1077,7 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                                 json=payload,
                             )
                             if response.status_code >= 400:
-                                raise RuntimeError(f"HTTP {response.status_code}: {response.text[:500]}")
+                                raise httpx.HTTPStatusError(f'HTTP {response.status_code}', request=httpx.Request('POST', url), response=response)
     
                         audio = self._extract_gemini_tts_audio(response.json())
                         self._write_pcm_wav(output_path, audio)

@@ -89,6 +89,31 @@ class FakeAsyncClient:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('http_status,expected_calls', [(401, 1), (500, 2)])
+async def test_standalone_speech_requests_stop_on_auth_or_budget(http_status, expected_calls, monkeypatch, isolated_data_dir, tmp_path):
+    from app.core.config import settings
+    from app.core.ai_services import PermanentProviderError
+    from app.core.provider_budget import ProviderBudgetExceeded
+    init_db()
+    with get_db_connection() as conn:
+        conn.execute("UPDATE app_settings SET tts_provider='gemini',gemini_api_keys=?,gemini_tts_model_cascade=?",
+                     ('["fixture-one","fixture-two"]', '["fixture-model-one","fixture-model-two"]'))
+        conn.commit()
+    monkeypatch.setattr(settings, 'MAX_PROVIDER_CALLS_PER_JOB', 2)
+    monkeypatch.setattr(settings, 'PROVIDER_TIMEOUT_SECONDS', 7)
+    class Client(FakeAsyncClient):
+        def __init__(self, **kwargs):
+            assert kwargs['timeout'] == 7
+    FakeAsyncClient.calls = []
+    FakeAsyncClient.responses = [FakeGeminiTtsResponse(http_status)] * 4
+    monkeypatch.setattr('app.core.ai_services.httpx.AsyncClient', Client)
+    expected_error = PermanentProviderError if http_status == 401 else ProviderBudgetExceeded
+    with pytest.raises(expected_error):
+        await AdDetector().generate_audio('fixture speech', str(tmp_path / 'speech.wav'))
+    assert len(FakeAsyncClient.calls) == expected_calls
+
+
+@pytest.mark.asyncio
 async def test_gemini_tts_generates_wav_with_selected_voice(monkeypatch, isolated_data_dir, tmp_path):
     init_db()
     with get_db_connection() as conn:
