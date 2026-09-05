@@ -1,4 +1,8 @@
 import os
+import time
+from functools import lru_cache
+from pathlib import Path
+from app.core.worker_health import worker_status
 import shutil
 from datetime import datetime, timedelta
 
@@ -33,6 +37,17 @@ def _read_load_average():
 
 
 def _read_memory():
+    for usage_path, limit_path in [('/sys/fs/cgroup/memory.current', '/sys/fs/cgroup/memory.max'), ('/sys/fs/cgroup/memory/memory.usage_in_bytes', '/sys/fs/cgroup/memory/memory.limit_in_bytes')]:
+        try:
+            used, total = int(Path(usage_path).read_text().strip()), int(Path(limit_path).read_text().strip())
+            if total <= 0 or total > 2 ** 60:
+                continue
+            available = max(0, total - used)
+            return {'scope': 'container', 'total': total, 'used': used, 'available': available,
+                    'used_percent': round(used / total * 100, 1), 'total_display': _format_bytes(total),
+                    'used_display': _format_bytes(used), 'available_display': _format_bytes(available)}
+        except (OSError, ValueError):
+            pass
     meminfo_path = "/proc/meminfo"
     if not os.path.exists(meminfo_path):
         return None
@@ -51,6 +66,7 @@ def _read_memory():
 
     used = total - available
     return {
+        "scope": "host",
         "total": total,
         "used": used,
         "available": available,
@@ -104,6 +120,11 @@ def _storage_breakdown() -> list[dict]:
     ]
 
 
+@lru_cache(maxsize=8)
+def _cached_storage(data_dir: str, time_bucket: int):
+    return _storage_breakdown()
+
+
 def get_operation_status() -> dict:
     disk = shutil.disk_usage(settings.DATA_DIR)
     now = datetime.now()
@@ -142,12 +163,14 @@ def get_operation_status() -> dict:
         }
 
     interval_minutes = settings_row["check_interval_minutes"] if settings_row else settings.CHECK_INTERVAL_MINUTES
-    next_feed_check = now + timedelta(minutes=interval_minutes or settings.CHECK_INTERVAL_MINUTES)
+    worker = worker_status()
+    next_feed_check = worker.get('next_feed_check') or ('Disabled' if worker['state'] == 'disabled' else 'Not yet scheduled')
 
     return {
         "active_job": dict(active_job) if active_job else None,
         "next_retry": dict(next_retry) if next_retry else None,
-        "next_feed_check": next_feed_check.strftime("%Y-%m-%d %H:%M:%S"),
+        "next_feed_check": next_feed_check,
+        "worker": worker,
         "queue_counts": queue_counts,
         "load_average": _read_load_average(),
         "memory": _read_memory(),
@@ -159,6 +182,6 @@ def get_operation_status() -> dict:
             "total_display": _format_bytes(disk.total),
             "used_display": _format_bytes(disk.used),
             "free_display": _format_bytes(disk.free),
-            "breakdown": _storage_breakdown(),
+            "breakdown": _cached_storage(settings.DATA_DIR, int(time.monotonic() // 30)),
         },
     }

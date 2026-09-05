@@ -417,7 +417,7 @@ def init_db():
     """)
     
     # Ensure default settings exist
-    cursor.execute("INSERT OR IGNORE INTO app_settings (id) VALUES (1)")
+    cursor.execute("INSERT OR IGNORE INTO app_settings (id, whisper_model) VALUES (1, ?)", (settings.WHISPER_MODEL,))
 
     try:
         cursor.execute("ALTER TABLE app_settings ADD COLUMN summary_prompt_template TEXT")

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Expose real worker heartbeat/scheduler status, supervise child failures, add a Docker readiness check, report container memory and cache storage scans. Honor the initial Whisper environment setting and validate the selected AI provider including keyless custom endpoints.
+
 - Fix episode deletion, make settings and action menus keyboard accessible, label episode selection, paginate filters/search on the server, preserve newer search results, report action failures and support direct RSS URLs. Extract episode JavaScript and correct stored-audio/count labels.
 
 - Use stable database IDs for new episode storage, fence every worker write by its claim, retain cancellation leases until acknowledgement, and enforce the global claim limit in one transaction.

@@ -35,5 +35,8 @@ RUN mkdir -p /data/db /data/podcasts /data/feeds /data/models/piper
 # Expose port
 EXPOSE 8000
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
+
 # Run the application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -46,7 +46,7 @@
         <p class="text-xs text-text-muted truncate">{{ operation_status.active_job.podcast_title }}</p>
         <p class="text-xs text-primary-400 mt-2" data-active-job-step>{{ operation_status.active_job.processing_step or 'running' }}</p>
         {% else %}
-        <p class="font-semibold text-text-secondary" data-active-job-step>Idle</p>
+        <p class="font-semibold text-text-secondary" data-active-job-step>{{ operation_status.worker.label }}</p>
         <p class="text-xs text-text-muted">No episode is currently running.</p>
         {% endif %}
     </div>
@@ -69,7 +69,7 @@
     <div class="bg-surface-base rounded-xl border border-white/[0.06] p-4">
         <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Memory / CPU</p>
         {% if operation_status.memory %}
-        <p class="font-semibold"><span data-memory-used>{{ operation_status.memory.used_percent }}</span>% memory used</p>
+        <p class="font-semibold"><span data-memory-used>{{ operation_status.memory.used_percent }}</span>% {{ operation_status.memory.scope }} memory used</p>
         <p class="text-xs text-text-muted">{{ operation_status.memory.available_display }} available</p>
         {% else %}
         <p class="font-semibold text-text-secondary">Memory unavailable</p>
@@ -381,7 +381,7 @@
                 const retry = document.querySelector('[data-next-retry]');
                 if (retry) retry.textContent = status.next_retry ? `Retry: ${status.next_retry.next_run_at}` : 'No retries scheduled';
                 const activeStep = document.querySelector('[data-active-job-step]');
-                if (activeStep) activeStep.textContent = status.active_job ? (status.active_job.processing_step || 'running') : 'Idle';
+                if (activeStep) activeStep.textContent = status.active_job ? (status.active_job.processing_step || 'running') : status.worker.label;
 
                 return false;
             } catch (error) {

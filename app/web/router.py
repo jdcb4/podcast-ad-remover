@@ -81,13 +81,7 @@ def _safe_local_redirect(target: str | None, fallback: str) -> str:
     return target
 
 # Helper to get settings
-def get_global_settings():
-    from app.infra.database import get_db_connection
-    with get_db_connection() as conn:
-        row = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
-        if row:
-            return dict(row)
-    return {}
+from app.core.utils import get_global_settings
 
 
 def _real_user_id(user) -> int | None:
@@ -1091,7 +1085,7 @@ async def admin_queue(request: Request):
     user = get_current_user(request)
     queue = ep_repo.get_queue()
     recently_processed = ep_repo.get_recently_processed(days=3)
-    operation_status = get_operation_status()
+    operation_status = await asyncio.to_thread(get_operation_status)
     return templates.TemplateResponse(
         request=request,
         name="admin/queue.html",
@@ -1111,7 +1105,7 @@ async def api_queue_status(user = Depends(require_auth)):
     return {
         "queue": ep_repo.get_queue(),
         "recently_processed": ep_repo.get_recently_processed(days=3),
-        "operation_status": get_operation_status(),
+        "operation_status": await asyncio.to_thread(get_operation_status),
     }
 
 
@@ -1757,23 +1751,8 @@ def _render_index(request: Request, error: str = None):
     # Get queue data for dashboard display
     queue = ep_repo.get_queue()
 
-    # Determine if AI is configured (DB Overrides/Augments Env)
-    from app.core.config import settings
-
-    # Check if the DB has a non-empty list of Gemini keys
-    db_gemini_keys = global_settings.get('gemini_api_keys')
-    has_db_gemini = db_gemini_keys and db_gemini_keys != "[]" and db_gemini_keys != "null"
-
-    config_warning = not any([
-        settings.GEMINI_API_KEY,
-        settings.OPENAI_API_KEY,
-        settings.ANTHROPIC_API_KEY,
-        settings.OPENROUTER_API_KEY,
-        has_db_gemini,  # Correctly check the plural database list
-        global_settings.get('openai_api_key'),
-        global_settings.get('anthropic_api_key'),
-        global_settings.get('openrouter_api_key')
-    ])
+    from app.core.provider_readiness import provider_configuration_error
+    config_warning = provider_configuration_error(global_settings)
 
     # Generate Unified Links if subscriptions exist
     unified_links = None

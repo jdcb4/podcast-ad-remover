@@ -91,6 +91,7 @@ async def test_subscription_deletion_cancels_before_cleanup_without_blocking_eve
     subscription_id, _episode_ids, subscription_dir, feed_path = _create_subscription_with_pending_episodes()
     job_repo = JobRepository()
     episode_repo = EpisodeRepository()
+    monkeypatch.setattr(settings, "PROCESSOR_ENABLED", False)
     claimed = job_repo.claim_due(1, worker_id="slow-test-worker")
     assert len(claimed) == 1
     running_episode_id = claimed[0]["id"]

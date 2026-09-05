@@ -91,7 +91,7 @@ class Transcriber:
 
     def _load_runtime_settings(self) -> Dict:
         runtime = {
-            "whisper_model": "base",
+            "whisper_model": settings.WHISPER_MODEL,
             "whisper_cpu_threads": 0,
             "ffmpeg_threads": 0,
         }
@@ -103,7 +103,7 @@ class Transcriber:
                     FROM app_settings WHERE id = 1
                 """).fetchone()
                 if row:
-                    runtime["whisper_model"] = row["whisper_model"] or "base"
+                    runtime["whisper_model"] = row["whisper_model"] or settings.WHISPER_MODEL
                     runtime["whisper_cpu_threads"] = int(row["whisper_cpu_threads"] or 0)
                     runtime["ffmpeg_threads"] = int(row["ffmpeg_threads"] or 0)
         except Exception as e:

@@ -17,7 +17,7 @@ async def feed_auth_middleware(request: Request, call_next):
         return await call_next(request)
     
     # Check if feed auth is enabled
-    from app.web.router import get_global_settings
+    from app.core.utils import get_global_settings
     settings = get_global_settings()
     
     # Determine if we should enforce auth

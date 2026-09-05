@@ -102,7 +102,7 @@ async def auth_middleware(request: Request, call_next):
             return JSONResponse(status_code=403, content={"detail": "Access denied from your IP address"})
 
     # Skip dashboard auth for public paths after applying the global IP allowlist.
-    if path in ["/login", "/request-access", "/submit-access-request"] or \
+    if path in ["/health", "/login", "/request-access", "/submit-access-request"] or \
        path.startswith("/static/") or \
        path.startswith("/api/v1/") or \
        path == "/subscribe" or \

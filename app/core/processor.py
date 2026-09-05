@@ -1307,6 +1307,8 @@ class Processor:
                     await self.cleanup_old_episodes()
                     await self.check_feeds()
                     last_feed_check = datetime.now()
+                    from app.core.worker_health import record_feed_check
+                    await asyncio.to_thread(record_feed_check, interval_minutes)
                 
             except Exception as e:
                 logger.error(f"Error in background processor loop: {e}")
@@ -1379,15 +1381,26 @@ def start_processor_process():
              # Signal handlers not supported on Windows in loop, but we are on Mac
              pass
 
+    async def heartbeat_worker():
+        from app.core.worker_health import record_heartbeat
+        worker_id = f'{os.getpid()}:{uuid4().hex}'
+        while True:
+            await asyncio.to_thread(record_heartbeat, worker_id)
+            await asyncio.sleep(10)
+
     async def run_until_stopped():
+        heartbeat = asyncio.create_task(heartbeat_worker())
         runner = asyncio.create_task(processor.run_loop())
-        await stop_event.wait()
-        runner.cancel()
+        stop = asyncio.create_task(stop_event.wait())
         try:
-            await runner
-        except asyncio.CancelledError:
-            pass
-        print("Background processor stopped clean.")
+            done, _ = await asyncio.wait({runner, stop, heartbeat}, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                if task is not stop:
+                    task.result()  # A failed loop/heartbeat exits for parent supervision.
+        finally:
+            for task in (heartbeat, runner, stop):
+                task.cancel()
+            await asyncio.gather(heartbeat, runner, stop, return_exceptions=True)
 
     try:
         loop.run_until_complete(run_until_stopped())

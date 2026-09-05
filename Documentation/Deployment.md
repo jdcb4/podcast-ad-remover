@@ -184,3 +184,20 @@ This pushes both:
 
 - `jdcb4/podcast-ad-remover:<version>`
 - `jdcb4/podcast-ad-remover:latest`
+
+## Worker readiness and supervision
+
+Run one Uvicorn web worker per data directory. It supervises a dedicated processor child
+with restart delays bounded to 5–60 seconds. The child writes a heartbeat every 10 seconds;
+90 seconds without a heartbeat is stale. The minimal `/health` endpoint returns 503 for a
+missing/stale enabled processor or an unavailable database, and 200 for a healthy worker
+or explicitly disabled automatic processing. Dashboard authentication does not redirect
+health probes; an IP allowlist still applies, so include the container loopback probe.
+Docker uses this endpoint with a 120-second startup grace period. Docker health status
+alone does not restart a container; the parent handles child restarts, while the configured
+container restart policy handles process exit.
+
+With `PROCESSOR_ENABLED=false`, scheduled discovery is disabled. Explicit manual actions
+use a shared, bounded in-process runner. The queue page states that automatic processing
+is disabled. Memory figures prefer cgroup limits and label host fallback; storage figures
+are cached for 30 seconds. Feed-check deadlines are recorded by the actual scheduler.
