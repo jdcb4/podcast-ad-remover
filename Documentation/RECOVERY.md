@@ -35,3 +35,15 @@ not renamed over legacy data. Failed attempts cannot replace an existing publica
 A completed episode with `publication_pending=1` retains playable audio; the processor
 retries RSS publication on its next cycle. With processing disabled, trigger a manual
 processing action or run `Processor().publish_pending_feeds()` from an operator script.
+
+Migration `20260905_0014_processing_budgets` adds request counts, scratch reservations,
+working-directory references and provider usage records. It uses the same pre-migration
+backup/rollback process. Usage records contain provider/model names, timing and token
+counts, never prompts, keys or transcript text. They show calls and reported tokens, not
+an inferred invoice amount. Remote failures may omit token counts.
+
+Automatic retries copy finalized source/cache files into a fresh owned stage. Transcripts
+require matching source SHA-256 and Whisper model; analysis also requires the same
+transcript, prompts, selected provider/models and removal options. Abandoned unpublished
+attempts older than 48 hours are removed unless an active job still references them.
+Published revisions remain available until episode deletion/retention removes their root.

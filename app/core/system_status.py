@@ -155,6 +155,8 @@ def get_operation_status() -> dict:
             "SELECT check_interval_minutes FROM app_settings WHERE id = 1"
         ).fetchone()
 
+        pending_publications = conn.execute('SELECT COUNT(*) FROM episodes WHERE publication_pending=1').fetchone()[0]
+        usage_row = conn.execute("SELECT COUNT(*) AS calls, COALESCE(SUM(input_tokens),0) AS input_tokens, COALESCE(SUM(output_tokens),0) AS output_tokens FROM provider_calls WHERE started_at >= datetime(CURRENT_TIMESTAMP,'-1 day')").fetchone()
         queue_counts = {
             row["status"]: row["count"]
             for row in conn.execute(
@@ -171,6 +173,8 @@ def get_operation_status() -> dict:
         "next_retry": dict(next_retry) if next_retry else None,
         "next_feed_check": next_feed_check,
         "worker": worker,
+        "pending_publications": pending_publications,
+        "provider_usage": dict(usage_row),
         "queue_counts": queue_counts,
         "load_average": _read_load_average(),
         "memory": _read_memory(),

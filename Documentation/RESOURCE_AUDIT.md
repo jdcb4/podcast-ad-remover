@@ -169,3 +169,13 @@ docker exec <container-name> sh -lc 'du -h -d 2 /data | sort -h | tail -30'
 ```
 
 Send back the outputs if deeper tuning is needed.
+
+## 2026-09-05 safeguards
+
+Claim admission reserves an estimated 128,000 bytes per source second (minimum 64 MiB),
+representing source/output and two PCM copies. It subtracts running reservations and the
+configured free-space floor before admitting another job. Stage checks add twice the
+actual source size; streaming rechecks free space every 8 MiB. Estimates are conservative
+admission guards, not filesystem quotas. External disk writers can still cause ENOSPC;
+attempt isolation preserves the last publication and failed work can resume safely.
+Storage directory scans run off the request loop and are cached for 30 seconds.

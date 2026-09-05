@@ -115,3 +115,8 @@ Generate it once with `python -c "import secrets; print(secrets.token_urlsafe(48
 
 `WHISPER_MODEL` seeds the database on first startup. Existing database settings override
 the environment; change the model in Settings for an existing installation.
+
+`MAX_PROVIDER_CALLS_PER_JOB` defaults to 12 (1–100), shared across automatic retries,
+analysis, schema repair, summaries and remote speech. SDK automatic retries are disabled.
+`PROVIDER_TIMEOUT_SECONDS` defaults to 120 (5–600). An operator-triggered new job gets a
+new budget. Authentication/billing failures and exhausted budgets require intervention.

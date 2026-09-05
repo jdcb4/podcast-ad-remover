@@ -273,6 +273,16 @@ FORMAL_MIGRATIONS = [
             "CREATE TABLE worker_status (id INTEGER PRIMARY KEY CHECK(id=1), worker_id TEXT, heartbeat_at TEXT, last_feed_check TEXT, next_feed_check TEXT)",
         ],
     ),
+    (
+        "20260905_0014_processing_budgets",
+        [
+            "ALTER TABLE jobs ADD COLUMN provider_call_count INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE jobs ADD COLUMN reserved_bytes INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE jobs ADD COLUMN work_directory TEXT",
+            "CREATE TABLE provider_calls (id INTEGER PRIMARY KEY, job_id INTEGER NOT NULL, provider TEXT, model TEXT, started_at TEXT DEFAULT CURRENT_TIMESTAMP, duration_ms INTEGER, input_tokens INTEGER, output_tokens INTEGER, outcome TEXT DEFAULT 'interrupted')",
+            "CREATE INDEX idx_provider_calls_job ON provider_calls(job_id)",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

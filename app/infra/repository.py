@@ -1280,7 +1280,7 @@ class JobRepository:
                 limit = min(limit, max(0, max_running - running))
             rows = conn.execute("""
                 SELECT j.id AS job_id,
-                       j.attempts AS job_attempts,
+                       j.attempts AS job_attempts, j.work_directory AS resume_directory, j.provider_call_count,
                        e.*
                 FROM jobs j
                 JOIN episodes e ON e.id = j.episode_id
@@ -1295,6 +1295,21 @@ class JobRepository:
                 LIMIT ?
             """, (limit,)).fetchall()
 
+            from app.core.resource_budget import estimated_scratch
+            from app.core.config import settings
+            import shutil
+            remaining = shutil.disk_usage(settings.DATA_DIR).free - settings.MIN_FREE_SPACE_BYTES
+            remaining -= conn.execute("SELECT COALESCE(SUM(reserved_bytes),0) FROM jobs WHERE status='running'").fetchone()[0]
+            admitted = []
+            for row in rows:
+                reserve = estimated_scratch(row['duration'])
+                if reserve > remaining:
+                    conn.execute("UPDATE episodes SET processing_step='Waiting for free scratch space' WHERE id=?", (row['id'],))
+                    continue
+                remaining -= reserve
+                admitted.append(row)
+                conn.execute('UPDATE jobs SET reserved_bytes=? WHERE id=?', (reserve, row['job_id']))
+            rows = admitted
             job_ids = [row["job_id"] for row in rows]
             for job_id in job_ids:
                 conn.execute("""

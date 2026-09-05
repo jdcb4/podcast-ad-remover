@@ -133,3 +133,46 @@ async def test_pipeline_preserves_publication_on_feed_failure_and_failed_reproce
     assert failed.local_filename == old_audio and Path(old_audio).exists()
     assert failed.guid == old_guid
     assert any(ep['id'] == first.id for ep in repo.get_completed_by_subscription(90))
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not shutil.which('ffmpeg'), reason='FFmpeg required')
+async def test_retry_reuses_verified_transcription_and_analysis(episodes, tmp_path, monkeypatch):
+    repo, jobs = episodes
+    from app.core.audio import AudioProcessor
+    source = tmp_path / 'source.mp3'
+    subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','sine=frequency=440:duration=4',str(source)], check=True, timeout=30)
+    calls = {'transcribe': 0, 'detect': 0, 'download': 0}
+    async def download(url, directory, **kwargs):
+        calls['download'] += 1
+        path = Path(directory) / 'original.mp3'
+        shutil.copyfile(source, path)
+        return str(path)
+    def transcribe(*args, **kwargs):
+        calls['transcribe'] += 1
+        return {'segments': [{'start': 0, 'end': 4, 'text': 'hello'}]}
+    def detect(*args, **kwargs):
+        calls['detect'] += 1
+        return []
+    async def notify(*args, **kwargs): pass
+    monkeypatch.setattr('app.core.processor.get_source_adapter', lambda _: SimpleNamespace(download=download))
+    monkeypatch.setattr('app.core.processor.send_notification_async', notify)
+    original_cut = AudioProcessor.remove_segments
+    def fail_cut(*args, **kwargs): raise OSError('injected FFmpeg failure')
+    monkeypatch.setattr(AudioProcessor, 'remove_segments', fail_cut)
+    first = jobs.claim_due(1)[0]
+    sub = SubscriptionRepository().get_by_id(90)
+    for claim in (first,):
+        worker = Processor()
+        worker.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
+        worker.transcriber = SimpleNamespace(transcribe=transcribe)
+        worker.ad_detector = SimpleNamespace(detect_ads=detect)
+        await worker._process_episode_inner(repo.get_by_id(claim['id']), sub, claim)
+    assert repo.get_by_id(first['id']).status == 'failed'
+    repo.update_status(first['id'], 'pending')
+    second = next(c for c in jobs.claim_due(10) if c['id'] == first['id'])
+    monkeypatch.setattr(AudioProcessor, 'remove_segments', original_cut)
+    worker.ep_repo = EpisodeRepository(attempt=(second['job_id'], second['claim_token']))
+    await worker._process_episode_inner(repo.get_by_id(second['id']), sub, second)
+    assert repo.get_by_id(second['id']).status == 'completed'
+    assert calls == {'transcribe': 1, 'detect': 1, 'download': 1}

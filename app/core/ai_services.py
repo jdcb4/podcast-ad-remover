@@ -11,6 +11,7 @@ import wave
 from typing import List, Dict
 from urllib.parse import urlsplit, urlunsplit
 from app.core.config import settings
+from app.core.provider_budget import provider_request, ProviderBudgetExceeded
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -26,24 +27,26 @@ class AnalysisError(ValueError):
     """The provider did not return a complete, usable segmentation result."""
 
 
+class PermanentProviderError(RuntimeError):
+    """Configuration or billing failures require an operator change."""
+
+
 class RateLimitError(Exception):
     """Custom exception for API rate limit errors with retry timing info."""
 
-    def __init__(self, message: str, is_daily_limit: bool = True, provider: str = "gemini"):
+    def __init__(self, message: str, is_daily_limit: bool = False, provider: str = "gemini", retry_after: float | None = None):
         super().__init__(message)
         self.is_daily_limit = is_daily_limit  # True = wait until midnight PT, False = short retry
         self.provider = provider
         self.original_message = message
+        self.retry_after = retry_after
 
     def get_next_retry_time(self):
         """Calculate appropriate retry time based on limit type."""
         from datetime import datetime, timedelta
-        try:
-            from zoneinfo import ZoneInfo
-        except ImportError:
-            # Fallback for older Python
-            import pytz
-            ZoneInfo = lambda tz: pytz.timezone(tz)
+        from zoneinfo import ZoneInfo
+        if self.retry_after is not None:
+            return datetime.utcnow() + timedelta(seconds=max(1, min(self.retry_after, 86400)))
 
         if self.is_daily_limit:
             # Daily limit: retry at midnight Pacific Time + 5 min buffer
@@ -57,7 +60,42 @@ class RateLimitError(Exception):
             return midnight_pt.astimezone(ZoneInfo('UTC')).replace(tzinfo=None)
         else:
             # Per-minute limit: short 2-minute retry
-            return datetime.now() + timedelta(minutes=2)
+            return datetime.utcnow() + timedelta(minutes=2)
+
+
+def rate_limit_error(error, provider):
+    from datetime import datetime, timezone
+    from email.utils import parsedate_to_datetime
+    headers = getattr(getattr(error, 'response', None), 'headers', {})
+    value = headers.get('retry-after') if headers else None
+    seconds = None
+    if value:
+        try:
+            seconds = float(value)
+        except ValueError:
+            try:
+                seconds = (parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds()
+            except (ValueError, TypeError):
+                pass
+    daily = provider == 'gemini' and any(word in str(error).lower() for word in ('per_day', 'perday', 'daily'))
+    return RateLimitError(str(error), is_daily_limit=daily, provider=provider, retry_after=seconds)
+
+
+def raise_permanent_provider_error(error):
+    if isinstance(error, (ProviderBudgetExceeded, PermanentProviderError)):
+        raise error
+    if getattr(error, 'status_code', None) in (401, 403) or any(code in str(error).lower() for code in ('insufficient_quota', 'billing_hard_limit')):
+        raise PermanentProviderError('Provider authentication or billing failed; review provider settings') from error
+
+
+def record_usage(metrics, response):
+    usage = getattr(response, 'usage', None)
+    for key, names in [('input_tokens', ('prompt_tokens', 'input_tokens')), ('output_tokens', ('completion_tokens', 'output_tokens'))]:
+        for name in names:
+            value = getattr(usage, name, None)
+            if isinstance(value, int):
+                metrics[key] = value
+                break
 
 
 def normalize_openai_base_url(value: str) -> str:
@@ -371,7 +409,7 @@ class OpenAIProvider(LLMProvider):
     def _init_client(self):
         key = self.api_keys[self.current_key_idx]
         logger.info(f"{self.provider_name}: Initializing client with credential #{self.current_key_idx + 1}")
-        self.client = self.openai.OpenAI(api_key=key, base_url=self.base_url)
+        self.client = self.openai.OpenAI(api_key=key, base_url=self.base_url, max_retries=0, timeout=settings.PROVIDER_TIMEOUT_SECONDS)
 
     def _rotate_key(self) -> bool:
         if self.current_key_idx + 1 < len(self.api_keys):
@@ -390,20 +428,29 @@ class OpenAIProvider(LLMProvider):
             raise ValueError(f"No models configured for {self.provider_name}.")
 
         last_error = None
+        call_count = 0
 
         while True:
             all_rate_limited = True
 
             for model in self.models:
+                call_count += 1
+                if call_count > settings.MAX_PROVIDER_CALLS_PER_JOB:
+                    raise ProviderBudgetExceeded('Model/key fallback request limit reached')
                 try:
                     logger.info(f"{self.provider_name}: Using model {model} with key #{self.current_key_idx + 1}...")
-                    response = self.client.chat.completions.create(
-                        model=model,
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    self.last_model = model
-                    return response.choices[0].message.content or ""
+                    with provider_request(self.rate_limit_provider, model) as metrics:
+                        response = self.client.chat.completions.create(
+                            model=model, messages=[{"role": "user", "content": prompt}]
+                        )
+                        record_usage(metrics, response)
+                        choice = response.choices[0]
+                        if getattr(choice, 'finish_reason', 'stop') in ('length', 'content_filter') or getattr(choice.message, 'refusal', None):
+                            raise AnalysisError('Provider returned truncated or refused output')
+                        self.last_model = model
+                        return choice.message.content or ""
                 except Exception as e:
+                    raise_permanent_provider_error(e)
                     logger.warning(f"{self.provider_name} model {model} failed: {e}")
                     last_error = e
                     if not self._is_rate_limit(e):
@@ -413,11 +460,7 @@ class OpenAIProvider(LLMProvider):
                 continue
 
             if all_rate_limited:
-                raise RateLimitError(
-                    f"{self.provider_name} rate limit exceeded on all keys and models. Last error: {last_error}",
-                    is_daily_limit=True,
-                    provider=self.rate_limit_provider,
-                )
+                raise rate_limit_error(last_error, self.rate_limit_provider)
 
             raise Exception(f"All {self.provider_name} models failed. Last error: {last_error}")
 
@@ -443,24 +486,25 @@ class OpenAIProvider(LLMProvider):
 class AnthropicProvider(LLMProvider):
     def __init__(self, api_key: str, models: List[str]):
         import anthropic
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = anthropic.Anthropic(api_key=api_key, max_retries=0, timeout=settings.PROVIDER_TIMEOUT_SECONDS)
         self.models = models
 
     def generate(self, prompt: str) -> str:
         last_error = None
-        for model in self.models:
+        for model in self.models[:settings.MAX_PROVIDER_CALLS_PER_JOB]:
             try:
-                logger.info(f"Anthropic: Using model {model}...")
-                response = self.client.messages.create(
-                    model=model,
-                    max_tokens=4096,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return response.content[0].text
-            except Exception as e:
-                logger.warning(f"Model {model} failed: {e}")
-                last_error = e
-        raise Exception(f"All models failed. Last error: {last_error}")
+                with provider_request('anthropic', model) as metrics:
+                    response = self.client.messages.create(model=model, max_tokens=4096, messages=[{'role':'user','content':prompt}])
+                    record_usage(metrics, response)
+                    if getattr(response, 'stop_reason', None) == 'max_tokens':
+                        raise AnalysisError('Provider returned truncated output')
+                    return response.content[0].text
+            except Exception as error:
+                raise_permanent_provider_error(error)
+                last_error = error
+        if getattr(last_error, 'status_code', None) == 429:
+            raise rate_limit_error(last_error, 'anthropic')
+        raise RuntimeError(f'All Anthropic models failed: {last_error}')
 
     def list_models(self) -> List[str]:
         return [
@@ -717,7 +761,12 @@ class AdDetector:
         try:
             provider = self._get_provider()
             response_text = provider.generate(prompt)
-            raw_segments = self._parse_ad_response(response_text)
+            try:
+                raw_segments = self._parse_ad_response(response_text)
+            except AnalysisError:
+                # One schema repair attempt shares the same durable provider budget.
+                response_text = provider.generate(prompt + '\nReturn only a complete JSON array. Use [] only if there are no matching segments. Timestamps must be finite and ordered.')
+                raw_segments = self._parse_ad_response(response_text)
 
             # Whitelist mode: return ALL segments (including Content) for processor to invert
             if whitelist_mode:
@@ -1013,22 +1062,24 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                 for key_idx, api_key in enumerate(api_keys):
                     try:
                         logger.info(f"Generating TTS with Gemini model {model}, key #{key_idx + 1}.")
-                        response = await client.post(
-                            url,
-                            headers={
-                                "x-goog-api-key": api_key,
-                                "Content-Type": "application/json",
-                            },
-                            json=payload,
-                        )
-                        if response.status_code >= 400:
-                            raise RuntimeError(f"HTTP {response.status_code}: {response.text[:500]}")
-
+                        with provider_request('gemini_tts', model):
+                            response = await client.post(
+                                url,
+                                headers={
+                                    "x-goog-api-key": api_key,
+                                    "Content-Type": "application/json",
+                                },
+                                json=payload,
+                            )
+                            if response.status_code >= 400:
+                                raise RuntimeError(f"HTTP {response.status_code}: {response.text[:500]}")
+    
                         audio = self._extract_gemini_tts_audio(response.json())
                         self._write_pcm_wav(output_path, audio)
                         logger.info("Gemini TTS generation completed.")
                         return
                     except Exception as e:
+                        raise_permanent_provider_error(e)
                         last_error = e
                         logger.warning(f"Gemini TTS model {model} failed with key #{key_idx + 1}: {e}")
 

@@ -9,11 +9,13 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from app.core.artifacts import episode_directory, legacy_directory, source_fingerprint
+from app.core.provider_budget import current_claim, ProviderBudgetExceeded
+from app.core.resource_budget import require_scratch
 from app.core.reports import render_ad_report
 from app.core.config import settings
 from app.core.models import Episode
 from app.infra.repository import EpisodeRepository, SubscriptionRepository, SourceItemRepository, JobRepository, StaleAttempt
-from app.core.ai_services import Transcriber, AdDetector, RateLimitError
+from app.core.ai_services import Transcriber, AdDetector, RateLimitError, PermanentProviderError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
 from app.core.youtube import (
@@ -592,9 +594,11 @@ class Processor:
             worker = copy.copy(self)
             worker.ep_repo = EpisodeRepository(attempt=(ep_dict['job_id'], ep_dict['claim_token']))
             heartbeat = asyncio.create_task(self._heartbeat_claim(ep_dict))
+            budget_token = current_claim.set((ep_dict['job_id'], ep_dict['claim_token']))
             try:
                 await worker._process_episode_inner(ep, sub, ep_dict)
             finally:
+                current_claim.reset(budget_token)
                 heartbeat.cancel()
                 try:
                     await heartbeat
@@ -695,6 +699,31 @@ class Processor:
             
             input_path = os.path.join(episode_dir, "original.mp3")
             transcript_path = None
+            resume = Path(ep_dict['resume_directory']) if ep_dict.get('resume_directory') else None
+            if resume and resume.resolve() == resume and resume.is_relative_to(episode_root) and resume.is_dir():
+                # Copy only finalized reusable inputs into the new owned stage. A stale
+                # worker can never mutate the files used by its successor.
+                manifest_path = resume / 'cache.json'
+                try:
+                    cache = json.loads(manifest_path.read_text(encoding='utf-8'))
+                    cached_source = resume / cache['source_file']
+                    if cached_source.parent == resume and cached_source.is_file():
+                        input_path = str(self._attempt_dir / cached_source.name)
+                        await asyncio.to_thread(shutil.copyfile, cached_source, input_path)
+                        if await asyncio.to_thread(source_fingerprint, input_path) == cache['sha256']:
+                            for name in ('transcript.json', 'analysis-cache.json'):
+                                if (resume / name).is_file():
+                                    await asyncio.to_thread(shutil.copyfile, resume / name, self._attempt_dir / name)
+                            if (self._attempt_dir / 'transcript.json').is_file():
+                                ep.transcript_path = str(self._attempt_dir / 'transcript.json')
+                                skip_transcription = True
+                except (OSError, ValueError, KeyError):
+                    logger.info('No reusable verified source cache for this retry')
+            if self.ep_repo.attempt:
+                from app.infra.database import get_db_connection
+                with self.ep_repo._write_connection(ep.id) as conn:
+                    conn.execute('UPDATE jobs SET work_directory=? WHERE id=? AND locked_by=?', (episode_dir, *self.ep_repo.attempt))
+                    conn.commit()
             
             if skip_transcription and ep.transcript_path and os.path.exists(ep.transcript_path):
                  logger.info(f"Attempting to skip transcription, using existing: {ep.transcript_path}")
@@ -748,7 +777,9 @@ class Processor:
                     logger.info("Source or transcription settings changed; transcribing again")
                     transcript = None
             self.ep_repo.update_source_media_path(ep.id, input_path)
+            (self._attempt_dir / 'cache.json').write_text(json.dumps({'source_file': Path(input_path).name, 'sha256': fingerprint}), encoding='utf-8')
 
+            await asyncio.to_thread(require_scratch, ep.duration, os.path.getsize(input_path))
             # 2. Transcribe (If needed)
             if not transcript:
                 self.ep_repo.update_progress(ep.id, "transcribing", 0)
@@ -844,10 +875,23 @@ class Processor:
             if whitelist_mode:
                 logger.info("Whitelist mode is ENABLED - will keep only Content segments")
             
-            ad_segments = await asyncio.to_thread(
-                self.ad_detector.detect_ads, transcript, detect_options, whitelist_mode=whitelist_mode
-            )
-            
+            import hashlib
+            policy = {key: value for key, value in global_settings.items() if key.startswith(('ad_', 'custom_llm_model', 'custom_llm_base_url')) or key in ('active_ai_provider', 'ai_model_cascade', 'openai_model', 'anthropic_model', 'openrouter_model')}
+            cache_key = hashlib.sha256(json.dumps([fingerprint, transcript, detect_options, whitelist_mode, policy], sort_keys=True).encode()).hexdigest()
+            analysis_cache_path = self._attempt_dir / 'analysis-cache.json'
+            ad_segments = None
+            try:
+                cached = json.loads(analysis_cache_path.read_text(encoding='utf-8'))
+                if cached['key'] == cache_key:
+                    ad_segments = cached['segments']
+            except (OSError, ValueError, KeyError):
+                pass
+            if ad_segments is None:
+                ad_segments = await asyncio.to_thread(
+                    self.ad_detector.detect_ads, transcript, detect_options, whitelist_mode=whitelist_mode
+                )
+                analysis_cache_path.write_text(json.dumps({'key': cache_key, 'segments': ad_segments}), encoding='utf-8')
+
             if not self._check_cancellation(ep): return
 
             logger.info(f"Found {len(ad_segments)} segments: {ad_segments}")
@@ -905,6 +949,7 @@ class Processor:
             # 4. Remove Ads
             output_path = os.path.join(episode_dir, "processed.mp3")
             
+            await asyncio.to_thread(require_scratch, ep.duration, os.path.getsize(input_path))
             logger.info("Removing ads with FFmpeg...")
             await asyncio.to_thread(
                 AudioProcessor.remove_segments, 
@@ -1025,6 +1070,7 @@ class Processor:
             if ep.local_filename:
                 self.ep_repo.pending_metadata['published_guid'] = f'{ep.guid}#revision-{uuid4().hex}'
             file_size = os.path.getsize(output_path)
+            (self._attempt_dir / 'published.json').write_text(json.dumps({'episode_id': ep.id}), encoding='utf-8')
             self.ep_repo.update_status(ep.id, 'completed', filename=output_path, file_size=file_size)
             self._attempt_dir = None  # Published files are never cancellation cleanup.
             self._remove_file_if_exists(input_path, 'source audio')
@@ -1041,6 +1087,12 @@ class Processor:
 
         except StaleAttempt:
             self._acknowledge_cancellation(ep)
+            return
+        except (PermanentProviderError, ProviderBudgetExceeded) as e:
+            if self.ep_repo.owns_attempt(ep.id):
+                self.ep_repo.update_status(ep.id, 'failed', error=str(e))
+            else:
+                self._acknowledge_cancellation(ep)
             return
         except RateLimitError as e:
             if not self.ep_repo.owns_attempt(ep.id):
@@ -1068,7 +1120,7 @@ class Processor:
             if any(pattern in error_str for pattern in rate_limit_patterns):
                 # Treat as rate limit
                 logger.warning(f"Detected possible rate limit in error: {e}")
-                rate_error = RateLimitError(str(e), is_daily_limit=True, provider="unknown")
+                rate_error = RateLimitError(str(e), is_daily_limit=False, provider="unknown")
                 next_retry = rate_error.get_next_retry_time()
                 self.ep_repo.update_rate_limited(ep.id, next_retry, str(e))
                 return
@@ -1079,7 +1131,7 @@ class Processor:
                 # Exponential backoff: 5, 10, 20, 40, 80 minutes
                 delay_minutes = 5 * (2 ** (retry_count - 1))
                 from datetime import timedelta
-                next_retry = datetime.now() + timedelta(minutes=delay_minutes)
+                next_retry = datetime.utcnow() + timedelta(minutes=delay_minutes)
                 
                 logger.info(f"Scheduling retry {retry_count}/5 for {ep.title} in {delay_minutes} minutes")
                 self.ep_repo.update_retry(ep.id, retry_count, next_retry, str(e))
@@ -1136,12 +1188,26 @@ class Processor:
             except Exception:
                 logger.exception('Feed publication pending for episode %s; audio retained', row['id'])
 
+    def _cleanup_abandoned_attempts(self, max_age_hours=48):
+        from app.infra.database import get_db_connection
+        with get_db_connection() as conn:
+            protected = {Path(row[0]).resolve() for row in conn.execute("SELECT work_directory FROM jobs WHERE status IN ('running','queued','retry_scheduled','rate_limited') AND work_directory IS NOT NULL")}
+            protected.update(Path(row[0]).resolve().parent for row in conn.execute("SELECT local_filename FROM episodes WHERE local_filename IS NOT NULL"))
+        root = Path(settings.PODCASTS_DIR).resolve()
+        cutoff = datetime.now().timestamp() - max_age_hours * 3600
+        for directory in root.glob('*/episode-*/attempt-*'):
+            if directory.resolve() != directory or not directory.is_dir() or directory in protected or (directory / 'published.json').exists():
+                continue
+            if directory.stat().st_mtime < cutoff:
+                shutil.rmtree(directory)
+
     async def cleanup_old_logs(self):
         """Clean up old login-attempt rows; log files are handled by rotation."""
         from datetime import datetime, timedelta
         from app.infra.database import get_db_connection
         
         try:
+            await asyncio.to_thread(self._cleanup_abandoned_attempts)
             # Clean up login_attempts table
             thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
             with get_db_connection() as conn:

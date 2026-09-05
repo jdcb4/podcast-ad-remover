@@ -1,6 +1,9 @@
 {% extends "admin/layout.html" %}
 
 {% block admin_content %}
+<p class="text-sm text-text-muted mb-4">Last 24 hours: {{ operation_status.provider_usage.calls }} provider requests,
+{{ operation_status.provider_usage.input_tokens }} reported input tokens and {{ operation_status.provider_usage.output_tokens }} reported output tokens.
+{{ operation_status.pending_publications }} feed update(s) pending. Token totals exclude usage the provider did not return.</p>
 <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
     <div>
         <h3 class="font-display text-xl font-bold">Processing Queue</h3>
