@@ -46,13 +46,18 @@ class Processor:
 
     def _remove_episode_directory(self, episode_dir: str, action: str) -> bool:
         """Remove an episode directory only if it is contained by PODCASTS_DIR."""
-        target = Path(episode_dir).resolve()
+        requested = Path(episode_dir).absolute()
+        target = requested.resolve()
         podcasts_root = Path(settings.PODCASTS_DIR).resolve()
 
         try:
-            target.relative_to(podcasts_root)
+            relative = target.relative_to(podcasts_root)
         except ValueError:
             logger.error(f"Refusing to {action} outside podcast storage: {target}")
+            return False
+
+        if len(relative.parts) != 2 or requested != target:
+            logger.error("Refusing to %s an aliased or non-episode path: %s", action, requested)
             return False
 
         if not target.exists():
@@ -74,7 +79,7 @@ class Processor:
         except ValueError:
             logger.error(f"Refusing to delete subscription outside podcast storage: {target}")
             return False
-        if not relative.parts:
+        if len(relative.parts) != 1 or (podcasts_root / subscription_slug).absolute() != target:
             logger.error(f"Refusing to delete podcast storage root: {target}")
             return False
         if not target.exists():

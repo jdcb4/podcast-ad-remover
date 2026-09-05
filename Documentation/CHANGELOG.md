@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject episode cleanup paths that resolve to storage roots, subscription roots or filesystem aliases.
+
 ## 1.12.0 - 2026-08-11
 
 - Isolated deterministic AI-provider tests from workstation credential fallbacks so release verification cannot change retry behavior or expose configured keys in assertion output.
