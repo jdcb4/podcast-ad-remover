@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.http_downloads import async_stream_get
+
 import asyncio
 import os
 import shutil
@@ -135,20 +137,23 @@ class RssSourceAdapter:
         partial_path.unlink(missing_ok=True)
         last_cancel_check = datetime.now()
         try:
-            async with httpx.AsyncClient() as client:
-                async with client.stream(
-                    "GET", media_url, follow_redirects=True, timeout=300.0
-                ) as response:
+            async with httpx.AsyncClient(trust_env=settings.ALLOW_PRIVATE_FEEDS) as client:
+                async with async_stream_get(client, media_url, timeout=300.0) as response:
                     response.raise_for_status()
                     total = validate_rss_download_response(
                         media_url, str(response.url), response.headers, free_space
                     )
                     downloaded = 0
                     last_percent = -1
+                    last_space_check = 0
                     async with aiofiles.open(partial_path, "wb") as handle:
                         async for chunk in response.aiter_bytes():
                             await handle.write(chunk)
                             downloaded += len(chunk)
+                            if downloaded - last_space_check >= 8 * 1024 * 1024:
+                                if shutil.disk_usage(settings.DATA_DIR).free < settings.MIN_FREE_SPACE_BYTES:
+                                    raise RuntimeError("Download stopped at minimum free disk space")
+                                last_space_check = downloaded
                             if downloaded > settings.MAX_DOWNLOAD_BYTES:
                                 raise RuntimeError("Episode download exceeds configured maximum size")
                             if (datetime.now() - last_cancel_check).total_seconds() > 2.0:

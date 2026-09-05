@@ -10,6 +10,7 @@ class FakeStreamResponse:
         self.headers = headers or {}
         self._chunks = chunks or []
         self.url = url
+        self.is_redirect = False
 
     def __enter__(self):
         return self
@@ -37,7 +38,7 @@ class FakeHttpClient:
     def __exit__(self, exc_type, exc, tb):
         return False
 
-    def stream(self, method, url):
+    def stream(self, method, url, **kwargs):
         return self.response
 
 

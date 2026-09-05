@@ -7,6 +7,8 @@ The future-feature rehearsal does not add a new ad-review product workflow.
 
 ## Completed batches
 
+- F09: shared bounded redirect streams with validated IP pinning/TLS SNI; 39 feed, artwork, URL and source tests passed. F20 streaming free-space checks added; stage budgets follow.
+
 - F07/F10: strict finite segment validation and codec-aware MP3 output; 20 checks passed including six real FFmpeg MP3/AAC/Opus cases.
 
 - F06/F11/F19 and F16 listen attribution: shared ownership policy, real SQLite + HTTP regressions, safe range parsing; 44 focused HTTP/auth/library tests passed.

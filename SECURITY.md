@@ -232,3 +232,8 @@ For security issues:
 - Check application logs
 - Test with curl/browser dev tools
 - Verify environment configuration
+
+Restricted feed mode (`ALLOW_PRIVATE_FEEDS=false`) validates every redirect and pins the
+connection to the validated public IP with TLS hostname verification. It disables
+environment proxies for feed, artwork and RSS media requests. Trusted LAN mode remains
+the default. YouTube extraction is a separate trusted-host integration.
