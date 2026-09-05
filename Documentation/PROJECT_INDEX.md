@@ -7,7 +7,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - Python 3.11, FastAPI, Jinja templates, SQLite.
 - FFmpeg for audio cutting and concatenation.
 - Whisper/faster-whisper for local transcription.
-- Gemini, OpenAI, Anthropic, and OpenRouter for LLM-based segment detection.
+- Gemini, OpenAI, Anthropic, OpenRouter or a custom OpenAI-compatible endpoint for segment detection.
 - Piper or Gemini TTS for optional spoken title intros and audio summaries.
 - Apprise for optional admin notifications.
 - Pinned yt-dlp/yt-dlp-ejs and Deno for public YouTube source extraction.
@@ -19,13 +19,19 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/main.py`: application entry point and processor process startup.
 - `app/core/`: podcast, audio, AI, RSS, search, and processing logic.
 - `app/core/subscription_settings.py`: resolves effective values for the four subscription inheritance groups.
+- `app/core/artifacts.py`, `publication.py`, `reports.py`: artifact identity, atomic RSS writes and escaped reports.
+- `app/core/provider_budget.py`, `worker_health.py`: durable request limits and processing readiness.
+- `app/core/permissions.py`, `http_downloads.py`: shared ownership policy and redirect validation.
+- `app/infra/backup.py`: WAL-safe, integrity-checked snapshots.
+- `app/web/templates/_episode_cards.html`, `static/js/episodes.js`: one card renderer plus incremental interactions.
+- `constraints.txt`: reviewed Python 3.11 dependency versions and platform markers.
 - `app/core/artwork.py`: validates source artwork and caches optional ad-free derived images.
 - `app/infra/`: SQLite initialization and repository access.
 - `app/web/`: web routes, templates, authentication helpers, and static files.
 - `app/api/`: dashboard API, audio endpoints, and the optional AI-facing `/api/v1` REST API.
 - `Documentation/`: architecture, deployment, release, and maintenance docs.
 - `Documentation/unraid/podcast-ad-remover.xml`: Unraid Docker template.
-- `scripts/`: verification, migration dry-run, API-token user-linking, and Docker release helpers.
+- `scripts/`: verification, online backups, migration dry runs, publication recovery, API-token user-linking and Docker release helpers.
 - `Dockerfile` and `docker-compose.yml`: container build and local compose configuration.
 
 ## Common Commands
@@ -56,7 +62,7 @@ Normal work integrates into `dev`. Dev images publish as `:dev` and `:dev-<git-s
 - `Documentation/VERSIONING.md`: version bump and Docker tag rules.
 - `Documentation/VERIFICATION.md`: checks to run before merging or releasing.
 - `Documentation/CHANGELOG.md`: release notes.
-- `Documentation/AUDIT_STATUS.md`: current audit branch findings, implementation status, and deferred work.
+- `Documentation/AUDIT_STATUS.md`: current assessment status and links to historical audit evidence.
 - `Documentation/DECISIONS.md`: lightweight decision log.
 - `Documentation/ROADMAP.md`: improvement candidates and future direction.
 - `Documentation/RESOURCE_AUDIT.md`: image size, runtime resource findings, and live-container measurement commands.

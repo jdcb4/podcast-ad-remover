@@ -92,7 +92,7 @@ the generated feed continue to expose original publication/upload dates.
 
 The dashboard defaults logged-in users to a "My Podcasts" view backed by `user_subscriptions`, with a Library view for all global podcasts. Adding an existing podcast from search or the Library only adds that global podcast to the user's list.
 
-`subscriptions.owner_user_id` records the user who first added a podcast. Admins can reassign or clear a podcast owner and can change settings for any podcast. Assigning a new owner also adds that podcast to the new owner's My Podcasts list. The owner can change settings for their podcast while they own it. Other users can view, subscribe, refresh, and trigger downloads, but cannot change per-podcast settings. Only admins can delete the global podcast and local files; when an owner removes a podcast from their own list, the podcast becomes unowned instead.
+`subscriptions.owner_user_id` records the user who first added a podcast. Admins can reassign or clear a podcast owner and can change settings for any podcast. Assigning a new owner also adds that podcast to the new owner's My Podcasts list. The owner can change settings for their podcast while they own it. Other users can view, subscribe and refresh discovery. Episode processing, cancellation and file removal require the podcast owner or an admin, as do per-podcast settings. Only admins can delete the global podcast and local files; when an owner removes a podcast from their own list, the podcast becomes unowned instead.
 
 Library membership changes use a JSON response when requested by the dashboard. My Podcasts and
 Library navigation progressively enhances ordinary links: the browser fetches the server-rendered
@@ -151,7 +151,7 @@ Processing is coordinated through a durable SQLite `jobs` table. Episodes still 
 Active job columns include:
 
 ```text
-jobs(id, episode_id, type, status, priority, attempts, locked_at, locked_by, next_run_at, error, created_at, updated_at)
+jobs(id, episode_id, type, status, priority, attempts, locked_at, locked_by, cancel_requested, next_run_at, provider_call_count, reserved_bytes, work_directory, error, created_at, updated_at)
 ```
 
 Current job statuses are:
@@ -166,7 +166,23 @@ Current job statuses are:
 
 Startup migration creates a `schema_migrations` table and backs up the current database to `/data/backups/` before applying formal migrations.
 
-Manual downloads and reprocess actions must use repository status helpers that enqueue a `jobs` row, not raw episode status updates. Queue cancellation is non-destructive: it marks the active job cancelled and returns the episode to `unprocessed`; deleting or ignoring an episode remains a separate action.
+Manual downloads and reprocess actions must use repository status helpers that enqueue a `jobs` row, not raw episode status updates. Queue, legacy API and v1 cancellation are non-destructive: they return the episode to
+`unprocessed`, cancel queued work, and set `cancel_requested` on a running claim. The worker
+retains its lock until acknowledgement. Every worker mutation checks its unique claim token,
+current episode state and active subscription in the same SQLite transaction. Stale workers
+cannot publish or overwrite a newer attempt. Atomic claims enforce global capacity and scratch
+reservations, including competing processes.
+
+Each attempt stages its own files. Source fingerprints and cache provenance allow safe retries;
+reprocessing leaves the prior publication readable. After output duration validation, one guarded
+transaction switches artifact pointers and marks publication pending. RSS writers serialize the
+complete query/write under a cross-process lock and fsync/replace the XML atomically. A feed error
+leaves audio intact; the processor retries only publication. See `RECOVERY.md` for manual recovery.
+
+The processor writes a persisted heartbeat and actual scheduler deadlines. The web parent
+supervises its child; `/health` combines database readiness and worker liveness. Use one web worker
+per data directory. `PROCESSOR_ENABLED=false` disables scheduled work and explicitly reports it;
+manual actions share one bounded in-process runner.
 
 Subscription deletion uses a durable two-phase lifecycle because the web app and processor run in separate processes. The first SQLite transaction sets `subscriptions.is_active = 0`, records `deletion_status = pending`, marks every episode ignored, cancels queued/retry jobs, and leaves running jobs locked until their workers acknowledge cancellation. Job repair and claiming only consider active subscriptions that are not being deleted.
 
@@ -242,8 +258,11 @@ Persistent data should be mounted at `/data`.
     podcasts.db
   podcasts/
     <podcast_slug>/
-      <episode_slug>/
-        episode artifacts
+      episode-<database-id>/
+        attempt-<unique-token>/
+          validated audio, report, transcript, cache provenance
+      <legacy-guid-slug>/
+        historical artifacts (read compatibility)
   feeds/
     generated RSS files
   artwork/
@@ -253,7 +272,17 @@ Persistent data should be mounted at `/data`.
   app.log
 ```
 
-Deprecated path helpers still exist for older code paths, but new work should use the podcast/episode directory structure exposed by `settings.get_episode_dir()`.
+`app/core/artifacts.py` owns new ID-based directory identity and compatible legacy lookups.
+Recorded artifact paths are authoritative; legacy fallback is constrained to contained paths.
+Deleting an episode removes its contained ID root after worker acknowledgement. Published
+revisions remain available until episode retention/deletion; abandoned unpublished attempts have
+48-hour retention. Existing data is not bulk-renamed.
+
+Small shared modules isolate permissions (`permissions.py`), safe HTTP redirects (`http_downloads.py`),
+report escaping (`reports.py`), atomic publication (`publication.py`), worker liveness
+(`worker_health.py`), request budgets (`provider_budget.py`) and online backups (`infra/backup.py`).
+Initial and incremental episode cards share `_episode_cards.html`; `static/js/episodes.js` owns
+requests and interactions. No frontend framework, external queue or new database service is needed.
 
 ## Episode Statuses
 

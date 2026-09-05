@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Pin the Python dependency set and Python/Deno image stages, audit Python packages in the standard gate, and ship offline container/backup/publication recovery commands.
+- Bound standalone speech fallback requests and stop speech retries on authentication failures.
+- Replace obsolete active audit/setup/security claims with current behavior; preserve historical audit evidence and remove unused wrappers without deleting legacy data.
+
 - Share episode card rendering between initial pages and pagination; fix keyboard description expansion, mobile list layout and native confirmation dialogs. Cancellation consistently retains published audio; Ignore remains the file-removal action.
 
 - Bound provider calls across automatic retries, disable hidden SDK retries, honor Retry-After, stop retrying authentication/billing failures, record provider usage, reserve scratch capacity, and reuse verified stage outputs after failures.

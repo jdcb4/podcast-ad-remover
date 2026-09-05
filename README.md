@@ -79,22 +79,22 @@ attributed to the [SponsorBlock project](https://github.com/ajayyy/SponsorBlock)
 
 ### Docker Run
 
-Run the published image and mount `/data` somewhere persistent:
+Copy `env.example` to `.env`, configure the selected provider and public URL, and generate
+a `SESSION_SECRET_KEY` once with `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+Save it in `.env` and retain it for upgrades. Run the published image with persistent `/data`:
 
 ```bash
 docker run -d \
   --name podcast-ad-remover \
   -p 8000:8000 \
   -v ./data:/data \
-  -e SESSION_SECRET_KEY="$(openssl rand -hex 32)" \
-  -e BASE_URL="http://localhost:8000" \
-  -e GEMINI_API_KEY="your_api_key" \
+  --env-file .env \
   jdcb4/podcast-ad-remover:latest
 ```
 
 Open `http://localhost:8000`, then go to **Admin > AI Settings > Text Analysis** to confirm your provider and model settings.
 
-Keep `SESSION_SECRET_KEY` stable once set. Changing it can invalidate browser sessions and signed feed tokens.
+Keep `SESSION_SECRET_KEY` stable once set. Changing it invalidates browser sessions. Generated feed tokens are stored separately as hashes.
 
 ### Docker Compose
 
@@ -116,7 +116,7 @@ A dedicated Unraid template is included at `Documentation/unraid/podcast-ad-remo
 
 ## AI Providers
 
-Gemini is the recommended default for most personal installs because the free tier is usually enough for this app's transcript-analysis workload. Gemini direct access uses Google's OpenAI-compatible endpoint through the OpenAI Python SDK.
+Gemini is the application default; choose models and billing limits appropriate to your episode volume. Gemini direct access uses Google's OpenAI-compatible endpoint through the OpenAI Python SDK.
 
 The default Gemini cascade is:
 
@@ -133,15 +133,9 @@ arbitrary model slug for Ollama, LocalAI, vLLM, or another compatible service. T
 and the existing cloud cascades remain the defaults, and saved OpenAI cloud credentials are never
 forwarded to a custom endpoint.
 
-Current Gemini free-tier limits recorded for these defaults:
-
-| Model | Category | RPM | TPM | RPD |
-|-------|----------|-----|-----|-----|
-| Gemini 2.5 Flash | Text-out models | 5 | 250K | 20 |
-| Gemini 3 Flash | Text-out models | 5 | 250K | 20 |
-| Gemini 2.5 Flash Lite | Text-out models | 10 | 250K | 20 |
-| Gemini 3.1 Flash Lite | Text-out models | 15 | 250K | 500 |
-| Gemini 3.5 Flash | Text-out models | 5 | 250K | 20 |
+Quotas depend on model, project and billing tier. Check your active project limits in
+[Google AI Studio via the rate-limit guide](https://ai.google.dev/gemini-api/docs/rate-limits).
+The app does not assume a fixed free-tier allowance.
 
 You can set keys in the Admin UI or with environment variables:
 

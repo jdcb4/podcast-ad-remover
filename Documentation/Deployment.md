@@ -33,11 +33,15 @@ services:
     volumes:
       - ./data:/data
     environment:
-      - GEMINI_API_KEY=your_key_here
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - BASE_URL=http://your-server-ip:8000
-      - SESSION_SECRET_KEY=replace-with-a-long-random-secret
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY:?Set a persistent random secret}
       - LOG_LEVEL=INFO
 ```
+
+Copy `env.example` to `.env`, set the public URL and selected provider, and save a random
+`SESSION_SECRET_KEY` once. For example, generate it with
+`python -c "import secrets; print(secrets.token_urlsafe(48))"`. Reuse it on upgrades.
 
 Start it with:
 
@@ -78,7 +82,7 @@ The Unraid user-template XML lives at `Documentation/unraid/podcast-ad-remover.x
 
 ## Data Volume
 
-Mount `/data` and back it up before upgrades.
+Mount `/data` and follow [RECOVERY.md](RECOVERY.md) for an online database snapshot, matching media backup and isolated restore rehearsal before upgrades.
 
 Important paths:
 

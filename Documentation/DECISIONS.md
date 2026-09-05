@@ -136,3 +136,22 @@ Native dialog behavior provides keyboard modality without an additional UI frame
 HTML. It reproduces the missing-button failure that source-text assertions missed and
 checks stale searches, injection escaping and error messages without downloading browsers.
 Browser smoke testing remains necessary for layout, native focus and media playback.
+
+## 2026-09-06: Reuse one server renderer for episode cards
+
+Browser verification found drift between initial and incrementally loaded cards. Both now render
+`_episode_cards.html`; the existing paginated JSON retains its data fields and also supplies HTML.
+The client owns request ordering, selection and dialogs. This removes duplicated status/summary/
+permission markup and a conflicting legacy list stylesheet without adding a frontend framework.
+Native confirmation dialogs make the page behind them inert and restore focus on dismissal.
+
+## 2026-09-06: Pin reviewed dependencies and keep integration tests lightweight
+
+A universal Python 3.11 constraint set covers runtime, dev and optional Piper installations. Base
+Python/Deno stages are digest-pinned; the tested immutable image remains the deployment/rollback
+unit because OS package repositories can change. `pip-audit` joins the existing verification gate.
+`jsdom` is a dev-only dependency justified by regressions that required real rendered HTML plus the
+shipped JavaScript to reproduce. `filelock`, already transitive in model tooling, is explicit because
+atomic feed publication must serialize writers across processes. No database, broker or UI framework
+is added. Unused wrappers/path properties are removed after call-site and compatibility checks;
+legacy on-disk artifacts continue to resolve through constrained compatibility reads.
