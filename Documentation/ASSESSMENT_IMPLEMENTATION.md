@@ -7,6 +7,8 @@ The future-feature rehearsal does not add a new ad-review product workflow.
 
 ## Completed batches
 
+- F25: remove unused prepend/download/queue wrappers, obsolete path properties and the Python 3.11 timezone fallback. Legacy data reads remain covered. The full 304-test Python 3.11 gate passed with these removals.
+
 - F21 standalone speech follow-up: enforce the configured timeout and a per-operation request ceiling, and preserve HTTP authentication failure classification. 11 provider/budget tests passed.
 
 - F14/F15/F23 browser follow-up: one Jinja card partial serves initial and paginated episodes; native confirmation dialogs, title disclosures, missing field labels and mobile list expansion are fixed. Removed superseded dropdown markup and conflicting list CSS. Desktop/390 px browser checks confirmed complete expanded text, no horizontal overflow, Cancel/Escape and focus return. F05 cancellation now preserves published audio across queue, legacy and v1 routes. 21 focused HTTP/DOM/filter tests passed.

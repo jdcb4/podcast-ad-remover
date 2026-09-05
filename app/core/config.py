@@ -53,16 +53,6 @@ class Settings(BaseSettings):
         return os.path.join(self.DATA_DIR, "podcasts")
         
     @property
-    def DOWNLOADS_DIR(self) -> str:
-        """Deprecated: Use get_episode_dir() instead"""
-        return os.path.join(self.DATA_DIR, "downloads")
-        
-    @property
-    def TRANSCRIPTS_DIR(self) -> str:
-        """Deprecated: Use get_episode_dir() instead"""
-        return os.path.join(self.DATA_DIR, "transcripts")
-        
-    @property
     def FEEDS_DIR(self) -> str:
         return os.path.join(self.DATA_DIR, "feeds")
 
@@ -70,11 +60,6 @@ class Settings(BaseSettings):
     def ARTWORK_DIR(self) -> str:
         return os.path.join(self.DATA_DIR, "artwork")
         
-    @property
-    def AUDIO_DIR(self) -> str:
-        """Deprecated: Use get_episode_dir() instead"""
-        return os.path.join(self.DATA_DIR, "audio")
-
     @property
     def MODELS_DIR(self) -> str:
         return os.path.join(self.DATA_DIR, "models")

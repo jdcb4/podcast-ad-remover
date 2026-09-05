@@ -176,37 +176,6 @@ class AudioProcessor:
             raise Exception(f"FFmpeg failed: {e.stderr}") from e
 
     @staticmethod
-    def prepend_audio(
-        main_audio_path: str,
-        intro_audio_path: str,
-        output_path: str,
-        ffmpeg_threads: int = 0,
-    ):
-        """Prepend intro audio to main audio."""
-        logger.info(f"Prepending {intro_audio_path} to {main_audio_path}...")
-        
-        # We need to ensure formats are compatible. Simplest is to re-encode both to a common format or use filter complex.
-        # [0:a][1:a]concat=n=2:v=0:a=1[out]
-        # input 0 is intro, input 1 is main
-        
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", intro_audio_path,
-            "-i", main_audio_path,
-            "-filter_complex", "[0:a]aformat=sample_rates=44100:channel_layouts=stereo[a0];[1:a]aformat=sample_rates=44100:channel_layouts=stereo[a1];[a0][a1]concat=n=2:v=0:a=1[out]",
-            "-map", "[out]",
-            *AudioProcessor._thread_args(ffmpeg_threads),
-            output_path
-        ]
-        
-        try:
-            AudioProcessor._run_ffmpeg(cmd, "FFmpeg prepend")
-            logger.info(f"Successfully prepended audio to {output_path}")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to prepend audio: {e}")
-            raise
-            
-    @staticmethod
     def concat_files(
         output_path: str,
         input_paths: List[str],

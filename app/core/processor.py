@@ -23,7 +23,7 @@ from app.core.youtube import (
     hydrate_youtube_entry,
     video_id_from_url,
 )
-from app.core.sources import get_source_adapter, validate_rss_download_response
+from app.core.sources import get_source_adapter
 from app.core.notifications import (
     EVENT_BREAKING_ERROR,
     EVENT_EPISODE_DOWNLOAD,
@@ -152,10 +152,6 @@ class Processor:
                 logger.warning(f"Refusing to remove temporary file outside podcast storage: {path}")
         return removed
 
-    def _validate_download_response(self, original_url: str, final_url: str, headers, free_space: int) -> int:
-        """Validate response metadata before writing episode audio to disk."""
-        return validate_rss_download_response(original_url, final_url, headers, free_space)
-
     async def check_feeds(self, subscription_id: int = None, limit: int = 5):
         """Check subscriptions for new episodes."""
         
@@ -271,11 +267,6 @@ class Processor:
                 logger.info("New YouTube episode queued: %s", episode_data["title"])
 
         self.sub_repo.record_check_success(sub.id, truncated=discovery.truncated)
-
-    async def process_episode(self, episode_id: int):
-        """Force process a specific episode."""
-        self.ep_repo.update_status(episode_id, "pending") # Reset to pending
-        await self.process_queue() # Trigger queue processing
 
     async def delete_episode(self, episode_id: int):
         """Ignore an episode, wait for its worker, then remove artifacts safely."""
@@ -636,17 +627,6 @@ class Processor:
         while True:
             await asyncio.to_thread(self.job_repo.heartbeat, claim['job_id'], claim['claim_token'])
             await asyncio.sleep(20)
-
-    async def _download_rss_audio(self, ep: Episode, input_path: str) -> None:
-        episode_dir = str(Path(input_path).parent)
-        await get_source_adapter("rss").download(
-            ep.original_url,
-            episode_dir,
-            progress_callback=lambda percent: self.ep_repo.update_progress(
-                ep.id, "downloading", percent
-            ),
-            cancellation_callback=lambda: not self._check_cancellation(ep),
-        )
 
     async def _fetch_sponsorblock_segments(self, sub, ep: Episode) -> list[dict]:
         if not settings.SPONSORBLOCK_ENABLED:

@@ -623,17 +623,7 @@ class EpisodeRepository:
             except sqlite3.IntegrityError:
                 return False
 
-    def get_pending(self) -> List[dict]:
-        with get_db_connection() as conn:
-            # Get pending episodes OR failed/rate_limited episodes that are due for retry
-            rows = conn.execute("""
-                SELECT * FROM episodes 
-                WHERE status = 'pending' 
-                OR (status = 'failed' AND next_retry_at IS NOT NULL AND next_retry_at <= CURRENT_TIMESTAMP)
-                OR (status = 'rate_limited' AND next_retry_at IS NOT NULL AND next_retry_at <= CURRENT_TIMESTAMP)
-            """).fetchall()
-            return [dict(row) for row in rows]
-            
+
     def get_queue(self) -> List[dict]:
         with get_db_connection() as conn:
             # Get full processing queue with details (including rate_limited)
@@ -1034,11 +1024,6 @@ class EpisodeRepository:
                 return Episode.model_validate(dict(row))
             return None
 
-    def count_processing(self) -> int:
-        """Count episodes currently in 'processing' status. Used for concurrent limit enforcement."""
-        with get_db_connection() as conn:
-            row = conn.execute("SELECT COUNT(*) as count FROM episodes WHERE status = 'processing'").fetchone()
-            return row['count'] if row else 0
 
     def request_deletion(self, id: int) -> bool:
         """Mark an episode ignored and cancel queued work while retaining running-job ownership."""
@@ -1157,6 +1142,8 @@ def _schedule_retry_job(
 
 
 class JobRepository:
+    """SQLite-backed jobs with transaction-based claiming and fenced ownership."""
+
     def heartbeat(self, job_id: int, token: str):
         with get_db_connection() as conn:
             conn.execute("UPDATE jobs SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND locked_by=? AND status='running'", (job_id, token))
@@ -1175,8 +1162,6 @@ class JobRepository:
             conn.execute("UPDATE jobs SET status=?, locked_by=NULL, locked_at=NULL, cancel_requested=0, updated_at=CURRENT_TIMESTAMP WHERE id=? AND locked_by=?", ('queued' if requeue else 'cancelled', job_id, token))
             conn.commit()
 
-
-    """SQLite-backed processing jobs with transaction-based claiming."""
 
     DEFAULT_STALE_AFTER_MINUTES = 180
 
