@@ -65,3 +65,6 @@ Normal work integrates into `dev`. Dev images publish as `:dev` and `:dev-<git-s
 - `Documentation/LOCAL_LLM_EVALUATION_RESULTS.json`: sanitized machine-readable research results.
 - `Documentation/NAMING.md`: naming conventions for code, statuses, docs, and Docker artifacts.
 - `AGENTS.md`: maintenance rules for coding agents.
+
+- `Documentation/RECOVERY.md`: online backups, migration rehearsal and restoration.
+- `Documentation/ASSESSMENT_IMPLEMENTATION.md`: approved assessment implementation progress.

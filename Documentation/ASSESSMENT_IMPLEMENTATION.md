@@ -7,6 +7,8 @@ The future-feature rehearsal does not add a new ad-review product workflow.
 
 ## Completed batches
 
+- F04: online backup helper, pre-DDL snapshots, safe dry runs and recovery runbook; 23 backup/migration/queue tests passed.
+
 - F02: escaped report renderer and script-free sandbox for all legacy report responses; 7 report/SponsorBlock tests passed.
 
 - Filesystem deletion guards: reject podcast roots, nested subscription paths and symlink aliases. Focused maintenance tests cover root and sibling preservation.

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Create integrity-checked SQLite snapshots before migrations and for dry runs, including committed WAL data; add a backup CLI and recovery runbook.
+- Escape generated report text and sandbox legacy reports.
+
 - Reject episode cleanup paths that resolve to storage roots, subscription roots or filesystem aliases.
 
 ## 1.12.0 - 2026-08-11
