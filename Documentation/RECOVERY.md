@@ -33,8 +33,14 @@ published duration/GUID, publication retry flag and worker-status table). Restor
 pre-migration snapshot with the previous image to roll back. New media directories are
 not renamed over legacy data. Failed attempts cannot replace an existing publication.
 A completed episode with `publication_pending=1` retains playable audio; the processor
-retries RSS publication on its next cycle. With processing disabled, trigger a manual
-processing action or run `Processor().publish_pending_feeds()` from an operator script.
+retries RSS publication on its next cycle. With processing disabled, run this inside the application image with the existing `DATA_DIR`:
+
+```sh
+python scripts/publish_pending_feeds.py
+```
+
+It retries only feed publication, prints the remaining count and exits nonzero if work remains.
+It does not run transcription/ad detection or remove the prior audio.
 
 Migration `20260905_0014_processing_budgets` adds request counts, scratch reservations,
 working-directory references and provider usage records. It uses the same pre-migration

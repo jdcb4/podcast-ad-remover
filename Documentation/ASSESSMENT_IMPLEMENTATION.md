@@ -7,6 +7,8 @@ The future-feature rehearsal does not add a new ad-review product workflow.
 
 ## Completed batches
 
+- F18: Python 3.11 constraints, pinned bootstrap tools/base images, frontend lock health, Python auditing and packaged operator/smoke scripts. `npm run verify:docker` passed (304 tests); the final image's full Python inventory audit and pip consistency check passed. Native imports and the offline container smoke passed. The actual dev database migrated successfully through both new migrations in a disposable online-backup copy.
+
 - F25: remove unused prepend/download/queue wrappers, obsolete path properties and the Python 3.11 timezone fallback. Legacy data reads remain covered. The full 304-test Python 3.11 gate passed with these removals.
 
 - F21 standalone speech follow-up: enforce the configured timeout and a per-operation request ceiling, and preserve HTTP authentication failure classification. 11 provider/budget tests passed.

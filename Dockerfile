@@ -1,6 +1,6 @@
-FROM denoland/deno:2.9.5 AS deno
+FROM denoland/deno:2.9.5@sha256:b429777c3dcff34a6488f365a1537db1640b2d48379b60f5e6206be034472463 AS deno
 
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
 
 ARG INSTALL_TTS=1
 
@@ -22,8 +22,9 @@ COPY --from=deno /usr/bin/deno /usr/local/bin/deno
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements.txt requirements-tts.txt ./
-RUN pip install --no-cache-dir -r requirements.txt \
+COPY requirements.txt requirements-tts.txt requirements-build.txt constraints.txt ./
+RUN python -m pip install --no-cache-dir --upgrade -r requirements-build.txt \
+    && pip install --no-cache-dir -r requirements.txt \
     && if [ "$INSTALL_TTS" = "1" ]; then pip install --no-cache-dir -r requirements-tts.txt; fi
 
 # Copy application code
