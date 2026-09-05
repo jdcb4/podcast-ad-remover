@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Honor explicit RSS API initial-download counts, including zero, and reject negative counts before creating a subscription.
+
 - Pin the Python dependency set and Python/Deno image stages, audit Python packages in the standard gate, and ship offline container/backup/publication recovery commands.
 - Bound standalone speech fallback requests and stop speech retries on authentication failures.
 - Replace obsolete active audit/setup/security claims with current behavior; preserve historical audit evidence and remove unused wrappers without deleting legacy data.

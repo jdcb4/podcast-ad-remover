@@ -34,6 +34,8 @@ async def list_subscriptions(user = Depends(require_auth)):
 @router.post("/subscriptions", response_model=Subscription)
 async def create_subscription(sub: SubscriptionCreate, initial_count: int = 5, user = Depends(require_auth)):
     try:
+        if initial_count < 0:
+            raise ValueError("Initial episode count must be non-negative")
         source = await asyncio.to_thread(resolve_source, sub.feed_url)
         if source.source_type.startswith("youtube_") and initial_count not in {0, 1, 3, 5}:
             raise ValueError("YouTube initial import must be 0, 1, 3, or 5 videos")
@@ -52,6 +54,9 @@ async def create_subscription(sub: SubscriptionCreate, initial_count: int = 5, u
         }
         if source.source_type != "rss":
             create_args.update(source_type=source.source_type, source_external_id=source.external_id)
+        else:
+            # Match the web form's explicit initial-count selection, including zero.
+            create_args.update(retention_limit=initial_count, inherit_retention=False)
         new_sub = repo.create(
             SubscriptionCreate(feed_url=source.canonical_url),
             source.title,

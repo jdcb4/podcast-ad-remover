@@ -16,7 +16,7 @@ class FakeSubscriptionRepository:
     def get_by_url(self, url):
         return None
 
-    def create(self, sub, title, slug, image_url=None, description=None, retention_limit=1, owner_user_id=None):
+    def create(self, sub, title, slug, image_url=None, description=None, retention_limit=1, owner_user_id=None, inherit_retention=True):
         self.created = {
             "sub": sub,
             "title": title,
@@ -25,6 +25,7 @@ class FakeSubscriptionRepository:
             "description": description,
             "retention_limit": retention_limit,
             "owner_user_id": owner_user_id,
+            "inherit_retention": inherit_retention,
         }
         return Subscription(
             id=1,

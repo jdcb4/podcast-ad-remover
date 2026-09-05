@@ -50,6 +50,43 @@ def test_membership_json_and_form_use_real_repository(populated_client):
     assert result.status_code == 303
 
 
+@pytest.mark.parametrize('initial_count', [0, 2, 5])
+def test_rss_api_initial_count_controls_actual_queue(populated_client, monkeypatch, initial_count):
+    from app.core import processor
+    source = SimpleNamespace(source_type='rss', external_id=None,
+                             canonical_url='https://example.com/new-feed', title='New feed',
+                             slug='new-feed', description='', image_url=None)
+    monkeypatch.setattr(subscriptions, 'resolve_source', lambda url: source)
+
+    async def discover(source_type, url):
+        return SimpleNamespace(entries=[{
+            'guid': f'new-{i}', 'title': f'Episode {i}',
+            'original_url': f'https://example.com/{i}.mp3',
+            'pub_date': '2026-09-06T00:00:00', 'duration': 120,
+            'description': '', 'file_size': 1000,
+        } for i in range(5)])
+
+    monkeypatch.setattr(processor, 'get_source_adapter',
+                        lambda source_type: SimpleNamespace(discover=discover))
+    response = populated_client.post(f'/api/subscriptions?initial_count={initial_count}',
+                                     json={'feed_url': source.canonical_url})
+    assert response.status_code == 200
+    subscription_id = response.json()['id']
+    with get_db_connection() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM episodes WHERE subscription_id=? AND status='pending'",
+                            (subscription_id,)).fetchone()[0] == initial_count
+        assert conn.execute('SELECT COUNT(*) FROM episodes WHERE subscription_id=?',
+                            (subscription_id,)).fetchone()[0] == 5
+
+
+def test_rss_api_rejects_negative_initial_count_without_creating_subscription(populated_client):
+    response = populated_client.post('/api/subscriptions?initial_count=-1',
+                                     json={'feed_url': 'https://example.com/new-feed'})
+    assert response.status_code == 400
+    with get_db_connection() as conn:
+        assert conn.execute('SELECT COUNT(*) FROM subscriptions').fetchone()[0] == 1
+
+
 def test_owner_cancellation_preserves_audio_and_running_lease(populated_client, tmp_path):
     from app.infra.repository import EpisodeRepository, JobRepository
     audio = tmp_path / 'published.mp3'
