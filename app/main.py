@@ -146,20 +146,26 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("Background processor is disabled by PROCESSOR_ENABLED=false")
     
-    yield
-    
-    # Shutdown
-    if hasattr(app.state, 'processor_supervisor'):
-        app.state.processor_supervisor.cancel()
-        try:
-            await app.state.processor_supervisor
-        except asyncio.CancelledError:
-            pass
-    logger.info("Shutting down...")
-    if hasattr(app.state, "processor_process"):
-        logger.info("Stopping background processor...")
-        app.state.processor_process.terminate()
-        app.state.processor_process.join(timeout=5)
+    try:
+        yield
+    finally:
+        # Clear lifespan-owned state so a later startup cannot inherit a dead child.
+        supervisor = getattr(app.state, 'processor_supervisor', None)
+        if supervisor is not None:
+            supervisor.cancel()
+            try:
+                await supervisor
+            except asyncio.CancelledError:
+                pass
+            finally:
+                del app.state.processor_supervisor
+        logger.info("Shutting down...")
+        child = getattr(app.state, 'processor_process', None)
+        if child is not None:
+            logger.info("Stopping background processor...")
+            child.terminate()
+            child.join(timeout=5)
+            del app.state.processor_process
 
 from app.api import subscriptions
 from app.api import audio_routes
@@ -222,7 +228,10 @@ async def health():
             conn.execute('SELECT 1').fetchone()
         worker = worker_status()
         child = getattr(app.state, 'processor_process', None)
-        healthy = worker['state'] in ('disabled', 'healthy') and (child is None or child.is_alive())
+        healthy = worker['state'] == 'disabled' or (
+            worker['state'] == 'healthy' and (child is None or child.is_alive())
+        )
         return JSONResponse({'status': 'healthy' if healthy else 'degraded'}, status_code=200 if healthy else 503)
     except Exception:
+        logger.exception('Health check failed')
         return JSONResponse({'status': 'unavailable'}, status_code=503)

@@ -28,6 +28,8 @@ def test_health_distinguishes_disabled_starting_healthy_stale(isolated_data_dir,
     from app.main import app
     assert TestClient(app, raise_server_exceptions=False).get('/health').status_code == 503
     monkeypatch.setattr(settings, 'PROCESSOR_ENABLED', False)
+    # A stopped child from an earlier lifespan must not degrade a disabled worker.
+    monkeypatch.setattr(app.state, 'processor_process', SimpleNamespace(is_alive=lambda: False), raising=False)
     with get_db_connection() as conn:
         conn.execute('UPDATE app_settings SET auth_enabled=1')
         conn.commit()

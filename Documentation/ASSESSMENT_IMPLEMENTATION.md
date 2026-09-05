@@ -7,6 +7,8 @@ The future-feature rehearsal does not add a new ad-review product workflow.
 
 ## Completed batches
 
+- F17 lifecycle follow-up: shutdown clears owned child/supervisor state and disabled processing remains healthy after a prior worker stops. 23 health, deletion and custom-provider tests passed together.
+
 - F20/F21: transactional scratch admission, stage free-space checks, durable shared request budget (analysis/summary/remote speech), explicit SDK timeouts, provider-aware retry timing, usage records and verified stage reuse. 17 focused tests passed, including an actual failed-cut retry with one download/transcription/analysis total.
 
 - F17/F24, F20 status scans and F23 shared settings: worker heartbeat, real scheduling, bounded child restarts, readiness endpoint, cgroup memory, off-thread cached storage, selected-provider readiness and initial Whisper setting. 22 operational/security tests passed.
