@@ -9,13 +9,13 @@ services:
       - ./data:/data
       - .:/app
     environment:
-      - SESSION_SECRET_KEY=replace-with-a-long-random-secret
-      - BASE_URL=http://localhost:8000
-      - GEMINI_API_KEY=
-      - OPENAI_API_KEY=
-      - ANTHROPIC_API_KEY=
-      - OPENROUTER_API_KEY=
-      - LOG_LEVEL=INFO
-      - SPONSORBLOCK_ENABLED=false
-      - COOKIE_SECURE=false
-      - TRUST_PROXY_HEADERS=false
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY:?Set a persistent random SESSION_SECRET_KEY in .env}
+      - BASE_URL=${BASE_URL:-http://localhost:8000}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SPONSORBLOCK_ENABLED=${SPONSORBLOCK_ENABLED:-false}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - TRUST_PROXY_HEADERS=${TRUST_PROXY_HEADERS:-false}

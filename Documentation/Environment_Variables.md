@@ -108,3 +108,7 @@ inheritance toggle is enabled. `default_watermark_artwork` is off by default.
 | `notify_new_podcasts` | Send notification when a new global podcast is added. | `1` |
 | `notify_episode_downloads` | Send notification when an episode finishes processing and is available in feeds. | `1` |
 | `notify_breaking_errors` | Send notification for max-retry processing failures and top-level worker errors. | `1` |
+
+Compose interpolates session/provider values from `.env` or the shell. A persistent random
+`SESSION_SECRET_KEY` is required by Compose; known example placeholders cannot enable authentication.
+Generate it once with `python -c "import secrets; print(secrets.token_urlsafe(48))"`.

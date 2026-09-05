@@ -102,6 +102,9 @@ For local development from source:
 
 ```bash
 cp env.example .env
+# Set SESSION_SECRET_KEY in .env to a random value generated once:
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+# Save that value privately; changing it invalidates existing sessions.
 docker compose up -d --build
 ```
 

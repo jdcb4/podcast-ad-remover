@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject known session-secret placeholders and honor Compose environment values.
+
 - Create integrity-checked SQLite snapshots before migrations and for dry runs, including committed WAL data; add a backup CLI and recovery runbook.
 - Escape generated report text and sandbox legacy reports.
 

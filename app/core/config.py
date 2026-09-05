@@ -85,7 +85,10 @@ settings = Settings()
 
 
 def is_default_session_secret() -> bool:
-    return settings.SESSION_SECRET_KEY == DEFAULT_SESSION_SECRET_KEY
+    return settings.SESSION_SECRET_KEY.strip() in {
+        "", DEFAULT_SESSION_SECRET_KEY, "replace-with-a-long-random-secret",
+        "change-me", "changeme",
+    }
 
 # Ensure directories exist
 for path in [
