@@ -16,3 +16,6 @@ yt-dlp-ejs==0.8.0
 
 bcrypt
 itsdangerous
+
+# Cross-process feed publication lock (also used transitively by model tooling).
+filelock>=3.20,<4

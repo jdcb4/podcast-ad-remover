@@ -27,3 +27,11 @@ the migration dry run before switching traffic. Re-enable processing when satisf
 For a rollback after an upgrade, use the previous image and the pre-upgrade snapshot
 with its corresponding media backup. Downgrading only the executable is not a
 database rollback. No recovery command automatically stops services or replaces data.
+
+Migration `20260905_0013_processing_recovery` is additive (claim cancellation flag,
+published duration/GUID, publication retry flag and worker-status table). Restore the
+pre-migration snapshot with the previous image to roll back. New media directories are
+not renamed over legacy data. Failed attempts cannot replace an existing publication.
+A completed episode with `publication_pending=1` retains playable audio; the processor
+retries RSS publication on its next cycle. With processing disabled, trigger a manual
+processing action or run `Processor().publish_pending_feeds()` from an operator script.

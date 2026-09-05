@@ -78,8 +78,16 @@ class Settings(BaseSettings):
         return os.path.join(self.DATA_DIR, "models")
     
     def get_episode_dir(self, podcast_slug: str, episode_slug: str) -> str:
-        """Get the directory path for a specific episode"""
-        return os.path.join(self.PODCASTS_DIR, podcast_slug, episode_slug)
+        """Require two literal components; never allow aliases or root traversal."""
+        from pathlib import Path
+        for part in (podcast_slug, episode_slug):
+            if not part or part in {'.', '..'} or any(c in part for c in '/\\\x00:') or part.endswith((' ', '.')):
+                raise ValueError('Invalid episode storage component')
+        root = Path(self.PODCASTS_DIR).resolve()
+        target = root / podcast_slug / episode_slug
+        if target.resolve() != target or not target.is_relative_to(root):
+            raise ValueError('Episode storage must not traverse filesystem aliases')
+        return str(target)
 
 settings = Settings()
 

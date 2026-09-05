@@ -104,3 +104,23 @@ provider-specific while downstream transcription, detection, cutting, retention,
 stay shared. SponsorBlock timestamps complement rather than pre-cut the LLM workflow, fail open, and
 are protected by an environment-only flag that defaults off because the API/database licence is
 CC BY-NC-SA 4.0.
+
+## 2026-09-05: retain publications and fence attempts
+
+Episode identity remains the SQLite ID and source GUID. New artifacts live in
+`podcasts/<subscription>/episode-<id>/attempt-<random>/`; each attempt owns only that
+staging directory. A validated result commits its audio/report pointers and output
+duration together. Reprocessing changes the feed GUID only after successful replacement.
+Existing files and old playback URLs remain available until explicit deletion or retention.
+Legacy GUID-derived paths are read-compatible; ambiguous legacy deletion paths are preserved.
+
+SQLite claims include a unique token. Worker writes check that token, cancellation,
+episode status and subscription eligibility within the same write transaction. Cancel
+requests retain running leases until acknowledgement; the capacity check and claim are
+one transaction. Enabled installations process only in the dedicated child; disabled
+installations share one manual processor. This avoids duplicate model owners in the web process.
+
+Feed generation is serialized across processes and uses temporary-file replacement.
+`publication_pending` survives feed errors without deleting audio or repeating AI work.
+The existing model-tooling dependency `filelock` is now explicit for portable publication
+locking; no queue service, ORM or external coordination service was added.

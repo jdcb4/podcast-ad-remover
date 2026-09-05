@@ -1,3 +1,4 @@
+from app.core.artifacts import artifact_path
 from app.core.permissions import can_manage_subscription as _can_manage_subscription
 from app.web.permissions import require_episode_management
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status
@@ -2362,6 +2363,20 @@ async def bulk_delete_subscriptions(
     )
 
 
+@router.get("/episodes/{episode_id}/audio")
+async def play_episode(episode_id: int):
+    from pathlib import Path
+    from app.core.config import settings as app_settings
+    episode = ep_repo.get_by_id(episode_id)
+    if not episode or episode.status == 'ignored' or not episode.local_filename:
+        raise HTTPException(404, 'Published audio not found')
+    path = Path(episode.local_filename).resolve()
+    root = Path(app_settings.PODCASTS_DIR).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        raise HTTPException(404, 'Published audio not found')
+    return RedirectResponse('/audio/' + quote(path.relative_to(root).as_posix(), safe='/'), status_code=307)
+
+
 @router.get("/subscriptions/{id}", response_class=HTMLResponse)
 async def view_subscription(request: Request, id: int):
     sub = sub_repo.get_by_id(id)
@@ -2592,18 +2607,7 @@ async def view_transcript(id: int, request: Request):
         if not row:
             raise HTTPException(status_code=404, detail="Episode not found")
             
-        transcript_path = row['transcript_path']
-        
-        # Check standard paths if not recorded in DB or file missing
-        if not transcript_path or not os.path.exists(transcript_path):
-             episode_slug = f"{row['guid']}".replace("/", "_").replace(" ", "_")
-             potential_path = os.path.join(
-                settings.get_episode_dir(row['subscription_slug'], episode_slug),
-                "transcript.json"
-            )
-             if os.path.exists(potential_path):
-                 transcript_path = potential_path
-        
+        transcript_path = artifact_path(dict(row), 'transcript_path', 'transcript.json')
         if not transcript_path or not os.path.exists(transcript_path):
              raise HTTPException(status_code=404, detail="Transcript file not found")
              
@@ -2649,19 +2653,10 @@ async def get_transcript_json(id: int):
         ).fetchone()
         
         if row:
-            # Try new hierarchical structure first
-            episode_slug = f"{row['guid']}".replace("/", "_").replace(" ", "_")
-            new_path = os.path.join(
-                settings.get_episode_dir(row['slug'], episode_slug),
-                "transcript.json"
-            )
-            if os.path.exists(new_path):
-                return FileResponse(new_path)
-            
-            # Fallback to old path for backward compatibility
-            if row['transcript_path'] and os.path.exists(row['transcript_path']):
-                return FileResponse(row['transcript_path'])
-                
+            path = artifact_path(dict(row), 'transcript_path', 'transcript.json')
+            if path:
+                return FileResponse(path, media_type='application/json')
+
     raise HTTPException(status_code=404, detail="Transcript not found")
 
 @router.get("/artifacts/report/{id}")
@@ -2679,24 +2674,11 @@ async def get_report(id: int):
         ).fetchone()
         
         if row:
-            episode_slug = f"{row['guid']}".replace("/", "_").replace(" ", "_")
-            episode_dir = settings.get_episode_dir(row['slug'], episode_slug)
-            
-            # Try new hierarchical structure first (prefer HTML)
-            html_path = os.path.join(episode_dir, "report.html")
-            if os.path.exists(html_path):
-                return FileResponse(html_path)
-            
-            json_path = os.path.join(episode_dir, "report.json")
-            if os.path.exists(json_path):
-                return FileResponse(json_path)
-            
-            # Fallback to old paths for backward compatibility
-            if row['report_path'] and os.path.exists(row['report_path']):
-                return FileResponse(row['report_path'])
-            if row['ad_report_path'] and os.path.exists(row['ad_report_path']):
-                return FileResponse(row['ad_report_path'])
-            
+            for column, name in [('report_path', 'report.html'), ('ad_report_path', 'report.json')]:
+                path = artifact_path(dict(row), column, name)
+                if path:
+                    return FileResponse(path)
+
     raise HTTPException(status_code=404, detail="Report not found")
 
 @router.get("/feeds/{slug}.xml")

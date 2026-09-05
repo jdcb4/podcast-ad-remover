@@ -1,3 +1,4 @@
+from app.core.artifacts import artifact_path as _artifact_path
 import json
 import os
 import asyncio
@@ -75,16 +76,6 @@ def _get_episode_row(episode_id: int) -> dict[str, Any]:
         if not row:
             raise HTTPException(status_code=404, detail="Episode not found")
         return dict(row)
-
-
-def _artifact_path(row: dict[str, Any], preferred_column: str, fallback_name: str) -> str | None:
-    recorded = row.get(preferred_column)
-    if recorded and os.path.exists(recorded):
-        return recorded
-
-    episode_slug = f"{row['guid']}".replace("/", "_").replace(" ", "_")
-    candidate = os.path.join(settings.get_episode_dir(row["subscription_slug"], episode_slug), fallback_name)
-    return candidate if os.path.exists(candidate) else None
 
 
 def _subscription_or_404(subscription_id: int) -> Subscription:

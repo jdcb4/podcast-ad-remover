@@ -1,4 +1,6 @@
 import sqlite3
+from contextlib import contextmanager
+from uuid import uuid4
 import socket
 import hashlib
 import secrets
@@ -564,7 +566,39 @@ class SourceItemRepository:
             conn.commit()
 
 
+class StaleAttempt(RuntimeError):
+    """A cancelled/replaced worker must not write episode state."""
+
+
 class EpisodeRepository:
+    def __init__(self, attempt: tuple[int, str] | None = None):
+        self.attempt = attempt
+        self.pending_metadata = {}
+
+    def owns_attempt(self, episode_id: int) -> bool:
+        if self.attempt is None:
+            return self.get_status(episode_id) == 'processing'
+        with get_db_connection() as conn:
+            return self._owns_attempt(conn, episode_id)
+
+    def _owns_attempt(self, conn, episode_id):
+        job_id, token = self.attempt
+        return conn.execute("""
+            SELECT 1 FROM jobs j JOIN episodes e ON e.id=j.episode_id
+            JOIN subscriptions s ON s.id=e.subscription_id
+            WHERE j.id=? AND j.episode_id=? AND j.locked_by=?
+            AND j.status='running' AND j.cancel_requested=0
+            AND e.status='processing' AND s.is_active=1 AND s.deletion_status IS NULL
+        """, (job_id, episode_id, token)).fetchone() is not None
+
+    @contextmanager
+    def _write_connection(self, episode_id):
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            if self.attempt and not self._owns_attempt(conn, episode_id):
+                raise StaleAttempt('Processing attempt was cancelled or replaced')
+            yield conn
+
     def create_or_ignore(self, episode: dict) -> bool:
         """Returns True if created, False if already exists."""
         with get_db_connection() as conn:
@@ -670,7 +704,7 @@ class EpisodeRepository:
                 SELECT *
                 FROM episodes
                 WHERE subscription_id = ?
-                  AND status = 'completed'
+                  AND local_filename IS NOT NULL AND status != 'ignored'
                 ORDER BY pub_date DESC
                 """,
                 (subscription_id,),
@@ -687,7 +721,7 @@ class EpisodeRepository:
                        s.image_url AS podcast_image
                 FROM episodes e
                 JOIN subscriptions s ON e.subscription_id = s.id
-                WHERE e.status = 'completed'
+                WHERE e.local_filename IS NOT NULL AND e.status != 'ignored' AND s.deletion_status IS NULL
                 ORDER BY e.pub_date DESC
                 """
             ).fetchall()
@@ -741,7 +775,7 @@ class EpisodeRepository:
                     retry_count = 0,
                     next_retry_at = NULL,
                     processing_flags = ?,
-                    ai_summary = NULL
+                    ai_summary = ai_summary
                 WHERE id = ?
                   AND EXISTS (
                       SELECT 1 FROM subscriptions s
@@ -786,7 +820,7 @@ class EpisodeRepository:
             conn.commit()
 
     def update_retry(self, id: int, retry_count: int, next_retry_at: datetime, error: str):
-        with get_db_connection() as conn:
+        with self._write_connection(id) as conn:
             cursor = conn.execute("""
                 UPDATE episodes 
                 SET status = 'failed', 
@@ -810,7 +844,7 @@ class EpisodeRepository:
 
     def update_rate_limited(self, id: int, next_retry_at: datetime, error: str):
         """Set episode to rate_limited status with scheduled retry at API quota reset."""
-        with get_db_connection() as conn:
+        with self._write_connection(id) as conn:
             cursor = conn.execute("""
                 UPDATE episodes 
                 SET status = 'rate_limited', 
@@ -833,7 +867,7 @@ class EpisodeRepository:
             conn.commit()
 
     def update_status(self, id: int, status: str, error: str = None, filename: str = None, file_size: int = None):
-        with get_db_connection() as conn:
+        with self._write_connection(id) as conn:
             eligibility = ""
             if status in {"pending", "completed", "failed"}:
                 eligibility = """
@@ -849,12 +883,17 @@ class EpisodeRepository:
             cursor = conn.execute(
                 f"""
                 UPDATE episodes
-                SET status = ?, error_message = ?, local_filename = ?, file_size = ?,
-                    processed_at = ?, next_retry_at = NULL
+                SET status = ?, error_message = ?, local_filename = COALESCE(?, local_filename), file_size = COALESCE(?, file_size),
+                    processed_at = COALESCE(?, processed_at), next_retry_at = NULL
                 WHERE id = ? {eligibility}
                 """,
                 (status, error, filename, file_size, datetime.now() if status == 'completed' else None, id),
             )
+            if status == 'completed' and cursor.rowcount:
+                if self.pending_metadata:
+                    columns = ', '.join(f'{key}=?' for key in self.pending_metadata)
+                    conn.execute(f'UPDATE episodes SET {columns} WHERE id=?', (*self.pending_metadata.values(), id))
+                conn.execute("UPDATE episodes SET publication_pending=1, processing_step='completed', progress=100 WHERE id=?", (id,))
             if status == "pending":
                 if cursor.rowcount:
                     _enqueue_job(conn, id)
@@ -871,7 +910,12 @@ class EpisodeRepository:
             conn.commit()
 
     def update_progress(self, id: int, step: str, progress: int, transcript_path: str = None, ad_report_path: str = None, report_path: str = None):
-        with get_db_connection() as conn:
+        if self.attempt:
+            for key, value in [('transcript_path', transcript_path), ('ad_report_path', ad_report_path), ('report_path', report_path)]:
+                if value:
+                    self.pending_metadata[key] = value
+            transcript_path = ad_report_path = report_path = None
+        with self._write_connection(id) as conn:
             updates = ["processing_step = ?", "progress = ?"]
             params = [step, progress]
             
@@ -901,12 +945,15 @@ class EpisodeRepository:
             conn.commit()
 
     def update_description(self, id: int, description: str):
-        with get_db_connection() as conn:
+        if self.attempt:
+            self.pending_metadata["description"] = description
+            return
+        with self._write_connection(id) as conn:
             conn.execute("UPDATE episodes SET description = ? WHERE id = ?", (description, id))
             conn.commit()
 
     def update_source_media_path(self, id: int, source_media_path: str) -> None:
-        with get_db_connection() as conn:
+        with self._write_connection(id) as conn:
             conn.execute(
                 "UPDATE episodes SET source_media_path = ? WHERE id = ?",
                 (source_media_path, id),
@@ -914,7 +961,10 @@ class EpisodeRepository:
             conn.commit()
 
     def update_ai_summary(self, id: int, summary: str):
-        with get_db_connection() as conn:
+        if self.attempt:
+            self.pending_metadata["ai_summary"] = summary
+            return
+        with self._write_connection(id) as conn:
             conn.execute("UPDATE episodes SET ai_summary = ? WHERE id = ?", (summary, id))
             conn.commit()
 
@@ -1021,7 +1071,7 @@ class EpisodeRepository:
             """, (id,))
             conn.execute("""
                 UPDATE jobs
-                SET error = 'Cancellation requested because episode is being deleted',
+                SET error = 'Cancellation requested because episode is being deleted', cancel_requested=1,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE episode_id = ?
                   AND type = 'process_episode'
@@ -1109,6 +1159,25 @@ def _schedule_retry_job(
 
 
 class JobRepository:
+    def heartbeat(self, job_id: int, token: str):
+        with get_db_connection() as conn:
+            conn.execute("UPDATE jobs SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND locked_by=? AND status='running'", (job_id, token))
+            conn.commit()
+
+    def acknowledge(self, job_id: int, token: str):
+        """Release only this claim; cancellation/restart cannot release a successor."""
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute("SELECT j.episode_id, e.status FROM jobs j JOIN episodes e ON e.id=j.episode_id WHERE j.id=? AND j.locked_by=? AND j.status='running'", (job_id, token)).fetchone()
+            if not row:
+                return
+            requeue = row['status'] in ('pending', 'processing')
+            if row['status'] == 'processing':
+                conn.execute("UPDATE episodes SET status='pending', processing_step='worker interrupted' WHERE id=?", (row['episode_id'],))
+            conn.execute("UPDATE jobs SET status=?, locked_by=NULL, locked_at=NULL, cancel_requested=0, updated_at=CURRENT_TIMESTAMP WHERE id=? AND locked_by=?", ('queued' if requeue else 'cancelled', job_id, token))
+            conn.commit()
+
+
     """SQLite-backed processing jobs with transaction-based claiming."""
 
     DEFAULT_STALE_AFTER_MINUTES = 180
@@ -1201,13 +1270,16 @@ class JobRepository:
             conn.commit()
             return len(rows)
 
-    def claim_due(self, limit: int, worker_id: str | None = None) -> List[dict]:
+    def claim_due(self, limit: int, worker_id: str | None = None, *, max_running: int | None = None) -> List[dict]:
         if limit <= 0:
             return []
 
-        worker_id = worker_id or socket.gethostname()
+        worker_id = worker_id or f"{socket.gethostname()}:{uuid4().hex}"
         with get_db_connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            if max_running is not None:
+                running = conn.execute("SELECT COUNT(*) FROM jobs WHERE status='running'").fetchone()[0]
+                limit = min(limit, max(0, max_running - running))
             rows = conn.execute("""
                 SELECT j.id AS job_id,
                        j.attempts AS job_attempts,
@@ -1233,7 +1305,7 @@ class JobRepository:
                         attempts = attempts + 1,
                         locked_at = CURRENT_TIMESTAMP,
                         locked_by = ?,
-                        error = NULL,
+                        error = NULL, cancel_requested = 0,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 """, (worker_id, job_id))
@@ -1249,7 +1321,7 @@ class JobRepository:
                 """, (row["id"],))
 
             conn.commit()
-            return [dict(row) for row in rows]
+            return [dict(row, claim_token=worker_id, claim_attempt=row["job_attempts"] + 1) for row in rows]
 
     def recover_stale_running(self, max_age_minutes: int | None = None) -> int:
         """Return stale running jobs to the queue after a worker crash or restart."""
@@ -1266,6 +1338,7 @@ class JobRepository:
                   AND j.status = 'running'
                   AND e.status != 'processing'
                   AND e.status != 'ignored'
+                  AND j.cancel_requested = 0
             """).fetchall()
 
             for row in inconsistent_rows:
@@ -1286,7 +1359,7 @@ class JobRepository:
                 JOIN episodes e ON e.id = j.episode_id
                 WHERE j.type = 'process_episode'
                   AND j.status = 'running'
-                  AND e.status = 'ignored'
+                  AND (e.status = 'ignored' OR j.cancel_requested = 1)
                   AND (
                       COALESCE(j.updated_at, j.locked_at) IS NULL
                       OR COALESCE(j.updated_at, j.locked_at) <= datetime(CURRENT_TIMESTAMP, ?)
@@ -1374,9 +1447,10 @@ class JobRepository:
 
         conn.execute("""
                 UPDATE jobs
-                SET status = 'cancelled',
-                    locked_at = NULL,
-                    locked_by = NULL,
+                SET status = CASE WHEN status='running' THEN 'running' ELSE 'cancelled' END,
+                    cancel_requested = 1,
+                    locked_at = CASE WHEN status='running' THEN locked_at ELSE NULL END,
+                    locked_by = CASE WHEN status='running' THEN locked_by ELSE NULL END,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE episode_id = ?
                   AND type = 'process_episode'

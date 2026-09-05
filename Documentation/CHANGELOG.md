@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Use stable database IDs for new episode storage, fence every worker write by its claim, retain cancellation leases until acknowledgement, and enforce the global claim limit in one transaction.
+- Stage replacement audio independently, preserve previous published files and GUIDs during failed reprocessing, validate source fingerprints before transcript reuse, and publish measured output duration.
+- Atomically replace serialized RSS snapshots and retain completed audio with a durable feed-publication retry flag when feed writing fails. Existing artifact paths remain readable.
+
 - Validate every feed, artwork and RSS audio redirect before connecting; pin public IPs in restricted mode and recheck disk space during streaming.
 
 - Reject invalid AI segmentation responses instead of publishing them as no-ads results, and encode non-MP3 sources correctly when no cuts are needed.

@@ -1,4 +1,6 @@
 import asyncio
+import copy
+from uuid import uuid4
 import os
 import logging
 import aiofiles
@@ -6,10 +8,11 @@ import json
 import shutil
 from datetime import datetime
 from pathlib import Path
+from app.core.artifacts import episode_directory, legacy_directory, source_fingerprint
 from app.core.reports import render_ad_report
 from app.core.config import settings
 from app.core.models import Episode
-from app.infra.repository import EpisodeRepository, SubscriptionRepository, SourceItemRepository, JobRepository
+from app.infra.repository import EpisodeRepository, SubscriptionRepository, SourceItemRepository, JobRepository, StaleAttempt
 from app.core.ai_services import Transcriber, AdDetector, RateLimitError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
@@ -29,6 +32,8 @@ from app.core.sponsorblock import SponsorBlockClient, categories_for_subscriptio
 logger = logging.getLogger(__name__)
 
 class Processor:
+    _is_background_worker = False
+    _manual_processor = None
     _active_task_ids = set()
     _queue_lock = asyncio.Lock()  # Prevent race conditions in process_queue
     DELETION_ACK_TIMEOUT_SECONDS = 10.0
@@ -293,17 +298,31 @@ class Processor:
                 break
             await asyncio.sleep(self.DELETION_POLL_INTERVAL_SECONDS)
 
-        episode_slug = f"{ep.guid}".replace("/", "_").replace(" ", "_")
-        episode_dir = settings.get_episode_dir(sub.slug, episode_slug)
         if not await asyncio.to_thread(self.job_repo.is_running_for_episode, episode_id):
-            try:
-                await asyncio.to_thread(self._remove_episode_directory, episode_dir, "delete")
-            except Exception as e:
-                logger.warning(f"Failed to delete episode directory {episode_dir}: {e}")
+            await asyncio.to_thread(self._finalize_episode_deletion, episode_id)
 
         await asyncio.to_thread(self.rss_gen.generate_feed, sub.id)
         await asyncio.to_thread(self.rss_gen.generate_unified_feed)
         return True
+
+    def _finalize_episode_deletion(self, episode_id: int):
+        from app.infra.database import get_db_connection
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute("SELECT e.*, s.slug FROM episodes e JOIN subscriptions s ON s.id=e.subscription_id WHERE e.id=? AND e.status='ignored'", (episode_id,)).fetchone()
+            running = conn.execute("SELECT 1 FROM jobs WHERE episode_id=? AND status='running'", (episode_id,)).fetchone()
+            if not row or running:
+                return
+            self._remove_episode_directory(str(episode_directory(row['slug'], episode_id)), 'delete')
+            legacy = legacy_directory(row['slug'], row['guid'])
+            # Legacy GUID sanitization was lossy. Never delete a directory another
+            # episode could be using, even when this episode was explicitly deleted.
+            if legacy:
+                others = conn.execute('SELECT guid FROM episodes WHERE subscription_id=? AND id!=?', (row['subscription_id'], episode_id)).fetchall()
+                if not any(legacy_directory(row['slug'], other['guid']) == legacy for other in others):
+                    self._remove_episode_directory(str(legacy), 'delete')
+            conn.execute("UPDATE episodes SET processing_step='deleted', file_size=0, publication_pending=1 WHERE id=?", (episode_id,))
+            conn.commit()
 
     def _finalize_subscription_deletion(self, subscription_id: int) -> str:
         """Run one claimed, retryable subscription cleanup outside the web event loop."""
@@ -358,108 +377,8 @@ class Processor:
         return completed
 
     async def version_episode(self, episode_id: int):
-        """
-        Increments the version suffix of an episode's GUID (e.g., _v2, _v3)
-         and renames its physical directory to match.
-        """
-        import re
-        ep = self.ep_repo.get_by_id(episode_id)
-        if not ep:
-            logger.error(f"Cannot version episode {episode_id}: Not found")
-            return False
-            
-        sub = self.sub_repo.get_by_id(ep.subscription_id)
-        if not sub:
-            logger.error(f"Cannot version episode {episode_id}: Subscription {ep.subscription_id} not found")
-            return False
-
-        old_guid = ep.guid
-        old_title = ep.title
-        
-        # Determine next version
-        match = re.search(r'_v(\d+)$', old_guid)
-        if match:
-            v_num = int(match.group(1)) + 1
-            new_guid = re.sub(r'_v\d+$', f"_v{v_num}", old_guid)
-            # Update title version if present, else append
-            if re.search(r' \(Reprocessed V\d+\)$', old_title):
-                new_title = re.sub(r' \(Reprocessed V\d+\)$', f" (Reprocessed V{v_num})", old_title)
-            else:
-                new_title = f"{old_title} (Reprocessed V{v_num})"
-        else:
-            v_num = 1
-            new_guid = f"{old_guid}_v{v_num}"
-            new_title = f"{old_title} (Reprocessed V{v_num})"
-
-        logger.info(f"Versioning episode {episode_id}: '{old_title}' ({old_guid}) -> '{new_title}' ({new_guid})")
-
-        # Rename physical directory
-        old_episode_slug = f"{old_guid}".replace("/", "_").replace(" ", "_")
-        new_episode_slug = f"{new_guid}".replace("/", "_").replace(" ", "_")
-        
-        old_dir = settings.get_episode_dir(sub.slug, old_episode_slug)
-        new_dir = settings.get_episode_dir(sub.slug, new_episode_slug)
-
-        if os.path.exists(old_dir):
-            try:
-                os.rename(old_dir, new_dir)
-                logger.info(f"Renamed episode directory: {old_dir} -> {new_dir}")
-            except Exception as e:
-                logger.error(f"Failed to rename directory {old_dir} to {new_dir}: {e}")
-                # We continue anyway to update the DB, as the directory move is preferred but metadata is critical
-        
-        # Update database paths using a helper or manual dict update
-        def update_path(p):
-            if not p: return p
-            return p.replace(old_dir, new_dir)
-
-        # We need a way to update the GUID, Title and paths in the DB. 
-        # Using a fresh connection helper from the database module
-        from app.infra.database import get_db_connection
-        with get_db_connection() as conn:
-            conn.execute("""
-                UPDATE episodes SET 
-                    guid = ?, 
-                    title = ?,
-                    local_filename = ?, 
-                    transcript_path = ?, 
-                    ad_report_path = ?, 
-                    report_path = ?,
-                    source_media_path = ?
-                WHERE id = ?
-            """, (
-                new_guid, 
-                new_title,
-                update_path(ep.local_filename),
-                update_path(ep.transcript_path),
-                update_path(ep.ad_report_path),
-                update_path(ep.report_path),
-                update_path(ep.source_media_path),
-                episode_id
-            ))
-            
-            # Insert placeholder for old GUID to prevent re-downloading
-            try:
-                conn.execute("""
-                    INSERT INTO episodes (subscription_id, guid, title, pub_date, original_url, duration, description, status, file_size)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'ignored', 0)
-                """, (
-                    ep.subscription_id, 
-                    old_guid, 
-                    old_title, 
-                    ep.pub_date, 
-                    ep.original_url, 
-                    ep.duration, 
-                    ep.description
-                ))
-                logger.info(f"Created placeholder for old GUID: {old_guid}")
-            except Exception as e:
-                logger.warning(f"Failed to create placeholder for old GUID {old_guid}: {e}")
-
-            conn.commit()
-
-        logger.info(f"Metadata and Title updated for episode {episode_id}")
-        return True
+        """Reprocessing keeps the published GUID and paths until successful replacement."""
+        return self.ep_repo.get_by_id(episode_id) is not None
 
     def _extract_text(self, start: float, end: float, segments: list) -> str:
         """Extract text from transcript overlapping with the given time range."""
@@ -601,10 +520,16 @@ class Processor:
 
     async def process_queue(self):
         """Process pending episodes concurrently up to the configured limit."""
+        if settings.PROCESSOR_ENABLED and not Processor._is_background_worker:
+            return
+        if not settings.PROCESSOR_ENABLED and Processor._manual_processor is None:
+            Processor._manual_processor = self
+        if not settings.PROCESSOR_ENABLED and Processor._manual_processor is not self:
+            return await Processor._manual_processor.process_queue()
         # Use lock to prevent race conditions from multiple callers WITHIN this process
         async with Processor._queue_lock:
             # 1. Fetch limit from settings
-            from app.web.router import get_global_settings
+            from app.core.utils import get_global_settings
             db_settings = get_global_settings()
             limit = db_settings.get('concurrent_downloads', 2)
             if not limit or limit < 1: limit = 2
@@ -624,7 +549,7 @@ class Processor:
 
             # 3. Claim jobs in one SQLite transaction, then launch them.
             capacity = limit - currently_processing
-            claimed = self.job_repo.claim_due(capacity)
+            claimed = self.job_repo.claim_due(capacity, max_running=limit)
             if not claimed:
                 return
 
@@ -664,7 +589,17 @@ class Processor:
                 return
 
             # Actually run the processing
-            await self._process_episode_inner(ep, sub, ep_dict)
+            worker = copy.copy(self)
+            worker.ep_repo = EpisodeRepository(attempt=(ep_dict['job_id'], ep_dict['claim_token']))
+            heartbeat = asyncio.create_task(self._heartbeat_claim(ep_dict))
+            try:
+                await worker._process_episode_inner(ep, sub, ep_dict)
+            finally:
+                heartbeat.cancel()
+                try:
+                    await heartbeat
+                except asyncio.CancelledError:
+                    pass
             
         except Exception as e:
             logger.error(f"Fatal error in episode task {ep_id}: {e}")
@@ -675,8 +610,8 @@ class Processor:
                 severity="error",
             )
         finally:
-            if self.ep_repo.get_status(ep_id) != "processing":
-                self.job_repo.cancel_active_for_episode(ep_id)
+            self.job_repo.acknowledge(ep_dict['job_id'], ep_dict['claim_token'])
+            await asyncio.to_thread(self._finalize_episode_deletion, ep_id)
             # Ensure ID is removed from active set
             Processor._active_task_ids.discard(ep_id)
             try:
@@ -692,6 +627,11 @@ class Processor:
                 logger.warning(f"Failed to unload Whisper model after job: {e}")
             # Proactively check queue again after finishing to keep pipeline full
             asyncio.create_task(self.process_queue())
+
+    async def _heartbeat_claim(self, claim):
+        while True:
+            await asyncio.to_thread(self.job_repo.heartbeat, claim['job_id'], claim['claim_token'])
+            await asyncio.sleep(20)
 
     async def _download_rss_audio(self, ep: Episode, input_path: str) -> None:
         episode_dir = str(Path(input_path).parent)
@@ -748,11 +688,12 @@ class Processor:
             transcript = None
             
             # Create episode-specific directory
-            episode_slug = f"{ep.guid}".replace("/", "_").replace(" ", "_")
-            episode_dir = settings.get_episode_dir(sub.slug, episode_slug)
-            os.makedirs(episode_dir, exist_ok=True)
+            episode_root = episode_directory(sub.slug, ep.id)
+            episode_dir = str(episode_root / ('attempt-' + uuid4().hex))
+            self._attempt_dir = Path(episode_dir)
+            self._attempt_dir.mkdir(parents=True, exist_ok=False)
             
-            input_path = ep.source_media_path or os.path.join(episode_dir, "original.mp3")
+            input_path = os.path.join(episode_dir, "original.mp3")
             transcript_path = None
             
             if skip_transcription and ep.transcript_path and os.path.exists(ep.transcript_path):
@@ -800,6 +741,14 @@ class Processor:
                 file_size_mb = os.path.getsize(input_path) / (1024 * 1024)
                 logger.info(f"Download complete: {file_size_mb:.2f} MB")
             
+            fingerprint = await asyncio.to_thread(source_fingerprint, input_path)
+            if transcript:
+                provenance = transcript.get('_source', {}) if isinstance(transcript, dict) else {}
+                if provenance.get('sha256') != fingerprint or provenance.get('whisper_model') != global_settings.get('whisper_model', settings.WHISPER_MODEL):
+                    logger.info("Source or transcription settings changed; transcribing again")
+                    transcript = None
+            self.ep_repo.update_source_media_path(ep.id, input_path)
+
             # 2. Transcribe (If needed)
             if not transcript:
                 self.ep_repo.update_progress(ep.id, "transcribing", 0)
@@ -864,11 +813,16 @@ class Processor:
                 duration = (datetime.now() - start_time).total_seconds()
                 logger.info(f"Transcription complete in {duration:.1f}s")
                 
+                transcript['_source'] = {'sha256': fingerprint, 'whisper_model': global_settings.get('whisper_model', settings.WHISPER_MODEL)}
                 # Save Transcript (Prefer JSON now)
                 transcript_path = os.path.join(episode_dir, "transcript.json")
                 async with aiofiles.open(transcript_path, "w", encoding="utf-8") as f:
                     await f.write(json.dumps(transcript))
                 
+            if transcript_path != os.path.join(episode_dir, 'transcript.json'):
+                transcript_path = os.path.join(episode_dir, 'transcript.json')
+                async with aiofiles.open(transcript_path, 'w', encoding='utf-8') as handle:
+                    await handle.write(json.dumps(transcript))
             self.ep_repo.update_progress(ep.id, "detecting_ads", 50, transcript_path=transcript_path)
             
             if not self._check_cancellation(ep): return
@@ -1062,18 +1016,21 @@ class Processor:
             
             if not self._check_cancellation(ep): return
 
-            # 5. Cleanup & Save
-            if os.path.exists(input_path):
-                os.remove(input_path)
-            
-            file_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
-            self.ep_repo.update_status(ep.id, "completed", filename=output_path, file_size=file_size)
-            self.ep_repo.update_progress(ep.id, "completed", 100)
-            
-            # 6. Regenerate Feed
-            self.rss_gen.generate_feed(sub.id)
-            self.rss_gen.generate_unified_feed()
-            
+            # Validate before committing the active pointer. Files keep their immutable
+            # attempt directory name, so old podcast-client URLs remain available.
+            output_duration = await asyncio.to_thread(AudioProcessor.get_duration, output_path)
+            if output_duration <= 0:
+                raise RuntimeError('Processed audio failed duration validation')
+            self.ep_repo.pending_metadata['output_duration'] = output_duration
+            if ep.local_filename:
+                self.ep_repo.pending_metadata['published_guid'] = f'{ep.guid}#revision-{uuid4().hex}'
+            file_size = os.path.getsize(output_path)
+            self.ep_repo.update_status(ep.id, 'completed', filename=output_path, file_size=file_size)
+            self._attempt_dir = None  # Published files are never cancellation cleanup.
+            self._remove_file_if_exists(input_path, 'source audio')
+            # Feed publication has its own durable retry flag; failure keeps audio.
+            await self.publish_pending_feeds()
+
             logger.info(f"Successfully processed {ep.title}")
             await send_notification_async(
                 EVENT_EPISODE_DOWNLOAD,
@@ -1082,8 +1039,11 @@ class Processor:
                 severity="success",
             )
 
+        except StaleAttempt:
+            self._acknowledge_cancellation(ep)
+            return
         except RateLimitError as e:
-            if self.ep_repo.get_status(ep.id) != "processing":
+            if not self.ep_repo.owns_attempt(ep.id):
                 logger.info(f"Discarding rate-limit result for cancelled episode {ep.id}")
                 self._acknowledge_cancellation(ep)
                 return
@@ -1095,7 +1055,7 @@ class Processor:
             self.ep_repo.update_rate_limited(ep.id, next_retry, str(e))
             
         except Exception as e:
-            if self.ep_repo.get_status(ep.id) != "processing":
+            if not self.ep_repo.owns_attempt(ep.id):
                 logger.info(f"Episode {ep.id} stopped because cancellation was requested")
                 self._acknowledge_cancellation(ep)
                 return
@@ -1140,34 +1100,41 @@ class Processor:
         Returns: True (Continue), False (Abort)
         """
         current_status = self.ep_repo.get_status(ep.id)
-        if current_status != 'processing':
+        if not self.ep_repo.owns_attempt(ep.id):
             logger.warning(f"Processing cancelled for {ep.title} (Status changed to {current_status})")
             self._acknowledge_cancellation(ep)
             return False
         return True
 
     def _acknowledge_cancellation(self, ep: Episode) -> None:
-        """Clean worker-owned artifacts before releasing the durable running-job lock."""
         self._cleanup_artifacts(ep)
-        self.job_repo.cancel_active_for_episode(ep.id)
+        if self.ep_repo.attempt:
+            self.job_repo.acknowledge(*self.ep_repo.attempt)
 
     def _cleanup_artifacts(self, ep: Episode):
-        """Cleanup temporary files for a cancelled episode."""
-        try:
-            logger.info(f"Cleaning up artifacts for {ep.title}...")
-            # Get subscription for slug
-            sub = self.sub_repo.get_by_id(ep.subscription_id)
-            if not sub:
-                return
-                
-            # Remove entire episode directory if it exists
-            episode_slug = f"{ep.guid}".replace("/", "_").replace(" ", "_")
-            episode_dir = settings.get_episode_dir(sub.slug, episode_slug)
-            
-            if os.path.exists(episode_dir):
-                self._remove_episode_directory(episode_dir, "clean up")
-        except Exception as e:
-            logger.error(f"Cleanup failed: {e}")
+        """Only discard this attempt's staging files, never a published revision."""
+        directory = getattr(self, '_attempt_dir', None)
+        if directory is None:
+            return
+        root = Path(settings.PODCASTS_DIR).resolve()
+        resolved = directory.resolve()
+        if directory == resolved and resolved.is_relative_to(root) and len(resolved.relative_to(root).parts) == 3 and resolved.name.startswith('attempt-'):
+            shutil.rmtree(resolved, ignore_errors=False)
+            self._attempt_dir = None
+
+    async def publish_pending_feeds(self):
+        from app.infra.database import get_db_connection
+        with get_db_connection() as conn:
+            rows = conn.execute('SELECT id, subscription_id, local_filename FROM episodes WHERE publication_pending=1').fetchall()
+        for row in rows:
+            try:
+                await asyncio.to_thread(self.rss_gen.generate_feed, row['subscription_id'])
+                await asyncio.to_thread(self.rss_gen.generate_unified_feed)
+                with get_db_connection() as conn:
+                    conn.execute('UPDATE episodes SET publication_pending=0 WHERE id=? AND local_filename IS ?', (row['id'], row['local_filename']))
+                    conn.commit()
+            except Exception:
+                logger.exception('Feed publication pending for episode %s; audio retained', row['id'])
 
     async def cleanup_old_logs(self):
         """Clean up old login-attempt rows; log files are handled by rotation."""
@@ -1314,12 +1281,18 @@ class Processor:
         
         while True:
             # Get latest interval from DB
-            from app.web.router import get_global_settings
+            from app.core.utils import get_global_settings
             db_settings = get_global_settings()
             interval_minutes = db_settings.get('check_interval_minutes', settings.CHECK_INTERVAL_MINUTES)
             interval_seconds = interval_minutes * 60
             
             try:
+                await self.publish_pending_feeds()
+                from app.infra.database import get_db_connection
+                with get_db_connection() as conn:
+                    deleted = conn.execute("SELECT id FROM episodes WHERE status='ignored' AND processing_step='cancellation requested'").fetchall()
+                for row in deleted:
+                    await asyncio.to_thread(self._finalize_episode_deletion, row['id'])
                 # 1. Finish any subscription deletions whose workers have acknowledged cancellation.
                 await self.finalize_pending_subscription_deletions()
 
@@ -1389,6 +1362,7 @@ def start_processor_process():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
+    Processor._is_background_worker = True
     processor = Processor()
     
     # 3. Handle stop signals gracefully

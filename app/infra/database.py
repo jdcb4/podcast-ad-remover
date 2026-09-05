@@ -263,6 +263,16 @@ FORMAL_MIGRATIONS = [
             """,
         ],
     ),
+    (
+        "20260905_0013_processing_recovery",
+        [
+            "ALTER TABLE jobs ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE episodes ADD COLUMN output_duration REAL",
+            "ALTER TABLE episodes ADD COLUMN published_guid TEXT",
+            "ALTER TABLE episodes ADD COLUMN publication_pending INTEGER NOT NULL DEFAULT 0",
+            "CREATE TABLE worker_status (id INTEGER PRIMARY KEY CHECK(id=1), worker_id TEXT, heartbeat_at TEXT, last_feed_check TEXT, next_feed_check TEXT)",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

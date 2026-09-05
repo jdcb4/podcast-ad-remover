@@ -65,36 +65,22 @@ def test_single_episode_worker_cleans_before_acknowledging_cancellation(
     subscription_id, _episode_ids, subscription_dir, _feed_path = _create_subscription_with_pending_episodes(1)
     job_repo = JobRepository()
     episode_repo = EpisodeRepository()
-    episode_id = job_repo.claim_due(1, worker_id="single-episode-worker")[0]["id"]
+    claim = job_repo.claim_due(1, worker_id="single-episode-worker")[0]
+    episode_id = claim['id']
     episode = episode_repo.get_by_id(episode_id)
-    episode_dir = subscription_dir / "episode-0"
-    episode_dir.mkdir()
+    episode_dir = subscription_dir / f"episode-{episode_id}" / "attempt-test"
+    episode_dir.mkdir(parents=True)
     (episode_dir / "original.mp3.clean.wav").write_bytes(b"worker-owned")
-
+    published = episode_dir.parent / 'published.mp3'
+    published.write_bytes(b'previous publication')
     processor = Processor()
-    order = []
-
-    def cancel_after_cleanup(cancelled_episode_id, conn=None):
-        assert cancelled_episode_id == episode_id
-        assert not episode_dir.exists()
-        order.append("worker_acknowledged")
-        if conn is not None:
-            JobRepository.cancel_active_for_episode(processor.job_repo, cancelled_episode_id, conn=conn)
-            return
-        with get_db_connection() as own_conn:
-            JobRepository.cancel_active_for_episode(
-                processor.job_repo, cancelled_episode_id, conn=own_conn
-            )
-            own_conn.commit()
-
-    monkeypatch.setattr(processor.job_repo, "cancel_active_for_episode", cancel_after_cleanup)
+    processor.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
+    processor._attempt_dir = episode_dir
     assert episode_repo.request_deletion(episode_id) is True
-
     assert processor._check_cancellation(episode) is False
-    assert order == ["worker_acknowledged"]
-    with get_db_connection() as conn:
-        job = conn.execute("SELECT status FROM jobs WHERE episode_id = ?", (episode_id,)).fetchone()
-    assert job["status"] == "cancelled"
+    assert not episode_dir.exists()
+    assert published.exists()  # The deletion coordinator removes publication separately.
+    assert not job_repo.is_running_for_episode(episode_id)
 
 
 @pytest.mark.asyncio
@@ -143,7 +129,7 @@ async def test_subscription_deletion_cancels_before_cleanup_without_blocking_eve
         assert subscription_dir.exists()
         assert job_repo.claim_due(10, worker_id="late-worker") == []
         order.append("worker_acknowledged")
-        job_repo.cancel_active_for_episode(running_episode_id)
+        job_repo.acknowledge(claimed[0]["job_id"], claimed[0]["claim_token"])
 
     worker_task = asyncio.create_task(slow_worker())
     delete_task = asyncio.create_task(processor.delete_subscription(subscription_id))
@@ -181,7 +167,8 @@ async def test_subscription_deletion_timeout_is_bounded_and_processor_retries(
     init_db()
     subscription_id, _episode_ids, subscription_dir, _feed_path = _create_subscription_with_pending_episodes(1)
     job_repo = JobRepository()
-    running_episode_id = job_repo.claim_due(1, worker_id="stuck-test-worker")[0]["id"]
+    claimed = job_repo.claim_due(1, worker_id="stuck-test-worker")
+    running_episode_id = claimed[0]["id"]
 
     processor = Processor()
     processor.rss_gen = RecordingRSSGenerator()
@@ -196,7 +183,7 @@ async def test_subscription_deletion_timeout_is_bounded_and_processor_retries(
     assert subscription_dir.exists()
     assert SubscriptionRepository().get_by_id(subscription_id).deletion_status == "pending"
 
-    job_repo.cancel_active_for_episode(running_episode_id)
+    job_repo.acknowledge(claimed[0]["job_id"], claimed[0]["claim_token"])
     assert await processor.finalize_pending_subscription_deletions() == 1
     assert SubscriptionRepository().get_by_id(subscription_id) is None
     assert processor.rss_gen.unified_calls == 1

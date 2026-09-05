@@ -7,6 +7,9 @@ The future-feature rehearsal does not add a new ad-review product workflow.
 
 ## Completed batches
 
+- F01/F03/F05/F08 and F16 output duration: ID-based artifact roots, per-attempt staging, claim-token write fences, lease-preserving cancellation, transactional capacity, atomic serialized RSS, durable publication retries and last-good reprocessing. Tests include real audio, late workers, concurrent connections and injected feed/provider failures. Web playback and legacy artifact lookup use recorded paths.
+
+
 - F09: shared bounded redirect streams with validated IP pinning/TLS SNI; 39 feed, artwork, URL and source tests passed. F20 streaming free-space checks added; stage budgets follow.
 
 - F07/F10: strict finite segment validation and codec-aware MP3 output; 20 checks passed including six real FFmpeg MP3/AAC/Opus cases.

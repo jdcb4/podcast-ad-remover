@@ -908,9 +908,9 @@
 
             <!-- Quick Actions -->
             <div class="flex items-center gap-2 list-actions">
-                {% if ep.status == 'completed' %}
-                <a href="/audio/{{ subscription.slug }}/{{ ep.guid | replace('/', '_') | replace(' ', '_') }}/{{ basename(ep.local_filename) }}"
-                    target="_blank" onclick="trackListen({{ ep.id }})"
+                {% if ep.local_filename and ep.status != 'ignored' %}
+                <a href="/episodes/{{ ep.id }}/audio"
+                    target="_blank" 
                     class="p-2 bg-primary-500 rounded-full text-white hover:bg-primary-400 hover:scale-105 transition-all shadow-lg"
                     title="Play">
                     <svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
@@ -1100,11 +1100,11 @@
 
         // Action buttons
         let actionButtons = '';
-        if (status === 'completed' && ep.local_filename) {
+        if (ep.local_filename && status !== 'ignored') {
             const filename = String(ep.local_filename).split(/[\\/]/).pop();
             const guid = String(ep.guid || '').replace(/\//g, '_').replace(/ /g, '_');
-            const audioHref = `/audio/${encodePathSegment(subscriptionSlug)}/${encodePathSegment(guid)}/${encodePathSegment(filename)}`;
-            actionButtons = `<a href="${audioHref}" target="_blank" onclick="trackListen(${episodeId})" class="p-2 bg-primary-500 rounded-full text-white hover:bg-primary-400 hover:scale-105 transition-all shadow-lg" title="Play"><svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></a>`;
+            const audioHref = `/episodes/${episodeId}/audio`;
+            actionButtons = `<a href="${audioHref}" target="_blank"  class="p-2 bg-primary-500 rounded-full text-white hover:bg-primary-400 hover:scale-105 transition-all shadow-lg" title="Play"><svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></a>`;
         } else if (status === 'unprocessed' || status === 'ignored') {
             actionButtons = `<button onclick="downloadEpisode(${episodeId})" class="p-2 text-text-muted hover:text-white hover:bg-white/10 rounded-full transition-colors" title="Download"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>`;
         }
