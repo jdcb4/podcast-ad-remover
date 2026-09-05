@@ -46,10 +46,10 @@ def render_ad_report(ep, ad_segments: list[dict]) -> str:
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
         <style>
             * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-            body {{ 
-                font-family: 'Inter', sans-serif; 
-                max-width: 900px; 
-                margin: 0 auto; 
+            body {{
+                font-family: 'Inter', sans-serif;
+                max-width: 900px;
+                margin: 0 auto;
                 padding: 2rem 1rem;
                 background: #0a0a0f;
                 color: #fafafa;
@@ -66,33 +66,33 @@ def render_ad_report(ep, ad_segments: list[dict]) -> str:
             ::-webkit-scrollbar-thumb {{ background: #22222f; border-radius: 4px; }}
             ::-webkit-scrollbar-thumb:hover {{ background: #3f3f46; }}
 
-            .segment {{ 
+            .segment {{
                 background: #1a1a25;
-                padding: 1.25rem; 
-                margin: 1rem 0; 
-                border-left: 4px solid #8b5cf6; 
+                padding: 1.25rem;
+                margin: 1rem 0;
+                border-left: 4px solid #8b5cf6;
                 border-radius: 0.75rem;
                 border: 1px solid rgba(255,255,255,0.08);
             }}
-            .badge {{ 
-                background: rgba(139,92,246,0.15); 
-                color: #a78bfa; 
-                padding: 0.25rem 0.75rem; 
-                border-radius: 999px; 
-                font-size: 0.75em; 
+            .badge {{
+                background: rgba(139,92,246,0.15);
+                color: #a78bfa;
+                padding: 0.25rem 0.75rem;
+                border-radius: 999px;
+                font-size: 0.75em;
                 font-weight: 600;
                 border: 1px solid rgba(139,92,246,0.2);
             }}
             .badge.intro {{ background: rgba(52,211,153,0.15); color: #34d399; border-color: rgba(52,211,153,0.2); }}
             .badge.outro {{ background: rgba(251,191,36,0.15); color: #fbbf24; border-color: rgba(251,191,36,0.2); }}
             .flex {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }}
-            .transcript-text {{ 
-                background: rgba(255,255,255,0.03); 
-                padding: 0.75rem 1rem; 
-                border-radius: 0.5rem; 
-                font-style: italic; 
-                color: #a1a1aa; 
-                font-size: 0.9em; 
+            .transcript-text {{
+                background: rgba(255,255,255,0.03);
+                padding: 0.75rem 1rem;
+                border-radius: 0.5rem;
+                font-style: italic;
+                color: #a1a1aa;
+                font-size: 0.9em;
                 margin-top: 0.75rem;
                 border: 1px solid rgba(255,255,255,0.06);
             }}
@@ -100,11 +100,11 @@ def render_ad_report(ep, ad_segments: list[dict]) -> str:
             .time {{ color: #fafafa; font-weight: 600; }}
             a {{ color: #a78bfa; text-decoration: none; }}
             a:hover {{ text-decoration: underline; }}
-            .total {{ 
+            .total {{
                 display: inline-block;
-                background: rgba(139,92,246,0.1); 
-                color: #a78bfa; 
-                padding: 0.5rem 1rem; 
+                background: rgba(139,92,246,0.1);
+                color: #a78bfa;
+                padding: 0.5rem 1rem;
                 border-radius: 0.5rem;
                 font-weight: 600;
                 margin-bottom: 1rem;
@@ -121,16 +121,16 @@ def render_ad_report(ep, ad_segments: list[dict]) -> str:
         <h1>Ad Report</h1>
         <h2>{html.escape(str(ep.title))}</h2>
         <p class="meta">GUID: {html.escape(str(ep.guid))}</p>
-        
+
         <h3>Detected Segments</h3>
         <p class="total">Total Segments: {len(ad_segments)}</p>
-        
+
         {rows_html}
-        
+
         <h3>Transcript</h3>
         <p><a href="/artifacts/transcript/{ep.id}" class="btn">View Full Transcript (JSON)</a></p>
     </body>
     </html>
     """
-    
+
     return html_content

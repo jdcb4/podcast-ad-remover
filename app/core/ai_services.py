@@ -1078,7 +1078,7 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                             )
                             if response.status_code >= 400:
                                 raise httpx.HTTPStatusError(f'HTTP {response.status_code}', request=httpx.Request('POST', url), response=response)
-    
+
                         audio = self._extract_gemini_tts_audio(response.json())
                         self._write_pcm_wav(output_path, audio)
                         logger.info("Gemini TTS generation completed.")
