@@ -1,3 +1,5 @@
+from app.core.permissions import can_manage_subscription as _can_manage_subscription
+from app.web.permissions import require_episode_management
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from typing import List, Optional
 from app.core.models import Subscription, SubscriptionCreate
@@ -21,11 +23,6 @@ def _real_user_id(user) -> int | None:
     return user_id if user_id and user_id > 0 else None
 
 
-def _can_manage_subscription(user, sub) -> bool:
-    if getattr(user, "is_admin", False):
-        return True
-    user_id = _real_user_id(user)
-    return bool(user_id and getattr(sub, "owner_user_id", None) == user_id)
 
 # Helper to get processor (in a real app, use dependency injection)
 def get_processor():
@@ -101,6 +98,7 @@ async def delete_subscription(id: int, user = Depends(require_auth)):
 
 @router.delete("/episodes/{id}")
 async def delete_episode(id: int, user = Depends(require_auth)):
+    require_episode_management(user, id)
     """Ignore a specific episode and remove its local files."""
     proc = get_processor()
     success = await proc.delete_episode(id)
@@ -119,6 +117,7 @@ async def check_subscription_updates(id: int, background_tasks: BackgroundTasks,
 
 @router.post("/episodes/{id}/process")
 async def process_episode(id: int, skip_transcription: bool = False, user = Depends(require_auth)):
+    require_episode_management(user, id)
     """Manually trigger processing for an episode."""
     ep_repo = EpisodeRepository()
     
@@ -135,6 +134,7 @@ async def process_episode(id: int, skip_transcription: bool = False, user = Depe
 
 @router.post("/episodes/{id}/cancel")
 async def cancel_episode(id: int, user = Depends(require_auth)):
+    require_episode_management(user, id)
     """Cancel processing, ignore the episode, and remove local files."""
     proc = get_processor()
     success = await proc.delete_episode(id)

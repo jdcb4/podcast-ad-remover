@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Enforce owner/admin episode permissions, fix library membership responses, return deliberate 403 responses, and attribute audio listens by full path.
+
 - Reject known session-secret placeholders and honor Compose environment values.
 
 - Create integrity-checked SQLite snapshots before migrations and for dry runs, including committed WAL data; add a backup CLI and recovery runbook.

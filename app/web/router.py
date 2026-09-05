@@ -1,3 +1,5 @@
+from app.core.permissions import can_manage_subscription as _can_manage_subscription
+from app.web.permissions import require_episode_management
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -92,13 +94,6 @@ def _real_user_id(user) -> int | None:
     return user_id if user_id and user_id > 0 else None
 
 
-def _can_manage_subscription(user, sub) -> bool:
-    if not user:
-        return False
-    if getattr(user, "is_admin", False):
-        return True
-    user_id = _real_user_id(user)
-    return bool(user_id and getattr(sub, "owner_user_id", None) == user_id)
 
 
 def _reconcile_artwork_and_feeds(subscription_ids: list[int] | None = None) -> None:
@@ -1173,6 +1168,7 @@ async def retry_episode(episode_id: int, admin_user = Depends(require_admin)):
 
 @router.post("/api/episodes/{episode_id}/reprocess")
 async def api_reprocess_episode(episode_id: int, skip_transcription: bool = False, user = Depends(require_auth)):
+    require_episode_management(user, episode_id)
     import json
     logger.info(f"Reprocess request for {episode_id} with skip_transcription={skip_transcription}")
     
@@ -1196,6 +1192,7 @@ async def api_reprocess_episode(episode_id: int, skip_transcription: bool = Fals
 
 @router.post("/api/episodes/{episode_id}/ignore")
 async def api_ignore_episode(episode_id: int, user = Depends(require_auth)):
+    require_episode_management(user, episode_id)
     # API version of cancel/delete - soft delete
     from app.core.processor import Processor
     proc = Processor()
@@ -1204,6 +1201,7 @@ async def api_ignore_episode(episode_id: int, user = Depends(require_auth)):
 
 @router.post("/episodes/{episode_id}/download")
 async def manual_download_episode(episode_id: int, request: Request, user = Depends(require_auth)):
+    require_episode_management(user, episode_id)
     # Update DB to pending
     from app.infra.database import get_db_connection
     with get_db_connection() as conn:

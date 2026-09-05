@@ -7,6 +7,8 @@ The future-feature rehearsal does not add a new ad-review product workflow.
 
 ## Completed batches
 
+- F06/F11/F19 and F16 listen attribution: shared ownership policy, real SQLite + HTTP regressions, safe range parsing; 44 focused HTTP/auth/library tests passed.
+
 - F13: known placeholder rejection, Compose interpolation and first-run instructions; 12 startup security tests passed.
 
 - F04: online backup helper, pre-DDL snapshots, safe dry runs and recovery runbook; 23 backup/migration/queue tests passed.

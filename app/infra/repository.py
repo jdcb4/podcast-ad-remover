@@ -137,6 +137,14 @@ class SubscriptionRepository:
             ).fetchone()
             return row is not None
 
+    def count_user_library_members(self, subscription_id: int) -> int:
+        with get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS count FROM user_subscriptions WHERE subscription_id = ?",
+                (subscription_id,),
+            ).fetchone()
+            return int(row["count"]) if row else 0
+
     def get_owner_username(self, subscription_id: int) -> str | None:
         with get_db_connection() as conn:
             row = conn.execute(
@@ -971,8 +979,8 @@ class EpisodeRepository:
         with get_db_connection() as conn:
             # Try exact match first
             row = conn.execute(
-                "SELECT * FROM episodes WHERE subscription_id = ? AND local_filename LIKE ?",
-                (subscription_id, f"%{filename}")
+                "SELECT * FROM episodes WHERE subscription_id = ? AND replace(local_filename, char(92), '/') = ?",
+                (subscription_id, filename.replace("\\", "/"))
             ).fetchone()
             if row:
                 return Episode.model_validate(dict(row))
@@ -1135,14 +1143,6 @@ class JobRepository:
                 (episode_id,),
             ).fetchone()
             return row is not None
-
-    def count_user_library_members(self, subscription_id: int) -> int:
-        with get_db_connection() as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) AS count FROM user_subscriptions WHERE subscription_id = ?",
-                (subscription_id,),
-            ).fetchone()
-            return int(row["count"]) if row else 0
 
     def count_claimable(self) -> int:
         with get_db_connection() as conn:
