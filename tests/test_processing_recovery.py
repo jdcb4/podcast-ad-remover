@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
@@ -38,6 +39,38 @@ def test_claim_capacity_is_transactional_between_independent_connections(episode
         results = list(workers.map(lambda _: claim(), range(2)))
     assert sum(map(len, results)) == 2
     assert JobRepository().count_running() == 2
+
+
+def _claim_in_process(barrier, results):
+    try:
+        barrier.wait(timeout=15)
+        results.put(('ok', len(JobRepository().claim_due(2, max_running=2))))
+    except Exception as error:
+        results.put(('error', repr(error)))
+
+
+def test_global_capacity_between_separately_spawned_processes(episodes, monkeypatch):
+    monkeypatch.setenv('DATA_DIR', settings.DATA_DIR)
+    context = multiprocessing.get_context('spawn')
+    barrier = context.Barrier(2)
+    results = context.Queue()
+    workers = [context.Process(target=_claim_in_process, args=(barrier, results)) for _ in range(2)]
+    try:
+        for worker in workers:
+            worker.start()
+        claims = [results.get(timeout=30) for _ in workers]
+        for worker in workers:
+            worker.join(timeout=10)
+            assert worker.exitcode == 0
+        assert all(status == 'ok' for status, count in claims), claims
+        assert sum(count for status, count in claims) == 2
+        assert JobRepository().count_running() == 2
+    finally:
+        for worker in workers:
+            if worker.is_alive():
+                worker.terminate()
+                worker.join(timeout=5)
+        results.close()
 
 
 def test_cancel_retry_retains_lease_and_fences_late_updates(episodes):

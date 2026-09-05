@@ -23,7 +23,7 @@ from app.web.auth_utils import hash_password, verify_feed_password, verify_passw
 from app.web.rate_limiter import login_rate_limiter, check_rate_limit
 from app.web.subscription_links import build_subscribe_instruction_context, build_subscription_links
 from app.web.static_assets import configure_static_asset_versioning
-from app.web.template_filters import compact_datetime
+from app.web.template_filters import compact_datetime, format_duration
 from app.web.template_filters import clean_description as safe_clean_description
 from app.web.template_filters import simple_markdown as safe_simple_markdown
 from app.infra.database import get_db_connection
@@ -2372,14 +2372,6 @@ async def view_subscription(request: Request, id: int):
     total_episodes = ep_repo.count_by_subscription(id)
     has_more = total_episodes > INITIAL_PAGE_SIZE
     
-    def format_duration(seconds: int) -> str:
-        if not seconds:
-            return "-"
-        m, s = divmod(seconds, 60)
-        h, m = divmod(m, 60)
-        if h > 0:
-            return f"{h}:{m:02d}:{s:02d}"
-        return f"{m}:{s:02d}"
 
     # Generate Links
     global_settings = get_global_settings()
@@ -2427,7 +2419,7 @@ async def view_subscription(request: Request, id: int):
     )
 
 @router.get("/api/subscriptions/{id}/episodes")
-async def get_subscription_episodes_api(id: int, limit: int = 20, offset: int = 0, search: str = None, filter: str = 'all'):
+async def get_subscription_episodes_api(request: Request, id: int, limit: int = 20, offset: int = 0, search: str = None, filter: str = 'all', user = Depends(require_auth)):
     """Return episodes for a subscription as JSON for lazy loading. Supports search by title."""
     sub = sub_repo.get_by_id(id)
     if not sub:
@@ -2450,6 +2442,10 @@ async def get_subscription_episodes_api(id: int, limit: int = 20, offset: int = 
     
     return {
         "episodes": episodes_data,
+        "html": templates.get_template('_episode_cards.html').render(
+            request=request, episodes=episodes, format_duration=format_duration,
+            can_manage_subscription=_can_manage_subscription(user, sub),
+        ),
         "total": total,
         "offset": offset,
         "limit": limit,
@@ -2600,15 +2596,6 @@ async def view_transcript(id: int, request: Request):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error reading transcript: {str(e)}")
     
-    def format_duration(seconds: int) -> str:
-        if not seconds:
-            return "-"
-        seconds = int(seconds)  # Convert to int to handle floats
-        m, s = divmod(seconds, 60)
-        h, m = divmod(m, 60)
-        if h > 0:
-            return f"{h}:{m:02d}:{s:02d}"
-        return f"{m}:{s:02d}"
 
     return templates.TemplateResponse(
         request=request,

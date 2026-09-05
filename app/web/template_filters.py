@@ -3,6 +3,14 @@ import re
 from datetime import datetime
 
 
+def format_duration(seconds):
+    if not seconds:
+        return '-'
+    minutes, seconds = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return f'{hours}:{minutes:02d}:{seconds:02d}' if hours else f'{minutes}:{seconds:02d}'
+
+
 def simple_markdown(text):
     """Convert a small safe markdown subset to HTML."""
     if not text:

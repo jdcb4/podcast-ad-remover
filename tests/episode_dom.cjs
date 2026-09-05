@@ -11,7 +11,12 @@ async function run() {
   w.appConfirm = async () => true;
   w.appToast = message => messages.push(message);
   const episode = {id: 90, title: 'Result', status: 'unprocessed', guid: '..', description: 'Description'};
-  const page = title => ({episodes: [{...episode, title}], total: 1, has_more: false});
+  const originalCard = w.document.getElementById('card-90').cloneNode(true);
+  const page = title => {
+    const card = originalCard.cloneNode(true);
+    card.querySelector('[data-description-toggle]').textContent = title;
+    return {episodes: [{...episode, title}], html: card.outerHTML, total: 1, has_more: false};
+  };
   w.fetch = async (url, options) => {
     calls.push({url, options});
     return Response.json(options?.method ? {status: 'deleted'} : page('Result'));
@@ -38,11 +43,11 @@ async function run() {
   await w.deleteEpisode(90);
   assert.deepEqual(messages, ['Forbidden by ownership policy']);
 
-  const markup = w.createEpisodeCardHTML({...episode, title: '<img src=x onerror=alert(1)>', description: '<script>bad()</script>'}, 'show');
-  const fragment = w.document.createElement('div');
-  fragment.innerHTML = markup;
-  assert.equal(fragment.querySelectorAll('script,img').length, 0);
-  assert.equal(fragment.querySelector('.episode-checkbox').getAttribute('aria-label'), 'Select <img src=x onerror=alert(1)>');
+  const descriptionToggle = w.document.querySelector('[data-description-toggle]');
+  w.toggleDescription(90);
+  assert.equal(descriptionToggle.getAttribute('aria-expanded'), 'true');
+  assert(w.document.getElementById('episode-description-90').classList.contains('expanded'));
+  assert.equal(w.document.getElementById('episode-search').getAttribute('aria-label'), 'Search episodes');
   const toggle = w.document.querySelector('[aria-controls="settings-form"]');
   w.toggleProcessingSettings(toggle);
   assert.equal(toggle.getAttribute('aria-expanded'), 'true');

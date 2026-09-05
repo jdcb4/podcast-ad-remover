@@ -50,6 +50,27 @@ def test_membership_json_and_form_use_real_repository(populated_client):
     assert result.status_code == 303
 
 
+def test_owner_cancellation_preserves_audio_and_running_lease(populated_client, tmp_path):
+    from app.infra.repository import EpisodeRepository, JobRepository
+    audio = tmp_path / 'published.mp3'
+    audio.write_bytes(b'previous publication')
+    with get_db_connection() as conn:
+        conn.execute("UPDATE episodes SET local_filename=?,status='pending' WHERE id=90", (str(audio),))
+        conn.commit()
+    jobs = JobRepository()
+    jobs.enqueue(90)
+    claim = jobs.claim_due(1)[0]
+    populated_client.app.dependency_overrides[require_auth] = lambda: SimpleNamespace(id=91, is_admin=False)
+    response = populated_client.post('/api/episodes/90/cancel')
+    assert response.status_code == 200
+    episode = EpisodeRepository().get_by_id(90)
+    assert episode.status == 'unprocessed' and episode.local_filename == str(audio)
+    assert audio.read_bytes() == b'previous publication'
+    assert jobs.is_running_for_episode(90)
+    jobs.acknowledge(claim['job_id'], claim['claim_token'])
+    assert not jobs.is_running_for_episode(90)
+
+
 def test_rendered_episode_page_and_shipped_javascript(populated_client):
     import subprocess
     import shutil
@@ -58,6 +79,18 @@ def test_rendered_episode_page_and_shipped_javascript(populated_client):
     result = subprocess.run([shutil.which('node'), 'tests/episode_dom.cjs'], input=response.text,
                             text=True, encoding='utf-8', capture_output=True, timeout=30)
     assert result.returncode == 0, result.stderr
+
+
+def test_paginated_cards_share_safe_markup_and_read_only_controls(populated_client):
+    with get_db_connection() as conn:
+        conn.execute('UPDATE episodes SET title=?,description=? WHERE id=90',
+                     ('<img src=x onerror=alert(1)>', '<script>bad()</script>'))
+        conn.commit()
+    html = populated_client.get('/api/subscriptions/90/episodes').json()['html']
+    assert '&lt;img src=x onerror=alert(1)&gt;' in html
+    assert '<img src=x' not in html and '<script>bad()' not in html
+    assert 'disabled hidden' in html
+    assert 'onclick="downloadEpisode' not in html and 'onclick="deleteEpisode' not in html
 
 
 def test_filter_and_search_apply_before_pagination(populated_client):

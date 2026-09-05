@@ -1,4 +1,3 @@
-from app.core.permissions import can_manage_subscription as _can_manage_subscription
 from app.web.permissions import require_episode_management
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from typing import List, Optional
@@ -135,11 +134,9 @@ async def process_episode(id: int, skip_transcription: bool = False, user = Depe
 @router.post("/episodes/{id}/cancel")
 async def cancel_episode(id: int, user = Depends(require_auth)):
     require_episode_management(user, id)
-    """Cancel processing, ignore the episode, and remove local files."""
-    proc = get_processor()
-    success = await proc.delete_episode(id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Episode not found")
+    # Match queue/v1 cancellation: preserve published audio and keep a live lease
+    # until the worker acknowledges. Ignore/remove files is a separate action.
+    EpisodeRepository().reset_status(id)
     return {"status": "cancelled"}
 
 class SearchQuery(BaseModel):

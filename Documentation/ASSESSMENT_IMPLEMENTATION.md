@@ -7,6 +7,9 @@ The future-feature rehearsal does not add a new ad-review product workflow.
 
 ## Completed batches
 
+- F14/F15/F23 browser follow-up: one Jinja card partial serves initial and paginated episodes; native confirmation dialogs, title disclosures, missing field labels and mobile list expansion are fixed. Removed superseded dropdown markup and conflicting list CSS. Desktop/390 px browser checks confirmed complete expanded text, no horizontal overflow, Cancel/Escape and focus return. F05 cancellation now preserves published audio across queue, legacy and v1 routes. 21 focused HTTP/DOM/filter tests passed.
+- F05/F22: a separately spawned two-process test confirms global queue capacity; all 7 processing recovery tests passed.
+
 - F17 lifecycle follow-up: shutdown clears owned child/supervisor state and disabled processing remains healthy after a prior worker stops. 23 health, deletion and custom-provider tests passed together.
 
 - F20/F21: transactional scratch admission, stage free-space checks, durable shared request budget (analysis/summary/remote speech), explicit SDK timeouts, provider-aware retry timing, usage records and verified stage reuse. 17 focused tests passed, including an actual failed-cut retry with one download/transcription/analysis total.

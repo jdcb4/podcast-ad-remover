@@ -10,104 +10,6 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
     let currentSearchTerm = '';
     let searchDebounceTimer = null;
 
-    function escapeHtml(value) {
-        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;'
-        })[char]);
-    }
-
-    // Episode Card Template Generator
-    function createEpisodeCardHTML(ep, subscriptionSlug) {
-        const allowedStatuses = ['completed', 'processing', 'ignored', 'deleted', 'failed', 'rate_limited', 'unprocessed', 'pending'];
-        const status = allowedStatuses.includes(ep.status) ? ep.status : 'unprocessed';
-        const isManual = ep.is_manual_download ? 'true' : 'false';
-        const episodeId = Number.parseInt(ep.id, 10) || 0;
-        const title = escapeHtml(ep.title || '');
-        const titleSearch = escapeHtml((ep.title || '').toLowerCase());
-        const description = escapeHtml(ep.description || '');
-        const pubDate = escapeHtml(ep.pub_date || '');
-        const listenCount = Number.parseInt(ep.listen_count, 10) || 0;
-        const formatDuration = (seconds) => {
-            if (!seconds) return '-';
-            const totalSeconds = Number.parseInt(seconds, 10) || 0;
-            const m = Math.floor((totalSeconds % 3600) / 60);
-            const s = totalSeconds % 60;
-            const h = Math.floor(totalSeconds / 3600);
-            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-            return `${m}:${s.toString().padStart(2, '0')}`;
-        };
-
-        // Status badge HTML
-        let statusBadge = '';
-        if (status === 'completed') {
-            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/30 text-emerald-400 text-[8px] font-black tracking-widest leading-none hover:bg-emerald-500/40 transition-colors"><span class="w-1 h-1 rounded-full bg-emerald-400"></span>DOWNLOADED</span>`;
-        } else if (status === 'processing') {
-            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none animate-pulse"><span class="w-1 h-1 rounded-full bg-amber-400"></span>PROCESSING</span>`;
-        } else if (status === 'ignored' || status === 'deleted') {
-            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[8px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors"><span class="w-1 h-1 rounded-full bg-slate-400"></span>DELETED</span>`;
-        } else if (status === 'failed') {
-            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[8px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors"><span class="w-1 h-1 rounded-full bg-red-400"></span>FAILED</span>`;
-        } else if (status === 'rate_limited') {
-            statusBadge = `<span class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none"><span class="w-1 h-1 rounded-full bg-amber-400"></span>RATE LIMITED</span>`;
-        }
-
-        // Play count badge
-        const playsBadge = listenCount > 0 ? `<span class="ml-3 text-primary-400 text-[11px] font-bold tracking-wider uppercase">${listenCount} play${listenCount !== 1 ? 's' : ''}</span>` : '';
-
-        // Action buttons
-        let actionButtons = '';
-        if (ep.local_filename && status !== 'ignored') {
-            const audioHref = `/episodes/${episodeId}/audio`;
-            actionButtons = `<a href="${audioHref}" target="_blank"  class="p-2 bg-primary-500 rounded-full text-white hover:bg-primary-400 hover:scale-105 transition-all shadow-lg" title="Play"><svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></a>`;
-        } else if (episodePage.canManage && (status === 'unprocessed' || status === 'ignored')) {
-            actionButtons = `<button onclick="downloadEpisode(${episodeId})" class="p-2 text-text-muted hover:text-white hover:bg-white/10 rounded-full transition-colors" title="Download"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg></button>`;
-        }
-
-        const hasTranscript = ep.transcript_path ? 'true' : 'false';
-        const hasReport = (ep.report_path || ep.ad_report_path) ? 'true' : 'false';
-
-        return `
-        <div class="episode-card card flex flex-col relative overflow-visible group transition-all duration-300 h-full border hover:border-white/10"
-            data-status="${status}" data-manual="${isManual}"
-            data-title="${titleSearch}" data-date="${pubDate}" data-listen-count="${listenCount}"
-            id="card-${episodeId}">
-            <div class="checkbox-wrapper absolute top-4 left-4 z-20 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" onclick="event.stopPropagation();">
-                <input ${episodePage.canManage ? '' : 'disabled hidden'} type="checkbox" name="episode_ids" value="${episodeId}" aria-label="Select ${title}" class="h-5 w-5 rounded border-white/20 bg-surface-elevated text-primary-500 focus:ring-primary-500 cursor-pointer shadow-lg episode-checkbox" onchange="updateBatchActions()">
-            </div>
-            <div class="flex-1 p-4 flex flex-col cursor-pointer relative" onclick="toggleDescription('${episodeId}')">
-                <div class="flex justify-between items-start mb-3">
-                    <div class="flex items-center gap-2 text-[11px] font-bold tracking-wider text-text-muted uppercase">
-                        <span class="date-relative" data-date="${pubDate}">${pubDate}</span>
-                        <span class="text-white/10 dot-separator">•</span>
-                        <span>${escapeHtml(formatDuration(ep.duration))}</span>
-                    </div>
-                </div>
-                <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors" title="${title}">
-                    ${statusBadge}
-                    <span class="block mt-5">${title}${playsBadge}</span>
-                </h3>
-                <div class="mb-4 text-sm leading-relaxed text-text-secondary cursor-pointer group/ep-desc relative" onclick="this.classList.toggle('expanded'); event.stopPropagation();">
-                    ${description ? `<div class="py-1 px-1"><div class="line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out text-text-secondary/90">${description}</div></div>` : ''}
-                </div>
-            </div>
-            <div class="px-4 py-3 flex justify-between items-center bg-surface-base/95 md:bg-surface-base/30 md:backdrop-blur-sm" onclick="event.stopPropagation();">
-                <div class="flex items-center gap-2 list-actions">
-                    ${actionButtons}
-                    <div class="relative inline-block text-left">
-                        <button onclick="showActionSheet(event, ${episodeId}, ${hasTranscript}, ${hasReport})" class="p-2 text-text-muted hover:text-white transition-colors rounded-full hover:bg-white/10" title="More">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"></path></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <button type="button" data-description-toggle aria-expanded="false" onclick="toggleDescription(${episodeId})" class="sr-only focus:not-sr-only">Toggle description for ${title}</button>
-        </div>`;
-    }
-
     let currentFilter = localStorage.getItem('episode-filter-preference') || 'all';
     let pageRequest = null;
     let pageSequence = 0;
@@ -134,7 +36,8 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
             if (sequence !== pageSequence) return;
             const selected = new Set(Array.from(document.querySelectorAll('.episode-checkbox:checked'), cb => cb.value));
             if (reset) grid.replaceChildren();
-            data.episodes.forEach(ep => grid.insertAdjacentHTML('beforeend', createEpisodeCardHTML(ep, data.subscription_slug)));
+            grid.insertAdjacentHTML('beforeend', data.html);
+            formatEpisodeDates(grid);
             currentOffset = (reset ? 0 : currentOffset) + data.episodes.length;
             totalEpisodes = data.total;
             retryReset = false;
@@ -285,22 +188,20 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
         return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     }
 
-    // Format Dates on Load with Relative Logic
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.date-relative').forEach(el => {
-            try {
-                const dateStr = el.getAttribute('data-date');
-                const rel = timeAgo(dateStr);
-                if (rel) el.textContent = rel;
-            } catch (e) { }
+    function formatEpisodeDates(root = document) {
+        root.querySelectorAll('.date-relative').forEach(el => {
+            const relative = timeAgo(el.getAttribute('data-date'));
+            if (relative) el.textContent = relative;
         });
-    });
+    }
+    document.addEventListener('DOMContentLoaded', () => formatEpisodeDates());
 
     function toggleDescription(id) {
         const card = document.getElementById('card-' + id);
         if (card) {
             const expanded = card.classList.toggle('expanded');
             card.querySelector('[data-description-toggle]')?.setAttribute('aria-expanded', String(expanded));
+            card.querySelector('[id^=episode-description-]')?.classList.toggle('expanded', expanded);
         }
     }
 
@@ -358,6 +259,10 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
             </a>`;
         }
         if (episodePage.canManage) {
+        const status = document.getElementById(`card-${episodeId}`)?.dataset.status;
+        if (['pending', 'processing', 'rate_limited'].includes(status)) {
+            html += `<button onclick="closeActionSheet(); cancelEpisode(${episodeId})" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-white/5 rounded-xl">Cancel processing</button>`;
+        }
         html += `<button onclick="closeActionSheet(); processEpisode(${episodeId}, false)" class="w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-xl flex items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             Full Reprocess
@@ -385,12 +290,6 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
         sheet.classList.add('hidden');
     }
 
-    window.onclick = function (event) {
-        if (!event.target.closest('.relative.inline-block.text-left > button') && !event.target.closest('[id^=menu-]')) {
-            document.querySelectorAll('[id^=menu-]').forEach(x => x.classList.add('hidden'));
-        }
-    }
-
     async function checkNow(id) {
         if (!await appConfirm('Check for new episodes now?')) return;
         try {
@@ -403,7 +302,7 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
         return episodeAction(id, `/api/episodes/${id}/reprocess?skip_transcription=${Boolean(skipTranscription)}`, 'Processing queued. Previous audio remains available.', 'Reprocess using the current settings?');
     }
     function cancelEpisode(id) {
-        return episodeAction(id, `/api/episodes/${id}/cancel`, 'Cancellation requested.', 'Cancel processing and remove this episode’s local files?', 'POST', true);
+        return episodeAction(id, `/api/episodes/${id}/cancel`, 'Cancellation requested. Published audio is retained.', 'Cancel processing for this episode?');
     }
 
     async function deleteSubscription(id) {

@@ -437,7 +437,7 @@
 <div class="flex items-center justify-between gap-3 w-full">
     <!-- Search Input -->
     <div class="relative flex-1 md:w-80">
-        <input type="text" id="episode-search" placeholder="Search episodes..."
+        <input type="text" id="episode-search" aria-label="Search episodes" placeholder="Search episodes..."
             class="w-full bg-surface-base border border-white/[0.1] rounded-2xl pl-12 pr-4 py-3 text-sm text-text-primary focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all shadow-inner">
         <svg class="w-5 h-5 text-text-muted absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" fill="none"
             stroke="currentColor" viewBox="0 0 24 24">
@@ -467,7 +467,7 @@
             <span class="text-xs font-medium text-text-muted">Auto</span>
         </label>
         <div class="flex items-center gap-1">
-            <input type="number" id="refresh-interval" value="30" min="5" max="300"
+            <input type="number" id="refresh-interval" aria-label="Refresh interval in seconds" value="30" min="5" max="300"
                 class="w-8 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-primary-400 appearance-none text-xs"
                 style="-moz-appearance: textfield;">
             <span class="text-xs text-text-muted">s</span>
@@ -507,7 +507,7 @@
                 </svg>
             </button>
         </div>
-        <div class="text-xs text-text-muted font-medium hidden sm:block" id="episode-count" role="status" aria-live="polite">
+        <div class="text-xs text-text-muted font-medium sr-only sm:not-sr-only" id="episode-count" role="status" aria-live="polite">
             All episodes
         </div>
     </div>
@@ -563,7 +563,7 @@
     }
 
     /* Column Styles (Desktop Default) */
-    #episodes-grid[data-view="list"] .episode-card>div:first-child {
+    #episodes-grid[data-view="list"] .episode-card>.checkbox-wrapper {
         grid-area: check;
         display: flex;
         align-items: center;
@@ -573,7 +573,9 @@
         opacity: 1 !important;
     }
 
-    #episodes-grid[data-view="list"] .episode-card>div:nth-child(2) {
+    #episodes-grid[data-view="list"] .episode-content,
+    #episodes-grid[data-view="list"] .episode-metadata,
+    #episodes-grid[data-view="list"] .episode-meta-values {
         display: contents;
     }
 
@@ -619,7 +621,7 @@
         margin-left: 0.75rem;
     }
 
-    #episodes-grid[data-view="list"] .episode-card>div:last-child {
+    #episodes-grid[data-view="list"] .episode-card>.episode-actions {
         grid-area: actions;
         display: flex;
         align-items: center;
@@ -684,8 +686,8 @@
     /* Mobile Overrides (Max-Width 768px) */
     @media (max-width: 768px) {
         #episodes-grid[data-view="list"] .episode-card {
-            grid-template-columns: 48px 1fr auto !important;
-            grid-template-areas: "check title actions" !important;
+            grid-template-columns: 48px minmax(0, 1fr) auto !important;
+            grid-template-areas: "check title actions" "desc desc desc" !important;
             grid-template-rows: auto !important;
             align-items: center !important;
             padding: 0.875rem 0.5rem !important;
@@ -697,7 +699,7 @@
             border-top: none !important;
         }
 
-        #episodes-grid[data-view="list"] .episode-card>div:first-child {
+        #episodes-grid[data-view="list"] .episode-card>.checkbox-wrapper {
             grid-area: check !important;
             height: auto !important;
             justify-content: center !important;
@@ -715,7 +717,7 @@
             overflow: visible !important;
         }
 
-        #episodes-grid[data-view="list"] .episode-card>div:last-child {
+        #episodes-grid[data-view="list"] .episode-card>.episode-actions {
             grid-area: actions !important;
             height: auto !important;
             justify-content: flex-end !important;
@@ -749,252 +751,7 @@
 </style>
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 mb-20" id="episodes-grid" data-view="grid">
-    {% for ep in episodes %}
-    <div class="episode-card card flex flex-col relative overflow-visible group transition-all duration-300 h-full border hover:border-white/10"
-        data-status="{{ ep.status }}" data-manual="{{ 'true' if ep.is_manual_download else 'false' }}"
-        data-title="{{ ep.title|lower }}" data-date="{{ ep.pub_date }}" data-listen-count="{{ ep.listen_count or 0 }}"
-        id="card-{{ ep.id }}">
-
-        <!-- Batch Selection Checkbox -->
-        <div class="checkbox-wrapper absolute top-4 left-4 z-20 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
-            onclick="event.stopPropagation();">
-            <input type="checkbox" name="episode_ids" value="{{ ep.id }}" aria-label="Select {{ ep.title }}" {% if not can_manage_subscription %}disabled hidden{% endif %}
-                class="h-5 w-5 rounded border-white/20 bg-surface-elevated text-primary-500 focus:ring-primary-500 cursor-pointer shadow-lg episode-checkbox"
-                onchange="updateBatchActions()">
-        </div>
-
-        <button type="button" data-description-toggle aria-expanded="false" onclick="toggleDescription({{ ep.id }})" class="sr-only focus:not-sr-only">Toggle description for {{ ep.title }}</button>
-        <!-- Main Clickable Area -->
-        <div class="flex-1 p-4 flex flex-col cursor-pointer relative" onclick="toggleDescription('{{ ep.id }}')">
-
-            <!-- Metadata Row -->
-            <div class="flex justify-between items-start mb-3">
-                <div class="flex items-center gap-2 text-[11px] font-bold tracking-wider text-text-muted uppercase">
-                    <span class="date-relative" data-date="{{ ep.pub_date }}">{{ ep.pub_date }}</span>
-                    <span class="text-white/10 dot-separator">•</span>
-                    <span>{{ format_duration(ep.duration) }}</span>
-                </div>
-
-
-            </div>
-
-            <!-- Title -->
-            <h3 class="font-display text-lg font-bold text-text-primary leading-snug mb-3 group-hover:text-primary-300 transition-colors"
-                title="{{ ep.title }}">
-                {% if ep.status == 'completed' %}
-                <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/30 text-emerald-400 text-[8px] font-black tracking-widest leading-none hover:bg-emerald-500/40 transition-colors">
-                    <span class="w-1 h-1 rounded-full bg-emerald-400"></span>
-                    DOWNLOADED
-                </span>
-                {% elif ep.status == 'processing' %}
-                <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none animate-pulse">
-                    <span class="w-1 h-1 rounded-full bg-amber-400"></span>
-                    PROCESSING
-                </span>
-                {% elif ep.status == 'ignored' or ep.status == 'deleted' %}
-                <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[8px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors">
-                    <span class="w-1 h-1 rounded-full bg-slate-400"></span>
-                    DELETED
-                </span>
-                {% elif ep.status == 'failed' %}
-                <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/30 text-red-400 text-[8px] font-black tracking-widest leading-none hover:bg-red-500/40 transition-colors">
-                    <span class="w-1 h-1 rounded-full bg-red-400"></span>
-                    FAILED
-                </span>
-                {% elif ep.status == 'rate_limited' %}
-                <span
-                    class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/30 text-amber-400 text-[8px] font-black tracking-widest leading-none">
-                    <span class="w-1 h-1 rounded-full bg-amber-400"></span>
-                    RATE LIMITED
-                </span>
-                {% endif %}
-                <span class="block mt-5">{{ ep.title }}{% if ep.listen_count and ep.listen_count > 0 %} <span
-                        class="ml-3 text-primary-400 text-[11px] font-bold tracking-wider uppercase">{{ ep.listen_count
-                        }} play{% if ep.listen_count != 1 %}s{% endif %}</span>{% endif %}</span>
-            </h3>
-
-            <!-- Description & AI (Click to Expand Entire Block) -->
-            <div class="mb-4 text-sm leading-relaxed text-text-secondary cursor-pointer group/ep-desc relative"
-                onclick="this.classList.toggle('expanded'); event.stopPropagation();">
-
-                {% if ep.ai_summary %}
-                <!-- AI Summary View -->
-                <div
-                    class="p-4 bg-primary-500/5 rounded-2xl border border-primary-500/10 mb-3 group/ai transition-all hover:bg-primary-500/[0.08]">
-                    <div
-                        class="flex items-center gap-2 mb-3 text-primary-400 text-[10px] font-bold uppercase tracking-[0.2em]">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path
-                                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
-                            </path>
-                        </svg>
-                        AI Insights
-                    </div>
-                    <div class="markdown-content text-white line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out"
-                        id="ai-sum-{{ ep.id }}">
-                        {{ ep.ai_summary|simple_markdown|safe }}
-                    </div>
-                    <div
-                        class="mt-4 text-[10px] font-bold text-primary-400/60 group-[.expanded]/ep-desc:hidden flex items-center gap-1">
-                        Full Summary <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7">
-                            </path>
-                        </svg>
-                    </div>
-                </div>
-
-                {% if ep.description %}
-                <details class="group/details mt-2" onclick="event.stopPropagation()">
-                    <summary
-                        class="text-[10px] font-bold text-text-muted cursor-pointer hover:text-text-secondary list-none flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity uppercase tracking-widest pl-1">
-                        <span class="group-open/details:hidden">Original Description</span>
-                        <span class="hidden group-open/details:block">Hide Description</span>
-                        <svg class="w-3 h-3 group-open/details:rotate-180 transition-transform" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7">
-                            </path>
-                        </svg>
-                    </summary>
-                    <div
-                        class="mt-4 text-text-secondary/80 text-[13px] pl-4 border-l-2 border-white/5 space-y-3 leading-relaxed">
-                        {{ ep.description|clean_description }}
-                    </div>
-                </details>
-                {% endif %}
-
-                {% else %}
-                <!-- Fallback: Standard Description -->
-                {% if ep.description %}
-                <div class="py-1 px-1">
-                    <div
-                        class="line-clamp-4 group-[.expanded]/ep-desc:line-clamp-none transition-all duration-500 ease-in-out text-text-secondary/90">
-                        {{ ep.description|clean_description }}
-                    </div>
-                    <div
-                        class="mt-4 text-[10px] font-bold text-primary-400/60 group-hover/ep-desc:text-primary-400 group-hover/ep-desc:opacity-100 transition-all flex items-center gap-1 group-[.expanded]/ep-desc:hidden uppercase tracking-widest">
-                        Read More <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7">
-                            </path>
-                        </svg>
-                    </div>
-                </div>
-                {% endif %}
-                {% endif %}
-            </div>
-
-            <!-- Progress Bar -->
-            {% if ep.status == 'processing' %}
-            <div class="mt-4 bg-surface-base rounded-md p-1.5 border border-white/[0.06]">
-                <div class="flex justify-between text-[10px] uppercase font-bold text-text-muted mb-1">
-                    <span>{{ ep.processing_step }}</span>
-                    <span>{{ ep.progress }}%</span>
-                </div>
-                <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div class="h-full bg-warning transition-all duration-500" style="width: {{ ep.progress }}%"></div>
-                </div>
-            </div>
-            {% endif %}
-
-        </div>
-
-        <!-- Footer / Actions -->
-        <div class="px-4 py-3 flex justify-between items-center bg-surface-base/95 md:bg-surface-base/30 md:backdrop-blur-sm"
-            onclick="event.stopPropagation();">
-
-            <!-- Actions moved to dropdown menu -->
-
-            <!-- Quick Actions -->
-            <div class="flex items-center gap-2 list-actions">
-                {% if ep.local_filename and ep.status != 'ignored' %}
-                <a href="/episodes/{{ ep.id }}/audio"
-                    target="_blank" 
-                    class="p-2 bg-primary-500 rounded-full text-white hover:bg-primary-400 hover:scale-105 transition-all shadow-lg"
-                    title="Play">
-                    <svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                    </svg>
-                </a>
-                {% elif can_manage_subscription and (ep.status == 'unprocessed' or ep.status == 'ignored') %}
-                <button onclick="downloadEpisode({{ ep.id }})"
-                    class="p-2 text-text-muted hover:text-white hover:bg-white/10 rounded-full transition-colors"
-                    title="Download">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                    </svg>
-                </button>
-                {% endif %}
-
-                <!-- Options Menu (Always show if not ignored or failed?) -->
-                <div class="relative inline-block text-left">
-                    <button
-                        onclick="showActionSheet(event, {{ ep.id }}, {{ 'true' if ep.transcript_path else 'false' }}, {{ 'true' if (ep.report_path or ep.ad_report_path) else 'false' }})"
-                        class="p-2 text-text-muted hover:text-white transition-colors rounded-full hover:bg-white/10"
-                        title="More">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 5v.01M12 12v.01M12 19v.01"></path>
-                        </svg>
-                    </button>
-                    <!-- Dropdown Menu -->
-                    <div id="menu-{{ ep.id }}"
-                        class="absolute right-0 top-full mt-2 w-52 rounded-xl shadow-2xl bg-surface-elevated border border-white/10 hidden z-[9999]">
-                        <div class="p-1">
-                            {% if ep.transcript_path %}
-                            <a href="/episodes/{{ ep.id }}/transcript"
-                                class="w-full text-left px-4 py-2.5 text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                                    </path>
-                                </svg>
-                                View Transcript
-                            </a>
-                            {% endif %}
-                            {% if ep.report_path or ep.ad_report_path %}
-                            <a href="/artifacts/report/{{ ep.id }}" target="_blank"
-                                class="w-full text-left px-4 py-2.5 text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                                    </path>
-                                </svg>
-                                View Report
-                            </a>
-                            {% endif %}
-                            <button onclick="processEpisode({{ ep.id }})"
-                                class="w-full text-left px-4 py-2.5 text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                    </path>
-                                </svg>
-                                Reprocess Episode
-                            </button>
-                            <button onclick="deleteEpisode({{ ep.id }})"
-                                class="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 rounded-lg flex items-center gap-2">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                    </path>
-                                </svg>
-                                Ignore Episode and Remove Files
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% else %}
-    <div class="col-span-full text-center py-12 card text-text-muted">
-        No episodes found.
-    </div>
-    {% endfor %}
+    {% include "_episode_cards.html" %}
 </div>
 
 <!-- Load More Button -->

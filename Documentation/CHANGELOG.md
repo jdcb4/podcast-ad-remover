@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Share episode card rendering between initial pages and pagination; fix keyboard description expansion, mobile list layout and native confirmation dialogs. Cancellation consistently retains published audio; Ignore remains the file-removal action.
+
 - Bound provider calls across automatic retries, disable hidden SDK retries, honor Retry-After, stop retrying authentication/billing failures, record provider usage, reserve scratch capacity, and reuse verified stage outputs after failures.
 
 - Expose real worker heartbeat/scheduler status, supervise child failures, add a Docker readiness check, report container memory and cache storage scans. Honor the initial Whisper environment setting and validate the selected AI provider including keyless custom endpoints.
