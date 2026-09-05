@@ -1176,7 +1176,7 @@ async def api_reprocess_episode(episode_id: int, skip_transcription: bool = Fals
     # API version of retry - force status to pending
     current_status = ep_repo.get_status(episode_id)
     if current_status == 'processing':
-         return {"status": "ignored", "reason": "already_processing"}
+         raise HTTPException(409, "Episode is already processing")
     
     # Set processing flags (like subscriptions.py does)
     flags = {'skip_transcription': skip_transcription}
@@ -1215,6 +1215,8 @@ async def manual_download_episode(episode_id: int, request: Request, user = Depe
     proc = Processor()
     await proc.process_queue()
 
+    if 'application/json' in request.headers.get('accept', ''):
+        return JSONResponse({'status': 'queued'})
     return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
 
 
@@ -1666,7 +1668,7 @@ def _render_index(request: Request, error: str = None):
     
     from app.infra.database import get_db_connection
     with get_db_connection() as conn:
-        rows = conn.execute("SELECT duration, file_size FROM episodes WHERE status = 'completed'").fetchall()
+        rows = conn.execute("SELECT COALESCE(output_duration,duration) AS duration, file_size FROM episodes WHERE local_filename IS NOT NULL AND status != 'ignored'").fetchall()
         total_episodes = len(rows)
         for row in rows:
             if row['duration']: total_duration += row['duration']
@@ -1739,7 +1741,7 @@ def _render_index(request: Request, error: str = None):
             "sub": sub,
             "links": generate_rss_links(request, sub, global_settings, user),
             "episodes": [dict(ep) for ep in episodes],
-            "episode_count": len(episodes),
+            "episode_count": ep_repo.count_by_subscription(sub.id),
             "processing_count": processing_count,
             "total_listens": ep_repo.get_subscription_listen_count(sub.id),
             "latest_ai_summary": latest_summary,
@@ -2446,15 +2448,17 @@ async def view_subscription(request: Request, id: int):
     )
 
 @router.get("/api/subscriptions/{id}/episodes")
-async def get_subscription_episodes_api(id: int, limit: int = 20, offset: int = 0, search: str = None):
+async def get_subscription_episodes_api(id: int, limit: int = 20, offset: int = 0, search: str = None, filter: str = 'all'):
     """Return episodes for a subscription as JSON for lazy loading. Supports search by title."""
     sub = sub_repo.get_by_id(id)
     if not sub:
         raise HTTPException(status_code=404, detail="Subscription not found")
     
-    # Pass search to repository methods
-    episodes = ep_repo.get_by_subscription_paginated(id, limit=limit, offset=offset, search=search)
-    total = ep_repo.count_by_subscription(id, search=search)
+    if limit < 1 or limit > 100 or offset < 0 or filter not in {'all','completed','manual','not-downloaded','ignored','played'}:
+        raise HTTPException(422, 'Invalid episode pagination or filter')
+    # Filter before pagination, with the same predicates for the count.
+    episodes = ep_repo.get_by_subscription_paginated(id, limit=limit, offset=offset, search=search, filter=filter)
+    total = ep_repo.count_by_subscription(id, search=search, filter=filter)
     
     # Convert sqlite rows to dicts
     episodes_data = []

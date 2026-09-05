@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix episode deletion, make settings and action menus keyboard accessible, label episode selection, paginate filters/search on the server, preserve newer search results, report action failures and support direct RSS URLs. Extract episode JavaScript and correct stored-audio/count labels.
+
 - Use stable database IDs for new episode storage, fence every worker write by its claim, retain cancellation leases until acknowledgement, and enforce the global claim limit in one transaction.
 - Stage replacement audio independently, preserve previous published files and GUIDs during failed reprocessing, validate source fingerprints before transcript reuse, and publish measured output duration.
 - Atomically replace serialized RSS snapshots and retain completed audio with a durable feed-publication retry flag when feed writing fails. Existing artifact paths remain readable.

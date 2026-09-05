@@ -21,6 +21,7 @@ def populated_client(isolated_data_dir):
         conn.execute("INSERT INTO episodes (id,subscription_id,guid,title,original_url,status) VALUES (90,90,'one','One','https://example.com/one','completed'), (91,90,'two','Two','https://example.com/two','completed')")
         conn.commit()
     app = FastAPI()
+    app.add_middleware(SessionMiddleware, secret_key='test-only')
     app.include_router(web.router)
     app.include_router(subscriptions.router, prefix='/api')
     app.include_router(audio_routes.router)
@@ -47,6 +48,29 @@ def test_membership_json_and_form_use_real_repository(populated_client):
         assert result.json()['user_library_count'] == int(member)
     result = populated_client.post('/subscriptions/90/library', data={'action': 'add'}, follow_redirects=False)
     assert result.status_code == 303
+
+
+def test_rendered_episode_page_and_shipped_javascript(populated_client):
+    import subprocess
+    import shutil
+    response = populated_client.get('/subscriptions/90')
+    assert response.status_code == 200
+    result = subprocess.run([shutil.which('node'), 'tests/episode_dom.cjs'], input=response.text,
+                            text=True, encoding='utf-8', capture_output=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+
+
+def test_filter_and_search_apply_before_pagination(populated_client):
+    with get_db_connection() as conn:
+        for i in range(100, 650):
+            conn.execute("INSERT INTO episodes(id, subscription_id, guid, title, original_url, status, listen_count) VALUES(?,90,?,'Match','https://example.com','unprocessed',?)", (i, str(i), int(i == 100)))
+        conn.commit()
+    page = populated_client.get('/api/subscriptions/90/episodes?filter=played').json()
+    assert [ep['id'] for ep in page['episodes']] == [100]
+    page = populated_client.get('/api/subscriptions/90/episodes?search=Match&offset=500').json()
+    assert page['total'] == 550 and page['has_more']
+    assert len(page['episodes']) == 20
+    assert populated_client.get('/api/subscriptions/90/episodes?limit=500').status_code == 422
 
 
 def test_audio_tracking_uses_complete_path_and_invalid_range_is_client_error(populated_client):

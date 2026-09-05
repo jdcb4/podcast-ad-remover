@@ -192,3 +192,7 @@ This publishes `jdcb4/podcast-ad-remover:experimental-arm64` when pushed. It pas
 - Python coverage should continue expanding around full processor lifecycles and service boundaries.
 - Migration tests cover additive schema and data transforms, but a copied realistic `podcasts.db`
   dry run remains a release-time check rather than a routine automated test.
+
+The Python suite also runs `tests/episode_dom.cjs` with Node against server-rendered HTML.
+Run `npm ci` before pytest; Node 24 is the CI baseline. FFmpeg enables short MP3/AAC/Opus
+integration tests. Offline tests stub external downloads/models, not database repositories.

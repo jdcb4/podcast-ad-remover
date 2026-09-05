@@ -727,34 +727,32 @@ class EpisodeRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def get_by_subscription_paginated(self, subscription_id: int, limit: int = 20, offset: int = 0, search: str = None) -> list:
-        """Get episodes for a subscription with pagination, ordered by pub_date descending.
-        Optionally filter by search term (matches title)."""
-        with get_db_connection() as conn:
-            if search:
-                return conn.execute(
-                    "SELECT * FROM episodes WHERE subscription_id = ? AND title LIKE ? ORDER BY pub_date DESC LIMIT ? OFFSET ?",
-                    (subscription_id, f"%{search}%", limit, offset)
-                ).fetchall()
-            return conn.execute(
-                "SELECT * FROM episodes WHERE subscription_id = ? ORDER BY pub_date DESC LIMIT ? OFFSET ?",
-                (subscription_id, limit, offset)
-            ).fetchall()
+    @staticmethod
+    def _episode_filter(subscription_id, search=None, filter='all'):
+        clauses, params = ['subscription_id = ?'], [subscription_id]
+        if search:
+            clauses.append("title LIKE ? ESCAPE '\\'")
+            params.append('%' + search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%')
+        filters = {
+            'all': '1=1', 'completed': "local_filename IS NOT NULL AND status != 'ignored'",
+            'manual': 'is_manual_download=1',
+            'not-downloaded': "local_filename IS NULL AND status IN ('unprocessed','failed','pending','rate_limited')",
+            'ignored': "status='ignored'", 'played': 'COALESCE(listen_count,0)>0',
+        }
+        if filter not in filters:
+            raise ValueError('Unknown episode filter')
+        clauses.append(filters[filter])
+        return ' AND '.join(clauses), params
 
-    def count_by_subscription(self, subscription_id: int, search: str = None) -> int:
-        """Count total episodes for a subscription, optionally filtered by search term."""
+    def get_by_subscription_paginated(self, subscription_id: int, limit: int = 20, offset: int = 0, search: str = None, filter: str = 'all') -> list:
+        where, params = self._episode_filter(subscription_id, search, filter)
         with get_db_connection() as conn:
-            if search:
-                result = conn.execute(
-                    "SELECT COUNT(*) FROM episodes WHERE subscription_id = ? AND title LIKE ?",
-                    (subscription_id, f"%{search}%")
-                ).fetchone()
-            else:
-                result = conn.execute(
-                    "SELECT COUNT(*) FROM episodes WHERE subscription_id = ?",
-                    (subscription_id,)
-                ).fetchone()
-            return result[0] if result else 0
+            return conn.execute(f'SELECT * FROM episodes WHERE {where} ORDER BY pub_date DESC, id DESC LIMIT ? OFFSET ?', (*params, max(1, min(100, limit)), max(0, offset))).fetchall()
+
+    def count_by_subscription(self, subscription_id: int, search: str = None, filter: str = 'all') -> int:
+        where, params = self._episode_filter(subscription_id, search, filter)
+        with get_db_connection() as conn:
+            return conn.execute(f'SELECT COUNT(*) FROM episodes WHERE {where}', params).fetchone()[0]
 
     def get_status(self, id: int) -> Optional[str]:
         with get_db_connection() as conn:

@@ -124,3 +124,15 @@ Feed generation is serialized across processes and uses temporary-file replaceme
 `publication_pending` survives feed errors without deleting audio or repeating AI work.
 The existing model-tooling dependency `filelock` is now explicit for portable publication
 locking; no queue service, ORM or external coordination service was added.
+
+## 2026-09-05: test the rendered episode page
+
+Episode behavior lives in `static/js/episodes.js`; its only server input is an escaped
+JSON configuration block. SQL applies search and status filters before pagination.
+Each request has a sequence and abort controller so old results cannot replace newer ones.
+Native dialog behavior provides keyboard modality without an additional UI framework.
+
+`jsdom` is a development-only dependency for running shipped JavaScript against rendered
+HTML. It reproduces the missing-button failure that source-text assertions missed and
+checks stale searches, injection escaping and error messages without downloading browsers.
+Browser smoke testing remains necessary for layout, native focus and media playback.
