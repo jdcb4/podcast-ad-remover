@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.13.0 - 2026-09-06
+
 - Keep published-episode counts, previews and listen totals stable while replacement processing is queued, running, cancelled or failed.
 
 - Honor explicit RSS API initial-download counts, including zero, and reject negative counts before creating a subscription.
