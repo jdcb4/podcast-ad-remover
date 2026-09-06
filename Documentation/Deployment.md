@@ -162,7 +162,7 @@ This path targets `linux/arm64`, tags the image as `jdcb4/podcast-ad-remover:exp
 
 ## Release Publishing
 
-Production releases are promoted from a tested Dev revision only after explicit approval. The release helper runs only from a clean `master` checkout.
+Production releases are promoted from a tested Dev revision only after explicit approval. The release helper runs only from a clean `main` checkout.
 
 Before upgrading an existing install with important data, dry-run database migrations against a copy:
 

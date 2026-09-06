@@ -120,7 +120,7 @@ The helper takes an integrity-checked SQLite online backup, including committed 
 
 ## Branch And Pull Request Check
 
-GitHub Actions runs `npm run verify` on pull requests and pushes to `dev` and `master`. Pull requests normally target `dev`; `master` is reserved for explicitly approved production promotions. The workflow sets `DATA_DIR` to a temporary Linux runner path so tests do not depend on `/data` being writable.
+GitHub Actions runs `npm run verify` on pull requests and pushes to `dev` and `main`. The `verify` job from GitHub Actions is a required check for both branches. Pull requests normally target `dev`; `main` is reserved for explicitly approved production promotions. The workflow sets `DATA_DIR` to a temporary Linux runner path so tests do not depend on `/data` being writable. See [Git workflow](GIT_WORKFLOW.md) for branch rules and maintenance.
 
 ## Dev Image Check And Publish
 
@@ -145,7 +145,7 @@ The rolling tag is convenient for the Dev environment; the SHA tag records the e
 
 ## Release Publish Check
 
-Only run the production release path after the tested Dev revision has received explicit promotion approval and has been merged into `master`. The release helper requires a clean `master` checkout, reads the version from `package.json`, validates that it is `MAJOR.MINOR.PATCH`, runs verification, and builds two tags:
+Only run the production release path after the tested Dev revision has received explicit promotion approval and has been merged into `main`. The release helper requires a clean `main` checkout, reads the version from `package.json`, validates that it is `MAJOR.MINOR.PATCH`, runs verification, and builds two tags:
 
 ```bash
 npm run docker:build

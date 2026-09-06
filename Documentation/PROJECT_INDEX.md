@@ -51,7 +51,7 @@ docker compose up -d --build
 
 `npm run verify` is the normal pre-change completion check. `npm run verify:docker` adds a local Docker image build and should be used before release tagging or publishing.
 
-Normal work integrates into `dev`. Dev images publish as `:dev` and `:dev-<git-sha>`; production promotion to `master`, SemVer, and `latest` requires explicit approval.
+Normal work integrates into `dev`, the GitHub default branch. Dev images publish as `:dev` and `:dev-<git-sha>`; production promotion to `main`, SemVer, and `latest` requires explicit approval. Keep only these two long-lived branches plus active, unmerged feature work.
 
 ## Documentation Map
 
@@ -60,6 +60,7 @@ Normal work integrates into `dev`. Dev images publish as `:dev` and `:dev-<git-s
 - `Documentation/Deployment.md`: Docker and Docker Compose deployment.
 - `Documentation/Environment_Variables.md`: environment configuration.
 - `Documentation/VERSIONING.md`: version bump and Docker tag rules.
+- `Documentation/GIT_WORKFLOW.md`: protected branches, worktrees, safe cleanup and older-clone migration.
 - `Documentation/VERIFICATION.md`: checks to run before merging or releasing.
 - `Documentation/CHANGELOG.md`: release notes.
 - `Documentation/AUDIT_STATUS.md`: current assessment status and links to historical audit evidence.

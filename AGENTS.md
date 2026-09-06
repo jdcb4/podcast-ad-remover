@@ -37,6 +37,7 @@ Treat the following `Documentation/` files as active guidance when they apply:
 - `Documentation/Deployment.md` and `Documentation/Unraid_Deployment.md`: Docker, compose, and Unraid deployment expectations.
 - `Documentation/Environment_Variables.md`: environment configuration and database-backed runtime settings.
 - `Documentation/VERSIONING.md`: version bump and release-tag rules.
+- `Documentation/GIT_WORKFLOW.md`: branch protection, worktrees, cleanup and clone migration.
 - `Documentation/VERIFICATION.md`: required local, Docker, and release checks.
 - `Documentation/CHANGELOG.md`: unreleased and released change history.
 - `Documentation/DECISIONS.md`: active decision log.
@@ -52,9 +53,11 @@ Commit after each significant coherent change, once verification appropriate to 
 
 ## Branch And Promotion Workflow
 
-- `dev` is the primary integration branch. Start normal feature and fix branches from `dev`, and merge completed work back into `dev`.
-- `master` is the production branch. Do not use it for day-to-day development.
-- Do not merge `dev` into `master`, push `master`, bump a production version, publish SemVer tags, or update `latest` unless Joe explicitly instructs you to promote a release.
+- `dev` is the GitHub default and primary integration branch. Start normal feature and fix branches from `dev`, and merge completed work back into `dev` after verification passes.
+- `main` is the production branch. Do not use it for day-to-day development. The former `master` branch was renamed to `main` on 2026-09-06; do not recreate it.
+- Do not merge `dev` into `main`, push `main`, bump a production version, publish SemVer tags, or update `latest` unless Joe explicitly instructs you to promote a release or authorizes a specific repository-maintenance change.
+- Keep feature branches and worktrees only for active, unmerged work. Before removing either, inspect uncommitted files and prove its commits are merged; preserve unique abandoned work under an archive tag before deleting its branch. See `Documentation/GIT_WORKFLOW.md`.
+- GitHub requires the `verify` check on `dev` and `main` and blocks branch deletion and force pushes. The administrator bypass is for deliberate recovery, not routine agent work.
 - Dev Docker images use the rolling `jdcb4/podcast-ad-remover:dev` tag plus the immutable `jdcb4/podcast-ad-remover:dev-<git-sha>` tag. They must never update `latest` or a SemVer tag.
 - A production promotion begins only after the Dev image has been tested and Joe gives explicit approval. Follow `Documentation/VERSIONING.md` for the promotion checklist.
 
@@ -64,7 +67,7 @@ Commit after each significant coherent change, once verification appropriate to 
 - Any database schema change needs a backward-compatible migration path and a rollback/backup note.
 - Do not commit secrets, API keys, real session secrets, downloaded audio, transcripts, generated models, or local database files.
 - Do not push a Docker release unless explicitly asked.
-- Do not promote `dev` to `master` unless explicitly asked.
+- Do not promote `dev` to `main` unless explicitly asked.
 - Keep `package.json` and `package-lock.json` versions aligned.
 - Update `Documentation/CHANGELOG.md` in the same change as a version bump.
 - Docker releases use `jdcb4/podcast-ad-remover:<version>` and `jdcb4/podcast-ad-remover:latest`.

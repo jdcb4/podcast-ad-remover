@@ -2,9 +2,22 @@
 
 This is a lightweight decision log. Keep entries short, dated, and focused on choices that future maintainers may otherwise revisit.
 
+## 2026-09-06: Keep dev and main as the only long-lived branches
+
+Joe requested `dev` as the working/default branch and `main` as production. Rename `master` to
+`main` without rewriting history. Apply the existing deletion/force-push protection to both real
+branches and require the GitHub Actions `verify` check. Keep the existing administrator recovery
+bypass; do not use it for routine changes. Feature branches and worktrees exist only while work is
+active and unmerged, and merged pull-request branches are deleted automatically.
+
+Preserve the concluded local-LLM experiment at tag `archive/local-llm-transcript-chunking` before
+removing its inactive branch. Open contributor pull requests remain open and target `dev`.
+Repository-maintenance changes authorized for this rename do not publish or deploy a new app
+release. See [Git workflow](GIT_WORKFLOW.md) for the operating procedure and cleanup record.
+
 ## 2026-08-10: Integrate on dev and explicitly promote production releases
 
-`dev` is the primary integration branch and `master` is the production branch. Development images share the production Docker repository but use `dev` as a rolling tag and `dev-<git-sha>` as the traceable immutable tag. They never update SemVer tags or `latest`. After a Dev image has been tested, merging to `master` and publishing production tags still require Joe's explicit instruction.
+`dev` is the primary integration branch and `main` (named `master` until 2026-09-06) is the production branch. Development images share the production Docker repository but use `dev` as a rolling tag and `dev-<git-sha>` as the traceable immutable tag. They never update SemVer tags or `latest`. After a Dev image has been tested, merging to `main` and publishing production tags still require Joe's explicit instruction.
 
 ## 2026-05-19: Keep SQLite and `/data` as the migration anchor
 
@@ -73,9 +86,9 @@ to an operator-supplied URL. Arbitrary model slugs and keyed or keyless endpoint
 The 4B-to-72B evaluation completed only 20 of 30 runs and passed 6 of 30 interval-quality gates.
 Every local-class candidate missed the short promotion, and structured-output failures remained
 common. The chunking implementation and harness are preserved on
-`experimental/local-llm-transcript-chunking` for research, but are not part of the production
+tag `archive/local-llm-transcript-chunking` (formerly the experimental branch) for research, but are not part of the production
 application and have no planned further development. Sanitized HTML, Markdown, and JSON results
-remain on `master` so the decision and exact detections are inspectable.
+remain on `main` so the decision and exact detections are inspectable.
 
 ## 2026-07-25: Use explicit group inheritance without discarding podcast overrides
 

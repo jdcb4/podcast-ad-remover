@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Make `dev` the GitHub default and rename production `master` to `main`; align CI, release guards and Unraid template URLs. Require verification on both long-lived branches, clean up merged branches, and retain the abandoned local-LLM experiment under an archive tag.
+
 ## 1.13.0 - 2026-09-06
 
 - Keep published-episode counts, previews and listen totals stable while replacement processing is queued, running, cancelled or failed.

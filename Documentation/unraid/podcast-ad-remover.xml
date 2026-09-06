@@ -20,8 +20,8 @@ Features:&#xD;
   </Overview>
   <Category>MediaApp:Audio</Category>
   <WebUI>http://[IP]:[PORT:8000]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/jdcb4/podcast-ad-remover/master/Documentation/unraid/podcast-ad-remover.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/jdcb4/podcast-ad-remover/master/app/web/static/favicon.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/jdcb4/podcast-ad-remover/main/Documentation/unraid/podcast-ad-remover.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/jdcb4/podcast-ad-remover/main/app/web/static/favicon.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>

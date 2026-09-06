@@ -19,9 +19,10 @@ jdcb4/podcast-ad-remover:latest
 
 ## Branches And Image Channels
 
-- `dev` is the primary integration branch for completed development work.
-- `master` is the production branch and must change only during an explicitly approved release promotion.
+- `dev` is the GitHub default and primary integration branch for completed development work.
+- `main` is the production branch and receives application changes only during an explicitly approved release promotion.
 - Normal feature and fix branches start from and merge back into `dev`.
+- Both long-lived branches require the GitHub Actions `verify` check. See [Git workflow](GIT_WORKFLOW.md) for protection, worktrees and cleanup.
 
 Dev images stay in the same Docker Hub repository but use non-release tags:
 
@@ -68,12 +69,12 @@ npm run verify:docker
 
 Do not continue until Joe explicitly approves production promotion of the tested candidate.
 
-6. Merge the approved `dev` revision into `master` without adding unrelated changes.
-7. From a clean `master` checkout, repeat required release verification and publish:
+6. Confirm the approved `dev` revision has a successful GitHub Actions `verify` check. Fast-forward `main` to that exact revision without adding unrelated changes; do not squash or rebase a production promotion. If `dev` has advanced since qualification, use the recorded approved commit, not its newer tip. Stop and reconcile any divergence before publishing.
+7. From a clean `main` checkout, repeat required release verification and publish:
 
 ```bash
 npm run docker:publish
 ```
 
 This builds and pushes `jdcb4/podcast-ad-remover:<version>` and `jdcb4/podcast-ad-remover:latest`.
-The release helper refuses to run outside a clean `master` checkout.
+The release helper refuses to run outside a clean `main` checkout. Return the primary working checkout to `dev` after completing the release.
