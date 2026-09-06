@@ -1,6 +1,10 @@
 # Dev rollout — 6 September 2026
 
-## Current status
+This records the pre-production Dev qualification. Joe subsequently approved
+[production release 1.13.0](PRODUCTION_RELEASE_1.13.0.md); the status below describes
+the point at which Dev qualification finished.
+
+## Status at Dev qualification
 
 The assessment changes are merged and pushed to `dev`, and deployed at
 https://poddev.jboxtv.com/. These changes are unreleased; the application still reports **1.12.0**.

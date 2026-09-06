@@ -2,8 +2,9 @@
 
 Completed 2026-09-06 on `codex/assessment-improvements`, based on `dev` at
 `cc21a258d966df3c425fdc2f807a7ba9b5c24071` (1.12.0). Joe approved implementation of all
-25 findings from the 2026-09-05 assessment. Application version remains 1.12.0; changes
-are unreleased. Production promotion and deployment remain separate.
+25 findings from the 2026-09-05 assessment. At this initial gate the application version
+was 1.12.0 and the changes were unreleased. Joe subsequently approved promotion;
+[production release 1.13.0](PRODUCTION_RELEASE_1.13.0.md) records the deployment and recovery proof.
 
 Subsequent integration, persistent Dev deployment and live qualification are tracked
 in [the Dev rollout record](DEV_ROLLOUT_2026-09-06.md), including two additional fixes
@@ -88,15 +89,16 @@ adding an unrequested approval UI or waveform dependency.
 ## Boundaries and remaining operational checks
 
 At the initial implementation gate, this branch had not been deployed, pushed, promoted,
-version-bumped or published. The subsequent Dev rollout is recorded separately above;
-production promotion is still unapproved. The implementation preserves `/data` compatibility,
-but deployment still needs the documented matching media backup and immutable-image rollback plan.
-The database rehearsal is not a destructive live restore or a full production failover exercise.
+version-bumped or published. The subsequent Dev and production rollouts are recorded separately
+above, including approved promotion, matching media backups and actual isolated restore tests.
+The implementation preserves `/data` compatibility. The initial database rehearsal alone was
+not a destructive live restore or a full production failover exercise.
 
-Paid provider billing/quotas and live ad-removal/voice quality, long-episode load/CPU/RAM behavior,
+At that initial gate, paid provider billing/quotas and live ad-removal/voice quality, long-episode load/CPU/RAM behavior,
 YouTube/SponsorBlock upstream behavior, notification delivery, screen-reader/WCAG certification,
 Lighthouse/Core Web Vitals and a complete OS/native-binary vulnerability scan were not verified.
-Deterministic tests deliberately stub external services; no paid provider request was made.
+Deterministic tests deliberately stub external services; no paid provider request was made
+at that stage. The later Dev record adds real processing, long-episode resource and token observations.
 
 Scratch reservations are conservative estimates, not filesystem quotas. Other host writers can
 still exhaust storage. Published historical revisions remain until episode retention/deletion;

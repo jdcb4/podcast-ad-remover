@@ -75,3 +75,4 @@ Normal work integrates into `dev`. Dev images publish as `:dev` and `:dev-<git-s
 - `Documentation/RECOVERY.md`: online backups, migration rehearsal and restoration.
 - `Documentation/ASSESSMENT_IMPLEMENTATION.md`: approved assessment implementation progress.
 - `Documentation/DEV_ROLLOUT_2026-09-06.md`: Dev deployment, rollback evidence and live qualification.
+- `Documentation/PRODUCTION_RELEASE_1.13.0.md`: approved production promotion, exact image and verified recovery point.
