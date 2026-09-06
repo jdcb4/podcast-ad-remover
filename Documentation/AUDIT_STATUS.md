@@ -3,7 +3,8 @@
 Updated 2026-09-06. The 2026-09-05 whole-project assessment was approved for implementation.
 The assessment work is integrated into `dev` and deployed to persistent Dev. The changes are
 unreleased and the application still reports 1.12.0; production is unchanged. The [Dev rollout record](DEV_ROLLOUT_2026-09-06.md)
-tracks the deployed revision, additional live-found fixes and remaining qualification.
+tracks the deployed revision, additional live-found fixes and completed automated Dev
+qualification. The usual podcast-client and subjective listening checks remain outstanding.
 
 [Assessment implementation](ASSESSMENT_IMPLEMENTATION.md) is the current finding-by-finding
 record, with verification results and deployment limits. [CHANGELOG.md](CHANGELOG.md) describes
