@@ -52,14 +52,19 @@ def test_validate_dev_checkout_requires_clean_tree():
         validate_dev_checkout("dev", False)
 
 
-def test_validate_release_checkout_requires_master_branch():
-    with pytest.raises(SystemExit, match="must be built from branch 'master'"):
-        validate_release_checkout("dev", True)
+@pytest.mark.parametrize("branch", ["dev", "master", "codex/test", ""])
+def test_validate_release_checkout_requires_main_branch(branch):
+    with pytest.raises(SystemExit, match="must be built from branch 'main'"):
+        validate_release_checkout(branch, True)
+
+
+def test_validate_release_checkout_accepts_clean_main():
+    validate_release_checkout("main", True)
 
 
 def test_validate_release_checkout_requires_clean_tree():
     with pytest.raises(SystemExit, match="clean committed checkout"):
-        validate_release_checkout("master", False)
+        validate_release_checkout("main", False)
 
 
 def test_package_exposes_separate_dev_build_and_publish_commands():

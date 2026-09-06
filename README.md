@@ -242,7 +242,7 @@ npm run docker:experimental:arm64 -- --push
 
 `linux/amd64` remains the primary release target. The ARM64 experimental image skips Piper because its phonemizer dependency is not currently available as a simple Linux arm64 wheel. Podcast download, local transcription, ad detection, cutting, feeds, and the web UI remain the target feature set. Spoken summaries and title intros can still be tested on no-Piper images by selecting Gemini TTS and configuring a Gemini API key.
 
-Production promotion from `dev` to `master` requires explicit approval. Release publishing then runs from a clean `master` checkout and tags both the version and `latest`:
+Production promotion from `dev` to `main` requires explicit approval. Release publishing then runs from a clean `main` checkout and tags both the version and `latest`:
 
 ```bash
 npm run docker:publish
@@ -257,6 +257,7 @@ npm run docker:publish
 - [Environment Variables](Documentation/Environment_Variables.md)
 - [Verification](Documentation/VERIFICATION.md)
 - [Versioning](Documentation/VERSIONING.md)
+- [Git workflow and branch cleanup](Documentation/GIT_WORKFLOW.md)
 - [Changelog](Documentation/CHANGELOG.md)
 - [Decisions](Documentation/DECISIONS.md)
 - [Resource Audit](Documentation/RESOURCE_AUDIT.md)

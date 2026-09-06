@@ -6,6 +6,8 @@ Joe approved promotion after the [Dev qualification](DEV_ROLLOUT_2026-09-06.md).
 Release source: `576a58808702429ee858f5930edd4d1fb80049b0`, promoted from `dev` to
 `master` by fast-forward. Both version manifests and the changelog identify 1.13.0.
 Later documentation commits do not change the deployed image.
+The production branch was subsequently renamed from `master` to `main` on 2026-09-06;
+the branch names below record the release as it happened.
 
 ```text
 jdcb4/podcast-ad-remover:1.13.0

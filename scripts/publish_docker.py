@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPOSITORY = "jdcb4/podcast-ad-remover"
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
-PRODUCTION_BRANCH = "master"
+PRODUCTION_BRANCH = "main"
 
 
 def executable(name: str) -> str:
