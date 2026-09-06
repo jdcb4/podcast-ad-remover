@@ -108,6 +108,27 @@ def test_owner_cancellation_preserves_audio_and_running_lease(populated_client, 
     assert not jobs.is_running_for_episode(90)
 
 
+@pytest.mark.parametrize('status', ['completed', 'pending', 'processing', 'failed', 'unprocessed', 'ignored'])
+def test_published_episode_counts_and_listens_survive_reprocessing(populated_client, tmp_path, status):
+    from app.infra.repository import EpisodeRepository
+    audio = tmp_path / 'published.mp3'
+    audio.write_bytes(b'previous publication')
+    with get_db_connection() as conn:
+        conn.execute('UPDATE episodes SET local_filename=?,status=?,listen_count=7 WHERE id=90',
+                     (str(audio), status))
+        conn.commit()
+    public = populated_client.get('/subscribe')
+    assert public.status_code == 200
+    entry = public.context['subscriptions'][0]
+    expected = 0 if status == 'ignored' else 1
+    assert entry['episode_count'] == expected
+    assert bool(entry['latest_episode']) is bool(expected)
+    dashboard = populated_client.get('/')
+    assert dashboard.status_code == 200
+    assert len(dashboard.context['subscriptions'][0]['episodes']) == expected
+    assert EpisodeRepository().get_subscription_listen_count(90) == 7 * expected
+
+
 def test_rendered_episode_page_and_shipped_javascript(populated_client):
     import subprocess
     import shutil

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Keep published-episode counts, previews and listen totals stable while replacement processing is queued, running, cancelled or failed.
+
 - Honor explicit RSS API initial-download counts, including zero, and reject negative counts before creating a subscription.
 
 - Pin the Python dependency set and Python/Deno image stages, audit Python packages in the standard gate, and ship offline container/backup/publication recovery commands.

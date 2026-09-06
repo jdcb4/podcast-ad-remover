@@ -1007,7 +1007,7 @@ class EpisodeRepository:
         """Get total listen count for all episodes in a subscription."""
         with get_db_connection() as conn:
             row = conn.execute(
-                "SELECT SUM(listen_count) as total FROM episodes WHERE subscription_id = ? AND status = 'completed'",
+                "SELECT SUM(listen_count) as total FROM episodes WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'",
                 (subscription_id,)
             ).fetchone()
             return row['total'] if row and row['total'] else 0

@@ -1683,7 +1683,7 @@ def _render_index(request: Request, error: str = None):
         with get_db_connection() as conn:
             episodes = conn.execute(
                 """SELECT title, pub_date as published_date, status FROM episodes 
-                   WHERE subscription_id = ? AND status = 'completed'
+                   WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'
                    ORDER BY pub_date DESC LIMIT 10""",
                 (sub.id,)
             ).fetchall()
@@ -1691,7 +1691,7 @@ def _render_index(request: Request, error: str = None):
             # Get latest episode with AI summary
             latest_ep = conn.execute(
                 """SELECT id, title, description, ai_summary, pub_date FROM episodes 
-                   WHERE subscription_id = ? AND status = 'completed'
+                   WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'
                    ORDER BY pub_date DESC LIMIT 1""",
                 (sub.id,)
             ).fetchone()
@@ -1806,13 +1806,13 @@ def _build_public_subscribe_context(request: Request, global_settings: dict):
             row = conn.execute(
                 """SELECT COUNT(*) as count
                    FROM episodes
-                   WHERE subscription_id = ? AND status = 'completed'""",
+                   WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'""",
                 (sub.id,)
             ).fetchone()
             latest = conn.execute(
                 """SELECT title, pub_date
                    FROM episodes
-                   WHERE subscription_id = ? AND status = 'completed'
+                   WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'
                    ORDER BY pub_date DESC LIMIT 1""",
                 (sub.id,)
             ).fetchone()
