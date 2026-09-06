@@ -5,6 +5,10 @@ Completed 2026-09-06 on `codex/assessment-improvements`, based on `dev` at
 25 findings from the 2026-09-05 assessment. Application version remains 1.12.0; changes
 are unreleased. Production promotion and deployment remain separate.
 
+Subsequent integration, persistent Dev deployment and live qualification are tracked
+in [the Dev rollout record](DEV_ROLLOUT_2026-09-06.md), including two additional fixes
+found during real processing. The results below describe the original implementation gate.
+
 ## Finding coverage
 
 | Finding | Implemented change | Main verification |
@@ -83,8 +87,9 @@ adding an unrequested approval UI or waveform dependency.
 
 ## Boundaries and remaining operational checks
 
-This branch has not been deployed to persistent Dev or production, pushed, promoted to `master`,
-version-bumped or published to Docker Hub. The implementation preserves `/data` compatibility,
+At the initial implementation gate, this branch had not been deployed, pushed, promoted,
+version-bumped or published. The subsequent Dev rollout is recorded separately above;
+production promotion is still unapproved. The implementation preserves `/data` compatibility,
 but deployment still needs the documented matching media backup and immutable-image rollback plan.
 The database rehearsal is not a destructive live restore or a full production failover exercise.
 

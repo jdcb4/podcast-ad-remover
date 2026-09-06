@@ -1,7 +1,9 @@
 # Audit status
 
 Updated 2026-09-06. The 2026-09-05 whole-project assessment was approved for implementation.
-Work is on `codex/assessment-improvements`, based on `dev` at `cc21a25` (1.12.0).
+The assessment work is integrated into `dev` and deployed to persistent Dev. The changes are
+unreleased and the application still reports 1.12.0; production is unchanged. The [Dev rollout record](DEV_ROLLOUT_2026-09-06.md)
+tracks the deployed revision, additional live-found fixes and remaining qualification.
 
 [Assessment implementation](ASSESSMENT_IMPLEMENTATION.md) is the current finding-by-finding
 record, with verification results and deployment limits. [CHANGELOG.md](CHANGELOG.md) describes
