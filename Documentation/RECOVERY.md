@@ -28,6 +28,13 @@ For a rollback after an upgrade, use the previous image and the pre-upgrade snap
 with its corresponding media backup. Downgrading only the executable is not a
 database rollback. No recovery command automatically stops services or replaces data.
 
+Migration `20260824_0013_unified_feed_preferences` adds the unified feed's title, description,
+episode-title prefix flag and artwork URL to `app_settings`, preserving the previous defaults.
+The original migration identifier is retained so installations already running PR #20 keep their
+custom preferences when upgrading. Existing `dev` databases receive the same additive columns.
+Use the previous image with the pre-upgrade snapshot and matching media backup for rollback;
+do not drop columns or rewrite the live database as part of a downgrade.
+
 Migration `20260905_0013_processing_recovery` is additive (claim cancellation flag,
 published duration/GUID, publication retry flag and worker-status table). Restore the
 pre-migration snapshot with the previous image to roll back. New media directories are

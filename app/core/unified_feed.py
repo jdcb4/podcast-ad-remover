@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Mapping
+from urllib.parse import urlsplit
 
 from app.core.url_utils import validate_http_url
 
@@ -15,6 +17,9 @@ DEFAULT_UNIFIED_FEED_ARTWORK_PATH = "/static/unified_feed_cover.png"
 MAX_UNIFIED_FEED_TITLE_LENGTH = 200
 MAX_UNIFIED_FEED_DESCRIPTION_LENGTH = 4000
 MAX_UNIFIED_FEED_ARTWORK_URL_LENGTH = 2048
+
+# XML 1.0 allows tabs, line breaks, and Unicode outside these ranges.
+_INVALID_XML_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]")
 
 
 def _as_bool(value: Any, default: bool) -> bool:
@@ -35,6 +40,14 @@ def normalize_unified_feed_settings(
     normalized_title = (title or "").strip()
     normalized_description = (description or "").strip()
     normalized_artwork_url = (artwork_url or "").strip()
+
+    for label, value in (
+        ("Feed name", normalized_title),
+        ("Feed description", normalized_description),
+        ("Artwork URL", normalized_artwork_url),
+    ):
+        if _INVALID_XML_CHARACTERS.search(value):
+            raise ValueError(f"{label} contains characters that cannot be used in RSS")
 
     if not normalized_title:
         raise ValueError("Feed name is required")
@@ -70,16 +83,16 @@ def resolve_unified_feed_settings(
     base_url: str,
 ) -> dict[str, Any]:
     """Resolve stored settings with backward-compatible defaults."""
-    title = str(
+    title = _INVALID_XML_CHARACTERS.sub("", str(
         global_settings.get("unified_feed_title") or DEFAULT_UNIFIED_FEED_TITLE
-    ).strip()
-    description = str(
+    )).strip()
+    description = _INVALID_XML_CHARACTERS.sub("", str(
         global_settings.get("unified_feed_description")
         or DEFAULT_UNIFIED_FEED_DESCRIPTION
-    ).strip()
-    custom_artwork_url = str(
+    )).strip()
+    custom_artwork_url = _INVALID_XML_CHARACTERS.sub("", str(
         global_settings.get("unified_feed_artwork_url") or ""
-    ).strip()
+    )).strip()
 
     return {
         "title": title or DEFAULT_UNIFIED_FEED_TITLE,
@@ -92,3 +105,23 @@ def resolve_unified_feed_settings(
         "artwork_url": custom_artwork_url
         or f"{base_url.rstrip('/')}{DEFAULT_UNIFIED_FEED_ARTWORK_PATH}",
     }
+
+
+def resolve_unified_feed_artwork_preview(
+    custom_artwork_url: str | None, page_origin: str | None,
+) -> str | None:
+    """Preview HTTPS or same-origin HTTP artwork without relaxing the page CSP."""
+    if not custom_artwork_url:
+        return DEFAULT_UNIFIED_FEED_ARTWORK_PATH
+    try:
+        artwork = urlsplit(custom_artwork_url)
+        page = urlsplit(page_origin or "")
+        if artwork.scheme == "https":
+            return custom_artwork_url
+        if artwork.scheme == page.scheme == "http" and (
+            artwork.hostname, artwork.port or 80
+        ) == (page.hostname, page.port or 80):
+            return custom_artwork_url
+    except ValueError:
+        pass
+    return None

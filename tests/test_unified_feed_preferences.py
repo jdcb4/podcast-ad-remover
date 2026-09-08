@@ -1,5 +1,7 @@
 from pathlib import Path
+import sqlite3
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlsplit
 from xml.etree.ElementTree import fromstring
 
 import pytest
@@ -28,9 +30,11 @@ class UnifiedEpisodeRepository:
                 "podcast_slug": "example",
                 "title": "An <interesting> episode",
                 "guid": "episode-guid",
+                "published_guid": "stable-published-guid",
                 "original_url": "https://example.com/episodes/1",
                 "pub_date": None,
-                "duration": None,
+                "duration": 60,
+                "output_duration": 51,
                 "local_filename": str(
                     settings.PODCASTS_DIR + "/example/episode-guid/episode.mp3"
                 ),
@@ -139,6 +143,8 @@ def test_unified_feed_generation_uses_custom_preferences(isolated_data_dir, monk
     assert channel.findtext("title") == "Paul's Shows & More"
     assert channel.findtext("description") == "A <custom> description & collection"
     assert channel.findtext("item/title") == "An <interesting> episode"
+    assert channel.findtext("item/guid") == "stable-published-guid"
+    assert channel.findtext("item/itunes:duration", namespaces=ITUNES_NAMESPACE) == "51"
     assert (
         channel.find("itunes:image", ITUNES_NAMESPACE).attrib["href"]
         == "https://images.example/cover.png?size=large&v=2"
@@ -248,3 +254,172 @@ def test_unified_feed_admin_rejects_invalid_artwork_url(
             "SELECT unified_feed_title FROM app_settings WHERE id = 1"
         ).fetchone()
     assert row["unified_feed_title"] == DEFAULT_UNIFIED_FEED_TITLE
+
+
+@pytest.mark.parametrize("field", ["title", "description", "artwork_url"])
+@pytest.mark.parametrize("character", ["\x00", "\x0c", "\ud800", "\uffff"])
+def test_unified_feed_rejects_xml_invalid_characters(field, character):
+    values = {
+        "title": "My feed",
+        "description": "My description",
+        "include_podcast_name": True,
+        "artwork_url": "https://images.example/cover.png",
+    }
+    values[field] += character + "suffix"
+    with pytest.raises(ValueError, match="characters that cannot be used in RSS"):
+        normalize_unified_feed_settings(**values)
+
+
+@pytest.mark.parametrize("field", ["title", "description", "artwork_url"])
+def test_invalid_metadata_keeps_saved_settings_and_feed(
+    isolated_data_dir, monkeypatch, field,
+):
+    init_db()
+    monkeypatch.setattr(settings, "PROCESSOR_ENABLED", False)
+    from app.main import app
+
+    with TestClient(app) as client:
+        feed = Path(RSSGenerator().generate_unified_feed())
+        before = feed.read_bytes()
+        values = {
+            "unified_feed_title": "Changed title",
+            "unified_feed_description": "Changed description",
+            "unified_feed_artwork_url": "https://images.example/cover.png",
+        }
+        values[f"unified_feed_{field}"] += "\x0csuffix"
+        response = client.post(
+            "/admin/unified-feed/update", data=values, follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/admin/unified-feed?error=")
+    assert feed.read_bytes() == before
+    assert fromstring(before).findtext("channel/title") == DEFAULT_UNIFIED_FEED_TITLE
+    with get_db_connection() as conn:
+        row = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
+    assert row["unified_feed_title"] == DEFAULT_UNIFIED_FEED_TITLE
+    assert row["unified_feed_description"] == DEFAULT_UNIFIED_FEED_DESCRIPTION
+    assert row["unified_feed_artwork_url"] is None
+
+
+def test_legacy_metadata_still_generates_valid_xml(isolated_data_dir, monkeypatch):
+    rss = generate_unified_xml(monkeypatch, {
+        "app_external_url": "https://podcasts.example",
+        "unified_feed_title": "Café\x0b 🎧",
+        "unified_feed_description": "First\x0c page\nSecond\tpage",
+        "unified_feed_artwork_url": "https://images.example/co\x01ver.png",
+    })
+    channel = rss.find("channel")
+    assert channel.findtext("title") == "Café 🎧"
+    assert channel.findtext("description") == "First page\nSecond\tpage"
+    assert channel.find("itunes:image", ITUNES_NAMESPACE).attrib["href"] == (
+        "https://images.example/cover.png"
+    )
+
+
+def test_settings_feed_address_uses_shared_session_token(isolated_data_dir, monkeypatch):
+    init_db()
+    monkeypatch.setattr(settings, "PROCESSOR_ENABLED", False)
+    monkeypatch.setattr(settings, "SESSION_SECRET_KEY", "unified-feed-test-secret")
+    with get_db_connection() as conn:
+        conn.execute("""UPDATE app_settings SET enable_feed_auth = 1,
+                     app_external_url = 'http://testserver' WHERE id = 1""")
+        conn.execute("""INSERT INTO subscriptions (feed_url, title, slug)
+                     VALUES ('https://example.com/feed.xml', 'Example', 'example')""")
+        conn.commit()
+    from app.main import app
+    from app.infra.repository import FeedTokenRepository
+
+    with TestClient(app) as client:
+        page = client.get("/admin/unified-feed")
+        feed_url = page.context["feed_url"]
+        token = parse_qs(urlsplit(feed_url).query)["token"][0]
+        assert feed_url in page.text
+        assert client.get(feed_url).status_code == 200
+        assert client.get("/feed/unified.xml").status_code == 401
+        assert client.get("/admin/unified-feed").context["feed_url"] == feed_url
+        assert client.get("/").context["unified_links"]["direct"] == feed_url
+        assert client.get("/subscribe").context["unified_links"]["direct"] == (
+            "http://testserver/feed/unified.xml"
+        )
+        FeedTokenRepository().revoke(token)
+        refreshed_url = client.get("/admin/unified-feed").context["feed_url"]
+        assert refreshed_url != feed_url
+        assert client.get(refreshed_url).status_code == 200
+
+
+@pytest.mark.parametrize("page_url, artwork_url, expected_preview", [
+    ("https://testserver", "https://images.example/cover.png", "https://images.example/cover.png"),
+    ("http://testserver", "http://media-server.local/cover.png", None),
+    ("https://testserver", "http://testserver/cover.png", None),
+    ("http://testserver", "http://testserver:80/cover.png", "http://testserver:80/cover.png"),
+    ("http://testserver", "http://testserver:8080/cover.png", None),
+    ("http://testserver", "", "/static/unified_feed_cover.png"),
+])
+def test_artwork_preview_matches_browser_policy(
+    isolated_data_dir, monkeypatch, page_url, artwork_url, expected_preview,
+):
+    init_db()
+    monkeypatch.setattr(settings, "PROCESSOR_ENABLED", False)
+    from app.main import app
+
+    with TestClient(app, base_url=page_url) as client:
+        response = client.post("/admin/unified-feed/update", data={
+            "unified_feed_title": "My feed",
+            "unified_feed_description": "My description",
+            "unified_feed_artwork_url": artwork_url,
+        }, follow_redirects=False)
+        assert response.status_code == 303
+        page = client.get("/admin/unified-feed")
+        assert "img-src 'self' data: blob: https:;" in page.headers["content-security-policy"]
+        if expected_preview:
+            assert f'src="{expected_preview}" alt="Current unified feed artwork"' in page.text
+        else:
+            assert 'alt="Current unified feed artwork"' not in page.text
+            assert "Use an HTTPS artwork URL to preview it here" in page.text
+            channel = fromstring(client.get("/feed/unified.xml").content).find("channel")
+            assert channel.find("itunes:image", ITUNES_NAMESPACE).attrib["href"] == artwork_url
+
+
+@pytest.mark.parametrize("previous_version", ["dev", "contributor_pr"])
+def test_unified_feed_upgrade_preserves_both_database_histories(
+    isolated_data_dir, monkeypatch, previous_version,
+):
+    import app.infra.database as database
+
+    preference_migration = "20260824_0013_unified_feed_preferences"
+    migrations = database.FORMAL_MIGRATIONS
+    if previous_version == "dev":
+        previous_migrations = [item for item in migrations if item[0] != preference_migration]
+    else:
+        previous_migrations = [item for item in migrations if item[0] <= preference_migration]
+    with monkeypatch.context() as previous:
+        previous.setattr(database, "FORMAL_MIGRATIONS", previous_migrations)
+        init_db()
+    with get_db_connection() as conn:
+        conn.execute("UPDATE app_settings SET whisper_model = 'tiny', retention_days = 123 WHERE id = 1")
+        if previous_version == "contributor_pr":
+            conn.execute("""UPDATE app_settings SET unified_feed_title = 'Existing custom feed',
+                         unified_feed_include_podcast_name = 0 WHERE id = 1""")
+        conn.commit()
+
+    init_db()
+    init_db()
+
+    with get_db_connection() as conn:
+        row = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
+        applied = {record[0] for record in conn.execute("SELECT version FROM schema_migrations")}
+    assert applied == {version for version, _ in migrations}
+    assert row["whisper_model"] == "tiny"
+    assert row["retention_days"] == 123
+    assert row["unified_feed_title"] == (
+        "Existing custom feed" if previous_version == "contributor_pr" else DEFAULT_UNIFIED_FEED_TITLE
+    )
+    assert row["unified_feed_include_podcast_name"] == (0 if previous_version == "contributor_pr" else 1)
+    backups = list((isolated_data_dir / "backups").glob("*.db"))
+    assert len(backups) == 1
+    with sqlite3.connect(backups[0]) as backup:
+        assert backup.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert {record[0] for record in backup.execute("SELECT version FROM schema_migrations")} == {
+            version for version, _ in previous_migrations
+        }

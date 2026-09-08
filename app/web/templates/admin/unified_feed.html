@@ -67,8 +67,15 @@
 
         <div class="rounded-lg border border-white/[0.06] bg-surface-elevated p-4">
             <p class="text-xs uppercase tracking-wide text-text-muted mb-3">Current artwork</p>
-            <img src="{{ settings.artwork_url }}" alt="Current unified feed artwork"
+            {% if artwork_preview_url %}
+            <img src="{{ artwork_preview_url }}" alt="Current unified feed artwork"
                 referrerpolicy="no-referrer" class="w-32 h-32 rounded-lg object-cover border border-white/[0.08]">
+            {% else %}
+            <p class="text-sm text-text-secondary">
+                Your HTTP artwork URL is saved for podcast apps.
+                Use an HTTPS artwork URL to preview it here.
+            </p>
+            {% endif %}
         </div>
 
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-white/[0.08]">

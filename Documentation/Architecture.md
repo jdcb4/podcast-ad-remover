@@ -197,9 +197,21 @@ Feed**. Defaults preserve the original generated RSS output, and clearing the ex
 restores the bundled cover. The server validates but does not retrieve external unified-feed
 artwork; the URL must therefore be reachable by each podcast client.
 
+The settings-page feed address uses the same session feed token as dashboard subscription links
+when feed authentication is enabled. Public Subscribe links remain unauthenticated. Metadata
+validation rejects XML-invalid characters; resolution removes such characters from older saved
+preferences so the RSS remains readable. HTTPS and same-origin HTTP artwork can be previewed;
+other HTTP artwork keeps its direct RSS URL and shows an explanatory message in the web UI.
+The bundled preview uses a local static path, and the page's content security policy is unchanged.
+
 Per-episode unified-feed descriptions continue to identify the source podcast, and item artwork
 continues to use the corresponding podcast artwork. Presentation-setting changes regenerate only
 the unified RSS file and do not reprocess audio.
+
+Migration `20260824_0013_unified_feed_preferences` adds four columns to `app_settings`. Its full
+identifier is retained for compatibility with existing PR #20 installations and is distinct from
+`20260905_0013_processing_recovery`. Both migration histories can upgrade without losing saved
+preferences. See [Recovery](RECOVERY.md) for the backup and rollback procedure.
 
 ### Feed Access
 

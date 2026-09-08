@@ -19,7 +19,7 @@ from app.core.notifications import (
     send_test_notification,
 )
 from app.web.auth import get_current_user, require_auth, require_admin, log_login_attempt, SESSION_USER_KEY
-from app.web.auth_utils import hash_password, verify_feed_password, verify_password, generate_secure_password, get_client_ip
+from app.web.auth_utils import hash_password, verify_feed_password, verify_password, generate_secure_password, get_client_ip, get_request_base_origin
 from app.web.rate_limiter import login_rate_limiter, check_rate_limit
 from app.web.subscription_links import build_subscribe_instruction_context, build_subscription_links
 from app.web.static_assets import configure_static_asset_versioning
@@ -33,6 +33,7 @@ from app.core.unified_feed import (
     DEFAULT_UNIFIED_FEED_DESCRIPTION,
     DEFAULT_UNIFIED_FEED_TITLE,
     normalize_unified_feed_settings,
+    resolve_unified_feed_artwork_preview,
     resolve_unified_feed_settings,
 )
 from datetime import datetime
@@ -117,11 +118,11 @@ def _reconcile_artwork_and_feeds(subscription_ids: list[int] | None = None) -> N
 from app.core.utils import get_app_base_url
 
 
-def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=None, include_auth_token: bool = True):
+def _build_rss_links(request: Request, feed_path: str, global_settings: dict, user_obj=None, include_auth_token: bool = True):
     """Consolidated logic for generating RSS links with optional auth injection."""
     base_url = get_app_base_url(global_settings, request)
     
-    rss_url = f"{base_url}/feeds/{sub.slug}.xml"
+    rss_url = f"{base_url}{feed_path}"
     
     # Inject Auth if Enabled
     auth_enabled_val = global_settings.get('enable_feed_auth')
@@ -134,6 +135,12 @@ def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=No
             rss_url = f"{rss_url}{separator}token={token}"
 
     return build_subscription_links(rss_url)
+
+
+def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=None, include_auth_token: bool = True):
+    return _build_rss_links(
+        request, f"/feeds/{sub.slug}.xml", global_settings, user_obj, include_auth_token,
+    )
 
 # Helper to get pending access requests count for sidebar badge
 def get_pending_requests_count():
@@ -1763,23 +1770,7 @@ def _render_index(request: Request, error: str = None):
     # Generate Unified Links if subscriptions exist
     unified_links = None
     if all_subs:
-        # Determine Base URL using consolidated logic
-        base_url = get_app_base_url(global_settings, request)
-        
-        rss_url = f"{base_url}/feed/unified.xml"
-        
-        # Inject Auth if Enabled
-        auth_enabled_val = global_settings.get('enable_feed_auth')
-        is_auth_enabled = str(auth_enabled_val).lower() in ('1', 'true', 'yes', 'on') if auth_enabled_val is not None else False
-        
-        if is_auth_enabled:
-            token = get_or_create_feed_token(request, user)
-            if token:
-                separator = "&" if "?" in rss_url else "?"
-                rss_url = f"{rss_url}{separator}token={token}"
-
-
-        unified_links = build_subscription_links(rss_url)
+        unified_links = _build_rss_links(request, "/feed/unified.xml", global_settings, user)
 
     return templates.TemplateResponse(
         request=request,
@@ -1833,9 +1824,9 @@ def _build_public_subscribe_context(request: Request, global_settings: dict):
 
     unified_links = None
     if subs:
-        base_url = get_app_base_url(global_settings, request)
-        rss_url = f"{base_url}/feed/unified.xml"
-        unified_links = build_subscription_links(rss_url)
+        unified_links = _build_rss_links(
+            request, "/feed/unified.xml", global_settings, include_auth_token=False,
+        )
 
     feed_auth_enabled = str(global_settings.get("enable_feed_auth")).lower() in ("1", "true", "yes", "on")
 
@@ -1892,6 +1883,8 @@ async def admin_unified_feed(
 ):
     global_settings = get_global_settings()
     base_url = get_app_base_url(global_settings, request)
+    feed_settings = resolve_unified_feed_settings(global_settings, base_url)
+    links = _build_rss_links(request, "/feed/unified.xml", global_settings, admin_user)
 
     return templates.TemplateResponse(
         request=request,
@@ -1899,8 +1892,11 @@ async def admin_unified_feed(
         context={
             "csp_nonce": get_csp_nonce(request),
             "user": admin_user,
-            "settings": resolve_unified_feed_settings(global_settings, base_url),
-            "feed_url": f"{base_url}/feed/unified.xml",
+            "settings": feed_settings,
+            "feed_url": links["direct"],
+            "artwork_preview_url": resolve_unified_feed_artwork_preview(
+                feed_settings["custom_artwork_url"], get_request_base_origin(request),
+            ),
             "default_title": DEFAULT_UNIFIED_FEED_TITLE,
             "default_description": DEFAULT_UNIFIED_FEED_DESCRIPTION,
             "active_tab": "unified_feed",
