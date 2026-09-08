@@ -91,6 +91,17 @@
                     Global Settings
                 </a>
 
+                <a href="/admin/unified-feed"
+                    class="{% if active_tab == 'unified_feed' %}nav-link-active{% else %}nav-link{% endif %}"
+                    onclick="closeAdminDrawer()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 19a2 2 0 100-4 2 2 0 000 4zM4 4.5A15.5 15.5 0 0119.5 20M4 10a10 10 0 0110 10">
+                        </path>
+                    </svg>
+                    Unified Feed
+                </a>
+
                 <a href="/admin/prompts"
                     class="{% if active_tab == 'prompts' %}nav-link-active{% else %}nav-link{% endif %}"
                     onclick="closeAdminDrawer()">

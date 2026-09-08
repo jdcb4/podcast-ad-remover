@@ -188,6 +188,31 @@ Subscription deletion uses a durable two-phase lifecycle because the web app and
 
 After a bounded asynchronous wait, cleanup is claimed through the subscription row and runs outside the FastAPI event loop. It removes the contained podcast directory and feed file, regenerates the unified feed once, and then removes the subscription, episode, and job rows. Failures leave the inactive subscription in `deletion_status = failed`; the processor loop retries failed or interrupted cleanup idempotently. A stale `cleaning` claim can be reclaimed after five minutes.
 
+### Unified Feed Preferences
+
+The unified feed remains available at `/feed/unified.xml`. Administrators can change its channel
+title and description, choose whether item titles use the `[Podcast Name] Episode Title` prefix, and
+provide an optional external HTTP(S) channel-artwork URL from **Podcast Preferences > Unified
+Feed**. Defaults preserve the original generated RSS output, and clearing the external artwork URL
+restores the bundled cover. The server validates but does not retrieve external unified-feed
+artwork; the URL must therefore be reachable by each podcast client.
+
+The settings-page feed address uses the same session feed token as dashboard subscription links
+when feed authentication is enabled. Public Subscribe links remain unauthenticated. Metadata
+validation rejects XML-invalid characters; resolution removes such characters from older saved
+preferences so the RSS remains readable. HTTPS and same-origin HTTP artwork can be previewed;
+other HTTP artwork keeps its direct RSS URL and shows an explanatory message in the web UI.
+The bundled preview uses a local static path, and the page's content security policy is unchanged.
+
+Per-episode unified-feed descriptions continue to identify the source podcast, and item artwork
+continues to use the corresponding podcast artwork. Presentation-setting changes regenerate only
+the unified RSS file and do not reprocess audio.
+
+Migration `20260824_0013_unified_feed_preferences` adds four columns to `app_settings`. Its full
+identifier is retained for compatibility with existing PR #20 installations and is distinct from
+`20260905_0013_processing_recovery`. Both migration histories can upgrade without losing saved
+preferences. See [Recovery](RECOVERY.md) for the backup and rollback procedure.
+
 ### Feed Access
 
 RSS feeds and audio files remain public when feed authentication is disabled. When feed authentication is enabled, generated dashboard links use bearer tokens:

@@ -85,6 +85,12 @@ Automated coverage verifies:
   and cleanup behavior after global retention changes;
 - backward-compatible API updates and all four inheritance flags;
 - artwork URL validation, image limits, compositing/cache behavior, cleanup, and RSS output;
+- backward-compatible unified-feed defaults, customized channel metadata and external artwork,
+  optional podcast-name title prefixes, settings validation, and reset behavior;
+- XML-invalid metadata rejection without replacing the published feed, valid legacy metadata
+  resolution, authenticated settings-page feed links, and CSP-compatible artwork previews;
+- unified-feed upgrades from current `dev` and existing PR #20 databases, including saved values,
+  migration idempotency, integrity-checked backups, and preservation of published GUIDs/durations;
 - in-place Library membership changes without dashboard navigation;
 - atomic bulk updates, rejection of mixed unauthorised selections, and admin owner assignment;
 - admin-only bulk deletion, its explicit destructive confirmation, and durable file cleanup.
@@ -94,6 +100,14 @@ podcasts, and verify that choosing an override enables only that group's control
 As an administrator, cancel the Delete Selected warning and confirm no podcasts change. Then verify a
 confirmed deletion removes each selected podcast and its local files. Confirm that non-admin users do
 not see the bulk-delete control.
+
+Open **Podcast Preferences > Unified Feed**, save custom metadata and an HTTP(S) artwork URL, and
+confirm `/feed/unified.xml` reflects the changes without changing its address. Disable the
+podcast-name title option and confirm item titles no longer contain the bracketed prefix. Clear the
+artwork URL or restore defaults and confirm the bundled cover returns.
+With feed authentication enabled, copy the displayed feed address into a fresh client and confirm
+it opens. Save an external HTTP artwork URL and confirm the page explains that its preview needs
+HTTPS while RSS retains the saved HTTP URL. HTTPS and same-origin HTTP images should still preview.
 
 At a mobile width, also confirm the four compact statistics remain readable, feed actions retain
 accessible touch targets, and approximately three queue rows are visible before internal scrolling.

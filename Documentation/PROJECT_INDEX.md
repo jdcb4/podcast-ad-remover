@@ -19,6 +19,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/main.py`: application entry point and processor process startup.
 - `app/core/`: podcast, audio, AI, RSS, search, and processing logic.
 - `app/core/subscription_settings.py`: resolves effective values for the four subscription inheritance groups.
+- `app/core/unified_feed.py`: validates and resolves backward-compatible unified-feed presentation settings.
 - `app/core/artifacts.py`, `publication.py`, `reports.py`: artifact identity, atomic RSS writes and escaped reports.
 - `app/core/provider_budget.py`, `worker_health.py`: durable request limits and processing readiness.
 - `app/core/permissions.py`, `http_downloads.py`: shared ownership policy and redirect validation.
