@@ -133,20 +133,20 @@
     </script>
 
     <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
-    <div id="app-dialog-overlay" class="app-dialog-overlay hidden" role="dialog" aria-modal="true"
-        aria-labelledby="app-dialog-title">
+    <dialog id="app-dialog-overlay" class="app-dialog-overlay hidden" aria-modal="true"
+        aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
         <div class="app-dialog">
             <h2 id="app-dialog-title" class="app-dialog-title">Confirm action</h2>
             <p id="app-dialog-message" class="app-dialog-message"></p>
             <div id="app-dialog-prompt-wrap" class="mt-4 hidden">
-                <input id="app-dialog-input" class="input" type="text">
+                <input id="app-dialog-input" class="input" type="text" aria-labelledby="app-dialog-title">
             </div>
             <div class="app-dialog-actions">
                 <button id="app-dialog-cancel" type="button" class="btn-secondary btn-sm">Cancel</button>
                 <button id="app-dialog-confirm" type="button" class="btn-primary btn-sm">Continue</button>
             </div>
         </div>
-    </div>
+    </dialog>
     <div id="subscription-help-overlay" class="app-dialog-overlay hidden" role="dialog" aria-modal="true"
         aria-labelledby="subscription-help-title">
         <div class="app-dialog">
@@ -239,11 +239,12 @@
                     dialogPromptWrap.classList.toggle('hidden', !isPrompt);
                     dialogInput.type = options.inputType || 'text';
                     dialogInput.value = options.defaultValue || '';
-                    dialogOverlay.classList.remove('hidden');
-
                     const previousFocus = document.activeElement;
+                    dialogOverlay.classList.remove('hidden');
+                    dialogOverlay.showModal();
 
                     function cleanup(value) {
+                        dialogOverlay.close();
                         dialogOverlay.classList.add('hidden');
                         dialogConfirm.removeEventListener('click', onConfirm);
                         dialogCancel.removeEventListener('click', onCancel);
@@ -266,15 +267,18 @@
                     }
 
                     function onKeydown(event) {
-                        if (event.key === 'Escape') onCancel();
-                        if (event.key === 'Enter' && (isPrompt || event.target !== dialogCancel)) onConfirm();
+                        if (event.key === 'Escape') { event.preventDefault(); onCancel(); }
+                        if (event.key === 'Enter' && isPrompt && event.target === dialogInput) {
+                            event.preventDefault();
+                            onConfirm();
+                        }
                     }
 
                     dialogConfirm.addEventListener('click', onConfirm);
                     dialogCancel.addEventListener('click', onCancel);
                     dialogOverlay.addEventListener('click', onOverlay);
                     document.addEventListener('keydown', onKeydown);
-                    setTimeout(() => (isPrompt ? dialogInput : dialogConfirm).focus(), 0);
+                    (isPrompt ? dialogInput : dialogCancel).focus();
                 });
             }
 

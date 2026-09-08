@@ -21,7 +21,7 @@ def validate_http_url(url: str, allow_private: bool = True) -> str:
 
     for address in addresses:
         ip = ipaddress.ip_address(address[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+        if not ip.is_global:
             raise ValueError("Private, loopback, link-local, and multicast URLs are not allowed")
 
     return url

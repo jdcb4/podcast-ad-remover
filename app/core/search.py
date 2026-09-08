@@ -9,7 +9,7 @@ class PodcastSearcher:
     @staticmethod
     async def search(term: str, limit: int = 10) -> List[Dict]:
         """Resolve direct YouTube sources or search podcasts through iTunes."""
-        if is_youtube_input(term):
+        if is_youtube_input(term) or term.strip().lower().startswith(('https://', 'http://')):
             source = await asyncio.to_thread(resolve_source, term.strip())
             return [source.search_result()]
         params = {
@@ -37,5 +37,4 @@ class PodcastSearcher:
                     })
                 return results
             except Exception as e:
-                print(f"Search failed: {e}")
-                return []
+                raise ValueError("Podcast search is unavailable. Try again or paste a direct RSS URL.") from e

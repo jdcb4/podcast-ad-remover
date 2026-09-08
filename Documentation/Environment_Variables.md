@@ -1,9 +1,9 @@
 # Environment Variables
 
-The application is configured via environment variables.
+Environment variables provide startup defaults; many runtime settings are stored in SQLite and configured in the Admin UI.
 
 ## AI Provider Keys (Optional)
-The application requires at least one API key to function (Gemini, OpenAI, Anthropic, or OpenRouter). You can set these via Environment Variables (recommended for Docker) or via the Admin UI.
+Configure the selected provider before processing. Cloud providers need their own API key; a custom local OpenAI-compatible endpoint can be keyless. The dashboard and library do not require an AI key to start. Keys can come from environment variables or the Admin UI.
 
 **Note:** Settings in the **Admin UI** take priority over Environment Variables.
 Gemini direct access uses Google's OpenAI-compatible endpoint through the OpenAI Python SDK.
@@ -19,7 +19,7 @@ Custom OpenAI-compatible endpoint settings are database-backed and configured un
 Settings > Text Analysis**. They are intentionally not aliases for `OPENAI_API_KEY`, so a saved OpenAI
 cloud credential is never forwarded to a custom endpoint.
 
-## Gemini Model Defaults And Free-Tier Limits
+## Configured Gemini defaults and provider quotas
 
 The default direct Gemini cascade is:
 
@@ -31,15 +31,9 @@ The default direct Gemini cascade is:
 
 The OpenRouter Gemini cascade uses the same order with the `google/` prefix. The app tries configured models in order and moves to the next model if a request fails or is rate-limited.
 
-Current Gemini free-tier limits recorded for these defaults:
-
-| Model | Category | RPM | TPM | RPD |
-|-------|----------|-----|-----|-----|
-| Gemini 2.5 Flash | Text-out models | 5 | 250K | 20 |
-| Gemini 3 Flash | Text-out models | 5 | 250K | 20 |
-| Gemini 2.5 Flash Lite | Text-out models | 10 | 250K | 20 |
-| Gemini 3.1 Flash Lite | Text-out models | 15 | 250K | 500 |
-| Gemini 3.5 Flash | Text-out models | 5 | 250K | 20 |
+Quotas depend on model, project and billing tier. Check your active project limits in
+[Google AI Studio via the rate-limit guide](https://ai.google.dev/gemini-api/docs/rate-limits).
+The app does not assume a fixed free-tier allowance.
 
 Gemini TTS is optional and uses the same saved Gemini API keys. The default TTS cascade is:
 
@@ -48,12 +42,8 @@ Gemini TTS is optional and uses the same saved Gemini API keys. The default TTS 
 
 Available Gemini TTS voices are `Orus` (default), `Enceladus`, and `Laomedeia`.
 
-Current free-tier limits recorded for Gemini TTS:
-
-| Model | Category | RPM | TPM | RPD |
-|-------|----------|-----|-----|-----|
-| Gemini 3.1 Flash TTS | Text-to-speech models | 3 | 10K | 10 |
-| Gemini 2.5 Flash TTS | Text-to-speech models | 3 | 10K | 10 |
+Speech generation shares the configured provider request budget. Check active speech quotas
+in the same provider console before enabling it.
 
 ## Optional / Defaults
 
@@ -65,9 +55,9 @@ Current free-tier limits recorded for Gemini TTS:
 | `PROCESSOR_ENABLED` | Start the background feed polling and episode-processing process. Set `false` for an isolated web-only clone that must still run startup and database migrations. | `true` |
 | `SPONSORBLOCK_ENABLED` | Read SponsorBlock timestamps for YouTube episodes and merge them with LLM detections. Disabled by default; review the SponsorBlock CC BY-NC-SA 4.0 API/data licence before enabling. | `false` |
 | `CHECK_INTERVAL_MINUTES` | How often to check for new episodes | `60` |
-| `WHISPER_MODEL` | Whisper model size | `base` |
-| `HOST` | Host to bind to | `0.0.0.0` |
-| `PORT` | Port to bind to | `8000` |
+| `WHISPER_MODEL` | First-startup Whisper model seed; existing database settings take precedence | `base` |
+| `HOST` | Legacy startup setting; Docker binding is controlled by its Uvicorn command | `0.0.0.0` |
+| `PORT` | URL auto-detection hint; Docker still listens on 8000 unless its command changes | `8000` |
 | `BASE_URL` | Public URL for the RSS feeds | `http://localhost:8000` |
 | `COOKIE_SECURE` | Set session cookies as HTTPS-only. Use `true` behind HTTPS. | `false` |
 | `TRUST_PROXY_HEADERS` | Trust `CF-Connecting-IP`, `X-Forwarded-For`, and `X-Real-IP` for login rate limits, IP allowlists, and listen tracking. Only enable behind a reverse proxy that strips client-supplied copies of these headers. | `false` |
@@ -108,3 +98,15 @@ inheritance toggle is enabled. `default_watermark_artwork` is off by default.
 | `notify_new_podcasts` | Send notification when a new global podcast is added. | `1` |
 | `notify_episode_downloads` | Send notification when an episode finishes processing and is available in feeds. | `1` |
 | `notify_breaking_errors` | Send notification for max-retry processing failures and top-level worker errors. | `1` |
+
+Compose interpolates session/provider values from `.env` or the shell. A persistent random
+`SESSION_SECRET_KEY` is required by Compose; known example placeholders cannot enable authentication.
+Generate it once with `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+
+`WHISPER_MODEL` seeds the database on first startup. Existing database settings override
+the environment; change the model in Settings for an existing installation.
+
+`MAX_PROVIDER_CALLS_PER_JOB` defaults to 12 (1–100), shared across automatic retries,
+analysis, schema repair, summaries and remote speech. SDK automatic retries are disabled.
+`PROVIDER_TIMEOUT_SECONDS` defaults to 120 (5–600). An operator-triggered new job gets a
+new budget. Authentication/billing failures and exhausted budgets require intervention.

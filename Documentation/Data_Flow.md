@@ -14,15 +14,15 @@ For each queued episode:
 
 1.  **Download**:
     - Fetch RSS audio from its enclosure, or use pinned yt-dlp to download a YouTube video's best audio-only format.
-    - Save episode artifacts under `/data/podcasts/{podcast_slug}/{episode_slug}/`.
+    - Claim a durable job with a unique token and scratch reservation. Save new artifacts under `/data/podcasts/{podcast_slug}/episode-{database_id}/attempt-{unique_token}/`; keep prior published paths intact.
 
 2.  **Transcribe (Whisper)**:
     - Load Whisper model (if not loaded).
     - Process audio file -> generate text segments with timestamps.
 
 3.  **Ad Detection (configured LLM)**:
-    - Send transcript to Gemini API with a prompt to identify ad segments.
-    - Receive JSON response containing start/end times of ads.
+    - Send the transcript to the selected text-analysis provider with the effective prompts/removal settings and a durable request budget.
+    - Validate a JSON array of finite, ordered, known-label intervals. Invalid/refused/truncated results fail analysis; a valid empty array means no cuts.
 
 4.  **Optional SponsorBlock Evidence**:
     - Only for YouTube episodes and only when `SPONSORBLOCK_ENABLED=true`, query read-only crowdsourced timestamps for categories enabled by the podcast's existing removal settings.
@@ -34,9 +34,11 @@ For each queued episode:
     - Save processed audio in the episode artifact directory.
 
 6.  **Finalize**:
-    - Update database with processing stats (time saved, ad count).
-    - Clean up temporary/intermediate files according to the processor settings.
-    - Regenerate the podcast's local RSS feed XML in `/data/feeds/`.
+    - Validate output MP3 duration (non-MP3 no-cut sources are encoded to MP3).
+    - Switch published artifact pointers and stats in one claim-guarded SQLite transaction.
+    - Serialize and atomically replace podcast/unified RSS; clear the matching publication-pending flag only after success.
+    - Keep completed audio if RSS fails. Retry publication without another download, model call or cut.
+    - Reuse only source-fingerprint/model/prompt-compatible stage artifacts on retry; clean owned temporary files and later expire abandoned unpublished attempts.
 
 ## 3. Consumption
 1.  **User** points their Podcast Player to `http://{host}/feeds/{podcast_slug}.xml`.
@@ -62,3 +64,11 @@ The public feed/audio path is not tied to a logged-in account by default. Admin-
 3. The request waits asynchronously for up to ten seconds. If a worker has not stopped, it returns a pending result and leaves all podcast files in place.
 4. Once no running jobs remain, a single cleanup claimant removes the subscription directory, generated feed, and derived artwork, regenerates the unified feed once, and deletes the related database rows.
 5. Partial filesystem or feed cleanup is recorded as failed and retried idempotently by the processor loop. A process interruption during cleanup can be reclaimed after five minutes.
+
+## 6. Budgets and observability
+
+A job retains its provider request count across automatic retries. SDK retries are disabled and
+explicit request timeouts bound each call. Reported input/output tokens and request outcomes are
+stored without prompts or secrets; the queue shows 24-hour totals, not a billing estimate.
+Admission reserves estimated scratch space across workers and stages recheck free space. Other
+host writers can still exhaust the disk; failures retain the last published audio and safe retry cache.

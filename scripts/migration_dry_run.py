@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 import sqlite3
 import sys
 import tempfile
@@ -18,6 +17,7 @@ if str(ROOT) not in sys.path:
 
 from app.core.config import settings
 from app.infra.database import init_db
+from app.infra.backup import backup_database
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ def run_migration_dry_run(source_db: Path, data_dir: Path) -> MigrationDryRunRes
 
     copied_db = data_dir / "db" / "podcasts.db"
     copied_db.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source_db, copied_db)
+    backup_database(source_db, copied_db)
 
     original_data_dir = settings.DATA_DIR
     try:

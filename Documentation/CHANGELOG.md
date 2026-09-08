@@ -3,6 +3,42 @@
 ## Unreleased
 
 - Added administrator-managed unified-feed preferences for its podcast-app name, description, optional podcast-name episode-title prefix, and external artwork URL while preserving the existing feed address and defaults.
+- Make `dev` the GitHub default and rename production `master` to `main`; align CI, release guards and Unraid template URLs. Require verification on both long-lived branches, clean up merged branches, and retain the abandoned local-LLM experiment under an archive tag.
+
+## 1.13.0 - 2026-09-06
+
+- Keep published-episode counts, previews and listen totals stable while replacement processing is queued, running, cancelled or failed.
+
+- Honor explicit RSS API initial-download counts, including zero, and reject negative counts before creating a subscription.
+
+- Pin the Python dependency set and Python/Deno image stages, audit Python packages in the standard gate, and ship offline container/backup/publication recovery commands.
+- Bound standalone speech fallback requests and stop speech retries on authentication failures.
+- Replace obsolete active audit/setup/security claims with current behavior; preserve historical audit evidence and remove unused wrappers without deleting legacy data.
+
+- Share episode card rendering between initial pages and pagination; fix keyboard description expansion, mobile list layout and native confirmation dialogs. Cancellation consistently retains published audio; Ignore remains the file-removal action.
+
+- Bound provider calls across automatic retries, disable hidden SDK retries, honor Retry-After, stop retrying authentication/billing failures, record provider usage, reserve scratch capacity, and reuse verified stage outputs after failures.
+
+- Expose real worker heartbeat/scheduler status, supervise child failures, add a Docker readiness check, report container memory and cache storage scans. Honor the initial Whisper environment setting and validate the selected AI provider including keyless custom endpoints.
+
+- Fix episode deletion, make settings and action menus keyboard accessible, label episode selection, paginate filters/search on the server, preserve newer search results, report action failures and support direct RSS URLs. Extract episode JavaScript and correct stored-audio/count labels.
+
+- Use stable database IDs for new episode storage, fence every worker write by its claim, retain cancellation leases until acknowledgement, and enforce the global claim limit in one transaction.
+- Stage replacement audio independently, preserve previous published files and GUIDs during failed reprocessing, validate source fingerprints before transcript reuse, and publish measured output duration.
+- Atomically replace serialized RSS snapshots and retain completed audio with a durable feed-publication retry flag when feed writing fails. Existing artifact paths remain readable.
+
+- Validate every feed, artwork and RSS audio redirect before connecting; pin public IPs in restricted mode and recheck disk space during streaming.
+
+- Reject invalid AI segmentation responses instead of publishing them as no-ads results, and encode non-MP3 sources correctly when no cuts are needed.
+
+- Enforce owner/admin episode permissions, fix library membership responses, return deliberate 403 responses, and attribute audio listens by full path.
+
+- Reject known session-secret placeholders and honor Compose environment values.
+
+- Create integrity-checked SQLite snapshots before migrations and for dry runs, including committed WAL data; add a backup CLI and recovery runbook.
+- Escape generated report text and sandbox legacy reports.
+
+- Reject episode cleanup paths that resolve to storage roots, subscription roots or filesystem aliases.
 
 ## 1.12.0 - 2026-08-11
 

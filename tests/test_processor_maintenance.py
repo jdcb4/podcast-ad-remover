@@ -7,6 +7,7 @@ import pytest
 from app.core.config import settings
 from app.core.models import SubscriptionCreate
 from app.core.processor import Processor
+from app.core.sources import validate_rss_download_response
 from app.infra.database import get_db_connection, init_db
 from app.infra.repository import SubscriptionRepository
 
@@ -100,7 +101,7 @@ def test_validate_download_response_rejects_oversized_content_length(monkeypatch
     monkeypatch.setattr(settings, "MIN_FREE_SPACE_BYTES", 10)
 
     with pytest.raises(RuntimeError, match="maximum size"):
-        processor._validate_download_response(
+        validate_rss_download_response(
             "https://example.com/audio.mp3",
             "https://example.com/audio.mp3",
             {"Content-Length": "101", "Content-Type": "audio/mpeg"},
@@ -114,7 +115,7 @@ def test_validate_download_response_rejects_download_that_would_cross_free_space
     monkeypatch.setattr(settings, "MIN_FREE_SPACE_BYTES", 100)
 
     with pytest.raises(RuntimeError, match="minimum free disk space"):
-        processor._validate_download_response(
+        validate_rss_download_response(
             "https://example.com/audio.mp3",
             "https://example.com/audio.mp3",
             {"Content-Length": "450", "Content-Type": "audio/mpeg"},
@@ -128,7 +129,7 @@ def test_validate_download_response_rejects_non_audio_content(monkeypatch):
     monkeypatch.setattr(settings, "MIN_FREE_SPACE_BYTES", 100)
 
     with pytest.raises(RuntimeError, match="did not return audio"):
-        processor._validate_download_response(
+        validate_rss_download_response(
             "https://example.com/audio.mp3",
             "https://example.com/audio.mp3",
             {"Content-Length": "50", "Content-Type": "text/html"},
@@ -141,7 +142,7 @@ def test_validate_download_response_ignores_invalid_content_length(monkeypatch):
     monkeypatch.setattr(settings, "MAX_DOWNLOAD_BYTES", 1000)
     monkeypatch.setattr(settings, "MIN_FREE_SPACE_BYTES", 100)
 
-    total = processor._validate_download_response(
+    total = validate_rss_download_response(
         "https://example.com/audio.mp3",
         "https://example.com/audio.mp3",
         {"Content-Length": "not-a-number", "Content-Type": "audio/mpeg"},

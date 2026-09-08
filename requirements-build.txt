@@ -1,0 +1,4 @@
+-c constraints.txt
+# Bootstrap tools are also audited; do not inherit vulnerable base-image copies.
+pip==26.2.1
+setuptools==83.0.0

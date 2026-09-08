@@ -1,6 +1,6 @@
 # Local LLM Evaluation
 
-Last updated: 2026-07-24.
+Research completed: 2026-07-24. Archive location updated: 2026-09-06.
 
 ## Purpose
 
@@ -14,10 +14,11 @@ advanced option; the benchmark does not change the product's cloud-first directi
 
 **Outcome:** transcript chunking for smaller/local models is concluded as an unsuccessful product
 experiment. The complete implementation and test harness are retained on the
-[`experimental/local-llm-transcript-chunking`](https://github.com/jdcb4/podcast-ad-remover/tree/experimental/local-llm-transcript-chunking)
-branch for inspection, but there is no current intention to continue developing it or merge it into
+[`archive/local-llm-transcript-chunking`](https://github.com/jdcb4/podcast-ad-remover/tree/archive/local-llm-transcript-chunking)
+tag for inspection, but there is no current intention to continue developing it or merge it into
 the production application. The separately useful configurable OpenAI-compatible endpoint is
-retained on `master` without chunking.
+retained on `main` without chunking. The inactive experimental branch was removed after its tip,
+`96fa4f51646538c025f5870229657953b256ad88`, was preserved under that annotated archive tag.
 
 The detailed, self-contained comparison is available in
 [`LOCAL_LLM_EVALUATION_REPORT.html`](LOCAL_LLM_EVALUATION_REPORT.html). It includes run and quality
@@ -152,8 +153,8 @@ integration, not the detection quality of either model.
 
 ## Preserved Research Materials
 
-The experimental branch retains the evaluator, versioned model matrix, chunking implementation,
-automated chunk-planning tests, and complete commit history. This `master` branch intentionally
+The archive tag retains the evaluator, versioned model matrix, chunking implementation,
+automated chunk-planning tests, and complete commit history. The production `main` branch intentionally
 retains only the sanitized research results and reports.
 
 The corpus itself is not committed. The report artifacts contain episode IDs, timing intervals,

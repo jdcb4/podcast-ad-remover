@@ -20,11 +20,15 @@ node_modules/
 npm-debug.log
 data/
 downloads/
-transcripts/
+transcripts/*
 audio/
 feeds/
 Documentation/
-scripts/
+scripts/*
+!scripts/backup_database.py
+!scripts/migration_dry_run.py
+!scripts/container_smoke.py
+!scripts/publish_pending_feeds.py
 tests/
 *.log
 debugfiles/

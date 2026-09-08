@@ -10,8 +10,8 @@
             clip-rule="evenodd" />
     </svg>
     <div>
-        <span class="font-bold">No AI Provider Configured!</span>
-        Processing will fail until you configure an API key in
+        <span class="font-bold">AI configuration needed.</span>
+        {{ config_warning }} Review
         <a href="/admin/ai/text-analysis" class="underline hover:no-underline">Settings > Text Analysis</a>.
     </div>
 </div>
@@ -31,7 +31,7 @@
     <div class="mb-4 sm:mb-8">
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="relative flex-1">
-                <input type="text" id="search-input" placeholder="Search podcasts or paste a YouTube channel/playlist URL..." aria-label="Search Podcasts"
+                <input type="text" id="search-input" placeholder="Search podcasts or paste an RSS or YouTube URL..." aria-label="Search Podcasts"
                     class="input-lg pl-12">
                 <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" fill="none"
                     stroke="currentColor" viewBox="0 0 24 24">
@@ -67,7 +67,7 @@
             </div>
             <div class="stat-card stat-card-compact text-center">
                 <div class="stat-value">{{ stats.size_gb }}</div>
-                <div class="stat-label">GB Saved</div>
+                <div class="stat-label">GB of audio stored</div>
             </div>
         </div>
     </div>
@@ -89,7 +89,7 @@
                         class="rounded border-white/20 bg-surface-base text-primary-500 focus:ring-primary-500 mr-2 w-4 h-4">
                     <span class="text-text-secondary">Auto</span>
                 </label>
-                <input type="number" id="refresh-interval" value="30" min="5" max="300"
+                <input type="number" id="refresh-interval" aria-label="Refresh interval in seconds" value="30" min="5" max="300"
                     class="w-10 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-primary-400 appearance-none"
                     style="-moz-appearance: textfield;">
                 <span class="text-text-muted mr-2">s</span>
@@ -218,7 +218,7 @@
     <input type="text" id="podcast-search" placeholder="Search podcasts..."
         class="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-surface-base border border-white/[0.1] text-white placeholder:text-text-muted focus:border-primary-500 outline-none text-sm">
 
-    <select id="podcast-filter"
+    <select id="podcast-filter" aria-label="Filter podcasts"
         class="px-3 py-1.5 rounded-lg bg-surface-base border border-white/[0.1] text-white text-sm cursor-pointer">
         <option value="all">All Podcasts</option>
         <option value="downloaded">Episodes Downloaded</option>
@@ -226,7 +226,7 @@
         <option value="recent">Recently Updated</option>
     </select>
 
-    <select id="podcast-sort"
+    <select id="podcast-sort" aria-label="Sort podcasts"
         class="px-3 py-1.5 rounded-lg bg-surface-base border border-white/[0.1] text-white text-sm cursor-pointer">
         <option value="alpha">A-Z</option>
         <option value="recent">Most Recent</option>

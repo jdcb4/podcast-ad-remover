@@ -1,4 +1,6 @@
 import sqlite3
+from contextlib import contextmanager
+from uuid import uuid4
 import socket
 import hashlib
 import secrets
@@ -136,6 +138,14 @@ class SubscriptionRepository:
                 (user_id, subscription_id),
             ).fetchone()
             return row is not None
+
+    def count_user_library_members(self, subscription_id: int) -> int:
+        with get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS count FROM user_subscriptions WHERE subscription_id = ?",
+                (subscription_id,),
+            ).fetchone()
+            return int(row["count"]) if row else 0
 
     def get_owner_username(self, subscription_id: int) -> str | None:
         with get_db_connection() as conn:
@@ -556,7 +566,39 @@ class SourceItemRepository:
             conn.commit()
 
 
+class StaleAttempt(RuntimeError):
+    """A cancelled/replaced worker must not write episode state."""
+
+
 class EpisodeRepository:
+    def __init__(self, attempt: tuple[int, str] | None = None):
+        self.attempt = attempt
+        self.pending_metadata = {}
+
+    def owns_attempt(self, episode_id: int) -> bool:
+        if self.attempt is None:
+            return self.get_status(episode_id) == 'processing'
+        with get_db_connection() as conn:
+            return self._owns_attempt(conn, episode_id)
+
+    def _owns_attempt(self, conn, episode_id):
+        job_id, token = self.attempt
+        return conn.execute("""
+            SELECT 1 FROM jobs j JOIN episodes e ON e.id=j.episode_id
+            JOIN subscriptions s ON s.id=e.subscription_id
+            WHERE j.id=? AND j.episode_id=? AND j.locked_by=?
+            AND j.status='running' AND j.cancel_requested=0
+            AND e.status='processing' AND s.is_active=1 AND s.deletion_status IS NULL
+        """, (job_id, episode_id, token)).fetchone() is not None
+
+    @contextmanager
+    def _write_connection(self, episode_id):
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            if self.attempt and not self._owns_attempt(conn, episode_id):
+                raise StaleAttempt('Processing attempt was cancelled or replaced')
+            yield conn
+
     def create_or_ignore(self, episode: dict) -> bool:
         """Returns True if created, False if already exists."""
         with get_db_connection() as conn:
@@ -581,17 +623,7 @@ class EpisodeRepository:
             except sqlite3.IntegrityError:
                 return False
 
-    def get_pending(self) -> List[dict]:
-        with get_db_connection() as conn:
-            # Get pending episodes OR failed/rate_limited episodes that are due for retry
-            rows = conn.execute("""
-                SELECT * FROM episodes 
-                WHERE status = 'pending' 
-                OR (status = 'failed' AND next_retry_at IS NOT NULL AND next_retry_at <= CURRENT_TIMESTAMP)
-                OR (status = 'rate_limited' AND next_retry_at IS NOT NULL AND next_retry_at <= CURRENT_TIMESTAMP)
-            """).fetchall()
-            return [dict(row) for row in rows]
-            
+
     def get_queue(self) -> List[dict]:
         with get_db_connection() as conn:
             # Get full processing queue with details (including rate_limited)
@@ -662,7 +694,7 @@ class EpisodeRepository:
                 SELECT *
                 FROM episodes
                 WHERE subscription_id = ?
-                  AND status = 'completed'
+                  AND local_filename IS NOT NULL AND status != 'ignored'
                 ORDER BY pub_date DESC
                 """,
                 (subscription_id,),
@@ -679,40 +711,38 @@ class EpisodeRepository:
                        s.image_url AS podcast_image
                 FROM episodes e
                 JOIN subscriptions s ON e.subscription_id = s.id
-                WHERE e.status = 'completed'
+                WHERE e.local_filename IS NOT NULL AND e.status != 'ignored' AND s.deletion_status IS NULL
                 ORDER BY e.pub_date DESC
                 """
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def get_by_subscription_paginated(self, subscription_id: int, limit: int = 20, offset: int = 0, search: str = None) -> list:
-        """Get episodes for a subscription with pagination, ordered by pub_date descending.
-        Optionally filter by search term (matches title)."""
-        with get_db_connection() as conn:
-            if search:
-                return conn.execute(
-                    "SELECT * FROM episodes WHERE subscription_id = ? AND title LIKE ? ORDER BY pub_date DESC LIMIT ? OFFSET ?",
-                    (subscription_id, f"%{search}%", limit, offset)
-                ).fetchall()
-            return conn.execute(
-                "SELECT * FROM episodes WHERE subscription_id = ? ORDER BY pub_date DESC LIMIT ? OFFSET ?",
-                (subscription_id, limit, offset)
-            ).fetchall()
+    @staticmethod
+    def _episode_filter(subscription_id, search=None, filter='all'):
+        clauses, params = ['subscription_id = ?'], [subscription_id]
+        if search:
+            clauses.append("title LIKE ? ESCAPE '\\'")
+            params.append('%' + search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%')
+        filters = {
+            'all': '1=1', 'completed': "local_filename IS NOT NULL AND status != 'ignored'",
+            'manual': 'is_manual_download=1',
+            'not-downloaded': "local_filename IS NULL AND status IN ('unprocessed','failed','pending','rate_limited')",
+            'ignored': "status='ignored'", 'played': 'COALESCE(listen_count,0)>0',
+        }
+        if filter not in filters:
+            raise ValueError('Unknown episode filter')
+        clauses.append(filters[filter])
+        return ' AND '.join(clauses), params
 
-    def count_by_subscription(self, subscription_id: int, search: str = None) -> int:
-        """Count total episodes for a subscription, optionally filtered by search term."""
+    def get_by_subscription_paginated(self, subscription_id: int, limit: int = 20, offset: int = 0, search: str = None, filter: str = 'all') -> list:
+        where, params = self._episode_filter(subscription_id, search, filter)
         with get_db_connection() as conn:
-            if search:
-                result = conn.execute(
-                    "SELECT COUNT(*) FROM episodes WHERE subscription_id = ? AND title LIKE ?",
-                    (subscription_id, f"%{search}%")
-                ).fetchone()
-            else:
-                result = conn.execute(
-                    "SELECT COUNT(*) FROM episodes WHERE subscription_id = ?",
-                    (subscription_id,)
-                ).fetchone()
-            return result[0] if result else 0
+            return conn.execute(f'SELECT * FROM episodes WHERE {where} ORDER BY pub_date DESC, id DESC LIMIT ? OFFSET ?', (*params, max(1, min(100, limit)), max(0, offset))).fetchall()
+
+    def count_by_subscription(self, subscription_id: int, search: str = None, filter: str = 'all') -> int:
+        where, params = self._episode_filter(subscription_id, search, filter)
+        with get_db_connection() as conn:
+            return conn.execute(f'SELECT COUNT(*) FROM episodes WHERE {where}', params).fetchone()[0]
 
     def get_status(self, id: int) -> Optional[str]:
         with get_db_connection() as conn:
@@ -733,7 +763,7 @@ class EpisodeRepository:
                     retry_count = 0,
                     next_retry_at = NULL,
                     processing_flags = ?,
-                    ai_summary = NULL
+                    ai_summary = ai_summary
                 WHERE id = ?
                   AND EXISTS (
                       SELECT 1 FROM subscriptions s
@@ -778,7 +808,7 @@ class EpisodeRepository:
             conn.commit()
 
     def update_retry(self, id: int, retry_count: int, next_retry_at: datetime, error: str):
-        with get_db_connection() as conn:
+        with self._write_connection(id) as conn:
             cursor = conn.execute("""
                 UPDATE episodes 
                 SET status = 'failed', 
@@ -802,7 +832,7 @@ class EpisodeRepository:
 
     def update_rate_limited(self, id: int, next_retry_at: datetime, error: str):
         """Set episode to rate_limited status with scheduled retry at API quota reset."""
-        with get_db_connection() as conn:
+        with self._write_connection(id) as conn:
             cursor = conn.execute("""
                 UPDATE episodes 
                 SET status = 'rate_limited', 
@@ -825,7 +855,7 @@ class EpisodeRepository:
             conn.commit()
 
     def update_status(self, id: int, status: str, error: str = None, filename: str = None, file_size: int = None):
-        with get_db_connection() as conn:
+        with self._write_connection(id) as conn:
             eligibility = ""
             if status in {"pending", "completed", "failed"}:
                 eligibility = """
@@ -841,12 +871,17 @@ class EpisodeRepository:
             cursor = conn.execute(
                 f"""
                 UPDATE episodes
-                SET status = ?, error_message = ?, local_filename = ?, file_size = ?,
-                    processed_at = ?, next_retry_at = NULL
+                SET status = ?, error_message = ?, local_filename = COALESCE(?, local_filename), file_size = COALESCE(?, file_size),
+                    processed_at = COALESCE(?, processed_at), next_retry_at = NULL
                 WHERE id = ? {eligibility}
                 """,
                 (status, error, filename, file_size, datetime.now() if status == 'completed' else None, id),
             )
+            if status == 'completed' and cursor.rowcount:
+                if self.pending_metadata:
+                    columns = ', '.join(f'{key}=?' for key in self.pending_metadata)
+                    conn.execute(f'UPDATE episodes SET {columns} WHERE id=?', (*self.pending_metadata.values(), id))
+                conn.execute("UPDATE episodes SET publication_pending=1, processing_step='completed', progress=100 WHERE id=?", (id,))
             if status == "pending":
                 if cursor.rowcount:
                     _enqueue_job(conn, id)
@@ -863,7 +898,12 @@ class EpisodeRepository:
             conn.commit()
 
     def update_progress(self, id: int, step: str, progress: int, transcript_path: str = None, ad_report_path: str = None, report_path: str = None):
-        with get_db_connection() as conn:
+        if self.attempt:
+            for key, value in [('transcript_path', transcript_path), ('ad_report_path', ad_report_path), ('report_path', report_path)]:
+                if value:
+                    self.pending_metadata[key] = value
+            transcript_path = ad_report_path = report_path = None
+        with self._write_connection(id) as conn:
             updates = ["processing_step = ?", "progress = ?"]
             params = [step, progress]
             
@@ -893,12 +933,15 @@ class EpisodeRepository:
             conn.commit()
 
     def update_description(self, id: int, description: str):
-        with get_db_connection() as conn:
+        if self.attempt:
+            self.pending_metadata["description"] = description
+            return
+        with self._write_connection(id) as conn:
             conn.execute("UPDATE episodes SET description = ? WHERE id = ?", (description, id))
             conn.commit()
 
     def update_source_media_path(self, id: int, source_media_path: str) -> None:
-        with get_db_connection() as conn:
+        with self._write_connection(id) as conn:
             conn.execute(
                 "UPDATE episodes SET source_media_path = ? WHERE id = ?",
                 (source_media_path, id),
@@ -906,7 +949,10 @@ class EpisodeRepository:
             conn.commit()
 
     def update_ai_summary(self, id: int, summary: str):
-        with get_db_connection() as conn:
+        if self.attempt:
+            self.pending_metadata["ai_summary"] = summary
+            return
+        with self._write_connection(id) as conn:
             conn.execute("UPDATE episodes SET ai_summary = ? WHERE id = ?", (summary, id))
             conn.commit()
 
@@ -961,7 +1007,7 @@ class EpisodeRepository:
         """Get total listen count for all episodes in a subscription."""
         with get_db_connection() as conn:
             row = conn.execute(
-                "SELECT SUM(listen_count) as total FROM episodes WHERE subscription_id = ? AND status = 'completed'",
+                "SELECT SUM(listen_count) as total FROM episodes WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'",
                 (subscription_id,)
             ).fetchone()
             return row['total'] if row and row['total'] else 0
@@ -971,18 +1017,13 @@ class EpisodeRepository:
         with get_db_connection() as conn:
             # Try exact match first
             row = conn.execute(
-                "SELECT * FROM episodes WHERE subscription_id = ? AND local_filename LIKE ?",
-                (subscription_id, f"%{filename}")
+                "SELECT * FROM episodes WHERE subscription_id = ? AND replace(local_filename, char(92), '/') = ?",
+                (subscription_id, filename.replace("\\", "/"))
             ).fetchone()
             if row:
                 return Episode.model_validate(dict(row))
             return None
 
-    def count_processing(self) -> int:
-        """Count episodes currently in 'processing' status. Used for concurrent limit enforcement."""
-        with get_db_connection() as conn:
-            row = conn.execute("SELECT COUNT(*) as count FROM episodes WHERE status = 'processing'").fetchone()
-            return row['count'] if row else 0
 
     def request_deletion(self, id: int) -> bool:
         """Mark an episode ignored and cancel queued work while retaining running-job ownership."""
@@ -1013,7 +1054,7 @@ class EpisodeRepository:
             """, (id,))
             conn.execute("""
                 UPDATE jobs
-                SET error = 'Cancellation requested because episode is being deleted',
+                SET error = 'Cancellation requested because episode is being deleted', cancel_requested=1,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE episode_id = ?
                   AND type = 'process_episode'
@@ -1101,7 +1142,26 @@ def _schedule_retry_job(
 
 
 class JobRepository:
-    """SQLite-backed processing jobs with transaction-based claiming."""
+    """SQLite-backed jobs with transaction-based claiming and fenced ownership."""
+
+    def heartbeat(self, job_id: int, token: str):
+        with get_db_connection() as conn:
+            conn.execute("UPDATE jobs SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND locked_by=? AND status='running'", (job_id, token))
+            conn.commit()
+
+    def acknowledge(self, job_id: int, token: str):
+        """Release only this claim; cancellation/restart cannot release a successor."""
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute("SELECT j.episode_id, e.status FROM jobs j JOIN episodes e ON e.id=j.episode_id WHERE j.id=? AND j.locked_by=? AND j.status='running'", (job_id, token)).fetchone()
+            if not row:
+                return
+            requeue = row['status'] in ('pending', 'processing')
+            if row['status'] == 'processing':
+                conn.execute("UPDATE episodes SET status='pending', processing_step='worker interrupted' WHERE id=?", (row['episode_id'],))
+            conn.execute("UPDATE jobs SET status=?, locked_by=NULL, locked_at=NULL, cancel_requested=0, updated_at=CURRENT_TIMESTAMP WHERE id=? AND locked_by=?", ('queued' if requeue else 'cancelled', job_id, token))
+            conn.commit()
+
 
     DEFAULT_STALE_AFTER_MINUTES = 180
 
@@ -1135,14 +1195,6 @@ class JobRepository:
                 (episode_id,),
             ).fetchone()
             return row is not None
-
-    def count_user_library_members(self, subscription_id: int) -> int:
-        with get_db_connection() as conn:
-            row = conn.execute(
-                "SELECT COUNT(*) AS count FROM user_subscriptions WHERE subscription_id = ?",
-                (subscription_id,),
-            ).fetchone()
-            return int(row["count"]) if row else 0
 
     def count_claimable(self) -> int:
         with get_db_connection() as conn:
@@ -1201,16 +1253,19 @@ class JobRepository:
             conn.commit()
             return len(rows)
 
-    def claim_due(self, limit: int, worker_id: str | None = None) -> List[dict]:
+    def claim_due(self, limit: int, worker_id: str | None = None, *, max_running: int | None = None) -> List[dict]:
         if limit <= 0:
             return []
 
-        worker_id = worker_id or socket.gethostname()
+        worker_id = worker_id or f"{socket.gethostname()}:{uuid4().hex}"
         with get_db_connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            if max_running is not None:
+                running = conn.execute("SELECT COUNT(*) FROM jobs WHERE status='running'").fetchone()[0]
+                limit = min(limit, max(0, max_running - running))
             rows = conn.execute("""
                 SELECT j.id AS job_id,
-                       j.attempts AS job_attempts,
+                       j.attempts AS job_attempts, j.work_directory AS resume_directory, j.provider_call_count,
                        e.*
                 FROM jobs j
                 JOIN episodes e ON e.id = j.episode_id
@@ -1225,6 +1280,21 @@ class JobRepository:
                 LIMIT ?
             """, (limit,)).fetchall()
 
+            from app.core.resource_budget import estimated_scratch
+            from app.core.config import settings
+            import shutil
+            remaining = shutil.disk_usage(settings.DATA_DIR).free - settings.MIN_FREE_SPACE_BYTES
+            remaining -= conn.execute("SELECT COALESCE(SUM(reserved_bytes),0) FROM jobs WHERE status='running'").fetchone()[0]
+            admitted = []
+            for row in rows:
+                reserve = estimated_scratch(row['duration'])
+                if reserve > remaining:
+                    conn.execute("UPDATE episodes SET processing_step='Waiting for free scratch space' WHERE id=?", (row['id'],))
+                    continue
+                remaining -= reserve
+                admitted.append(row)
+                conn.execute('UPDATE jobs SET reserved_bytes=? WHERE id=?', (reserve, row['job_id']))
+            rows = admitted
             job_ids = [row["job_id"] for row in rows]
             for job_id in job_ids:
                 conn.execute("""
@@ -1233,7 +1303,7 @@ class JobRepository:
                         attempts = attempts + 1,
                         locked_at = CURRENT_TIMESTAMP,
                         locked_by = ?,
-                        error = NULL,
+                        error = NULL, cancel_requested = 0,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 """, (worker_id, job_id))
@@ -1249,7 +1319,7 @@ class JobRepository:
                 """, (row["id"],))
 
             conn.commit()
-            return [dict(row) for row in rows]
+            return [dict(row, claim_token=worker_id, claim_attempt=row["job_attempts"] + 1) for row in rows]
 
     def recover_stale_running(self, max_age_minutes: int | None = None) -> int:
         """Return stale running jobs to the queue after a worker crash or restart."""
@@ -1266,6 +1336,7 @@ class JobRepository:
                   AND j.status = 'running'
                   AND e.status != 'processing'
                   AND e.status != 'ignored'
+                  AND j.cancel_requested = 0
             """).fetchall()
 
             for row in inconsistent_rows:
@@ -1286,7 +1357,7 @@ class JobRepository:
                 JOIN episodes e ON e.id = j.episode_id
                 WHERE j.type = 'process_episode'
                   AND j.status = 'running'
-                  AND e.status = 'ignored'
+                  AND (e.status = 'ignored' OR j.cancel_requested = 1)
                   AND (
                       COALESCE(j.updated_at, j.locked_at) IS NULL
                       OR COALESCE(j.updated_at, j.locked_at) <= datetime(CURRENT_TIMESTAMP, ?)
@@ -1374,9 +1445,10 @@ class JobRepository:
 
         conn.execute("""
                 UPDATE jobs
-                SET status = 'cancelled',
-                    locked_at = NULL,
-                    locked_by = NULL,
+                SET status = CASE WHEN status='running' THEN 'running' ELSE 'cancelled' END,
+                    cancel_requested = 1,
+                    locked_at = CASE WHEN status='running' THEN locked_at ELSE NULL END,
+                    locked_by = CASE WHEN status='running' THEN locked_by ELSE NULL END,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE episode_id = ?
                   AND type = 'process_episode'

@@ -1,3 +1,4 @@
+-c constraints.txt
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 httpx>=0.26.0
@@ -16,3 +17,9 @@ yt-dlp-ejs==0.8.0
 
 bcrypt
 itsdangerous
+
+# Cross-process feed publication lock (also used transitively by model tooling).
+filelock>=3.20,<4
+
+# zoneinfo fallback data for minimal containers and Windows.
+tzdata

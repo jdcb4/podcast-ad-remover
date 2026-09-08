@@ -90,6 +90,9 @@ class Episode(EpisodeBase):
     listen_count: int = 0
     discovered_at: Optional[datetime] = None
     source_media_path: Optional[str] = None
+    output_duration: Optional[float] = None
+    published_guid: Optional[str] = None
+    publication_pending: bool = False
 
 class User(BaseModel):
     model_config = ConfigDict(from_attributes=True)

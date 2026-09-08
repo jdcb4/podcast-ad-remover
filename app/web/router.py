@@ -1,3 +1,6 @@
+from app.core.artifacts import artifact_path
+from app.core.permissions import can_manage_subscription as _can_manage_subscription
+from app.web.permissions import require_episode_management
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -20,7 +23,7 @@ from app.web.auth_utils import hash_password, verify_feed_password, verify_passw
 from app.web.rate_limiter import login_rate_limiter, check_rate_limit
 from app.web.subscription_links import build_subscribe_instruction_context, build_subscription_links
 from app.web.static_assets import configure_static_asset_versioning
-from app.web.template_filters import compact_datetime
+from app.web.template_filters import compact_datetime, format_duration
 from app.web.template_filters import clean_description as safe_clean_description
 from app.web.template_filters import simple_markdown as safe_simple_markdown
 from app.infra.database import get_db_connection
@@ -84,13 +87,7 @@ def _safe_local_redirect(target: str | None, fallback: str) -> str:
     return target
 
 # Helper to get settings
-def get_global_settings():
-    from app.infra.database import get_db_connection
-    with get_db_connection() as conn:
-        row = conn.execute("SELECT * FROM app_settings WHERE id = 1").fetchone()
-        if row:
-            return dict(row)
-    return {}
+from app.core.utils import get_global_settings
 
 
 def _real_user_id(user) -> int | None:
@@ -98,13 +95,6 @@ def _real_user_id(user) -> int | None:
     return user_id if user_id and user_id > 0 else None
 
 
-def _can_manage_subscription(user, sub) -> bool:
-    if not user:
-        return False
-    if getattr(user, "is_admin", False):
-        return True
-    user_id = _real_user_id(user)
-    return bool(user_id and getattr(sub, "owner_user_id", None) == user_id)
 
 
 def _reconcile_artwork_and_feeds(subscription_ids: list[int] | None = None) -> None:
@@ -1101,7 +1091,7 @@ async def admin_queue(request: Request):
     user = get_current_user(request)
     queue = ep_repo.get_queue()
     recently_processed = ep_repo.get_recently_processed(days=3)
-    operation_status = get_operation_status()
+    operation_status = await asyncio.to_thread(get_operation_status)
     return templates.TemplateResponse(
         request=request,
         name="admin/queue.html",
@@ -1121,7 +1111,7 @@ async def api_queue_status(user = Depends(require_auth)):
     return {
         "queue": ep_repo.get_queue(),
         "recently_processed": ep_repo.get_recently_processed(days=3),
-        "operation_status": get_operation_status(),
+        "operation_status": await asyncio.to_thread(get_operation_status),
     }
 
 
@@ -1179,13 +1169,14 @@ async def retry_episode(episode_id: int, admin_user = Depends(require_admin)):
 
 @router.post("/api/episodes/{episode_id}/reprocess")
 async def api_reprocess_episode(episode_id: int, skip_transcription: bool = False, user = Depends(require_auth)):
+    require_episode_management(user, episode_id)
     import json
     logger.info(f"Reprocess request for {episode_id} with skip_transcription={skip_transcription}")
     
     # API version of retry - force status to pending
     current_status = ep_repo.get_status(episode_id)
     if current_status == 'processing':
-         return {"status": "ignored", "reason": "already_processing"}
+         raise HTTPException(409, "Episode is already processing")
     
     # Set processing flags (like subscriptions.py does)
     flags = {'skip_transcription': skip_transcription}
@@ -1202,6 +1193,7 @@ async def api_reprocess_episode(episode_id: int, skip_transcription: bool = Fals
 
 @router.post("/api/episodes/{episode_id}/ignore")
 async def api_ignore_episode(episode_id: int, user = Depends(require_auth)):
+    require_episode_management(user, episode_id)
     # API version of cancel/delete - soft delete
     from app.core.processor import Processor
     proc = Processor()
@@ -1210,6 +1202,7 @@ async def api_ignore_episode(episode_id: int, user = Depends(require_auth)):
 
 @router.post("/episodes/{episode_id}/download")
 async def manual_download_episode(episode_id: int, request: Request, user = Depends(require_auth)):
+    require_episode_management(user, episode_id)
     # Update DB to pending
     from app.infra.database import get_db_connection
     with get_db_connection() as conn:
@@ -1222,6 +1215,8 @@ async def manual_download_episode(episode_id: int, request: Request, user = Depe
     proc = Processor()
     await proc.process_queue()
 
+    if 'application/json' in request.headers.get('accept', ''):
+        return JSONResponse({'status': 'queued'})
     return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
 
 
@@ -1673,7 +1668,7 @@ def _render_index(request: Request, error: str = None):
     
     from app.infra.database import get_db_connection
     with get_db_connection() as conn:
-        rows = conn.execute("SELECT duration, file_size FROM episodes WHERE status = 'completed'").fetchall()
+        rows = conn.execute("SELECT COALESCE(output_duration,duration) AS duration, file_size FROM episodes WHERE local_filename IS NOT NULL AND status != 'ignored'").fetchall()
         total_episodes = len(rows)
         for row in rows:
             if row['duration']: total_duration += row['duration']
@@ -1694,7 +1689,7 @@ def _render_index(request: Request, error: str = None):
         with get_db_connection() as conn:
             episodes = conn.execute(
                 """SELECT title, pub_date as published_date, status FROM episodes 
-                   WHERE subscription_id = ? AND status = 'completed'
+                   WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'
                    ORDER BY pub_date DESC LIMIT 10""",
                 (sub.id,)
             ).fetchall()
@@ -1702,7 +1697,7 @@ def _render_index(request: Request, error: str = None):
             # Get latest episode with AI summary
             latest_ep = conn.execute(
                 """SELECT id, title, description, ai_summary, pub_date FROM episodes 
-                   WHERE subscription_id = ? AND status = 'completed'
+                   WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'
                    ORDER BY pub_date DESC LIMIT 1""",
                 (sub.id,)
             ).fetchone()
@@ -1746,7 +1741,7 @@ def _render_index(request: Request, error: str = None):
             "sub": sub,
             "links": generate_rss_links(request, sub, global_settings, user),
             "episodes": [dict(ep) for ep in episodes],
-            "episode_count": len(episodes),
+            "episode_count": ep_repo.count_by_subscription(sub.id),
             "processing_count": processing_count,
             "total_listens": ep_repo.get_subscription_listen_count(sub.id),
             "latest_ai_summary": latest_summary,
@@ -1762,23 +1757,8 @@ def _render_index(request: Request, error: str = None):
     # Get queue data for dashboard display
     queue = ep_repo.get_queue()
 
-    # Determine if AI is configured (DB Overrides/Augments Env)
-    from app.core.config import settings
-
-    # Check if the DB has a non-empty list of Gemini keys
-    db_gemini_keys = global_settings.get('gemini_api_keys')
-    has_db_gemini = db_gemini_keys and db_gemini_keys != "[]" and db_gemini_keys != "null"
-
-    config_warning = not any([
-        settings.GEMINI_API_KEY,
-        settings.OPENAI_API_KEY,
-        settings.ANTHROPIC_API_KEY,
-        settings.OPENROUTER_API_KEY,
-        has_db_gemini,  # Correctly check the plural database list
-        global_settings.get('openai_api_key'),
-        global_settings.get('anthropic_api_key'),
-        global_settings.get('openrouter_api_key')
-    ])
+    from app.core.provider_readiness import provider_configuration_error
+    config_warning = provider_configuration_error(global_settings)
 
     # Generate Unified Links if subscriptions exist
     unified_links = None
@@ -1832,13 +1812,13 @@ def _build_public_subscribe_context(request: Request, global_settings: dict):
             row = conn.execute(
                 """SELECT COUNT(*) as count
                    FROM episodes
-                   WHERE subscription_id = ? AND status = 'completed'""",
+                   WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'""",
                 (sub.id,)
             ).fetchone()
             latest = conn.execute(
                 """SELECT title, pub_date
                    FROM episodes
-                   WHERE subscription_id = ? AND status = 'completed'
+                   WHERE subscription_id = ? AND local_filename IS NOT NULL AND status != 'ignored'
                    ORDER BY pub_date DESC LIMIT 1""",
                 (sub.id,)
             ).fetchone()
@@ -2474,6 +2454,20 @@ async def bulk_delete_subscriptions(
     )
 
 
+@router.get("/episodes/{episode_id}/audio")
+async def play_episode(episode_id: int):
+    from pathlib import Path
+    from app.core.config import settings as app_settings
+    episode = ep_repo.get_by_id(episode_id)
+    if not episode or episode.status == 'ignored' or not episode.local_filename:
+        raise HTTPException(404, 'Published audio not found')
+    path = Path(episode.local_filename).resolve()
+    root = Path(app_settings.PODCASTS_DIR).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        raise HTTPException(404, 'Published audio not found')
+    return RedirectResponse('/audio/' + quote(path.relative_to(root).as_posix(), safe='/'), status_code=307)
+
+
 @router.get("/subscriptions/{id}", response_class=HTMLResponse)
 async def view_subscription(request: Request, id: int):
     sub = sub_repo.get_by_id(id)
@@ -2488,14 +2482,6 @@ async def view_subscription(request: Request, id: int):
     total_episodes = ep_repo.count_by_subscription(id)
     has_more = total_episodes > INITIAL_PAGE_SIZE
     
-    def format_duration(seconds: int) -> str:
-        if not seconds:
-            return "-"
-        m, s = divmod(seconds, 60)
-        h, m = divmod(m, 60)
-        if h > 0:
-            return f"{h}:{m:02d}:{s:02d}"
-        return f"{m}:{s:02d}"
 
     # Generate Links
     global_settings = get_global_settings()
@@ -2543,15 +2529,17 @@ async def view_subscription(request: Request, id: int):
     )
 
 @router.get("/api/subscriptions/{id}/episodes")
-async def get_subscription_episodes_api(id: int, limit: int = 20, offset: int = 0, search: str = None):
+async def get_subscription_episodes_api(request: Request, id: int, limit: int = 20, offset: int = 0, search: str = None, filter: str = 'all', user = Depends(require_auth)):
     """Return episodes for a subscription as JSON for lazy loading. Supports search by title."""
     sub = sub_repo.get_by_id(id)
     if not sub:
         raise HTTPException(status_code=404, detail="Subscription not found")
     
-    # Pass search to repository methods
-    episodes = ep_repo.get_by_subscription_paginated(id, limit=limit, offset=offset, search=search)
-    total = ep_repo.count_by_subscription(id, search=search)
+    if limit < 1 or limit > 100 or offset < 0 or filter not in {'all','completed','manual','not-downloaded','ignored','played'}:
+        raise HTTPException(422, 'Invalid episode pagination or filter')
+    # Filter before pagination, with the same predicates for the count.
+    episodes = ep_repo.get_by_subscription_paginated(id, limit=limit, offset=offset, search=search, filter=filter)
+    total = ep_repo.count_by_subscription(id, search=search, filter=filter)
     
     # Convert sqlite rows to dicts
     episodes_data = []
@@ -2564,6 +2552,10 @@ async def get_subscription_episodes_api(id: int, limit: int = 20, offset: int = 
     
     return {
         "episodes": episodes_data,
+        "html": templates.get_template('_episode_cards.html').render(
+            request=request, episodes=episodes, format_duration=format_duration,
+            can_manage_subscription=_can_manage_subscription(user, sub),
+        ),
         "total": total,
         "offset": offset,
         "limit": limit,
@@ -2704,18 +2696,7 @@ async def view_transcript(id: int, request: Request):
         if not row:
             raise HTTPException(status_code=404, detail="Episode not found")
             
-        transcript_path = row['transcript_path']
-        
-        # Check standard paths if not recorded in DB or file missing
-        if not transcript_path or not os.path.exists(transcript_path):
-             episode_slug = f"{row['guid']}".replace("/", "_").replace(" ", "_")
-             potential_path = os.path.join(
-                settings.get_episode_dir(row['subscription_slug'], episode_slug),
-                "transcript.json"
-            )
-             if os.path.exists(potential_path):
-                 transcript_path = potential_path
-        
+        transcript_path = artifact_path(dict(row), 'transcript_path', 'transcript.json')
         if not transcript_path or not os.path.exists(transcript_path):
              raise HTTPException(status_code=404, detail="Transcript file not found")
              
@@ -2725,15 +2706,6 @@ async def view_transcript(id: int, request: Request):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error reading transcript: {str(e)}")
     
-    def format_duration(seconds: int) -> str:
-        if not seconds:
-            return "-"
-        seconds = int(seconds)  # Convert to int to handle floats
-        m, s = divmod(seconds, 60)
-        h, m = divmod(m, 60)
-        if h > 0:
-            return f"{h}:{m:02d}:{s:02d}"
-        return f"{m}:{s:02d}"
 
     return templates.TemplateResponse(
         request=request,
@@ -2761,19 +2733,10 @@ async def get_transcript_json(id: int):
         ).fetchone()
         
         if row:
-            # Try new hierarchical structure first
-            episode_slug = f"{row['guid']}".replace("/", "_").replace(" ", "_")
-            new_path = os.path.join(
-                settings.get_episode_dir(row['slug'], episode_slug),
-                "transcript.json"
-            )
-            if os.path.exists(new_path):
-                return FileResponse(new_path)
-            
-            # Fallback to old path for backward compatibility
-            if row['transcript_path'] and os.path.exists(row['transcript_path']):
-                return FileResponse(row['transcript_path'])
-                
+            path = artifact_path(dict(row), 'transcript_path', 'transcript.json')
+            if path:
+                return FileResponse(path, media_type='application/json')
+
     raise HTTPException(status_code=404, detail="Transcript not found")
 
 @router.get("/artifacts/report/{id}")
@@ -2791,24 +2754,11 @@ async def get_report(id: int):
         ).fetchone()
         
         if row:
-            episode_slug = f"{row['guid']}".replace("/", "_").replace(" ", "_")
-            episode_dir = settings.get_episode_dir(row['slug'], episode_slug)
-            
-            # Try new hierarchical structure first (prefer HTML)
-            html_path = os.path.join(episode_dir, "report.html")
-            if os.path.exists(html_path):
-                return FileResponse(html_path)
-            
-            json_path = os.path.join(episode_dir, "report.json")
-            if os.path.exists(json_path):
-                return FileResponse(json_path)
-            
-            # Fallback to old paths for backward compatibility
-            if row['report_path'] and os.path.exists(row['report_path']):
-                return FileResponse(row['report_path'])
-            if row['ad_report_path'] and os.path.exists(row['ad_report_path']):
-                return FileResponse(row['ad_report_path'])
-            
+            for column, name in [('report_path', 'report.html'), ('ad_report_path', 'report.json')]:
+                path = artifact_path(dict(row), column, name)
+                if path:
+                    return FileResponse(path)
+
     raise HTTPException(status_code=404, detail="Report not found")
 
 @router.get("/feeds/{slug}.xml")

@@ -1,5 +1,5 @@
 import os
-import shutil
+from app.infra.backup import backup_database
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -272,6 +272,26 @@ FORMAL_MIGRATIONS = [
             "ALTER TABLE app_settings ADD COLUMN unified_feed_artwork_url TEXT",
         ],
     ),
+    (
+        "20260905_0013_processing_recovery",
+        [
+            "ALTER TABLE jobs ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE episodes ADD COLUMN output_duration REAL",
+            "ALTER TABLE episodes ADD COLUMN published_guid TEXT",
+            "ALTER TABLE episodes ADD COLUMN publication_pending INTEGER NOT NULL DEFAULT 0",
+            "CREATE TABLE worker_status (id INTEGER PRIMARY KEY CHECK(id=1), worker_id TEXT, heartbeat_at TEXT, last_feed_check TEXT, next_feed_check TEXT)",
+        ],
+    ),
+    (
+        "20260905_0014_processing_budgets",
+        [
+            "ALTER TABLE jobs ADD COLUMN provider_call_count INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE jobs ADD COLUMN reserved_bytes INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE jobs ADD COLUMN work_directory TEXT",
+            "CREATE TABLE provider_calls (id INTEGER PRIMARY KEY, job_id INTEGER NOT NULL, provider TEXT, model TEXT, started_at TEXT DEFAULT CURRENT_TIMESTAMP, duration_ms INTEGER, input_tokens INTEGER, output_tokens INTEGER, outcome TEXT DEFAULT 'interrupted')",
+            "CREATE INDEX idx_provider_calls_job ON provider_calls(job_id)",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000
@@ -294,12 +314,12 @@ def _backup_database_if_needed(migration_ids: list[str]):
     backup_dir = os.path.join(settings.DATA_DIR, "backups")
     os.makedirs(backup_dir, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     backup_path = os.path.join(backup_dir, f"podcasts-before-migration-{timestamp}.db")
-    shutil.copy2(settings.DB_PATH, backup_path)
+    backup_database(settings.DB_PATH, backup_path)
 
 
-def _apply_formal_migrations(conn: sqlite3.Connection, create_backup: bool):
+def _apply_formal_migrations(conn: sqlite3.Connection):
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -313,8 +333,6 @@ def _apply_formal_migrations(conn: sqlite3.Connection, create_backup: bool):
         for row in cursor.execute("SELECT version FROM schema_migrations").fetchall()
     }
     pending = [(version, statements) for version, statements in FORMAL_MIGRATIONS if version not in applied]
-    if create_backup:
-        _backup_database_if_needed([version for version, _ in pending])
 
     for version, statements in pending:
         for sql in statements:
@@ -325,6 +343,14 @@ def _apply_formal_migrations(conn: sqlite3.Connection, create_backup: bool):
 def init_db():
     """Initialize the database with the schema."""
     db_existed = os.path.exists(settings.DB_PATH)
+    if db_existed:
+        # Snapshot BEFORE any legacy DDL or migration bookkeeping touches the DB.
+        with sqlite3.connect(settings.DB_PATH) as before:
+            try:
+                applied = {row[0] for row in before.execute("SELECT version FROM schema_migrations")}
+            except sqlite3.OperationalError:
+                applied = set()
+        _backup_database_if_needed([version for version, _ in FORMAL_MIGRATIONS if version not in applied])
     conn = _connect_db()
     cursor = conn.cursor()
     
@@ -410,7 +436,7 @@ def init_db():
     """)
     
     # Ensure default settings exist
-    cursor.execute("INSERT OR IGNORE INTO app_settings (id) VALUES (1)")
+    cursor.execute("INSERT OR IGNORE INTO app_settings (id, whisper_model) VALUES (1, ?)", (settings.WHISPER_MODEL,))
 
     try:
         cursor.execute("ALTER TABLE app_settings ADD COLUMN summary_prompt_template TEXT")
@@ -603,7 +629,7 @@ Transcript Context: {transcript_context}""",))
           )
     """, (DEFAULT_OPENROUTER_MODEL_CASCADE,))
 
-    _apply_formal_migrations(conn, create_backup=db_existed)
+    _apply_formal_migrations(conn)
 
     cursor.execute("""
         UPDATE app_settings

@@ -1,3 +1,4 @@
+from app.core.http_downloads import stream_get
 import feedparser
 import httpx
 import re
@@ -18,8 +19,8 @@ class FeedManager:
     @staticmethod
     def _fetch_feed(url: str) -> bytes:
         validate_http_url(url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
-        with httpx.Client(follow_redirects=True, timeout=30.0) as client:
-            with client.stream("GET", url) as response:
+        with httpx.Client(trust_env=settings.ALLOW_PRIVATE_FEEDS, timeout=30.0) as client:
+            with stream_get(client, url) as response:
                 response.raise_for_status()
                 validate_redirect_target(url, str(response.url), allow_private=settings.ALLOW_PRIVATE_FEEDS)
                 content_length = int(response.headers.get("Content-Length") or 0)

@@ -1,16 +1,21 @@
 import asyncio
+import copy
+from uuid import uuid4
 import os
 import logging
 import aiofiles
-import html
 import json
 import shutil
 from datetime import datetime
 from pathlib import Path
+from app.core.artifacts import episode_directory, legacy_directory, source_fingerprint
+from app.core.provider_budget import current_claim, ProviderBudgetExceeded
+from app.core.resource_budget import require_scratch
+from app.core.reports import render_ad_report
 from app.core.config import settings
 from app.core.models import Episode
-from app.infra.repository import EpisodeRepository, SubscriptionRepository, SourceItemRepository, JobRepository
-from app.core.ai_services import Transcriber, AdDetector, RateLimitError
+from app.infra.repository import EpisodeRepository, SubscriptionRepository, SourceItemRepository, JobRepository, StaleAttempt
+from app.core.ai_services import Transcriber, AdDetector, RateLimitError, PermanentProviderError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
 from app.core.youtube import (
@@ -18,7 +23,7 @@ from app.core.youtube import (
     hydrate_youtube_entry,
     video_id_from_url,
 )
-from app.core.sources import get_source_adapter, validate_rss_download_response
+from app.core.sources import get_source_adapter
 from app.core.notifications import (
     EVENT_BREAKING_ERROR,
     EVENT_EPISODE_DOWNLOAD,
@@ -29,6 +34,8 @@ from app.core.sponsorblock import SponsorBlockClient, categories_for_subscriptio
 logger = logging.getLogger(__name__)
 
 class Processor:
+    _is_background_worker = False
+    _manual_processor = None
     _active_task_ids = set()
     _queue_lock = asyncio.Lock()  # Prevent race conditions in process_queue
     DELETION_ACK_TIMEOUT_SECONDS = 10.0
@@ -46,13 +53,18 @@ class Processor:
 
     def _remove_episode_directory(self, episode_dir: str, action: str) -> bool:
         """Remove an episode directory only if it is contained by PODCASTS_DIR."""
-        target = Path(episode_dir).resolve()
+        requested = Path(episode_dir).absolute()
+        target = requested.resolve()
         podcasts_root = Path(settings.PODCASTS_DIR).resolve()
 
         try:
-            target.relative_to(podcasts_root)
+            relative = target.relative_to(podcasts_root)
         except ValueError:
             logger.error(f"Refusing to {action} outside podcast storage: {target}")
+            return False
+
+        if len(relative.parts) != 2 or requested != target:
+            logger.error("Refusing to %s an aliased or non-episode path: %s", action, requested)
             return False
 
         if not target.exists():
@@ -74,7 +86,7 @@ class Processor:
         except ValueError:
             logger.error(f"Refusing to delete subscription outside podcast storage: {target}")
             return False
-        if not relative.parts:
+        if len(relative.parts) != 1 or (podcasts_root / subscription_slug).absolute() != target:
             logger.error(f"Refusing to delete podcast storage root: {target}")
             return False
         if not target.exists():
@@ -139,10 +151,6 @@ class Processor:
             except ValueError:
                 logger.warning(f"Refusing to remove temporary file outside podcast storage: {path}")
         return removed
-
-    def _validate_download_response(self, original_url: str, final_url: str, headers, free_space: int) -> int:
-        """Validate response metadata before writing episode audio to disk."""
-        return validate_rss_download_response(original_url, final_url, headers, free_space)
 
     async def check_feeds(self, subscription_id: int = None, limit: int = 5):
         """Check subscriptions for new episodes."""
@@ -260,11 +268,6 @@ class Processor:
 
         self.sub_repo.record_check_success(sub.id, truncated=discovery.truncated)
 
-    async def process_episode(self, episode_id: int):
-        """Force process a specific episode."""
-        self.ep_repo.update_status(episode_id, "pending") # Reset to pending
-        await self.process_queue() # Trigger queue processing
-
     async def delete_episode(self, episode_id: int):
         """Ignore an episode, wait for its worker, then remove artifacts safely."""
         ep = await asyncio.to_thread(self.ep_repo.get_by_id, episode_id)
@@ -288,17 +291,31 @@ class Processor:
                 break
             await asyncio.sleep(self.DELETION_POLL_INTERVAL_SECONDS)
 
-        episode_slug = f"{ep.guid}".replace("/", "_").replace(" ", "_")
-        episode_dir = settings.get_episode_dir(sub.slug, episode_slug)
         if not await asyncio.to_thread(self.job_repo.is_running_for_episode, episode_id):
-            try:
-                await asyncio.to_thread(self._remove_episode_directory, episode_dir, "delete")
-            except Exception as e:
-                logger.warning(f"Failed to delete episode directory {episode_dir}: {e}")
+            await asyncio.to_thread(self._finalize_episode_deletion, episode_id)
 
         await asyncio.to_thread(self.rss_gen.generate_feed, sub.id)
         await asyncio.to_thread(self.rss_gen.generate_unified_feed)
         return True
+
+    def _finalize_episode_deletion(self, episode_id: int):
+        from app.infra.database import get_db_connection
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute("SELECT e.*, s.slug FROM episodes e JOIN subscriptions s ON s.id=e.subscription_id WHERE e.id=? AND e.status='ignored'", (episode_id,)).fetchone()
+            running = conn.execute("SELECT 1 FROM jobs WHERE episode_id=? AND status='running'", (episode_id,)).fetchone()
+            if not row or running:
+                return
+            self._remove_episode_directory(str(episode_directory(row['slug'], episode_id)), 'delete')
+            legacy = legacy_directory(row['slug'], row['guid'])
+            # Legacy GUID sanitization was lossy. Never delete a directory another
+            # episode could be using, even when this episode was explicitly deleted.
+            if legacy:
+                others = conn.execute('SELECT guid FROM episodes WHERE subscription_id=? AND id!=?', (row['subscription_id'], episode_id)).fetchall()
+                if not any(legacy_directory(row['slug'], other['guid']) == legacy for other in others):
+                    self._remove_episode_directory(str(legacy), 'delete')
+            conn.execute("UPDATE episodes SET processing_step='deleted', file_size=0, publication_pending=1 WHERE id=?", (episode_id,))
+            conn.commit()
 
     def _finalize_subscription_deletion(self, subscription_id: int) -> str:
         """Run one claimed, retryable subscription cleanup outside the web event loop."""
@@ -353,108 +370,8 @@ class Processor:
         return completed
 
     async def version_episode(self, episode_id: int):
-        """
-        Increments the version suffix of an episode's GUID (e.g., _v2, _v3)
-         and renames its physical directory to match.
-        """
-        import re
-        ep = self.ep_repo.get_by_id(episode_id)
-        if not ep:
-            logger.error(f"Cannot version episode {episode_id}: Not found")
-            return False
-            
-        sub = self.sub_repo.get_by_id(ep.subscription_id)
-        if not sub:
-            logger.error(f"Cannot version episode {episode_id}: Subscription {ep.subscription_id} not found")
-            return False
-
-        old_guid = ep.guid
-        old_title = ep.title
-        
-        # Determine next version
-        match = re.search(r'_v(\d+)$', old_guid)
-        if match:
-            v_num = int(match.group(1)) + 1
-            new_guid = re.sub(r'_v\d+$', f"_v{v_num}", old_guid)
-            # Update title version if present, else append
-            if re.search(r' \(Reprocessed V\d+\)$', old_title):
-                new_title = re.sub(r' \(Reprocessed V\d+\)$', f" (Reprocessed V{v_num})", old_title)
-            else:
-                new_title = f"{old_title} (Reprocessed V{v_num})"
-        else:
-            v_num = 1
-            new_guid = f"{old_guid}_v{v_num}"
-            new_title = f"{old_title} (Reprocessed V{v_num})"
-
-        logger.info(f"Versioning episode {episode_id}: '{old_title}' ({old_guid}) -> '{new_title}' ({new_guid})")
-
-        # Rename physical directory
-        old_episode_slug = f"{old_guid}".replace("/", "_").replace(" ", "_")
-        new_episode_slug = f"{new_guid}".replace("/", "_").replace(" ", "_")
-        
-        old_dir = settings.get_episode_dir(sub.slug, old_episode_slug)
-        new_dir = settings.get_episode_dir(sub.slug, new_episode_slug)
-
-        if os.path.exists(old_dir):
-            try:
-                os.rename(old_dir, new_dir)
-                logger.info(f"Renamed episode directory: {old_dir} -> {new_dir}")
-            except Exception as e:
-                logger.error(f"Failed to rename directory {old_dir} to {new_dir}: {e}")
-                # We continue anyway to update the DB, as the directory move is preferred but metadata is critical
-        
-        # Update database paths using a helper or manual dict update
-        def update_path(p):
-            if not p: return p
-            return p.replace(old_dir, new_dir)
-
-        # We need a way to update the GUID, Title and paths in the DB. 
-        # Using a fresh connection helper from the database module
-        from app.infra.database import get_db_connection
-        with get_db_connection() as conn:
-            conn.execute("""
-                UPDATE episodes SET 
-                    guid = ?, 
-                    title = ?,
-                    local_filename = ?, 
-                    transcript_path = ?, 
-                    ad_report_path = ?, 
-                    report_path = ?,
-                    source_media_path = ?
-                WHERE id = ?
-            """, (
-                new_guid, 
-                new_title,
-                update_path(ep.local_filename),
-                update_path(ep.transcript_path),
-                update_path(ep.ad_report_path),
-                update_path(ep.report_path),
-                update_path(ep.source_media_path),
-                episode_id
-            ))
-            
-            # Insert placeholder for old GUID to prevent re-downloading
-            try:
-                conn.execute("""
-                    INSERT INTO episodes (subscription_id, guid, title, pub_date, original_url, duration, description, status, file_size)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'ignored', 0)
-                """, (
-                    ep.subscription_id, 
-                    old_guid, 
-                    old_title, 
-                    ep.pub_date, 
-                    ep.original_url, 
-                    ep.duration, 
-                    ep.description
-                ))
-                logger.info(f"Created placeholder for old GUID: {old_guid}")
-            except Exception as e:
-                logger.warning(f"Failed to create placeholder for old GUID {old_guid}: {e}")
-
-            conn.commit()
-
-        logger.info(f"Metadata and Title updated for episode {episode_id}")
-        return True
+        """Reprocessing keeps the published GUID and paths until successful replacement."""
+        return self.ep_repo.get_by_id(episode_id) is not None
 
     def _extract_text(self, start: float, end: float, segments: list) -> str:
         """Extract text from transcript overlapping with the given time range."""
@@ -596,10 +513,16 @@ class Processor:
 
     async def process_queue(self):
         """Process pending episodes concurrently up to the configured limit."""
+        if settings.PROCESSOR_ENABLED and not Processor._is_background_worker:
+            return
+        if not settings.PROCESSOR_ENABLED and Processor._manual_processor is None:
+            Processor._manual_processor = self
+        if not settings.PROCESSOR_ENABLED and Processor._manual_processor is not self:
+            return await Processor._manual_processor.process_queue()
         # Use lock to prevent race conditions from multiple callers WITHIN this process
         async with Processor._queue_lock:
             # 1. Fetch limit from settings
-            from app.web.router import get_global_settings
+            from app.core.utils import get_global_settings
             db_settings = get_global_settings()
             limit = db_settings.get('concurrent_downloads', 2)
             if not limit or limit < 1: limit = 2
@@ -619,7 +542,7 @@ class Processor:
 
             # 3. Claim jobs in one SQLite transaction, then launch them.
             capacity = limit - currently_processing
-            claimed = self.job_repo.claim_due(capacity)
+            claimed = self.job_repo.claim_due(capacity, max_running=limit)
             if not claimed:
                 return
 
@@ -659,7 +582,19 @@ class Processor:
                 return
 
             # Actually run the processing
-            await self._process_episode_inner(ep, sub, ep_dict)
+            worker = copy.copy(self)
+            worker.ep_repo = EpisodeRepository(attempt=(ep_dict['job_id'], ep_dict['claim_token']))
+            heartbeat = asyncio.create_task(self._heartbeat_claim(ep_dict))
+            budget_token = current_claim.set((ep_dict['job_id'], ep_dict['claim_token']))
+            try:
+                await worker._process_episode_inner(ep, sub, ep_dict)
+            finally:
+                current_claim.reset(budget_token)
+                heartbeat.cancel()
+                try:
+                    await heartbeat
+                except asyncio.CancelledError:
+                    pass
             
         except Exception as e:
             logger.error(f"Fatal error in episode task {ep_id}: {e}")
@@ -670,8 +605,8 @@ class Processor:
                 severity="error",
             )
         finally:
-            if self.ep_repo.get_status(ep_id) != "processing":
-                self.job_repo.cancel_active_for_episode(ep_id)
+            self.job_repo.acknowledge(ep_dict['job_id'], ep_dict['claim_token'])
+            await asyncio.to_thread(self._finalize_episode_deletion, ep_id)
             # Ensure ID is removed from active set
             Processor._active_task_ids.discard(ep_id)
             try:
@@ -688,16 +623,10 @@ class Processor:
             # Proactively check queue again after finishing to keep pipeline full
             asyncio.create_task(self.process_queue())
 
-    async def _download_rss_audio(self, ep: Episode, input_path: str) -> None:
-        episode_dir = str(Path(input_path).parent)
-        await get_source_adapter("rss").download(
-            ep.original_url,
-            episode_dir,
-            progress_callback=lambda percent: self.ep_repo.update_progress(
-                ep.id, "downloading", percent
-            ),
-            cancellation_callback=lambda: not self._check_cancellation(ep),
-        )
+    async def _heartbeat_claim(self, claim):
+        while True:
+            await asyncio.to_thread(self.job_repo.heartbeat, claim['job_id'], claim['claim_token'])
+            await asyncio.sleep(20)
 
     async def _fetch_sponsorblock_segments(self, sub, ep: Episode) -> list[dict]:
         if not settings.SPONSORBLOCK_ENABLED:
@@ -743,12 +672,38 @@ class Processor:
             transcript = None
             
             # Create episode-specific directory
-            episode_slug = f"{ep.guid}".replace("/", "_").replace(" ", "_")
-            episode_dir = settings.get_episode_dir(sub.slug, episode_slug)
-            os.makedirs(episode_dir, exist_ok=True)
+            episode_root = episode_directory(sub.slug, ep.id)
+            episode_dir = str(episode_root / ('attempt-' + uuid4().hex))
+            self._attempt_dir = Path(episode_dir)
+            self._attempt_dir.mkdir(parents=True, exist_ok=False)
             
-            input_path = ep.source_media_path or os.path.join(episode_dir, "original.mp3")
+            input_path = os.path.join(episode_dir, "original.mp3")
             transcript_path = None
+            resume = Path(ep_dict['resume_directory']) if ep_dict.get('resume_directory') else None
+            if resume and resume.resolve() == resume and resume.is_relative_to(episode_root) and resume.is_dir():
+                # Copy only finalized reusable inputs into the new owned stage. A stale
+                # worker can never mutate the files used by its successor.
+                manifest_path = resume / 'cache.json'
+                try:
+                    cache = json.loads(manifest_path.read_text(encoding='utf-8'))
+                    cached_source = resume / cache['source_file']
+                    if cached_source.parent == resume and cached_source.is_file():
+                        input_path = str(self._attempt_dir / cached_source.name)
+                        await asyncio.to_thread(shutil.copyfile, cached_source, input_path)
+                        if await asyncio.to_thread(source_fingerprint, input_path) == cache['sha256']:
+                            for name in ('transcript.json', 'analysis-cache.json'):
+                                if (resume / name).is_file():
+                                    await asyncio.to_thread(shutil.copyfile, resume / name, self._attempt_dir / name)
+                            if (self._attempt_dir / 'transcript.json').is_file():
+                                ep.transcript_path = str(self._attempt_dir / 'transcript.json')
+                                skip_transcription = True
+                except (OSError, ValueError, KeyError):
+                    logger.info('No reusable verified source cache for this retry')
+            if self.ep_repo.attempt:
+                from app.infra.database import get_db_connection
+                with self.ep_repo._write_connection(ep.id) as conn:
+                    conn.execute('UPDATE jobs SET work_directory=? WHERE id=? AND locked_by=?', (episode_dir, *self.ep_repo.attempt))
+                    conn.commit()
             
             if skip_transcription and ep.transcript_path and os.path.exists(ep.transcript_path):
                  logger.info(f"Attempting to skip transcription, using existing: {ep.transcript_path}")
@@ -795,6 +750,16 @@ class Processor:
                 file_size_mb = os.path.getsize(input_path) / (1024 * 1024)
                 logger.info(f"Download complete: {file_size_mb:.2f} MB")
             
+            fingerprint = await asyncio.to_thread(source_fingerprint, input_path)
+            if transcript:
+                provenance = transcript.get('_source', {}) if isinstance(transcript, dict) else {}
+                if provenance.get('sha256') != fingerprint or provenance.get('whisper_model') != global_settings.get('whisper_model', settings.WHISPER_MODEL):
+                    logger.info("Source or transcription settings changed; transcribing again")
+                    transcript = None
+            self.ep_repo.update_source_media_path(ep.id, input_path)
+            (self._attempt_dir / 'cache.json').write_text(json.dumps({'source_file': Path(input_path).name, 'sha256': fingerprint}), encoding='utf-8')
+
+            await asyncio.to_thread(require_scratch, ep.duration, os.path.getsize(input_path))
             # 2. Transcribe (If needed)
             if not transcript:
                 self.ep_repo.update_progress(ep.id, "transcribing", 0)
@@ -859,11 +824,16 @@ class Processor:
                 duration = (datetime.now() - start_time).total_seconds()
                 logger.info(f"Transcription complete in {duration:.1f}s")
                 
+                transcript['_source'] = {'sha256': fingerprint, 'whisper_model': global_settings.get('whisper_model', settings.WHISPER_MODEL)}
                 # Save Transcript (Prefer JSON now)
                 transcript_path = os.path.join(episode_dir, "transcript.json")
                 async with aiofiles.open(transcript_path, "w", encoding="utf-8") as f:
                     await f.write(json.dumps(transcript))
                 
+            if transcript_path != os.path.join(episode_dir, 'transcript.json'):
+                transcript_path = os.path.join(episode_dir, 'transcript.json')
+                async with aiofiles.open(transcript_path, 'w', encoding='utf-8') as handle:
+                    await handle.write(json.dumps(transcript))
             self.ep_repo.update_progress(ep.id, "detecting_ads", 50, transcript_path=transcript_path)
             
             if not self._check_cancellation(ep): return
@@ -885,10 +855,23 @@ class Processor:
             if whitelist_mode:
                 logger.info("Whitelist mode is ENABLED - will keep only Content segments")
             
-            ad_segments = await asyncio.to_thread(
-                self.ad_detector.detect_ads, transcript, detect_options, whitelist_mode=whitelist_mode
-            )
-            
+            import hashlib
+            policy = {key: value for key, value in global_settings.items() if key.startswith(('ad_', 'custom_llm_model', 'custom_llm_base_url')) or key in ('active_ai_provider', 'ai_model_cascade', 'openai_model', 'anthropic_model', 'openrouter_model')}
+            cache_key = hashlib.sha256(json.dumps([fingerprint, transcript, detect_options, whitelist_mode, policy], sort_keys=True).encode()).hexdigest()
+            analysis_cache_path = self._attempt_dir / 'analysis-cache.json'
+            ad_segments = None
+            try:
+                cached = json.loads(analysis_cache_path.read_text(encoding='utf-8'))
+                if cached['key'] == cache_key:
+                    ad_segments = cached['segments']
+            except (OSError, ValueError, KeyError):
+                pass
+            if ad_segments is None:
+                ad_segments = await asyncio.to_thread(
+                    self.ad_detector.detect_ads, transcript, detect_options, whitelist_mode=whitelist_mode
+                )
+                analysis_cache_path.write_text(json.dumps({'key': cache_key, 'segments': ad_segments}), encoding='utf-8')
+
             if not self._check_cancellation(ep): return
 
             logger.info(f"Found {len(ad_segments)} segments: {ad_segments}")
@@ -934,136 +917,8 @@ class Processor:
             # Generate Human-Readable Report (HTML)
             human_report_path = os.path.join(episode_dir, "report.html")
             
-            rows_html = ""
-            for s in ad_segments:
-                sponsorblock_evidence = []
-                for evidence in s.get("evidence", []):
-                    if evidence.get("source") != "sponsorblock":
-                        continue
-                    sponsorblock_evidence.append(
-                        "<li>"
-                        f"category={html.escape(str(evidence.get('category') or 'unknown'))}; "
-                        f"UUID={html.escape(str(evidence.get('uuid') or 'unknown'))}; "
-                        f"votes={html.escape(str(evidence.get('votes')))}; "
-                        f"locked={html.escape(str(evidence.get('locked')))}; "
-                        f"action={html.escape(str(evidence.get('action_type') or 'skip'))}"
-                        "</li>"
-                    )
-                evidence_html = (
-                    '<ul class="evidence">' + "".join(sponsorblock_evidence) + "</ul>"
-                    if sponsorblock_evidence
-                    else ""
-                )
-                rows_html += f"""
-                <div class="segment">
-                    <div class="flex justify-between">
-                        <strong>{s['start']}s - {s['end']}s</strong>
-                        <span class="badge">{s.get('label', 'Ad')} · {', '.join(s.get('sources', ['llm']))}</span>
-                    </div>
-                    <p class="reason">{s.get('reason', 'No reason provided')}</p>
-                    {evidence_html}
-                    <div class="transcript-text">
-                        "{s.get('text', 'No text extracted')}"
-                    </div>
-                </div>
-                """
+            html_content = render_ad_report(ep, ad_segments)
 
-            html_content = f"""
-            <html>
-            <head>
-                <title>Ad Report: {ep.title}</title>
-                <link rel="preconnect" href="https://fonts.googleapis.com">
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
-                <style>
-                    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-                    body {{ 
-                        font-family: 'Inter', sans-serif; 
-                        max-width: 900px; 
-                        margin: 0 auto; 
-                        padding: 2rem 1rem;
-                        background: #0a0a0f;
-                        color: #fafafa;
-                        line-height: 1.6;
-                    }}
-                    h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; }}
-                    h1 {{ font-size: 2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, #a78bfa, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
-                    h2 {{ font-size: 1.5rem; margin-bottom: 1rem; color: #fafafa; }}
-                    h3 {{ font-size: 1.125rem; margin: 1.5rem 0 1rem 0; color: #a1a1aa; }}
-                    .meta {{ color: #52525b; font-size: 0.85em; margin-bottom: 1.5rem; font-family: monospace; }}
-                    /* Scrollbar */
-                    ::-webkit-scrollbar {{ width: 8px; }}
-                    ::-webkit-scrollbar-track {{ background: #0a0a0f; }}
-                    ::-webkit-scrollbar-thumb {{ background: #22222f; border-radius: 4px; }}
-                    ::-webkit-scrollbar-thumb:hover {{ background: #3f3f46; }}
-
-                    .segment {{ 
-                        background: #1a1a25;
-                        padding: 1.25rem; 
-                        margin: 1rem 0; 
-                        border-left: 4px solid #8b5cf6; 
-                        border-radius: 0.75rem;
-                        border: 1px solid rgba(255,255,255,0.08);
-                    }}
-                    .badge {{ 
-                        background: rgba(139,92,246,0.15); 
-                        color: #a78bfa; 
-                        padding: 0.25rem 0.75rem; 
-                        border-radius: 999px; 
-                        font-size: 0.75em; 
-                        font-weight: 600;
-                        border: 1px solid rgba(139,92,246,0.2);
-                    }}
-                    .badge.intro {{ background: rgba(52,211,153,0.15); color: #34d399; border-color: rgba(52,211,153,0.2); }}
-                    .badge.outro {{ background: rgba(251,191,36,0.15); color: #fbbf24; border-color: rgba(251,191,36,0.2); }}
-                    .flex {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }}
-                    .transcript-text {{ 
-                        background: rgba(255,255,255,0.03); 
-                        padding: 0.75rem 1rem; 
-                        border-radius: 0.5rem; 
-                        font-style: italic; 
-                        color: #a1a1aa; 
-                        font-size: 0.9em; 
-                        margin-top: 0.75rem;
-                        border: 1px solid rgba(255,255,255,0.06);
-                    }}
-                    .reason {{ margin: 0; font-weight: 600; color: #a78bfa; }}
-                    .time {{ color: #fafafa; font-weight: 600; }}
-                    a {{ color: #a78bfa; text-decoration: none; }}
-                    a:hover {{ text-decoration: underline; }}
-                    .total {{ 
-                        display: inline-block;
-                        background: rgba(139,92,246,0.1); 
-                        color: #a78bfa; 
-                        padding: 0.5rem 1rem; 
-                        border-radius: 0.5rem;
-                        font-weight: 600;
-                        margin-bottom: 1rem;
-                    }}
-                </style>
-            </head>
-            <body>
-                <div style="margin-bottom: 2rem;">
-                    <a href="/" style="font-weight: 700; font-size: 1.25rem; color: #fafafa; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
-                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;"><path d="M4 11v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M4 11l8-8 8 8"></path><path d="M12 19v-6"></path></svg>
-                         Back to Dashboard
-                    </a>
-                </div>
-                <h1>Ad Report</h1>
-                <h2>{ep.title}</h2>
-                <p class="meta">GUID: {ep.guid}</p>
-                
-                <h3>Detected Segments</h3>
-                <p class="total">Total Segments: {len(ad_segments)}</p>
-                
-                {rows_html}
-                
-                <h3>Transcript</h3>
-                <p><a href="/artifacts/transcript/{ep.id}" class="btn">View Full Transcript (JSON)</a></p>
-            </body>
-            </html>
-            """
-            
             async with aiofiles.open(human_report_path, "w", encoding="utf-8") as f:
                 await f.write(html_content)
 
@@ -1074,6 +929,7 @@ class Processor:
             # 4. Remove Ads
             output_path = os.path.join(episode_dir, "processed.mp3")
             
+            await asyncio.to_thread(require_scratch, ep.duration, os.path.getsize(input_path))
             logger.info("Removing ads with FFmpeg...")
             await asyncio.to_thread(
                 AudioProcessor.remove_segments, 
@@ -1185,18 +1041,22 @@ class Processor:
             
             if not self._check_cancellation(ep): return
 
-            # 5. Cleanup & Save
-            if os.path.exists(input_path):
-                os.remove(input_path)
-            
-            file_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
-            self.ep_repo.update_status(ep.id, "completed", filename=output_path, file_size=file_size)
-            self.ep_repo.update_progress(ep.id, "completed", 100)
-            
-            # 6. Regenerate Feed
-            self.rss_gen.generate_feed(sub.id)
-            self.rss_gen.generate_unified_feed()
-            
+            # Validate before committing the active pointer. Files keep their immutable
+            # attempt directory name, so old podcast-client URLs remain available.
+            output_duration = await asyncio.to_thread(AudioProcessor.get_duration, output_path)
+            if output_duration <= 0:
+                raise RuntimeError('Processed audio failed duration validation')
+            self.ep_repo.pending_metadata['output_duration'] = output_duration
+            if ep.local_filename:
+                self.ep_repo.pending_metadata['published_guid'] = f'{ep.guid}#revision-{uuid4().hex}'
+            file_size = os.path.getsize(output_path)
+            (self._attempt_dir / 'published.json').write_text(json.dumps({'episode_id': ep.id}), encoding='utf-8')
+            self.ep_repo.update_status(ep.id, 'completed', filename=output_path, file_size=file_size)
+            self._attempt_dir = None  # Published files are never cancellation cleanup.
+            self._remove_file_if_exists(input_path, 'source audio')
+            # Feed publication has its own durable retry flag; failure keeps audio.
+            await self.publish_pending_feeds()
+
             logger.info(f"Successfully processed {ep.title}")
             await send_notification_async(
                 EVENT_EPISODE_DOWNLOAD,
@@ -1205,8 +1065,17 @@ class Processor:
                 severity="success",
             )
 
+        except StaleAttempt:
+            self._acknowledge_cancellation(ep)
+            return
+        except (PermanentProviderError, ProviderBudgetExceeded) as e:
+            if self.ep_repo.owns_attempt(ep.id):
+                self.ep_repo.update_status(ep.id, 'failed', error=str(e))
+            else:
+                self._acknowledge_cancellation(ep)
+            return
         except RateLimitError as e:
-            if self.ep_repo.get_status(ep.id) != "processing":
+            if not self.ep_repo.owns_attempt(ep.id):
                 logger.info(f"Discarding rate-limit result for cancelled episode {ep.id}")
                 self._acknowledge_cancellation(ep)
                 return
@@ -1218,7 +1087,7 @@ class Processor:
             self.ep_repo.update_rate_limited(ep.id, next_retry, str(e))
             
         except Exception as e:
-            if self.ep_repo.get_status(ep.id) != "processing":
+            if not self.ep_repo.owns_attempt(ep.id):
                 logger.info(f"Episode {ep.id} stopped because cancellation was requested")
                 self._acknowledge_cancellation(ep)
                 return
@@ -1231,7 +1100,7 @@ class Processor:
             if any(pattern in error_str for pattern in rate_limit_patterns):
                 # Treat as rate limit
                 logger.warning(f"Detected possible rate limit in error: {e}")
-                rate_error = RateLimitError(str(e), is_daily_limit=True, provider="unknown")
+                rate_error = RateLimitError(str(e), is_daily_limit=False, provider="unknown")
                 next_retry = rate_error.get_next_retry_time()
                 self.ep_repo.update_rate_limited(ep.id, next_retry, str(e))
                 return
@@ -1242,7 +1111,7 @@ class Processor:
                 # Exponential backoff: 5, 10, 20, 40, 80 minutes
                 delay_minutes = 5 * (2 ** (retry_count - 1))
                 from datetime import timedelta
-                next_retry = datetime.now() + timedelta(minutes=delay_minutes)
+                next_retry = datetime.utcnow() + timedelta(minutes=delay_minutes)
                 
                 logger.info(f"Scheduling retry {retry_count}/5 for {ep.title} in {delay_minutes} minutes")
                 self.ep_repo.update_retry(ep.id, retry_count, next_retry, str(e))
@@ -1263,34 +1132,54 @@ class Processor:
         Returns: True (Continue), False (Abort)
         """
         current_status = self.ep_repo.get_status(ep.id)
-        if current_status != 'processing':
+        if not self.ep_repo.owns_attempt(ep.id):
             logger.warning(f"Processing cancelled for {ep.title} (Status changed to {current_status})")
             self._acknowledge_cancellation(ep)
             return False
         return True
 
     def _acknowledge_cancellation(self, ep: Episode) -> None:
-        """Clean worker-owned artifacts before releasing the durable running-job lock."""
         self._cleanup_artifacts(ep)
-        self.job_repo.cancel_active_for_episode(ep.id)
+        if self.ep_repo.attempt:
+            self.job_repo.acknowledge(*self.ep_repo.attempt)
 
     def _cleanup_artifacts(self, ep: Episode):
-        """Cleanup temporary files for a cancelled episode."""
-        try:
-            logger.info(f"Cleaning up artifacts for {ep.title}...")
-            # Get subscription for slug
-            sub = self.sub_repo.get_by_id(ep.subscription_id)
-            if not sub:
-                return
-                
-            # Remove entire episode directory if it exists
-            episode_slug = f"{ep.guid}".replace("/", "_").replace(" ", "_")
-            episode_dir = settings.get_episode_dir(sub.slug, episode_slug)
-            
-            if os.path.exists(episode_dir):
-                self._remove_episode_directory(episode_dir, "clean up")
-        except Exception as e:
-            logger.error(f"Cleanup failed: {e}")
+        """Only discard this attempt's staging files, never a published revision."""
+        directory = getattr(self, '_attempt_dir', None)
+        if directory is None:
+            return
+        root = Path(settings.PODCASTS_DIR).resolve()
+        resolved = directory.resolve()
+        if directory == resolved and resolved.is_relative_to(root) and len(resolved.relative_to(root).parts) == 3 and resolved.name.startswith('attempt-'):
+            shutil.rmtree(resolved, ignore_errors=False)
+            self._attempt_dir = None
+
+    async def publish_pending_feeds(self):
+        from app.infra.database import get_db_connection
+        with get_db_connection() as conn:
+            rows = conn.execute('SELECT id, subscription_id, local_filename FROM episodes WHERE publication_pending=1').fetchall()
+        for row in rows:
+            try:
+                await asyncio.to_thread(self.rss_gen.generate_feed, row['subscription_id'])
+                await asyncio.to_thread(self.rss_gen.generate_unified_feed)
+                with get_db_connection() as conn:
+                    conn.execute('UPDATE episodes SET publication_pending=0 WHERE id=? AND local_filename IS ?', (row['id'], row['local_filename']))
+                    conn.commit()
+            except Exception:
+                logger.exception('Feed publication pending for episode %s; audio retained', row['id'])
+
+    def _cleanup_abandoned_attempts(self, max_age_hours=48):
+        from app.infra.database import get_db_connection
+        with get_db_connection() as conn:
+            protected = {Path(row[0]).resolve() for row in conn.execute("SELECT work_directory FROM jobs WHERE status IN ('running','queued','retry_scheduled','rate_limited') AND work_directory IS NOT NULL")}
+            protected.update(Path(row[0]).resolve().parent for row in conn.execute("SELECT local_filename FROM episodes WHERE local_filename IS NOT NULL"))
+        root = Path(settings.PODCASTS_DIR).resolve()
+        cutoff = datetime.now().timestamp() - max_age_hours * 3600
+        for directory in root.glob('*/episode-*/attempt-*'):
+            if directory.resolve() != directory or not directory.is_dir() or directory in protected or (directory / 'published.json').exists():
+                continue
+            if directory.stat().st_mtime < cutoff:
+                shutil.rmtree(directory)
 
     async def cleanup_old_logs(self):
         """Clean up old login-attempt rows; log files are handled by rotation."""
@@ -1298,6 +1187,7 @@ class Processor:
         from app.infra.database import get_db_connection
         
         try:
+            await asyncio.to_thread(self._cleanup_abandoned_attempts)
             # Clean up login_attempts table
             thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
             with get_db_connection() as conn:
@@ -1437,12 +1327,18 @@ class Processor:
         
         while True:
             # Get latest interval from DB
-            from app.web.router import get_global_settings
+            from app.core.utils import get_global_settings
             db_settings = get_global_settings()
             interval_minutes = db_settings.get('check_interval_minutes', settings.CHECK_INTERVAL_MINUTES)
             interval_seconds = interval_minutes * 60
             
             try:
+                await self.publish_pending_feeds()
+                from app.infra.database import get_db_connection
+                with get_db_connection() as conn:
+                    deleted = conn.execute("SELECT id FROM episodes WHERE status='ignored' AND processing_step='cancellation requested'").fetchall()
+                for row in deleted:
+                    await asyncio.to_thread(self._finalize_episode_deletion, row['id'])
                 # 1. Finish any subscription deletions whose workers have acknowledged cancellation.
                 await self.finalize_pending_subscription_deletions()
 
@@ -1457,6 +1353,8 @@ class Processor:
                     await self.cleanup_old_episodes()
                     await self.check_feeds()
                     last_feed_check = datetime.now()
+                    from app.core.worker_health import record_feed_check
+                    await asyncio.to_thread(record_feed_check, interval_minutes)
                 
             except Exception as e:
                 logger.error(f"Error in background processor loop: {e}")
@@ -1512,6 +1410,7 @@ def start_processor_process():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
+    Processor._is_background_worker = True
     processor = Processor()
     
     # 3. Handle stop signals gracefully
@@ -1528,15 +1427,26 @@ def start_processor_process():
              # Signal handlers not supported on Windows in loop, but we are on Mac
              pass
 
+    async def heartbeat_worker():
+        from app.core.worker_health import record_heartbeat
+        worker_id = f'{os.getpid()}:{uuid4().hex}'
+        while True:
+            await asyncio.to_thread(record_heartbeat, worker_id)
+            await asyncio.sleep(10)
+
     async def run_until_stopped():
+        heartbeat = asyncio.create_task(heartbeat_worker())
         runner = asyncio.create_task(processor.run_loop())
-        await stop_event.wait()
-        runner.cancel()
+        stop = asyncio.create_task(stop_event.wait())
         try:
-            await runner
-        except asyncio.CancelledError:
-            pass
-        print("Background processor stopped clean.")
+            done, _ = await asyncio.wait({runner, stop, heartbeat}, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                if task is not stop:
+                    task.result()  # A failed loop/heartbeat exits for parent supervision.
+        finally:
+            for task in (heartbeat, runner, stop):
+                task.cancel()
+            await asyncio.gather(heartbeat, runner, stop, return_exceptions=True)
 
     try:
         loop.run_until_complete(run_until_stopped())

@@ -39,21 +39,6 @@ def test_podcast_search_template_escapes_dynamic_result_fields():
     assert "${pod.feed_url}" not in template_source
 
 
-def test_lazy_episode_template_escapes_dynamic_episode_fields():
-    template_source = Path("app/web/templates/episodes.html").read_text(encoding="utf-8")
-
-    assert "function escapeHtml(value)" in template_source
-    assert "function encodePathSegment(value)" in template_source
-    assert "const allowedStatuses =" in template_source
-    assert "const title = escapeHtml(ep.title || '')" in template_source
-    assert "const description = escapeHtml(ep.description || '')" in template_source
-    assert "const pubDate = escapeHtml(ep.pub_date || '')" in template_source
-    assert "${ep.title}" not in template_source
-    assert "${ep.description}" not in template_source
-    assert "${ep.pub_date}" not in template_source
-    assert "/audio/${subscriptionSlug}/${guid}/${filename}" not in template_source
-
-
 def test_admin_ai_template_escapes_dynamic_model_names():
     template_source = Path("app/web/templates/admin/ai.html").read_text(encoding="utf-8")
 

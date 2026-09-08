@@ -29,7 +29,7 @@ Have a great idea? Open an issue to discuss it! We love hearing how to make the 
 
 Please ensure your code is clean and, where possible, documented.
 
-`dev` is the normal integration branch. `master` represents production and receives changes only through an explicitly approved release promotion after the Dev image has been tested.
+`dev` is the GitHub default and normal integration branch. `main` represents production and receives application changes only through an explicitly approved release promotion after the Dev image has been tested. Both branches require the GitHub Actions `verify` check. Delete feature branches after merging; preserve unmerged work. See [Git workflow](Documentation/GIT_WORKFLOW.md) for worktrees, cleanup and updating older clones.
 
 ## Development Setup
 

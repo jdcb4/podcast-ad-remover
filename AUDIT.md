@@ -1,5 +1,7 @@
 # Podcast Ad Remover Audit
 
+Historical assessment from May 2026. See [current audit status](Documentation/AUDIT_STATUS.md) for implementation and verification evidence.
+
 Date: 2026-05-18
 Branch: `audit`
 

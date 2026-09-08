@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import FileResponse, Response
 from pathlib import Path
 import os
+import re
 import time
 import hashlib
 import logging
@@ -56,15 +57,13 @@ def _is_first_byte_request(request: Request) -> bool:
     if not range_header:
         return True  # No Range header = full file request
     
-    # Parse Range: bytes=START-END
-    if range_header.startswith("bytes="):
-        range_spec = range_header[6:]
-        if "-" in range_spec:
-            start = range_spec.split("-")[0]
-            # Count as first request if starting at 0 or very beginning
-            if start == "" or start == "0" or int(start) < 1024:
-                return True
-    return False
+    # Invalid/suffix/multipart ranges are left to FileResponse's HTTP parser.
+    match = re.fullmatch(r"bytes=(\d+)-(\d*)", range_header.strip())
+    if not match:
+        return False
+    start, end = match.groups()
+    return int(start) == 0 and (not end or int(end) >= int(start))
+
 
 
 def _resolve_audio_file_path(path: str) -> Path:
@@ -114,7 +113,7 @@ async def serve_audio(path: str, request: Request):
                 sub = sub_repo.get_by_slug(subscription_slug)
                 if sub:
                     # Find episode by filename
-                    episode = ep_repo.get_by_subscription_and_filename(sub.id, filename)
+                    episode = ep_repo.get_by_subscription_and_filename(sub.id, str(file_path))
                     if episode:
                         client_ip = get_client_ip(request)
                         # Deduplicated listen count

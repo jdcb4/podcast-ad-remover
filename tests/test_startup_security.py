@@ -130,3 +130,8 @@ async def test_system_settings_refuse_standalone_feed_auth_without_credentials(i
     assert row["enable_feed_auth"] == 0
     assert row["feed_auth_username"] is None
     assert row["feed_auth_password"] is None
+@pytest.mark.parametrize("secret", ["", " ", "replace-with-a-long-random-secret", "change-me", "changeme"])
+def test_documented_placeholders_are_rejected(monkeypatch, secret):
+    from app.core.config import is_default_session_secret, settings
+    monkeypatch.setattr(settings, "SESSION_SECRET_KEY", secret)
+    assert is_default_session_secret()

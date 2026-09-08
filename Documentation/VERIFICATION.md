@@ -10,7 +10,7 @@ Install Node dependencies before running frontend-related checks:
 npm ci
 ```
 
-Python dependencies are normally installed through Docker. For local Python work, install `requirements.txt` in your chosen virtual environment.
+Use Python 3.11 and Node 24 for parity with CI. Python dependencies are normally installed through Docker. For local Python work, install `requirements.txt` in your chosen virtual environment.
 For local verification and tests, install the development requirements:
 
 ```bash
@@ -30,9 +30,10 @@ npm run verify
 This currently performs:
 
 - Python syntax compilation for `app/` and `scripts/`.
-- Python unit tests with `pytest`.
+- Python unit/integration tests with `pytest`, including real SQLite, two-process claims, rendered DOM and short FFmpeg fixtures.
 - Tailwind CSS rebuild from `app/web/static/css/input.css` to `app/web/static/css/output.css`.
 - Frontend dependency audit with `npm audit --audit-level=moderate`.
+- Python dependency audit with `pip-audit` in the active environment.
 
 If Tailwind reports stale Browserslist data, refresh the lockfile metadata with:
 
@@ -122,11 +123,11 @@ To keep the migrated copy for inspection:
 npm run db:migration-dry-run -- --db-path /data/db/podcasts.db --keep-copy /tmp/podcast-ad-remover-migration-check
 ```
 
-The helper copies the source database into a temporary data directory, runs the normal startup migration path on the copy, and does not modify the source database.
+The helper takes an integrity-checked SQLite online backup, including committed WAL data, into a temporary data directory and runs startup migrations there. It does not modify the source. See `RECOVERY.md` for matching media/image restoration.
 
 ## Branch And Pull Request Check
 
-GitHub Actions runs `npm run verify` on pull requests and pushes to `dev` and `master`. Pull requests normally target `dev`; `master` is reserved for explicitly approved production promotions. The workflow sets `DATA_DIR` to a temporary Linux runner path so tests do not depend on `/data` being writable.
+GitHub Actions runs `npm run verify` on pull requests and pushes to `dev` and `main`. The `verify` job from GitHub Actions is a required check for both branches. Pull requests normally target `dev`; `main` is reserved for explicitly approved production promotions. The workflow sets `DATA_DIR` to a temporary Linux runner path so tests do not depend on `/data` being writable. See [Git workflow](GIT_WORKFLOW.md) for branch rules and maintenance.
 
 ## Dev Image Check And Publish
 
@@ -151,7 +152,7 @@ The rolling tag is convenient for the Dev environment; the SHA tag records the e
 
 ## Release Publish Check
 
-Only run the production release path after the tested Dev revision has received explicit promotion approval and has been merged into `master`. The release helper requires a clean `master` checkout, reads the version from `package.json`, validates that it is `MAJOR.MINOR.PATCH`, runs verification, and builds two tags:
+Only run the production release path after the tested Dev revision has received explicit promotion approval and has been merged into `main`. The release helper requires a clean `main` checkout, reads the version from `package.json`, validates that it is `MAJOR.MINOR.PATCH`, runs verification, and builds two tags:
 
 ```bash
 npm run docker:build
@@ -199,3 +200,38 @@ This publishes `jdcb4/podcast-ad-remover:experimental-arm64` when pushed. It pas
 - Python coverage should continue expanding around full processor lifecycles and service boundaries.
 - Migration tests cover additive schema and data transforms, but a copied realistic `podcasts.db`
   dry run remains a release-time check rather than a routine automated test.
+
+The Python suite also runs `tests/episode_dom.cjs` with Node against server-rendered HTML.
+Run `npm ci` before pytest; Node 24 is the CI baseline. FFmpeg enables short MP3/AAC/Opus
+integration tests. Offline tests stub external downloads/models, not database repositories.
+
+## Reproducible dependencies and container smoke
+
+`constraints.txt` pins the Python 3.11 runtime, verification and optional Piper dependency set,
+including platform markers. Requirements install through it. `requirements-build.txt` also pins
+pip/setuptools so CI and the image do not inherit outdated bootstrap tools. Refresh deliberately in a clean
+Python 3.11 environment, inspect the diff, then run the full gate and image smoke:
+
+```bash
+uv pip compile --python-version 3.11 --universal requirements-dev.txt requirements-tts.txt --output-file constraints.txt
+pip install -r requirements-dev.txt
+npm ci
+npm run verify:docker
+docker run --rm --network none podcast-ad-remover:verify python scripts/container_smoke.py
+docker run --rm --network none podcast-ad-remover:verify python -m pip check
+```
+
+`uv` is an optional lock-maintenance tool, not an application dependency. Python/Deno image
+stages are digest-pinned; system packages are resolved during builds, so retain the tested
+immutable image for exact rollback. Do not silently ignore dependency advisories. Network access
+is needed for the audits; an unavailable registry is a failed/incomplete gate, not a clean audit.
+
+The smoke script creates its own temporary data, checks native imports, migrations/backup,
+AAC conversion, publication recovery, startup, health, dashboard and assets. Use an isolated
+container with no live data mount. It does not download models or call paid providers. CI installs
+FFmpeg so codec tests run instead of skipping. `jsdom` is a development-only dependency that runs
+the shipped JavaScript against actual Jinja output; native dialog/focus/layout still need browser QA.
+
+Before deployment, rehearse `migration_dry_run.py` on an online snapshot of the target database,
+record the immutable image and media backup, and check the disabled-processing clone before
+re-enabling work. A build alone does not validate production data or paid provider behavior.

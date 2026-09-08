@@ -2,9 +2,22 @@
 
 This is a lightweight decision log. Keep entries short, dated, and focused on choices that future maintainers may otherwise revisit.
 
+## 2026-09-06: Keep dev and main as the only long-lived branches
+
+Joe requested `dev` as the working/default branch and `main` as production. Rename `master` to
+`main` without rewriting history. Apply the existing deletion/force-push protection to both real
+branches and require the GitHub Actions `verify` check. Keep the existing administrator recovery
+bypass; do not use it for routine changes. Feature branches and worktrees exist only while work is
+active and unmerged, and merged pull-request branches are deleted automatically.
+
+Preserve the concluded local-LLM experiment at tag `archive/local-llm-transcript-chunking` before
+removing its inactive branch. Open contributor pull requests remain open and target `dev`.
+Repository-maintenance changes authorized for this rename do not publish or deploy a new app
+release. See [Git workflow](GIT_WORKFLOW.md) for the operating procedure and cleanup record.
+
 ## 2026-08-10: Integrate on dev and explicitly promote production releases
 
-`dev` is the primary integration branch and `master` is the production branch. Development images share the production Docker repository but use `dev` as a rolling tag and `dev-<git-sha>` as the traceable immutable tag. They never update SemVer tags or `latest`. After a Dev image has been tested, merging to `master` and publishing production tags still require Joe's explicit instruction.
+`dev` is the primary integration branch and `main` (named `master` until 2026-09-06) is the production branch. Development images share the production Docker repository but use `dev` as a rolling tag and `dev-<git-sha>` as the traceable immutable tag. They never update SemVer tags or `latest`. After a Dev image has been tested, merging to `main` and publishing production tags still require Joe's explicit instruction.
 
 ## 2026-05-19: Keep SQLite and `/data` as the migration anchor
 
@@ -73,9 +86,9 @@ to an operator-supplied URL. Arbitrary model slugs and keyed or keyless endpoint
 The 4B-to-72B evaluation completed only 20 of 30 runs and passed 6 of 30 interval-quality gates.
 Every local-class candidate missed the short promotion, and structured-output failures remained
 common. The chunking implementation and harness are preserved on
-`experimental/local-llm-transcript-chunking` for research, but are not part of the production
+tag `archive/local-llm-transcript-chunking` (formerly the experimental branch) for research, but are not part of the production
 application and have no planned further development. Sanitized HTML, Markdown, and JSON results
-remain on `master` so the decision and exact detections are inspectable.
+remain on `main` so the decision and exact detections are inspectable.
 
 ## 2026-07-25: Use explicit group inheritance without discarding podcast overrides
 
@@ -104,3 +117,54 @@ provider-specific while downstream transcription, detection, cutting, retention,
 stay shared. SponsorBlock timestamps complement rather than pre-cut the LLM workflow, fail open, and
 are protected by an environment-only flag that defaults off because the API/database licence is
 CC BY-NC-SA 4.0.
+
+## 2026-09-05: retain publications and fence attempts
+
+Episode identity remains the SQLite ID and source GUID. New artifacts live in
+`podcasts/<subscription>/episode-<id>/attempt-<random>/`; each attempt owns only that
+staging directory. A validated result commits its audio/report pointers and output
+duration together. Reprocessing changes the feed GUID only after successful replacement.
+Existing files and old playback URLs remain available until explicit deletion or retention.
+Legacy GUID-derived paths are read-compatible; ambiguous legacy deletion paths are preserved.
+
+SQLite claims include a unique token. Worker writes check that token, cancellation,
+episode status and subscription eligibility within the same write transaction. Cancel
+requests retain running leases until acknowledgement; the capacity check and claim are
+one transaction. Enabled installations process only in the dedicated child; disabled
+installations share one manual processor. This avoids duplicate model owners in the web process.
+
+Feed generation is serialized across processes and uses temporary-file replacement.
+`publication_pending` survives feed errors without deleting audio or repeating AI work.
+The existing model-tooling dependency `filelock` is now explicit for portable publication
+locking; no queue service, ORM or external coordination service was added.
+
+## 2026-09-05: test the rendered episode page
+
+Episode behavior lives in `static/js/episodes.js`; its only server input is an escaped
+JSON configuration block. SQL applies search and status filters before pagination.
+Each request has a sequence and abort controller so old results cannot replace newer ones.
+Native dialog behavior provides keyboard modality without an additional UI framework.
+
+`jsdom` is a development-only dependency for running shipped JavaScript against rendered
+HTML. It reproduces the missing-button failure that source-text assertions missed and
+checks stale searches, injection escaping and error messages without downloading browsers.
+Browser smoke testing remains necessary for layout, native focus and media playback.
+
+## 2026-09-06: Reuse one server renderer for episode cards
+
+Browser verification found drift between initial and incrementally loaded cards. Both now render
+`_episode_cards.html`; the existing paginated JSON retains its data fields and also supplies HTML.
+The client owns request ordering, selection and dialogs. This removes duplicated status/summary/
+permission markup and a conflicting legacy list stylesheet without adding a frontend framework.
+Native confirmation dialogs make the page behind them inert and restore focus on dismissal.
+
+## 2026-09-06: Pin reviewed dependencies and keep integration tests lightweight
+
+A universal Python 3.11 constraint set covers runtime, dev and optional Piper installations. Base
+Python/Deno stages are digest-pinned; the tested immutable image remains the deployment/rollback
+unit because OS package repositories can change. `pip-audit` joins the existing verification gate.
+`jsdom` is a dev-only dependency justified by regressions that required real rendered HTML plus the
+shipped JavaScript to reproduce. `filelock`, already transitive in model tooling, is explicit because
+atomic feed publication must serialize writers across processes. No database, broker or UI framework
+is added. Unused wrappers/path properties are removed after call-site and compatibility checks;
+legacy on-disk artifacts continue to resolve through constrained compatibility reads.

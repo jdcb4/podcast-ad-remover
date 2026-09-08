@@ -1,4 +1,5 @@
 import os
+from app.core.publication import atomic_write, serialized_feed
 import logging
 from datetime import datetime
 from email.utils import format_datetime
@@ -63,6 +64,7 @@ class RSSGenerator:
         self.sub_repo = SubscriptionRepository()
         self.ep_repo = EpisodeRepository()
 
+    @serialized_feed
     def generate_feed(self, subscription_id: int):
         sub = self.sub_repo.get_by_id(subscription_id)
         if not sub:
@@ -102,7 +104,7 @@ class RSSGenerator:
             ep = dict(ep_row)
             item = SubElement(channel, 'item')
             SubElement(item, 'title').text = ep['title']
-            SubElement(item, 'guid').text = ep['guid']
+            SubElement(item, 'guid').text = ep.get('published_guid') or ep['guid']
             SubElement(item, 'link').text = ep['original_url']
             
             # PubDate
@@ -112,8 +114,8 @@ class RSSGenerator:
                 SubElement(item, 'pubDate').text = format_datetime(dt)
             
             # Duration
-            if ep['duration']:
-                SubElement(item, 'itunes:duration').text = str(ep['duration'])
+            if ep.get('output_duration') or ep['duration']:
+                SubElement(item, 'itunes:duration').text = str(round(ep.get('output_duration') or ep['duration']))
 
             # Enclosure
             enclosure = SubElement(item, 'enclosure')
@@ -152,11 +154,11 @@ class RSSGenerator:
         
         output_path = os.path.join(settings.FEEDS_DIR, f"{sub.slug}.xml")
         
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(xml_str)
+        atomic_write(output_path, xml_str)
             
         return output_path
 
+    @serialized_feed
     def generate_unified_feed(self):
         """Generate a single RSS feed containing all episodes from all subscriptions."""
         
@@ -185,15 +187,15 @@ class RSSGenerator:
             if feed_settings["include_podcast_name"] and ep.get('podcast_title'):
                 episode_title = f"[{ep['podcast_title']}] {episode_title}"
             SubElement(item, 'title').text = episode_title
-            SubElement(item, 'guid').text = ep['guid']
+            SubElement(item, 'guid').text = ep.get('published_guid') or ep['guid']
             SubElement(item, 'link').text = ep['original_url']
             
             if ep['pub_date']:
                 dt = datetime.fromisoformat(ep['pub_date']) if isinstance(ep['pub_date'], str) else ep['pub_date']
                 SubElement(item, 'pubDate').text = format_datetime(dt)
             
-            if ep['duration']:
-                SubElement(item, 'itunes:duration').text = str(ep['duration'])
+            if ep.get('output_duration') or ep['duration']:
+                SubElement(item, 'itunes:duration').text = str(round(ep.get('output_duration') or ep['duration']))
 
             enclosure = SubElement(item, 'enclosure')
             # Construct URL using the same relative path logic
@@ -239,7 +241,6 @@ class RSSGenerator:
         
         output_path = os.path.join(settings.FEEDS_DIR, "unified.xml")
         
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(xml_str)
+        atomic_write(output_path, xml_str)
             
         return output_path

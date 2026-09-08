@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     MIN_FREE_SPACE_BYTES: int = 1024 * 1024 * 1024  # 1 GB
     FFMPEG_TIMEOUT_SECONDS: int = 7200  # 2 hours per FFmpeg operation
     ALLOW_PRIVATE_FEEDS: bool = True
+    MAX_PROVIDER_CALLS_PER_JOB: int = Field(12, ge=1, le=100)
+    PROVIDER_TIMEOUT_SECONDS: int = Field(120, ge=5, le=600)
     
     @property
     def DB_PATH(self) -> str:
@@ -51,16 +53,6 @@ class Settings(BaseSettings):
         return os.path.join(self.DATA_DIR, "podcasts")
         
     @property
-    def DOWNLOADS_DIR(self) -> str:
-        """Deprecated: Use get_episode_dir() instead"""
-        return os.path.join(self.DATA_DIR, "downloads")
-        
-    @property
-    def TRANSCRIPTS_DIR(self) -> str:
-        """Deprecated: Use get_episode_dir() instead"""
-        return os.path.join(self.DATA_DIR, "transcripts")
-        
-    @property
     def FEEDS_DIR(self) -> str:
         return os.path.join(self.DATA_DIR, "feeds")
 
@@ -69,23 +61,29 @@ class Settings(BaseSettings):
         return os.path.join(self.DATA_DIR, "artwork")
         
     @property
-    def AUDIO_DIR(self) -> str:
-        """Deprecated: Use get_episode_dir() instead"""
-        return os.path.join(self.DATA_DIR, "audio")
-
-    @property
     def MODELS_DIR(self) -> str:
         return os.path.join(self.DATA_DIR, "models")
     
     def get_episode_dir(self, podcast_slug: str, episode_slug: str) -> str:
-        """Get the directory path for a specific episode"""
-        return os.path.join(self.PODCASTS_DIR, podcast_slug, episode_slug)
+        """Require two literal components; never allow aliases or root traversal."""
+        from pathlib import Path
+        for part in (podcast_slug, episode_slug):
+            if not part or part in {'.', '..'} or any(c in part for c in '/\\\x00:') or part.endswith((' ', '.')):
+                raise ValueError('Invalid episode storage component')
+        root = Path(self.PODCASTS_DIR).resolve()
+        target = root / podcast_slug / episode_slug
+        if target.resolve() != target or not target.is_relative_to(root):
+            raise ValueError('Episode storage must not traverse filesystem aliases')
+        return str(target)
 
 settings = Settings()
 
 
 def is_default_session_secret() -> bool:
-    return settings.SESSION_SECRET_KEY == DEFAULT_SESSION_SECRET_KEY
+    return settings.SESSION_SECRET_KEY.strip() in {
+        "", DEFAULT_SESSION_SECRET_KEY, "replace-with-a-long-random-secret",
+        "change-me", "changeme",
+    }
 
 # Ensure directories exist
 for path in [

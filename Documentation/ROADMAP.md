@@ -6,7 +6,7 @@ This roadmap lists improvement candidates. It is not a release commitment.
 
 - Expand Python coverage around full processor lifecycle transitions and service boundaries.
 - Expand migration tests so they run against a copied realistic `podcasts.db`.
-- Continue expanding the durable job model with recovery tooling for orphaned work directories and richer worker lease visibility.
+- Measure long-episode performance and exercise paid-provider/unattended processing with a representative dev workload before production promotion.
 
 ## Security
 
@@ -23,11 +23,16 @@ This roadmap lists improvement candidates. It is not a release commitment.
 - Add clearer queue state explanations for failed, rate-limited, ignored, and unprocessed episodes.
 - Add optional token-attributed feed/audio access logging if admins need true per-user download analytics. Current stats show per-podcast user-library counts and aggregate plays.
 - Add dynamic per-user file serving so each user can keep podcast-specific preferences and receive a personalized episode file generated when their podcast client downloads it.
-- Add safer backup/export guidance before upgrades.
 - Add optional podcast classifications that can drive differentiated defaults for retention, queue order, and feed handling: **finite** shows keep a complete start-to-finish catalogue; **current affairs** keep a recent rolling window; **narrative** shows default to chronological processing from the beginning; and **seasonal** shows support season-aware retention and, where useful, separate RSS feeds per season. Classifications must remain optional, preserve existing settings on upgrade, and allow per-podcast overrides.
-- Split large templates and move inline queue/episode JavaScript into static files.
+- Continue extracting independently tested route/processor responsibilities when a concrete feature needs them; episode cards/JavaScript and shared policy/artifact modules are already separated.
 
 ## Recently Completed
+
+The approved September assessment is tracked in [ASSESSMENT_IMPLEMENTATION.md](ASSESSMENT_IMPLEMENTATION.md).
+It adds fenced attempts and capacity claims, last-good publication, atomic feeds, WAL-safe backups,
+request/scratch budgets, worker supervision/readiness, server filtering, shared accessible cards,
+reproducible dependencies and recovery/HTTP/real-audio tests. Re-review historical candidates against
+that implementation before starting a new change.
 
 - Preserve Library position and filters while starring podcasts.
 - Add optional ad-free artwork badging.

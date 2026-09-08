@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException, status, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from typing import Optional
 import logging
@@ -99,13 +99,10 @@ async def auth_middleware(request: Request, call_next):
         client_ip = get_client_ip(request)
         if not is_ip_allowed(client_ip, settings['ip_allowlist']):
             logger.warning(f"AUTH - IP blocked: {client_ip} - Path: {path}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied from your IP address"
-            )
+            return JSONResponse(status_code=403, content={"detail": "Access denied from your IP address"})
 
     # Skip dashboard auth for public paths after applying the global IP allowlist.
-    if path in ["/login", "/request-access", "/submit-access-request"] or \
+    if path in ["/health", "/login", "/request-access", "/submit-access-request"] or \
        path.startswith("/static/") or \
        path.startswith("/api/v1/") or \
        path == "/subscribe" or \
@@ -137,10 +134,7 @@ async def auth_middleware(request: Request, call_next):
         if not is_same_origin_request(request, settings["app_external_url"]):
             client_ip = get_client_ip(request)
             logger.warning(f"AUTH - Cross-origin unsafe request blocked: {client_ip} - Path: {path}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Cross-origin management requests are not allowed"
-            )
+            return JSONResponse(status_code=403, content={"detail": "Cross-origin management requests are not allowed"})
         
         # Check if password change is required
         with get_db_connection() as conn:
@@ -151,10 +145,7 @@ async def auth_middleware(request: Request, call_next):
         # 3. ADMIN PRIVILEGE CHECK
         # Protect /admin routes from non-admin users
         if path.startswith("/admin") and not user.is_admin:
-             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin privileges required"
-            )
+             return JSONResponse(status_code=403, content={"detail": "Admin privileges required"})
     
     return await call_next(request)
 

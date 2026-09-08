@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - dev
-      - master
+      - main
   pull_request:
 
 jobs:
@@ -29,6 +29,9 @@ jobs:
         with:
           node-version: "24"
           cache: npm
+
+      - name: Install FFmpeg for real audio regression tests
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Install Python dependencies
         run: python -m pip install -r requirements-dev.txt

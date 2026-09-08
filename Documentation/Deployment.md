@@ -33,11 +33,15 @@ services:
     volumes:
       - ./data:/data
     environment:
-      - GEMINI_API_KEY=your_key_here
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - BASE_URL=http://your-server-ip:8000
-      - SESSION_SECRET_KEY=replace-with-a-long-random-secret
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY:?Set a persistent random secret}
       - LOG_LEVEL=INFO
 ```
+
+Copy `env.example` to `.env`, set the public URL and selected provider, and save a random
+`SESSION_SECRET_KEY` once. For example, generate it with
+`python -c "import secrets; print(secrets.token_urlsafe(48))"`. Reuse it on upgrades.
 
 Start it with:
 
@@ -78,7 +82,7 @@ The Unraid user-template XML lives at `Documentation/unraid/podcast-ad-remover.x
 
 ## Data Volume
 
-Mount `/data` and back it up before upgrades.
+Mount `/data` and follow [RECOVERY.md](RECOVERY.md) for an online database snapshot, matching media backup and isolated restore rehearsal before upgrades.
 
 Important paths:
 
@@ -158,7 +162,7 @@ This path targets `linux/arm64`, tags the image as `jdcb4/podcast-ad-remover:exp
 
 ## Release Publishing
 
-Production releases are promoted from a tested Dev revision only after explicit approval. The release helper runs only from a clean `master` checkout.
+Production releases are promoted from a tested Dev revision only after explicit approval. The release helper runs only from a clean `main` checkout.
 
 Before upgrading an existing install with important data, dry-run database migrations against a copy:
 
@@ -184,3 +188,20 @@ This pushes both:
 
 - `jdcb4/podcast-ad-remover:<version>`
 - `jdcb4/podcast-ad-remover:latest`
+
+## Worker readiness and supervision
+
+Run one Uvicorn web worker per data directory. It supervises a dedicated processor child
+with restart delays bounded to 5–60 seconds. The child writes a heartbeat every 10 seconds;
+90 seconds without a heartbeat is stale. The minimal `/health` endpoint returns 503 for a
+missing/stale enabled processor or an unavailable database, and 200 for a healthy worker
+or explicitly disabled automatic processing. Dashboard authentication does not redirect
+health probes; an IP allowlist still applies, so include the container loopback probe.
+Docker uses this endpoint with a 120-second startup grace period. Docker health status
+alone does not restart a container; the parent handles child restarts, while the configured
+container restart policy handles process exit.
+
+With `PROCESSOR_ENABLED=false`, scheduled discovery is disabled. Explicit manual actions
+use a shared, bounded in-process runner. The queue page states that automatic processing
+is disabled. Memory figures prefer cgroup limits and label host fallback; storage figures
+are cached for 30 seconds. Feed-check deadlines are recorded by the actual scheduler.

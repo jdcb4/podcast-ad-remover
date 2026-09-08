@@ -36,6 +36,10 @@
         -webkit-font-smoothing: antialiased;
     }
 
+    dialog {
+        color: var(--text-primary);
+    }
+
     h1,
     h2,
     h3,
@@ -635,6 +639,19 @@
         display: none;
     }
 
+    dialog.app-dialog-overlay {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        margin: 0;
+        border: 0;
+    }
+
+    dialog.app-dialog-overlay:not([open]) {
+        display: none;
+    }
+
     .app-dialog {
         width: min(28rem, 100%);
         border-radius: 1rem;
@@ -795,6 +812,12 @@
         overflow: hidden;
     }
 
+    #episodes-grid .episode-card.expanded .line-clamp-4 {
+        -webkit-line-clamp: unset;
+        display: block;
+        overflow: visible;
+    }
+
     /* When expanded, allow full height */
     .episode-card .group\/ep-desc.expanded > .py-1.px-1 {
         min-height: auto;
@@ -815,45 +838,6 @@
         -webkit-text-fill-color: transparent;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-    }
-
-    /* EPISODE VIEW MODES */
-    /* Grid View (Default) - 2 Cols */
-    #episodes-grid {
-        /* Grid definitions are handled by Tailwind classes in HTML (lg:grid-cols-2) */
-    }
-
-    /* List View */
-    #episodes-grid[data-view="list"] {
-        @apply grid-cols-1 !important;
-        gap: 0.75rem;
-    }
-
-    #episodes-grid[data-view="list"] .episode-card {
-        @apply flex-row items-center p-4 min-h-0;
-    }
-
-    #episodes-grid[data-view="list"] .episode-header {
-        @apply mb-0 flex-1 min-w-0 mr-4;
-    }
-
-    #episodes-grid[data-view="list"] .episode-title {
-        @apply text-base mb-1 truncate;
-    }
-
-    #episodes-grid[data-view="list"] .episode-meta {
-        @apply mt-0;
-    }
-
-    #episodes-grid[data-view="list"] .episode-card .flex-1 {
-        @apply p-0 flex flex-row items-center;
-    }
-
-    #episodes-grid[data-view="list"] .episode-footer,
-    #episodes-grid[data-view="list"] #desc-content-ai,
-    #episodes-grid[data-view="list"] .group\/desc,
-    #episodes-grid[data-view="list"] .bg-surface-base.rounded-md {
-        display: none;
     }
 
     .glass {

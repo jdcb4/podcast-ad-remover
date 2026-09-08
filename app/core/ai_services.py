@@ -1,4 +1,5 @@
 import base64
+import math
 import json
 import logging
 import asyncio
@@ -10,6 +11,7 @@ import wave
 from typing import List, Dict
 from urllib.parse import urlsplit, urlunsplit
 from app.core.config import settings
+from app.core.provider_budget import provider_request, ProviderBudgetExceeded
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -21,24 +23,30 @@ def piper_tts_available() -> bool:
     return importlib.util.find_spec("piper") is not None
 
 
+class AnalysisError(ValueError):
+    """The provider did not return a complete, usable segmentation result."""
+
+
+class PermanentProviderError(RuntimeError):
+    """Configuration or billing failures require an operator change."""
+
+
 class RateLimitError(Exception):
     """Custom exception for API rate limit errors with retry timing info."""
 
-    def __init__(self, message: str, is_daily_limit: bool = True, provider: str = "gemini"):
+    def __init__(self, message: str, is_daily_limit: bool = False, provider: str = "gemini", retry_after: float | None = None):
         super().__init__(message)
         self.is_daily_limit = is_daily_limit  # True = wait until midnight PT, False = short retry
         self.provider = provider
         self.original_message = message
+        self.retry_after = retry_after
 
     def get_next_retry_time(self):
         """Calculate appropriate retry time based on limit type."""
         from datetime import datetime, timedelta
-        try:
-            from zoneinfo import ZoneInfo
-        except ImportError:
-            # Fallback for older Python
-            import pytz
-            ZoneInfo = lambda tz: pytz.timezone(tz)
+        from zoneinfo import ZoneInfo
+        if self.retry_after is not None:
+            return datetime.utcnow() + timedelta(seconds=max(1, min(self.retry_after, 86400)))
 
         if self.is_daily_limit:
             # Daily limit: retry at midnight Pacific Time + 5 min buffer
@@ -52,7 +60,43 @@ class RateLimitError(Exception):
             return midnight_pt.astimezone(ZoneInfo('UTC')).replace(tzinfo=None)
         else:
             # Per-minute limit: short 2-minute retry
-            return datetime.now() + timedelta(minutes=2)
+            return datetime.utcnow() + timedelta(minutes=2)
+
+
+def rate_limit_error(error, provider):
+    from datetime import datetime, timezone
+    from email.utils import parsedate_to_datetime
+    headers = getattr(getattr(error, 'response', None), 'headers', {})
+    value = headers.get('retry-after') if headers else None
+    seconds = None
+    if value:
+        try:
+            seconds = float(value)
+        except ValueError:
+            try:
+                seconds = (parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds()
+            except (ValueError, TypeError):
+                pass
+    daily = provider == 'gemini' and any(word in str(error).lower() for word in ('per_day', 'perday', 'daily'))
+    return RateLimitError(str(error), is_daily_limit=daily, provider=provider, retry_after=seconds)
+
+
+def raise_permanent_provider_error(error):
+    if isinstance(error, (ProviderBudgetExceeded, PermanentProviderError)):
+        raise error
+    status = getattr(error, 'status_code', None) or getattr(getattr(error, 'response', None), 'status_code', None)
+    if status in (401, 403) or any(code in str(error).lower() for code in ('insufficient_quota', 'billing_hard_limit')):
+        raise PermanentProviderError('Provider authentication or billing failed; review provider settings') from error
+
+
+def record_usage(metrics, response):
+    usage = getattr(response, 'usage', None)
+    for key, names in [('input_tokens', ('prompt_tokens', 'input_tokens')), ('output_tokens', ('completion_tokens', 'output_tokens'))]:
+        for name in names:
+            value = getattr(usage, name, None)
+            if isinstance(value, int):
+                metrics[key] = value
+                break
 
 
 def normalize_openai_base_url(value: str) -> str:
@@ -86,7 +130,7 @@ class Transcriber:
 
     def _load_runtime_settings(self) -> Dict:
         runtime = {
-            "whisper_model": "base",
+            "whisper_model": settings.WHISPER_MODEL,
             "whisper_cpu_threads": 0,
             "ffmpeg_threads": 0,
         }
@@ -98,7 +142,7 @@ class Transcriber:
                     FROM app_settings WHERE id = 1
                 """).fetchone()
                 if row:
-                    runtime["whisper_model"] = row["whisper_model"] or "base"
+                    runtime["whisper_model"] = row["whisper_model"] or settings.WHISPER_MODEL
                     runtime["whisper_cpu_threads"] = int(row["whisper_cpu_threads"] or 0)
                     runtime["ffmpeg_threads"] = int(row["ffmpeg_threads"] or 0)
         except Exception as e:
@@ -366,7 +410,7 @@ class OpenAIProvider(LLMProvider):
     def _init_client(self):
         key = self.api_keys[self.current_key_idx]
         logger.info(f"{self.provider_name}: Initializing client with credential #{self.current_key_idx + 1}")
-        self.client = self.openai.OpenAI(api_key=key, base_url=self.base_url)
+        self.client = self.openai.OpenAI(api_key=key, base_url=self.base_url, max_retries=0, timeout=settings.PROVIDER_TIMEOUT_SECONDS)
 
     def _rotate_key(self) -> bool:
         if self.current_key_idx + 1 < len(self.api_keys):
@@ -385,20 +429,29 @@ class OpenAIProvider(LLMProvider):
             raise ValueError(f"No models configured for {self.provider_name}.")
 
         last_error = None
+        call_count = 0
 
         while True:
             all_rate_limited = True
 
             for model in self.models:
+                call_count += 1
+                if call_count > settings.MAX_PROVIDER_CALLS_PER_JOB:
+                    raise ProviderBudgetExceeded('Model/key fallback request limit reached')
                 try:
                     logger.info(f"{self.provider_name}: Using model {model} with key #{self.current_key_idx + 1}...")
-                    response = self.client.chat.completions.create(
-                        model=model,
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    self.last_model = model
-                    return response.choices[0].message.content or ""
+                    with provider_request(self.rate_limit_provider, model) as metrics:
+                        response = self.client.chat.completions.create(
+                            model=model, messages=[{"role": "user", "content": prompt}]
+                        )
+                        record_usage(metrics, response)
+                        choice = response.choices[0]
+                        if getattr(choice, 'finish_reason', 'stop') in ('length', 'content_filter') or getattr(choice.message, 'refusal', None):
+                            raise AnalysisError('Provider returned truncated or refused output')
+                        self.last_model = model
+                        return choice.message.content or ""
                 except Exception as e:
+                    raise_permanent_provider_error(e)
                     logger.warning(f"{self.provider_name} model {model} failed: {e}")
                     last_error = e
                     if not self._is_rate_limit(e):
@@ -408,11 +461,7 @@ class OpenAIProvider(LLMProvider):
                 continue
 
             if all_rate_limited:
-                raise RateLimitError(
-                    f"{self.provider_name} rate limit exceeded on all keys and models. Last error: {last_error}",
-                    is_daily_limit=True,
-                    provider=self.rate_limit_provider,
-                )
+                raise rate_limit_error(last_error, self.rate_limit_provider)
 
             raise Exception(f"All {self.provider_name} models failed. Last error: {last_error}")
 
@@ -438,24 +487,25 @@ class OpenAIProvider(LLMProvider):
 class AnthropicProvider(LLMProvider):
     def __init__(self, api_key: str, models: List[str]):
         import anthropic
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = anthropic.Anthropic(api_key=api_key, max_retries=0, timeout=settings.PROVIDER_TIMEOUT_SECONDS)
         self.models = models
 
     def generate(self, prompt: str) -> str:
         last_error = None
-        for model in self.models:
+        for model in self.models[:settings.MAX_PROVIDER_CALLS_PER_JOB]:
             try:
-                logger.info(f"Anthropic: Using model {model}...")
-                response = self.client.messages.create(
-                    model=model,
-                    max_tokens=4096,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return response.content[0].text
-            except Exception as e:
-                logger.warning(f"Model {model} failed: {e}")
-                last_error = e
-        raise Exception(f"All models failed. Last error: {last_error}")
+                with provider_request('anthropic', model) as metrics:
+                    response = self.client.messages.create(model=model, max_tokens=4096, messages=[{'role':'user','content':prompt}])
+                    record_usage(metrics, response)
+                    if getattr(response, 'stop_reason', None) == 'max_tokens':
+                        raise AnalysisError('Provider returned truncated output')
+                    return response.content[0].text
+            except Exception as error:
+                raise_permanent_provider_error(error)
+                last_error = error
+        if getattr(last_error, 'status_code', None) == 429:
+            raise rate_limit_error(last_error, 'anthropic')
+        raise RuntimeError(f'All Anthropic models failed: {last_error}')
 
     def list_models(self) -> List[str]:
         return [
@@ -712,7 +762,12 @@ class AdDetector:
         try:
             provider = self._get_provider()
             response_text = provider.generate(prompt)
-            raw_segments = self._parse_ad_response(response_text)
+            try:
+                raw_segments = self._parse_ad_response(response_text)
+            except AnalysisError:
+                # One schema repair attempt shares the same durable provider budget.
+                response_text = provider.generate(prompt + '\nReturn only a complete JSON array. Use [] only if there are no matching segments. Timestamps must be finite and ordered.')
+                raw_segments = self._parse_ad_response(response_text)
 
             # Whitelist mode: return ALL segments (including Content) for processor to invert
             if whitelist_mode:
@@ -833,65 +888,42 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
              return base + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
 
     def _parse_ad_response(self, text: str):
-        text = text.strip()
-        # Common markdown cleanup
-        if text.startswith("```json"):
-            text = text[7:]
-        elif text.startswith("```"):
-            text = text[3:]
-
-        if text.endswith("```"):
-            text = text[:-3]
-
-        text = text.strip()
-
+        import re
+        cleaned = (text or "").strip()
+        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned).strip()
         try:
-            return self._normalize_ad_segments(json.loads(text))
-        except json.JSONDecodeError:
-            # Try to find JSON array pattern
-            import re
-            match = re.search(r'\[.*\]', text, re.DOTALL)
-            if match:
-                try:
-                    return self._normalize_ad_segments(json.loads(match.group(0)))
-                except: pass
-
-            logger.error(f"Failed to parse JSON response: {text[:200]}...")
-            return []
+            payload = json.loads(cleaned)
+        except json.JSONDecodeError as exc:
+            # Tolerate surrounding prose but never interpret a refusal as no ads.
+            match = re.search(r"(\[.*\]|\{.*\})", cleaned, re.DOTALL)
+            if not match:
+                raise AnalysisError("Ad analysis did not contain JSON") from exc
+            try:
+                payload = json.loads(match.group(0))
+            except json.JSONDecodeError as invalid:
+                raise AnalysisError("Ad analysis JSON was incomplete or invalid") from invalid
+        return self._normalize_ad_segments(payload)
 
     def _normalize_ad_segments(self, payload) -> List[Dict[str, float]]:
         if isinstance(payload, dict) and isinstance(payload.get("segments"), list):
             payload = payload["segments"]
-
         if not isinstance(payload, list):
-            logger.warning("Ad detector response was not a JSON array.")
-            return []
-
+            raise AnalysisError("Ad analysis must be an array of segments")
         normalized = []
+        labels = {label.lower(): label for label in ("Ad", "Promo", "Intro", "Outro", "Content")}
         for item in payload:
             if not isinstance(item, dict):
-                continue
-
+                raise AnalysisError("Each ad segment must be an object")
             try:
-                start = float(item["start"])
-                end = float(item["end"])
-            except (KeyError, TypeError, ValueError):
-                logger.warning(f"Skipping ad segment with invalid timestamps: {item}")
-                continue
-
-            if start < 0:
-                start = 0.0
-            if end <= start:
-                logger.warning(f"Skipping ad segment with non-positive duration: {item}")
-                continue
-
-            normalized.append({
-                "start": start,
-                "end": end,
-                "label": str(item.get("label") or "Ad"),
-                "reason": str(item.get("reason") or ""),
-            })
-
+                start, end = float(item["start"]), float(item["end"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise AnalysisError("Ad segment has invalid timestamps") from exc
+            if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start:
+                raise AnalysisError("Ad timestamps must be finite and ordered")
+            label = labels.get(str(item.get("label", "Ad")).lower())
+            if label is None:
+                raise AnalysisError("Ad segment has an unknown label")
+            normalized.append({"start": start, "end": end, "label": label, "reason": str(item.get("reason") or "")})
         return normalized
 
     # Static method to list Gemini models
@@ -1025,28 +1057,34 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
         }
 
         last_error = None
-        async with httpx.AsyncClient(timeout=120) as client:
+        call_count = 0
+        async with httpx.AsyncClient(timeout=settings.PROVIDER_TIMEOUT_SECONDS) as client:
             for model in models:
                 url = f"{self.GEMINI_REST_BASE_URL}/models/{model}:generateContent"
                 for key_idx, api_key in enumerate(api_keys):
+                    call_count += 1
+                    if call_count > settings.MAX_PROVIDER_CALLS_PER_JOB:
+                        raise ProviderBudgetExceeded('Speech request budget exhausted; review provider settings')
                     try:
                         logger.info(f"Generating TTS with Gemini model {model}, key #{key_idx + 1}.")
-                        response = await client.post(
-                            url,
-                            headers={
-                                "x-goog-api-key": api_key,
-                                "Content-Type": "application/json",
-                            },
-                            json=payload,
-                        )
-                        if response.status_code >= 400:
-                            raise RuntimeError(f"HTTP {response.status_code}: {response.text[:500]}")
+                        with provider_request('gemini_tts', model):
+                            response = await client.post(
+                                url,
+                                headers={
+                                    "x-goog-api-key": api_key,
+                                    "Content-Type": "application/json",
+                                },
+                                json=payload,
+                            )
+                            if response.status_code >= 400:
+                                raise httpx.HTTPStatusError(f'HTTP {response.status_code}', request=httpx.Request('POST', url), response=response)
 
                         audio = self._extract_gemini_tts_audio(response.json())
                         self._write_pcm_wav(output_path, audio)
                         logger.info("Gemini TTS generation completed.")
                         return
                     except Exception as e:
+                        raise_permanent_provider_error(e)
                         last_error = e
                         logger.warning(f"Gemini TTS model {model} failed with key #{key_idx + 1}: {e}")
 

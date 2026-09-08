@@ -53,6 +53,23 @@ def validate_startup_security_settings() -> None:
         raise RuntimeError("Set SESSION_SECRET_KEY before enabling dashboard or feed authentication")
 
 
+async def supervise_processor(app, factory):
+    """Restart a failed child with bounded backoff; the container remains observable."""
+    delay = 5
+    while True:
+        await asyncio.sleep(delay)
+        child = app.state.processor_process
+        if child.is_alive():
+            delay = 5
+            continue
+        child.join(timeout=0)
+        logger.error('Processor exited (%s); restarting', child.exitcode)
+        replacement = factory()
+        replacement.start()
+        app.state.processor_process = replacement
+        delay = min(60, delay * 2)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -119,21 +136,36 @@ async def lifespan(app: FastAPI):
         except RuntimeError:
             pass
 
-        p = multiprocessing.Process(target=start_processor_process, name="PodcastProcessor", daemon=True)
+        def processor_factory():
+            return multiprocessing.Process(target=start_processor_process, name="PodcastProcessor", daemon=True)
+        p = processor_factory()
         p.start()
         app.state.processor_process = p
+        app.state.processor_supervisor = asyncio.create_task(supervise_processor(app, processor_factory))
         logger.info(f"Background processor started in separate process (PID: {p.pid})")
     else:
         logger.warning("Background processor is disabled by PROCESSOR_ENABLED=false")
     
-    yield
-    
-    # Shutdown
-    logger.info("Shutting down...")
-    if hasattr(app.state, "processor_process"):
-        logger.info("Stopping background processor...")
-        app.state.processor_process.terminate()
-        app.state.processor_process.join(timeout=5)
+    try:
+        yield
+    finally:
+        # Clear lifespan-owned state so a later startup cannot inherit a dead child.
+        supervisor = getattr(app.state, 'processor_supervisor', None)
+        if supervisor is not None:
+            supervisor.cancel()
+            try:
+                await supervisor
+            except asyncio.CancelledError:
+                pass
+            finally:
+                del app.state.processor_supervisor
+        logger.info("Shutting down...")
+        child = getattr(app.state, 'processor_process', None)
+        if child is not None:
+            logger.info("Stopping background processor...")
+            child.terminate()
+            child.join(timeout=5)
+            del app.state.processor_process
 
 from app.api import subscriptions
 from app.api import audio_routes
@@ -188,4 +220,18 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    from fastapi.responses import JSONResponse
+    from app.core.worker_health import worker_status
+    from app.infra.database import get_db_connection
+    try:
+        with get_db_connection() as conn:
+            conn.execute('SELECT 1').fetchone()
+        worker = worker_status()
+        child = getattr(app.state, 'processor_process', None)
+        healthy = worker['state'] == 'disabled' or (
+            worker['state'] == 'healthy' and (child is None or child.is_alive())
+        )
+        return JSONResponse({'status': 'healthy' if healthy else 'degraded'}, status_code=200 if healthy else 503)
+    except Exception:
+        logger.exception('Health check failed')
+        return JSONResponse({'status': 'unavailable'}, status_code=503)
