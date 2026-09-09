@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+import httpx
 from PIL import Image
 
 from app.core.artwork import BADGE_PATH, ArtworkWatermarker, effective_artwork_url
@@ -17,6 +18,51 @@ from app.web.router import serve_watermarked_artwork
 
 
 CACHE_CONTROL = "public, max-age=31536000, immutable"
+
+
+@pytest.mark.parametrize("content_type,valid_image,accepted", [
+    ("Application/Octet-Stream ; charset=binary", True, True),
+    ("application/octet-stream", False, False),
+    ("text/html", True, False),
+])
+def test_artwork_download_validates_generic_binary_responses(
+    isolated_data_dir, monkeypatch, content_type, valid_image, accepted,
+):
+    init_db()
+    with get_db_connection() as conn:
+        conn.execute("UPDATE app_settings SET default_watermark_artwork=1 WHERE id=1")
+        conn.commit()
+    repo = SubscriptionRepository()
+    sub = repo.create(SubscriptionCreate(feed_url="https://example.com/feed.xml"),
+                      "Binary artwork", "binary-artwork", image_url="https://example.com/cover")
+    legacy = Path(settings.ARTWORK_DIR) / f"{sub.id}.png"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_bytes(_image_bytes())
+    with get_db_connection() as conn:
+        conn.execute("UPDATE subscriptions SET watermarked_image_path=?,watermarked_image_hash=? WHERE id=?",
+                     (str(legacy), "legacy", sub.id))
+        conn.commit()
+    source = io.BytesIO()
+    Image.new("RGB", (1534, 1534), (180, 40, 80)).save(source, format="JPEG")
+    body = source.getvalue() if valid_image else b"<html>Temporarily unavailable</html>"
+    transport = httpx.MockTransport(lambda request: httpx.Response(
+        200, headers={"content-type": content_type, "content-length": str(len(body))}, content=body,
+    ))
+    client_type = httpx.Client
+    monkeypatch.setattr(settings, "ALLOW_PRIVATE_FEEDS", True)
+    monkeypatch.setattr("app.core.artwork.httpx.Client", lambda **kwargs: client_type(transport=transport, **kwargs))
+    if accepted:
+        output = ArtworkWatermarker().reconcile(sub.id)
+        with Image.open(output) as image:
+            assert image.format == "JPEG" and image.size == (1400, 1400)
+        assert not legacy.exists()
+        assert repo.get_by_id(sub.id).watermarked_image_path == output
+    else:
+        with pytest.raises(ValueError, match="not an image|could not be decoded safely"):
+            ArtworkWatermarker().reconcile(sub.id)
+        assert legacy.is_file()
+        assert repo.get_by_id(sub.id).watermarked_image_path == str(legacy)
+        assert not (Path(settings.ARTWORK_DIR) / f"{sub.id}.jpg").exists()
 
 
 def _image_bytes(size=(600, 600), color=(180, 40, 80)):

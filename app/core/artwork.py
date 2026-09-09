@@ -60,8 +60,11 @@ class ArtworkWatermarker:
                     str(response.url),
                     allow_private=settings.ALLOW_PRIVATE_FEEDS,
                 )
-                content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
-                if content_type and not content_type.startswith("image/"):
+                content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                # Some podcast CDNs serve valid images with a generic binary MIME
+                # type. Reconcile still decodes and validates the bounded bytes
+                # before publishing any replacement artwork.
+                if content_type and content_type != "application/octet-stream" and not content_type.startswith("image/"):
                     raise ValueError("Podcast artwork response is not an image")
                 content_length = int(response.headers.get("content-length") or 0)
                 if content_length > MAX_ARTWORK_BYTES:
