@@ -126,6 +126,8 @@ class ArtworkWatermarker:
             and sub.watermarked_image_path
             and Path(sub.watermarked_image_path).is_file()
         ):
+            if Path(sub.watermarked_image_path).resolve() == output.resolve():
+                self._remove_legacy_output(subscription_id)
             return sub.watermarked_image_path
 
         try:
@@ -169,7 +171,6 @@ class ArtworkWatermarker:
             progressive=True,
         )
         os.replace(temporary, output)
-        self._remove_legacy_output(subscription_id)
 
         with get_db_connection() as conn:
             conn.execute(
@@ -181,5 +182,8 @@ class ArtworkWatermarker:
                 (str(output), digest, subscription_id),
             )
             conn.commit()
+        # The database must point to the JPEG before its predecessor is removed.
+        # If publication fails, existing feed URLs can still serve the PNG.
+        self._remove_legacy_output(subscription_id)
         logger.info("Generated ad-free artwork for subscription %s", subscription_id)
         return str(output)

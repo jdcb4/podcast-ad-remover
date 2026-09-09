@@ -85,6 +85,8 @@ Automated coverage verifies:
   and cleanup behavior after global retention changes;
 - backward-compatible API updates and all four inheritance flags;
 - artwork URL validation, image limits, compositing/cache behavior, cleanup, and RSS output;
+- JPEG dimensions/transparency, legacy PNG serving, preservation after a failed database write
+  or commit, and retry of interrupted legacy-artwork cleanup;
 - backward-compatible unified-feed defaults, customized channel metadata and external artwork,
   optional podcast-name title prefixes, settings validation, and reset behavior;
 - XML-invalid metadata rejection without replacing the published feed, valid legacy metadata

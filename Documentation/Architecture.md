@@ -139,13 +139,18 @@ suppressed while the default-features group inherits.
 
 When the effective artwork-badge setting is enabled, `app/core/artwork.py` retrieves HTTP(S) source
 artwork with redirect and size validation, composites the bundled `AD FREE` badge, and atomically
-caches a JPEG under `/data/artwork/`. Output is capped at 1400x1400 and encoded at quality 82, which
-keeps it inside Apple's 1400-3000px square requirement while staying a few hundred KB rather than
-several MB. Generated feeds and the web UI use the local `/artwork/{id}.jpg` route with a content
+caches a JPEG under `/data/artwork/`. Output is capped at 1400x1400 and encoded at quality 82 to
+reduce client downloads. Source aspect ratios are preserved and small images are not enlarged.
+Generated feeds and the web UI use the local `/artwork/{id}.jpg` route with a content
 hash cache key; the encoder settings are part of that hash, so changing them republishes every URL.
 The older `/artwork/{id}.png` route is still served for clients holding cached feed XML. Disabling
 the feature clears the derived file and restores the source artwork URL. An artwork failure is
 logged but does not prevent subscription creation or feed processing.
+
+Existing PNGs remain available until the JPEG path and hash commit successfully to SQLite.
+Legacy cleanup is retried on a cache hit if it was interrupted after the commit. To convert
+existing subscriptions after upgrading, save the global subscription settings once; this
+reconciles artwork and republishes feeds with the new cache keys.
 
 ### Job State
 

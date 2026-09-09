@@ -1,5 +1,7 @@
 import hashlib
 import io
+import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -179,6 +181,72 @@ def test_effective_artwork_url_follows_the_stored_file_extension(isolated_data_d
 
     after = effective_artwork_url(repo.get_by_id(sub.id), "https://podcasts.example")
     assert after.startswith(f"https://podcasts.example/artwork/{sub.id}.jpg?v=")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_point", ["execute", "commit"])
+async def test_failed_jpeg_publication_keeps_legacy_artwork_available(
+    isolated_data_dir, monkeypatch, failure_point
+):
+    source = _image_bytes()
+    repo, sub = _watermarked_subscription("failed-publication", source, monkeypatch)
+    legacy = Path(settings.ARTWORK_DIR) / f"{sub.id}.png"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_bytes(source)
+    old_hash = hashlib.sha256(source + BADGE_PATH.read_bytes() + b"artwork-v1").hexdigest()
+    with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE subscriptions SET watermarked_image_path=?, watermarked_image_hash=? WHERE id=?",
+            (str(legacy), old_hash, sub.id),
+        )
+        conn.commit()
+
+    @contextmanager
+    def failing_connection():
+        with get_db_connection() as conn:
+            class FailingPublication:
+                def execute(self, *args):
+                    if failure_point == "execute":
+                        raise sqlite3.OperationalError("database is locked")
+                    return conn.execute(*args)
+
+                def commit(self):
+                    raise sqlite3.OperationalError("commit failed")
+
+            yield FailingPublication()
+
+    with monkeypatch.context() as patch:
+        patch.setattr("app.core.artwork.get_db_connection", failing_connection)
+        with pytest.raises(sqlite3.OperationalError):
+            ArtworkWatermarker().reconcile(sub.id)
+
+    saved = repo.get_by_id(sub.id)
+    assert saved.watermarked_image_path == str(legacy)
+    assert saved.watermarked_image_hash == old_hash
+    assert legacy.read_bytes() == source
+    response = await serve_watermarked_artwork(sub.id)
+    assert response.media_type == "image/png"
+    assert Path(response.path).read_bytes() == source
+
+    # A normal retry must finish the transition and remove the superseded PNG.
+    generated = ArtworkWatermarker().reconcile(sub.id)
+    assert generated.endswith(".jpg")
+    assert not legacy.exists()
+    assert repo.get_by_id(sub.id).watermarked_image_path == generated
+    assert (await serve_watermarked_artwork(sub.id)).media_type == "image/jpeg"
+
+
+def test_cached_jpeg_retries_interrupted_legacy_cleanup(isolated_data_dir, monkeypatch):
+    _, sub = _watermarked_subscription("interrupted-cleanup", _image_bytes(), monkeypatch)
+    service = ArtworkWatermarker()
+    generated = service.reconcile(sub.id)
+    legacy = Path(settings.ARTWORK_DIR) / f"{sub.id}.png"
+    legacy.write_bytes(_image_bytes())
+    before = Path(generated).stat().st_mtime_ns
+
+    assert service.reconcile(sub.id) == generated
+    assert Path(generated).stat().st_mtime_ns == before
+    assert not legacy.exists()
 
 
 @pytest.mark.asyncio
