@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Reduce badged podcast artwork to JPEG at quality 82, with a maximum edge of 1400px, contributed by [Paul McManus (@pmacca) in PR #22](https://github.com/jdcb4/podcast-ad-remover/pull/22). Keep cached PNG feed URLs working and retain the old image until the replacement path commits successfully. Save global subscription settings once after upgrading to regenerate existing artwork and feeds.
 - Add administrator-managed unified-feed preferences for its name, description, podcast-name episode-title prefix, and external artwork URL, contributed by [Paul McManus (@pmacca) in PR #20](https://github.com/jdcb4/podcast-ad-remover/pull/20). Preserve the existing address and defaults, validate RSS-safe metadata, include authentication in the settings-page feed address, and explain unavailable HTTP artwork previews.
 - Make `dev` the GitHub default and rename production `master` to `main`; align CI, release guards and Unraid template URLs. Require verification on both long-lived branches, clean up merged branches, and retain the abandoned local-LLM experiment under an archive tag.
 
