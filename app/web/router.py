@@ -2646,6 +2646,9 @@ async def update_settings(
     background_tasks.add_task(post_update_tasks, id)
     return RedirectResponse(url=f"/subscriptions/{id}", status_code=303)
 
+@router.get("/artwork/{subscription_id}.jpg")
+# Feed XML cached by a client can still reference the pre-JPEG .png URL. Serving
+# the current file under both paths keeps those clients from getting a 404.
 @router.get("/artwork/{subscription_id}.png")
 async def serve_watermarked_artwork(subscription_id: int):
     sub = sub_repo.get_by_id(subscription_id)
@@ -2659,7 +2662,7 @@ async def serve_watermarked_artwork(subscription_id: int):
 
     return FileResponse(
         path,
-        media_type="image/png",
+        media_type="image/jpeg" if path.suffix == ".jpg" else "image/png",
         headers={"Cache-Control": "public, max-age=31536000, immutable"},
     )
 
