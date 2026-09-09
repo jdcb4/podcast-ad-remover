@@ -27,6 +27,8 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/web/templates/_episode_cards.html`, `static/js/episodes.js`: one card renderer plus incremental interactions.
 - `constraints.txt`: reviewed Python 3.11 dependency versions and platform markers.
 - `app/core/artwork.py`: validates source artwork and caches optional ad-free derived images.
+- `app/core/time_utils.py` and `app/web/static/js/local-time.js`: UTC serialization, preservation
+  of historical timezone uncertainty, and browser-local date rendering.
 - `app/infra/`: SQLite initialization and repository access.
 - `app/web/`: web routes, templates, authentication helpers, and static files.
 - `app/api/`: dashboard API, audio endpoints, and the optional AI-facing `/api/v1` REST API.

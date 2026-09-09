@@ -73,6 +73,7 @@ class Episode(EpisodeBase):
     subscription_id: int
     status: str
     processed_at: Optional[datetime] = None
+    processed_at_is_utc: bool = False
     error_message: Optional[str] = None
     processing_step: Optional[str] = None
     progress: int = 0
@@ -103,6 +104,7 @@ class User(BaseModel):
     is_admin: bool = False
     created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
+    last_login_is_utc: bool = False
 
 class AccessRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)

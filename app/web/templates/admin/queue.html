@@ -225,7 +225,7 @@
                 </div>
                 <div class="flex items-center gap-2 text-xs text-text-muted flex-shrink-0">
                     {% if item.processed_at %}
-                    <span>{{ item.processed_at|local_time('datetime') }}</span>
+                    <span>{{ item.processed_at|local_time('datetime', item.processed_at_is_utc) }}</span>
                     {% endif %}
                     {% if item.status == 'failed' and item.error_message %}
                     <span class="text-red-400/60 truncate max-w-[150px]" title="{{ item.error_message }}">{{ item.error_message[:30] }}...</span>

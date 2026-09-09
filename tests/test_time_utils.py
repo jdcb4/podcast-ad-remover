@@ -49,14 +49,14 @@ def test_utc_iso_converts_aware_datetime_object_to_utc():
 
 
 def test_with_utc_timestamps_returns_a_copy_and_leaves_the_input_alone():
-    row = {"processed_at": "2026-08-27 17:47:12", "title": "Ep"}
+    row = {"processed_at": "2026-08-27 17:47:12", "processed_at_is_utc": 1, "title": "Ep"}
 
     out = with_utc_timestamps(row)
 
     assert out["processed_at"] == "2026-08-27T17:47:12Z"
     assert out["title"] == "Ep"
     assert out is not row
-    assert row == {"processed_at": "2026-08-27 17:47:12", "title": "Ep"}
+    assert row == {"processed_at": "2026-08-27 17:47:12", "processed_at_is_utc": 1, "title": "Ep"}
 
 
 def test_with_utc_timestamps_passes_through_values_utc_iso_cannot_read():

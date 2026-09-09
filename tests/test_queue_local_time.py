@@ -40,10 +40,10 @@ def seed_queue_and_history():
         conn.execute(
             """
             INSERT INTO episodes (id, subscription_id, guid, title, pub_date, original_url,
-                                  duration, status, processed_at, discovered_at)
+                                  duration, status, processed_at, discovered_at, processed_at_is_utc)
             VALUES (8, 1, 'g2', 'Done Ep', '2026-01-01T10:00:00',
                     'https://cdn.example.com/2.mp3', 60, 'completed',
-                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
             """
         )
         conn.execute(
@@ -59,7 +59,7 @@ def test_queue_template_uses_local_time_filter():
     assert "operation_status.next_feed_check|local_time('datetime')" in source
     assert "operation_status.next_retry.next_run_at|local_time('datetime')" in source
     assert "item.next_retry_at|local_time('datetime')" in source
-    assert "item.processed_at|local_time('datetime')" in source
+    assert "item.processed_at|local_time('datetime', item.processed_at_is_utc)" in source
     assert "item.processed_at[:16]" not in source
 
 
@@ -94,9 +94,9 @@ def test_api_queue_status_serializes_timestamps_with_z(isolated_data_dir):
         conn.execute(
             """
             INSERT INTO episodes (id, subscription_id, guid, title, pub_date, original_url, duration,
-                                  status, processed_at)
+                                  status, processed_at, processed_at_is_utc)
             VALUES (7, 1, 'g1', 'Ep', '2026-01-01T10:00:00', 'https://cdn.example.com/1.mp3', 60,
-                    'completed', CURRENT_TIMESTAMP)
+                    'completed', CURRENT_TIMESTAMP, 1)
             """
         )
         conn.commit()

@@ -83,4 +83,7 @@
 
     window.AppLocalTime = { hydrate: hydrate, formatIso: formatIso };
     document.addEventListener('DOMContentLoaded', function () { hydrate(document); });
+    document.addEventListener('dashboard-library-results-changed', function () {
+        hydrate(document.getElementById('dashboard-podcast-results'));
+    });
 })();

@@ -182,7 +182,7 @@ _FALLBACK_RENDERERS = {
 }
 
 
-def local_time(value, fmt="compact"):
+def local_time(value, fmt="compact", known_utc=True):
     """Render a stored naive-UTC timestamp as a localized <time> element.
 
     The datetime attribute carries the UTC instant ('...Z'); local-time.js
@@ -193,6 +193,10 @@ def local_time(value, fmt="compact"):
     misled into reading it as their own local time. fmt is one of:
     compact, datetime, date, relative.
 
+    Pass known_utc=False for an ambiguous historical value. It is rendered
+    unchanged with a timezone-unknown label and is not hydrated in the browser.
+    Values carrying an explicit timezone can still be localized safely.
+
     Always returns markupsafe.Markup, fully escaped: never chain |safe
     onto this filter's output, and never use it inside an HTML attribute
     context (e.g. `<div title="{{ v|local_time }}">`) — the value is
@@ -202,12 +206,17 @@ def local_time(value, fmt="compact"):
     """
     if not value:
         return Markup(escape("Never"))
-    iso = utc_iso(value)
-    if iso is None:
-        return Markup(escape(str(value)))
+    iso = utc_iso(value, assume_utc=known_utc)
     renderer = _FALLBACK_RENDERERS.get(fmt, compact_datetime)
+    if iso is None:
+        if not known_utc:
+            return Markup(
+                '<span data-timezone="unknown" title="Historical timestamp; original timezone was not recorded.">'
+                '{} (timezone unknown)</span>'
+            ).format(renderer(value))
+        return Markup(escape(str(value)))
     return Markup('<time datetime="{}" data-lt="{}" title="{}">{}</time>').format(
-        iso, fmt, iso, renderer(value)
+        iso, fmt, iso, renderer(iso)
     )
 
 

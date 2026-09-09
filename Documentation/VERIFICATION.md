@@ -118,6 +118,12 @@ and full Refresh action still work.
 
 ## Migration Dry Run
 
+Timezone coverage includes real dashboard HTML and shipped JavaScript in Sydney and Los Angeles
+timezones, including My Podcasts/Library switches and browser Back navigation. Upgrade tests verify
+that old login/processing times are unchanged and labelled as having an unknown timezone, the
+pre-migration snapshot remains usable, and successful new writes atomically mark UTC provenance.
+The five Python `tzset` tests require POSIX; Linux CI runs them even when local Windows runs skip them.
+
 Before upgrading a valuable existing install, validate migrations against a copy of the database:
 
 ```bash

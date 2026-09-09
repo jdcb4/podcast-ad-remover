@@ -202,10 +202,10 @@ def test_episodes_api_z_suffixes_every_timestamp_in_the_row(isolated_data_dir):
         conn.execute(
             """
             INSERT INTO episodes (id, subscription_id, guid, title, pub_date, original_url,
-                                  duration, status, discovered_at, processed_at, next_retry_at)
+                                  duration, status, discovered_at, processed_at, next_retry_at, processed_at_is_utc)
             VALUES (9, 1, 'g3', 'Fully Dated Ep', '2026-01-01 10:00:00',
                     'https://cdn.example.com/3.mp3', 60, 'completed',
-                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
             """
         )
         conn.commit()

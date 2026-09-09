@@ -122,7 +122,7 @@
                         {% endif %}
                     </td>
                     <td class="text-text-secondary">{{ active_user.created_at | local_time }}</td>
-                    <td class="text-text-secondary">{{ active_user.last_login | local_time }}</td>
+                    <td class="text-text-secondary">{{ active_user.last_login | local_time('compact', active_user.last_login_is_utc) }}</td>
                     <td class="text-right">
                         {% if user.id != active_user.id %}
                         <button onclick="changeUserPassword('{{ active_user.id }}', '{{ active_user.username }}')"
@@ -152,7 +152,7 @@
                         {{ active_user.username }}
                     </button>
                     <p class="text-xs text-text-muted">Created {{ active_user.created_at | local_time }}</p>
-                    <p class="text-xs text-text-muted">Last login {{ active_user.last_login | local_time }}</p>
+                    <p class="text-xs text-text-muted">Last login {{ active_user.last_login | local_time('compact', active_user.last_login_is_utc) }}</p>
                 </div>
                 {% if active_user.is_admin %}
                 <span class="badge-info">Admin</span>

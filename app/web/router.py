@@ -276,7 +276,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
     
     # Update last login
     with get_db_connection() as conn:
-        conn.execute("UPDATE users SET last_login = ? WHERE id = ?", (now_utc(), user_row['id']))
+        conn.execute("UPDATE users SET last_login = ?, last_login_is_utc = 1 WHERE id = ?", (now_utc(), user_row['id']))
         conn.commit()
     
     # Set session

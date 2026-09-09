@@ -29,7 +29,8 @@ def get_current_user(request: Request) -> Optional[User]:
                     password_hash="", 
                     is_admin=True, 
                     created_at=now_utc(), 
-                    last_login=now_utc()
+                    last_login=now_utc(),
+                    last_login_is_utc=True,
                 )
     except Exception as e:
         logger.error(f"Error checking auth settings: {e}")
@@ -57,7 +58,8 @@ def require_auth(request: Request) -> User:
             password_hash="", 
             is_admin=True, 
             created_at=now_utc(), 
-            last_login=now_utc()
+            last_login=now_utc(),
+            last_login_is_utc=True,
         )
 
     user = get_current_user(request)
