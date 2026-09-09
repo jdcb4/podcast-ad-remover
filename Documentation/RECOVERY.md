@@ -28,6 +28,19 @@ For a rollback after an upgrade, use the previous image and the pre-upgrade snap
 with its corresponding media backup. Downgrading only the executable is not a
 database rollback. No recovery command automatically stops services or replaces data.
 
+Migration `20260910_0015_timestamp_provenance` adds `users.last_login_is_utc` and
+`episodes.processed_at_is_utc`, both defaulting to `0`. It leaves all existing timestamp
+values, media paths, and publication identifiers unchanged. Earlier releases did not record
+the server timezone used for these two fields, so the UI labels old naive values "timezone
+unknown" and the API preserves them. The next successful login or episode completion records
+a new UTC value and sets its flag to `1`. Requeueing or failed processing does not relabel history.
+Existing PR #21 databases follow the same conservative upgrade policy; no offset is guessed.
+
+Startup takes an integrity-checked snapshot before this additive migration. Rehearse it with
+`migration_dry_run.py` as above. Roll back with the previous image, pre-upgrade database snapshot,
+and matching media backup; do not run an older timestamp writer against the upgraded database,
+because it would not maintain the provenance flags. There is no automatic conversion of history.
+
 Migration `20260824_0013_unified_feed_preferences` adds the unified feed's title, description,
 episode-title prefix flag and artwork URL to `app_settings`, preserving the previous defaults.
 The original migration identifier is retained so installations already running PR #20 keep their

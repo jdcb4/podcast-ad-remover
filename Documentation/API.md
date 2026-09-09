@@ -754,6 +754,29 @@ Example:
 }
 ```
 
+## Timestamp Formats
+
+The local-time update changes timestamp values on `GET /api/v1/system/status` and
+`GET /api/v1/queue` from bare database strings to UTC ISO 8601 strings ending in `Z`
+(for example, `2026-09-10T02:03:04Z`). This covers `next_feed_check`, `next_retry.next_run_at`,
+the timestamp fields on `active_job`, and the timestamp fields on `queue` / `recently_processed`
+rows, including `job_locked_at` and `job_next_run_at`. Parse the offset instead of treating
+these strings as browser-local time. Empty timestamps remain empty; non-date labels such as
+"Disabled" and "Not yet scheduled" remain labels. The nested `worker` object retains its
+existing database string formats.
+
+`processed_at` is an exception for historical data: older releases wrote server-local times
+without recording a timezone. Episode rows now include `processed_at_is_utc` (`0`/`1` in raw
+row responses, or a boolean in the episode model). A naive value with a false flag is retained
+unchanged and its timezone is unknown. Do not append `Z` or apply a guessed offset. A successful
+new completion sets the flag to true; values with an explicit offset already identify an instant.
+
+The dashboard endpoints `/api/queue/status` and `/api/subscriptions/{id}/episodes` use the same
+normalization policy. The existing v1 episode-detail and paginated-episode timestamp formats are
+unchanged; their added provenance field distinguishes historical `processed_at` values from
+new UTC writes. Existing clients that require the old queue/status string shape must update
+their parsers when upgrading; this is a value-format change, not just an additional response key.
+
 ## Endpoint Summary
 
 | Method | Path | Scope | Main use |

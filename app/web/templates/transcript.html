@@ -34,7 +34,7 @@
     <div class="card p-8">
         <div class="mb-8 border-b border-white/10 pb-6">
             <h1 class="font-display text-2xl font-bold mb-2">{{ episode.title }}</h1>
-            <p class="text-text-muted text-sm">{{ episode.pub_date }} • {{ format_duration(episode.duration) }}</p>
+            <p class="text-text-muted text-sm">{{ episode.pub_date|local_time('date') }} • {{ format_duration(episode.duration) }}</p>
         </div>
 
         <div class="space-y-6 text-text-secondary leading-relaxed font-serif text-lg" id="transcript-content">

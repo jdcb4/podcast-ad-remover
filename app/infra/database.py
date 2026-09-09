@@ -292,6 +292,15 @@ FORMAL_MIGRATIONS = [
             "CREATE INDEX idx_provider_calls_job ON provider_calls(job_id)",
         ],
     ),
+    (
+        "20260910_0015_timestamp_provenance",
+        [
+            # Older writers used server-local time without recording the zone.
+            # Preserve those values; only a new UTC write can set these flags.
+            "ALTER TABLE users ADD COLUMN last_login_is_utc INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE episodes ADD COLUMN processed_at_is_utc INTEGER NOT NULL DEFAULT 0",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

@@ -7,7 +7,9 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from app.infra.repository import ApiTokenRepository, SubscriptionRepository, EpisodeRepository, FeedTokenRepository
 from app.core.feed import FeedManager
 from app.core.models import SubscriptionCreate
+from app.core.queue_status import get_queue_payload
 from app.core.system_status import get_operation_status
+from app.core.time_utils import now_utc, utc_iso, with_utc_timestamps
 from app.core.url_utils import validate_http_url
 from app.core.sources import resolve_source
 from app.core.notifications import (
@@ -23,7 +25,7 @@ from app.web.auth_utils import hash_password, verify_feed_password, verify_passw
 from app.web.rate_limiter import login_rate_limiter, check_rate_limit
 from app.web.subscription_links import build_subscribe_instruction_context, build_subscription_links
 from app.web.static_assets import configure_static_asset_versioning
-from app.web.template_filters import compact_datetime, format_duration
+from app.web.template_filters import compact_datetime, format_duration, local_time, utc_isoformat
 from app.web.template_filters import clean_description as safe_clean_description
 from app.web.template_filters import simple_markdown as safe_simple_markdown
 from app.infra.database import get_db_connection
@@ -36,7 +38,6 @@ from app.core.unified_feed import (
     resolve_unified_feed_artwork_preview,
     resolve_unified_feed_settings,
 )
-from datetime import datetime
 import asyncio
 import os
 import logging
@@ -59,6 +60,8 @@ def get_csp_nonce(request: Request) -> str:
 templates.env.filters['simple_markdown'] = safe_simple_markdown
 templates.env.filters['clean_description'] = safe_clean_description
 templates.env.filters['compact_datetime'] = compact_datetime
+templates.env.filters['local_time'] = local_time
+templates.env.filters['utc_isoformat'] = utc_isoformat
 configure_static_asset_versioning(templates)
 
 sub_repo = SubscriptionRepository()
@@ -273,7 +276,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
     
     # Update last login
     with get_db_connection() as conn:
-        conn.execute("UPDATE users SET last_login = ? WHERE id = ?", (datetime.now(), user_row['id']))
+        conn.execute("UPDATE users SET last_login = ?, last_login_is_utc = 1 WHERE id = ?", (now_utc(), user_row['id']))
         conn.commit()
     
     # Set session
@@ -1115,11 +1118,7 @@ async def admin_queue(request: Request):
 
 @router.get("/api/queue/status")
 async def api_queue_status(user = Depends(require_auth)):
-    return {
-        "queue": ep_repo.get_queue(),
-        "recently_processed": ep_repo.get_recently_processed(days=3),
-        "operation_status": await asyncio.to_thread(get_operation_status),
-    }
+    return await asyncio.to_thread(get_queue_payload)
 
 
 def get_or_create_feed_token(request: Request, user_obj=None) -> str:
@@ -1323,10 +1322,10 @@ def _admin_context(request: Request, active_tab: str) -> dict:
 
 
 def _recent_login_history() -> list[dict]:
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     with get_db_connection() as conn:
-        thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+        thirty_days_ago = (now_utc() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
         rows = conn.execute(
             """SELECT * FROM login_attempts 
                WHERE timestamp > ? 
@@ -1732,17 +1731,13 @@ def _render_index(request: Request, error: str = None):
         
         latest_summary = None
         latest_description = None
-        latest_episode_date = None
+        latest_episode_date = ""
         if latest_ep:
             latest_summary = latest_ep['ai_summary']
             latest_description = latest_ep['description']
         if latest_any_ep and latest_any_ep['pub_date']:
-            # Convert to ISO format string for safe JS parsing
-            d = latest_any_ep['pub_date']
-            if hasattr(d, 'isoformat'):
-                latest_episode_date = d.isoformat()
-            else:
-                latest_episode_date = str(d)
+            # Z-suffixed UTC ISO so browser-side new Date() parses it correctly
+            latest_episode_date = utc_iso(latest_any_ep['pub_date']) or str(latest_any_ep['pub_date'])
         
         subs_with_links.append({
             "sub": sub,
@@ -2537,14 +2532,8 @@ async def get_subscription_episodes_api(request: Request, id: int, limit: int = 
     episodes = ep_repo.get_by_subscription_paginated(id, limit=limit, offset=offset, search=search, filter=filter)
     total = ep_repo.count_by_subscription(id, search=search, filter=filter)
     
-    # Convert sqlite rows to dicts
-    episodes_data = []
-    for ep in episodes:
-        ep_dict = dict(ep)
-        # Ensure pub_date is a string for JSON serialization
-        if ep_dict.get('pub_date') and hasattr(ep_dict['pub_date'], 'isoformat'):
-            ep_dict['pub_date'] = ep_dict['pub_date'].isoformat()
-        episodes_data.append(ep_dict)
+    # Convert sqlite rows to dicts, every timestamp Z-suffixed for the browser
+    episodes_data = [with_utc_timestamps(ep) for ep in episodes]
     
     return {
         "episodes": episodes_data,

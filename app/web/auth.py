@@ -3,8 +3,8 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from typing import Optional
 import logging
-from datetime import datetime
 
+from app.core.time_utils import now_utc
 from app.infra.database import get_db_connection
 from app.web.auth_utils import get_client_ip, is_ip_allowed, is_same_origin_request, verify_password
 from app.core.models import User
@@ -28,8 +28,9 @@ def get_current_user(request: Request) -> Optional[User]:
                     username="admin", 
                     password_hash="", 
                     is_admin=True, 
-                    created_at=datetime.now(), 
-                    last_login=datetime.now()
+                    created_at=now_utc(), 
+                    last_login=now_utc(),
+                    last_login_is_utc=True,
                 )
     except Exception as e:
         logger.error(f"Error checking auth settings: {e}")
@@ -56,8 +57,9 @@ def require_auth(request: Request) -> User:
             username="admin", 
             password_hash="", 
             is_admin=True, 
-            created_at=datetime.now(), 
-            last_login=datetime.now()
+            created_at=now_utc(), 
+            last_login=now_utc(),
+            last_login_is_utc=True,
         )
 
     user = get_current_user(request)

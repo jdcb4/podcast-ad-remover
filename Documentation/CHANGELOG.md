@@ -5,6 +5,11 @@
 - Reduce badged podcast artwork to JPEG at quality 82, with a maximum edge of 1400px, contributed by [Paul McManus (@pmacca) in PR #22](https://github.com/jdcb4/podcast-ad-remover/pull/22). Keep cached PNG feed URLs working and retain the old image until the replacement path commits successfully. Save global subscription settings once after upgrading to regenerate existing artwork and feeds.
 - Add administrator-managed unified-feed preferences for its name, description, podcast-name episode-title prefix, and external artwork URL, contributed by [Paul McManus (@pmacca) in PR #20](https://github.com/jdcb4/podcast-ad-remover/pull/20). Preserve the existing address and defaults, validate RSS-safe metadata, include authentication in the settings-page feed address, and explain unavailable HTTP artwork previews.
 - Make `dev` the GitHub default and rename production `master` to `main`; align CI, release guards and Unraid template URLs. Require verification on both long-lived branches, clean up merged branches, and retain the abandoned local-LLM experiment under an archive tag.
+- Render dates with known timezones in the viewer's browser-local timezone, contributed by [Paul McManus (@pmacca) in PR #21](https://github.com/jdcb4/podcast-ad-remover/pull/21). Preserve localization after dashboard view switches, browser history navigation, and episode pagination.
+- Normalize new timestamp writes to naive UTC and fix feed-date ingest during daylight saving. Preserve historical login and processing times exactly; an additive migration tracks new UTC writes while older ambiguous values display "timezone unknown". See `Documentation/RECOVERY.md` for backup and rollback.
+- Fixed a subscription with no episodes at all (e.g. just created, before its first feed poll) wrongly appearing under the dashboard's "Recently updated" filter.
+- **API wire-format change:** queue and system-status responses use Z-suffixed ISO timestamps for known UTC instants. Historical `processed_at` values remain raw with `processed_at_is_utc=0`; clients must not guess their timezone. See the endpoint-specific contract in `Documentation/API.md` before updating parsers that expect bare database strings.
+- The admin log viewer is unchanged: its timestamps come from the logging formatter, not the database.
 
 ## 1.13.0 - 2026-09-06
 

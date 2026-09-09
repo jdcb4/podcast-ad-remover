@@ -567,11 +567,7 @@
                     <li class="flex justify-between items-baseline gap-2">
                         <span class="text-sm text-text-secondary truncate" title="{{ ep.title }}">{{ ep.title }}</span>
                         <span class="text-xs text-text-muted whitespace-nowrap">
-                            {% if ep.published_date and ep.published_date is string %}
-                            {{ ep.published_date.split(' ')[0] }}
-                            {% elif ep.published_date %}
-                            {{ ep.published_date }}
-                            {% endif %}
+                            {% if ep.published_date %}{{ ep.published_date|local_time('date') }}{% endif %}
                         </span>
                     </li>
                     {% endfor %}

@@ -4,9 +4,10 @@ from functools import lru_cache
 from pathlib import Path
 from app.core.worker_health import worker_status
 import shutil
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from app.core.config import settings
+from app.core.time_utils import utc_iso, with_utc_timestamps
 from app.infra.database import get_db_connection
 
 
@@ -127,7 +128,6 @@ def _cached_storage(data_dir: str, time_bucket: int):
 
 def get_operation_status() -> dict:
     disk = shutil.disk_usage(settings.DATA_DIR)
-    now = datetime.now()
 
     with get_db_connection() as conn:
         active_job = conn.execute("""
@@ -169,9 +169,11 @@ def get_operation_status() -> dict:
     next_feed_check = worker.get('next_feed_check') or ('Disabled' if worker['state'] == 'disabled' else 'Not yet scheduled')
 
     return {
-        "active_job": dict(active_job) if active_job else None,
-        "next_retry": dict(next_retry) if next_retry else None,
-        "next_feed_check": next_feed_check,
+        "active_job": with_utc_timestamps(active_job) if active_job else None,
+        "next_retry": with_utc_timestamps(next_retry) if next_retry else None,
+        # utc_iso() returns None for the "Disabled"/"Not yet scheduled"
+        # labels, so fall back to the raw value to keep them intact.
+        "next_feed_check": utc_iso(next_feed_check) or next_feed_check,
         "worker": worker,
         "pending_publications": pending_publications,
         "provider_usage": dict(usage_row),

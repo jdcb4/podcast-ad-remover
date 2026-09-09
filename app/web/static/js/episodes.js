@@ -173,28 +173,13 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
         button.setAttribute('aria-expanded', String(expanded));
     }
 
-    function timeAgo(dateParam) {
-        if (!dateParam) return null;
-        const date = typeof dateParam === 'object' ? dateParam : new Date(dateParam);
-        const today = new Date();
-        const seconds = Math.round((today - date) / 1000);
-        const minutes = Math.round(seconds / 60);
-        const isToday = today.toDateString() === date.toDateString();
-
-        if (isToday) return 'Today';
-        if (seconds < 86400 * 2 && today.getDate() - date.getDate() === 1) return 'Yesterday';
-        if (seconds < 86400 * 7) return `${Math.floor(seconds / 86400)} days ago`;
-
-        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    }
-
+    // local-time.js owns date rendering: the server emits <time data-lt>
+    // carrying a UTC instant and the hydrator rewrites it into the viewer's
+    // timezone. It self-hydrates on DOMContentLoaded, so this only needs to
+    // run for cards inserted afterwards by fetchEpisodePage().
     function formatEpisodeDates(root = document) {
-        root.querySelectorAll('.date-relative').forEach(el => {
-            const relative = timeAgo(el.getAttribute('data-date'));
-            if (relative) el.textContent = relative;
-        });
+        window.AppLocalTime?.hydrate(root);
     }
-    document.addEventListener('DOMContentLoaded', () => formatEpisodeDates());
 
     function toggleDescription(id) {
         const card = document.getElementById('card-' + id);
@@ -206,20 +191,6 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
     }
 
 
-
-    // Format Dates on Load
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.date-formatted').forEach(el => {
-            try {
-                const dateStr = el.textContent.trim();
-                const date = new Date(dateStr);
-                if (!isNaN(date)) {
-                    // Use simple format: "Dec 23, 2023"
-                    el.textContent = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-                }
-            } catch (e) { }
-        });
-    });
 
     async function episodeAction(id, url, message, confirmation, method = 'POST', danger = false) {
         if (!await appConfirm(confirmation, {danger})) return;

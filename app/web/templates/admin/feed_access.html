@@ -127,8 +127,8 @@
                 <tr>
                     <td class="font-medium truncate">{{ token.name }}</td>
                     <td class="text-text-secondary truncate">{{ token.username or 'Shared' }}</td>
-                    <td class="text-text-secondary">{{ token.created_at | compact_datetime }}</td>
-                    <td class="text-text-secondary">{{ token.last_used_at | compact_datetime }}</td>
+                    <td class="text-text-secondary">{{ token.created_at | local_time }}</td>
+                    <td class="text-text-secondary">{{ token.last_used_at | local_time }}</td>
                     <td class="text-right">
                         <form method="post" action="/admin/feed-token/{{ token.id }}/revoke" class="inline">
                             <button type="submit" class="text-red-400 hover:text-red-300 font-medium"

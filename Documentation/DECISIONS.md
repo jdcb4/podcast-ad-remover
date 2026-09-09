@@ -118,6 +118,35 @@ stay shared. SponsorBlock timestamps complement rather than pre-cut the LLM work
 are protected by an environment-only flag that defaults off because the API/database licence is
 CC BY-NC-SA 4.0.
 
+## 2026-08-27: Store and compare every timestamp as naive UTC
+
+New database timestamps use naive UTC, matching SQLite's `CURRENT_TIMESTAMP`; generate them with
+`app/core/time_utils.now_utc()`. Elapsed-time measurements and human-readable backup filenames
+may use other clocks because they are not interpreted as stored UTC instants.
+
+Earlier releases wrote `users.last_login` and `episodes.processed_at` using the server's local
+clock without its timezone. Migration `20260910_0015_timestamp_provenance` preserves those values
+and adds `last_login_is_utc` / `processed_at_is_utc`, defaulting to false. Successful login and
+episode-completion writes set the matching flag atomically with a new UTC value. Failed attempts
+and requeueing preserve both the previous timestamp and its flag. No timezone is inferred from
+the current server configuration: it may differ from the one used for the original write.
+
+Historical values without a known offset render with a "timezone unknown" label and stay raw in
+JSON alongside their flag. Values containing an explicit offset can be localized safely. This
+also applies to existing PR #21 installs, whose older naive values cannot be reliably distinguished
+from pre-PR server-local values. Existing timestamps are never shifted automatically.
+
+Rendering follows the same split: `local_time` (in `app/web/template_filters.py`) renders a whole
+`<time datetime="...Z">` element and is for element text only; `utc_isoformat` renders a bare
+`...Z` string and is for HTML attribute contexts, because a `<time>` element's own quotes would
+corrupt the enclosing tag if `local_time` were used inside one. A repo-wide test
+(`tests/test_template_filters.py::test_no_template_pipes_local_time_into_an_html_attribute`) scans
+every template and fails if `local_time` is ever piped into an attribute.
+
+Pass the provenance flag as `local_time(value, format, known_utc)` for the two historical fields.
+The shared formatter also handles dashboard replacement events so My Podcasts/Library switches
+and browser history retain local dates.
+
 ## 2026-09-05: retain publications and fence attempts
 
 Episode identity remains the SQLite ID and source GUID. New artifacts live in

@@ -1,36 +1,7 @@
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-from app.api.v1.router import router as ai_api_router
 from app.infra.database import get_db_connection, init_db
 from app.infra.repository import ApiRateLimitRepository, ApiTokenRepository, SubscriptionRepository
 from app.core.models import SubscriptionCreate
-
-
-def make_client() -> TestClient:
-    app = FastAPI()
-    app.include_router(ai_api_router, prefix="/api/v1")
-    return TestClient(app)
-
-
-def enable_ai_api(*, per_minute: int = 60, per_day: int = 1000, unauth_per_minute: int = 10) -> None:
-    with get_db_connection() as conn:
-        conn.execute(
-            """
-            UPDATE app_settings
-            SET ai_api_enabled = 1,
-                ai_api_default_requests_per_minute = ?,
-                ai_api_default_requests_per_day = ?,
-                ai_api_unauth_requests_per_minute = ?
-            WHERE id = 1
-            """,
-            (per_minute, per_day, unauth_per_minute),
-        )
-        conn.commit()
-
-
-def auth_header(token: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {token}"}
+from tests.conftest import auth_header, enable_ai_api, make_client  # noqa: F401 (re-used by this file's tests)
 
 
 def create_user(username: str, *, is_admin: bool = False) -> int:

@@ -7,6 +7,7 @@ import secrets
 import time
 from typing import List, Optional
 from datetime import datetime
+from app.core.time_utils import now_utc
 from app.infra.database import get_db_connection
 from app.core.models import SubscriptionCreate, Subscription, Episode
 from app.core.subscription_settings import resolve_subscription_row
@@ -872,10 +873,12 @@ class EpisodeRepository:
                 f"""
                 UPDATE episodes
                 SET status = ?, error_message = ?, local_filename = COALESCE(?, local_filename), file_size = COALESCE(?, file_size),
-                    processed_at = COALESCE(?, processed_at), next_retry_at = NULL
+                    processed_at = COALESCE(?, processed_at),
+                    processed_at_is_utc = CASE WHEN ? = 'completed' THEN 1 ELSE processed_at_is_utc END,
+                    next_retry_at = NULL
                 WHERE id = ? {eligibility}
                 """,
-                (status, error, filename, file_size, datetime.now() if status == 'completed' else None, id),
+                (status, error, filename, file_size, now_utc() if status == 'completed' else None, status, id),
             )
             if status == 'completed' and cursor.rowcount:
                 if self.pending_metadata:
