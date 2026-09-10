@@ -11,15 +11,23 @@
 <section id="timeline-prompts" role="tabpanel" aria-labelledby="timeline-tab">
     <p class="text-sm text-text-muted mb-5">Opt-in workflow: classify the complete timeline, then apply cut preferences and the short-island rule.
         Existing podcasts and queued jobs stay on their previous workflow. Substantive openings and conclusions remain Content.</p>
+    <div class="space-y-2 mb-6">
+        <div class="flex items-center justify-between gap-2">
+            <label class="font-semibold" for="timeline_prompt_template">Global prompt template</label>
+            <span class="text-xs text-text-muted">Read only</span>
+        </div>
+        <p id="timeline-template-help" class="text-xs text-text-muted">The category definitions, summary instructions and podcast guidance are inserted into this fixed template. Use the assembled instructions preview below to see the complete prompt.</p>
+        <textarea id="timeline_prompt_template" class="input font-mono text-sm" rows="14" readonly aria-describedby="timeline-template-help">{{ timeline_prompt_template }}</textarea>
+    </div>
     <form id="timeline-prompts-form" class="space-y-6" action="/admin/prompts/timeline" method="POST">
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div class="space-y-5">
         {% for label, value in timeline_definitions.items() %}
         <div class="space-y-2">
             <div class="flex items-center justify-between gap-2">
                 <label class="font-semibold text-sm" for="definition_{{ label }}">{{ timeline_labels[label] }}</label>
                 <span class="text-xs text-text-muted" data-origin-for="definition_{{ label }}">{{ 'Default' if value == timeline_defaults[label] else 'Saved override' }}</span>
             </div>
-            <textarea class="input text-sm" rows="6" maxlength="10000" id="definition_{{ label }}" name="definition_{{ label }}" data-default="{{ timeline_defaults[label] }}">{{ value }}</textarea>
+            <textarea class="input text-sm" rows="4" maxlength="10000" id="definition_{{ label }}" name="definition_{{ label }}" data-default="{{ timeline_defaults[label] }}">{{ value }}</textarea>
             <button type="button" class="text-xs text-primary-400" data-prompt-reset="definition_{{ label }}">Use default definition</button>
         </div>
         {% endfor %}

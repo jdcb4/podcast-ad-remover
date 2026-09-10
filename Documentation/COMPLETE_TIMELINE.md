@@ -25,7 +25,8 @@ the default does not opt those existing podcasts in.
 
 ## Categories and definitions
 
-Admins edit the seven definitions in **AI Prompt Rules → Complete Timeline**. Blank values or
+**AI Prompt Rules → Complete Timeline** shows the fixed global prompt template as read only.
+Admins edit the seven definitions in full-width fields stacked below it. Blank values or
 **Use default definition** select the built-in definition when saved. Category identifiers and
 the coverage contract are fixed; definitions refine what belongs in each category.
 
