@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Literal
 from datetime import datetime
 
 class SubscriptionBase(BaseModel):
@@ -35,6 +35,11 @@ class Subscription(SubscriptionBase):
     remove_intros: bool = False
     remove_outros: bool = False
     custom_instructions: Optional[str] = None
+    processing_workflow: Literal["legacy", "complete_timeline"] = "legacy"
+    inherit_processing_workflow: bool = False
+    remove_editorial_non_speech: bool = False
+    remove_non_editorial_non_speech: bool = True
+    minimum_retained_seconds: float = Field(default=10, ge=0, le=600, allow_inf_nan=False)
     
     # New Features
     append_summary: bool = False
@@ -43,7 +48,7 @@ class Subscription(SubscriptionBase):
     ai_audio_summary: bool = False
     owner_user_id: Optional[int] = None
 
-    # Four explicit inheritance groups. Effective values are resolved by the
+    # Explicit inheritance groups. Effective values are resolved by the
     # repository; the underlying podcast values remain available for the UI.
     inherit_content_removal: bool = False
     inherit_retention: bool = False

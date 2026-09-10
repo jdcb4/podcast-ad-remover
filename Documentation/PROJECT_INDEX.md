@@ -18,7 +18,9 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 
 - `app/main.py`: application entry point and processor process startup.
 - `app/core/`: podcast, audio, AI, RSS, search, and processing logic.
-- `app/core/subscription_settings.py`: resolves effective values for the four subscription inheritance groups.
+- `app/core/subscription_settings.py`: resolves effective values for the five subscription inheritance groups.
+- `app/core/timeline.py`: versioned classification, transcript/gap boundaries and deterministic cut preferences.
+- `app/core/prompt_defaults.py`, `app/web/timeline_rules.py`: shared Legacy defaults and Complete Timeline rule editing/preview.
 - `app/core/unified_feed.py`: validates and resolves backward-compatible unified-feed presentation settings.
 - `app/core/artifacts.py`, `publication.py`, `reports.py`: artifact identity, atomic RSS writes and escaped reports.
 - `app/core/provider_budget.py`, `worker_health.py`: durable request limits and processing readiness.
@@ -59,6 +61,7 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 ## Documentation Map
 
 - `Documentation/Architecture.md`: current application structure and data layout.
+- `Documentation/COMPLETE_TIMELINE.md`: opt-in processing, categories, summaries, provider output handling and migration.
 - `Documentation/API.md`: optional AI-facing REST API, auth, scopes, and rate limits.
 - `Documentation/Deployment.md`: Docker and Docker Compose deployment.
 - `Documentation/Environment_Variables.md`: environment configuration.

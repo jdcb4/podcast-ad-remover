@@ -2,6 +2,22 @@
 
 This is a lightweight decision log. Keep entries short, dated, and focused on choices that future maintainers may otherwise revisit.
 
+## 2026-09-10: Opt in to complete classification before choosing cuts
+
+Keep existing podcasts, queued jobs and custom prompts on Legacy. Introduce Complete Timeline
+as a separate per-podcast workflow, with explicit global inheritance for new podcasts. Classify
+speech and contextual gaps independently of removal choices, then cut selected categories and
+retained islands strictly shorter than the configured threshold between two selected cuts
+(10 seconds by default, 0 disables). Record model labels separately from deterministic extra cuts.
+
+Intro/Outro mean generic housekeeping; substantive setup, demonstrations, conclusions and
+summaries remain Content. Editorial samples stay by default. Gaps alone never establish silence;
+uncertain gaps stay Content. Return a combined summary while retaining the existing description
+and TTS switches. Freeze new classification jobs without credentials and reuse matching analysis
+when only cut choices change. Require application validation even with native schemas. Production
+fallback remains within the selected provider's model cascade; the earlier Gemini-to-OpenRouter
+benchmark fallback is not a production routing rule. See [COMPLETE_TIMELINE.md](COMPLETE_TIMELINE.md).
+
 ## 2026-09-10: Retain API v1 for the UTC timestamp update
 
 The maintainer accepted the timestamp parser compatibility risk given the limited known API

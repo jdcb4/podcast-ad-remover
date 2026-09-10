@@ -43,6 +43,23 @@ npx update-browserslist-db@latest
 
 This is a maintenance update only; confirm the resulting `package-lock.json` changes are limited to Browserslist-related dependency metadata.
 
+## Complete Timeline checks
+
+The standard gate includes `test_complete_timeline.py`, `test_timeline_migration.py`,
+`test_timeline_pipeline.py` and `test_timeline_http.py`. These exercise an actual older database
+and migration backup, Legacy queue preservation, frozen settings without credentials, strict
+coverage validation, provider/schema fallback boundaries, contextual-gap reference classifications,
+the 10/0-second island policy, escaped reports, and real FFmpeg cutting with deterministic provider
+responses. They also cover cache reuse and existing RSS-description/TTS switches. Synthetic
+reference classifications verify application behaviour, not live model classification accuracy.
+
+For a UI review, use an isolated data directory: preview unsaved rules, switch Complete Timeline
+and Legacy tabs, reset one definition, opt in a podcast, toggle global inheritance, and verify
+that zero survives save/reload. Check desktop/mobile layouts and the resulting human report.
+Before wider opt-in, review real classifications and listen at edited seams; transcript timing
+and untranscribed audio can require an audio check. Keep private transcripts and benchmark
+artifacts outside the repository.
+
 ## Docker Check
 
 Run this before a version increment or release publish:

@@ -73,12 +73,19 @@ In Docker, set `BASE_URL` or the System Settings public application URL to a hos
 
 These are configured from the Admin UI rather than environment variables:
 
-Podcast defaults for content removal, retention, default features, and custom instructions are also
+Podcast defaults for processing workflow, content removal, retention, default features, and custom instructions are also
 stored in `app_settings`. They are resolved at read time for subscriptions whose corresponding
 inheritance toggle is enabled. `default_watermark_artwork` is off by default.
 
 | Setting | Description | Default |
 |---------|-------------|---------|
+| `default_processing_workflow` | Workflow for inheriting/new podcasts: `legacy` or `complete_timeline`. Existing podcasts remain pinned to Legacy on migration. | `legacy` |
+| `default_remove_editorial_non_speech` | Complete Timeline: remove contextual music examples/illustrative audio. | `0` |
+| `default_remove_non_editorial_non_speech` | Complete Timeline: remove contextual ad jingles/non-editorial gaps. | `1` |
+| `default_minimum_retained_seconds` | Complete Timeline: bridge retained islands strictly shorter than this between two selected cuts; `0` disables. Range 0–600. | `10` |
+| `timeline_definitions` | JSON object containing category definition overrides; blank/omitted categories use defaults. Edit in AI Prompt Rules. | empty |
+| `timeline_summary_instructions` | Combined summary instructions, separate from the saved Legacy template. | built-in 2–3 sentence rules |
+| `timeline_output_mode` | `auto`, `strict` (require schema), or `json` (validated compatibility). Provider cascade stays within the selected provider. | `auto` |
 | `whisper_cpu_threads` | Faster-Whisper CPU thread cap. `0` uses the library default. | `0` |
 | `ffmpeg_threads` | FFmpeg thread cap. `0` lets FFmpeg choose automatically. | `0` |
 | `unload_whisper_after_job` | Unload the local Whisper model after the queue empties to reduce idle RAM. | `0` |

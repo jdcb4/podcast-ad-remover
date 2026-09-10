@@ -38,12 +38,15 @@ The admin queue shows active jobs, queued/retry states, disk usage, next feed ch
 - Global podcast library with per-user My Podcasts lists and one shared copy of each podcast.
 - In-place Library starring and My Podcasts/Library switching plus grid, artwork, and compact table views.
 - Podcast ownership rules for per-podcast settings, with admin owner reassignment and admin-only global deletion.
-- Grouped global-setting inheritance for content removal, retention, default features, and custom instructions.
+- Grouped global-setting inheritance for processing workflow, content removal, retention, default features, and custom instructions.
 - Permission-checked bulk editing for podcast settings and ownership.
 - Optional ad-free badge composited onto generated podcast artwork.
 - Automatic episode download and retention controls.
 - Local transcription with Whisper/faster-whisper.
 - LLM-based ad, promo, intro, and outro detection.
+- Opt-in [Complete Timeline processing](Documentation/COMPLETE_TIMELINE.md): classify speech and
+  editorial/non-editorial gaps, choose removal categories, and apply a configurable short-island
+  rule. Existing podcasts and queued jobs stay on Legacy until explicitly changed.
 - FFmpeg-based audio cutting and rewritten RSS feed generation.
 - Per-podcast feeds plus a unified feed with configurable name, description, episode-title prefix,
   and optional external artwork.

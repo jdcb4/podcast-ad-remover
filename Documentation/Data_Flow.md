@@ -2,12 +2,12 @@
 
 ## 1. Subscription & Polling
 1.  **User** searches for a podcast or pastes a direct RSS, YouTube channel, or explicit YouTube playlist URL.
-2.  **System** saves one global podcast row to `subscriptions`, or reuses the existing global row if the feed is already known. New rows inherit the current global content-removal, retention, default-feature, and custom-instruction groups.
+2.  **System** saves one global podcast row to `subscriptions`, or reuses the existing global row if the feed is already known. New rows inherit the current global processing-workflow, content-removal, retention, default-feature, and custom-instruction groups. Pre-migration podcasts stay explicitly on Legacy until opted in.
 3.  **System** adds the podcast to the user's `user_subscriptions` list. New podcasts record the first adding user as `subscriptions.owner_user_id`.
 4.  **Scheduler** wakes up (e.g., every hour) and iterates active subscriptions.
 5.  **Source adapter** fetches RSS entries or performs bounded YouTube discovery (50 recent channel entries or 500 flat playlist members).
 6.  **System** compares remote episodes with `episodes` table (by GUID).
-7.  **System** queues new episodes for processing.
+7.  **System** queues new episodes for processing. New Complete Timeline jobs freeze their prompt, schema, model cascade and removal choices without credentials. Existing jobs keep their workflow; NULL snapshots mean Legacy.
 
 ## 2. Episode Processing Pipeline
 For each queued episode:
@@ -20,20 +20,23 @@ For each queued episode:
     - Load Whisper model (if not loaded).
     - Process audio file -> generate text segments with timestamps.
 
-3.  **Ad Detection (configured LLM)**:
-    - Send the transcript to the selected text-analysis provider with the effective prompts/removal settings and a durable request budget.
-    - Validate a JSON array of finite, ordered, known-label intervals. Invalid/refused/truncated results fail analysis; a valid empty array means no cuts.
+3.  **Classification (configured LLM)**:
+    - Legacy: send the transcript with the effective prompts/removal settings and validate a JSON array of finite, ordered, known-label intervals. A valid empty array means no cuts. Existing whitelist behaviour is preserved.
+    - Complete Timeline: add explicit gaps through the measured episode duration, send numbered items separately from the rules, and request complete ID ranges plus a summary. Validate exact coverage and known labels, then map IDs to source boundaries. Schema constraints are requested according to the selected output mode.
+    - Both use durable request budgets. Invalid/refused/truncated classifications fail analysis. Cascades stay within the selected provider.
 
 4.  **Optional SponsorBlock Evidence**:
     - Only for YouTube episodes and only when `SPONSORBLOCK_ENABLED=true`, query read-only crowdsourced timestamps for categories enabled by the podcast's existing removal settings.
-    - Fail open and merge valid timestamps with LLM intervals on the original media timeline.
+    - Fail open and combine valid timestamps with selected LLM intervals on the original media timeline, retaining separate evidence.
 
 5.  **Ad Removal (FFmpeg)**:
+    - Complete Timeline first selects categories according to frozen removal preferences. Then it bridges only retained islands strictly shorter than the configured threshold between two selected cuts. Zero disables bridging. Reports preserve model classifications and extra island cuts separately. Legacy keeps its existing merge policy.
     - Calculate "keep" segments (total duration minus ad segments).
     - Use FFmpeg to cut and concatenate "keep" segments.
     - Save processed audio in the episode artifact directory.
 
 6.  **Finalize**:
+    - Complete Timeline reuses its combined summary for enabled description/TTS features; Legacy retains separate summary generation. A summary-only format failure can be repaired without rerunning valid classification.
     - Validate output MP3 duration (non-MP3 no-cut sources are encoded to MP3).
     - Switch published artifact pointers and stats in one claim-guarded SQLite transaction.
     - Serialize and atomically replace podcast/unified RSS; clear the matching publication-pending flag only after success.
@@ -53,7 +56,7 @@ The public feed/audio path is not tied to a logged-in account by default. Admin-
 
 1. Repository reads resolve each inherited setting group against the current global settings.
 2. Explicit podcast values stay stored while inheritance is enabled; they become effective again if the group toggle is disabled.
-3. Global-setting changes therefore affect all inheriting podcasts without rewriting their rows.
+3. Global-setting changes therefore affect all inheriting podcasts without rewriting their rows. Complete Timeline classification settings already frozen in queued jobs stay unchanged; future jobs use the new effective settings.
 4. If artwork badging is effectively enabled, validated source art is composited with the bundled badge and cached under `/data/artwork/`.
 5. Feed generation uses the derived artwork URL and its content hash. Disabling the feature clears the cached derivative and restores source artwork.
 

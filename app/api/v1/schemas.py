@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -56,6 +56,11 @@ class SubscriptionSettingsUpdate(BaseModel):
     inherit_retention: bool | None = None
     inherit_default_features: bool | None = None
     inherit_custom_instructions: bool | None = None
+    processing_workflow: Literal["legacy", "complete_timeline"] | None = None
+    inherit_processing_workflow: bool | None = None
+    remove_editorial_non_speech: bool | None = None
+    remove_non_editorial_non_speech: bool | None = None
+    minimum_retained_seconds: float | None = Field(default=None, ge=0, le=600, allow_inf_nan=False)
 
 
 class ActionResponse(BaseModel):

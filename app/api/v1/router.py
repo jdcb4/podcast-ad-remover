@@ -279,8 +279,14 @@ async def update_subscription_settings(
         "Only admins and the podcast owner can change podcast settings",
     )
     updates = request_body.model_dump(exclude_unset=True)
+    # New optional fields treat null like omission, including inheritance effects.
+    for field in ('processing_workflow', 'inherit_processing_workflow', 'remove_editorial_non_speech',
+                  'remove_non_editorial_non_speech', 'minimum_retained_seconds'):
+        if updates.get(field) is None:
+            updates.pop(field, None)
     stored = sub.setting_overrides
-    content_fields = {"remove_ads", "remove_promos", "remove_intros", "remove_outros"}
+    content_fields = {"remove_ads", "remove_promos", "remove_intros", "remove_outros",
+                      "remove_editorial_non_speech", "remove_non_editorial_non_speech", "minimum_retained_seconds"}
     retention_fields = {"retention_days", "manual_retention_days", "retention_limit"}
     feature_fields = {
         "append_summary",
@@ -337,6 +343,12 @@ async def update_subscription_settings(
         inherit_default_features=inherit_default_features,
         inherit_custom_instructions=inherit_custom_instructions,
         watermark_artwork=updates.get("watermark_artwork", stored.get("watermark_artwork")),
+        processing_workflow=updates.get("processing_workflow"),
+        inherit_processing_workflow=updates.get("inherit_processing_workflow",
+                                               False if updates.get("processing_workflow") else None),
+        remove_editorial_non_speech=updates.get("remove_editorial_non_speech"),
+        remove_non_editorial_non_speech=updates.get("remove_non_editorial_non_speech"),
+        minimum_retained_seconds=updates.get("minimum_retained_seconds"),
     )
 
     proc = _processor()

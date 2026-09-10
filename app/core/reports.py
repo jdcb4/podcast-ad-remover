@@ -2,7 +2,36 @@
 import html
 
 
-def render_ad_report(ep, ad_segments: list[dict]) -> str:
+def _timeline_sections(analysis: dict, policy: dict) -> str:
+    from app.core.timeline import LABEL_NAMES
+    escape = lambda value: html.escape(str(value))
+    parts = ['<h3>Complete timeline classification</h3>',
+             '<p>Model categories are recorded before user preferences and the short-island rule. Gaps are contextual evidence, not measured silence.</p>',
+             f'<p>Provider: {escape(analysis.get("provider"))}; model: {escape(analysis.get("model"))}; output: {escape(analysis.get("output_mode"))}; prompt: {escape(analysis.get("prompt_version"))}</p>',
+             f'<h3>Episode summary</h3><p>{escape(analysis.get("summary") or analysis.get("summary_error") or "Summary unavailable")}</p>',
+             f'<h3>Cut preferences</h3><p>Remove: {escape(", ".join(LABEL_NAMES.get(k, k) for k in policy["remove_categories"]) or "Nothing")}. '
+             f'Short-island threshold: {policy["minimum_retained_seconds"]:g}s (0 disables).</p>',
+             f'<p>Extra cuts from the short-island rule: {policy["island_seconds"]:.2f}s.</p>']
+    for island in policy['island_cuts']:
+        parts.append(f'<p>{island["start"]:.2f}–{island["end"]:.2f}s: {escape(island["reason"])}</p>')
+    if analysis.get('normalization_notes'):
+        parts.append('<details><summary>Transcript timestamp normalization</summary><p>' + escape(analysis['normalization_notes']) + '</p></details>')
+    units = analysis['timeline']
+    for row in analysis['segments']:
+        removed = sum(max(0, min(row['end'], cut['end']) - max(row['start'], cut['start'])) for cut in policy['segments'])
+        decision = 'Keep' if removed < 1e-7 else 'Remove' if removed >= row['end'] - row['start'] - 1e-7 else 'Partly remove'
+        text = row.get('text') or ''
+        if not text:
+            before = next((u['text'] for u in reversed(units[:row['first_id'] - 1]) if u['text']), 'Start of episode')
+            after = next((u['text'] for u in units[row['last_id']:] if u['text']), 'End of episode')
+            text = f'GAP: no text captured. Before: {before} After: {after}'
+        parts.append(f'<details class="segment"><summary><strong>{row["start"]:.2f}–{row["end"]:.2f}s · '
+                     f'{escape(LABEL_NAMES.get(row["label"], row["label"]))} · {decision}</strong></summary>'
+                     f'<p>{escape(row["reason"])}</p><p class="transcript-text">{escape(text)}</p></details>')
+    return ''.join(parts)
+
+
+def render_ad_report(ep, ad_segments: list[dict], *, analysis: dict | None = None, edit_policy: dict | None = None) -> str:
     rows_html = ""
     for s in ad_segments:
         sponsorblock_evidence = []
@@ -40,6 +69,8 @@ def render_ad_report(ep, ad_segments: list[dict]) -> str:
     html_content = f"""
     <html>
     <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Ad Report: {html.escape(str(ep.title))}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,6 +85,7 @@ def render_ad_report(ep, ad_segments: list[dict]) -> str:
                 background: #0a0a0f;
                 color: #fafafa;
                 line-height: 1.6;
+                overflow-wrap: anywhere;
             }}
             h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; }}
             h1 {{ font-size: 2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, #a78bfa, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
@@ -85,7 +117,7 @@ def render_ad_report(ep, ad_segments: list[dict]) -> str:
             }}
             .badge.intro {{ background: rgba(52,211,153,0.15); color: #34d399; border-color: rgba(52,211,153,0.2); }}
             .badge.outro {{ background: rgba(251,191,36,0.15); color: #fbbf24; border-color: rgba(251,191,36,0.2); }}
-            .flex {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }}
+            .flex {{ display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }}
             .transcript-text {{
                 background: rgba(255,255,255,0.03);
                 padding: 0.75rem 1rem;
@@ -122,10 +154,12 @@ def render_ad_report(ep, ad_segments: list[dict]) -> str:
         <h2>{html.escape(str(ep.title))}</h2>
         <p class="meta">GUID: {html.escape(str(ep.guid))}</p>
 
-        <h3>Detected Segments</h3>
+        <h3>{'Final removal intervals' if analysis else 'Detected Segments'}</h3>
         <p class="total">Total Segments: {len(ad_segments)}</p>
 
         {rows_html}
+
+        {_timeline_sections(analysis, edit_policy) if analysis else ''}
 
         <h3>Transcript</h3>
         <p><a href="/artifacts/transcript/{ep.id}" class="btn">View Full Transcript (JSON)</a></p>
