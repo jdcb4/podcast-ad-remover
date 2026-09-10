@@ -1018,6 +1018,7 @@ async def admin_prompts(request: Request):
             "timeline_definitions": timeline.definitions(current),
             "timeline_defaults": timeline.DEFINITIONS,
             "timeline_labels": timeline.LABEL_NAMES,
+            "timeline_prompt_template": timeline.PROMPT,
             "timeline_summary_default": timeline.SUMMARY_DEFAULT,
             "preview_subscriptions": sub_repo.get_all(),
             "default_prompts": default_prompts,
