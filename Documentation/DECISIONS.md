@@ -2,6 +2,16 @@
 
 This is a lightweight decision log. Keep entries short, dated, and focused on choices that future maintainers may otherwise revisit.
 
+## 2026-09-10: Retain API v1 for the UTC timestamp update
+
+The maintainer accepted the timestamp parser compatibility risk given the limited known API
+usage. Keep `/api/v1` and the new UTC timestamp representation; do not introduce an API v2
+or duplicate legacy timestamp fields for this change. Target the next minor application
+release, 1.14.0, as an explicit exception to the usual major-version rule for incompatible
+API changes. Preserve the warning in [API.md](API.md#timestamp-formats) and the release notes
+so clients using strict parsers can update. Historical timezone provenance remains unchanged.
+This decision accepts the compatibility tradeoff; production promotion remains a separate step.
+
 ## 2026-09-06: Keep dev and main as the only long-lived branches
 
 Joe requested `dev` as the working/default branch and `main` as production. Rename `master` to

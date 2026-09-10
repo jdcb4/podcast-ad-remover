@@ -41,6 +41,12 @@ jdcb4/podcast-ad-remover:dev-<git-sha>
 
 Because existing installs may have many downloaded podcasts, database and `/data` compatibility should be treated as release-critical.
 
+For the next release (1.14.0), the maintainer has explicitly accepted the timestamp
+value-format change within `/api/v1` as a scoped exception to the major-version rule.
+Retain the new UTC representation and document the parser impact in the release notes.
+See the 2026-09-10 decision in [DECISIONS.md](DECISIONS.md). This does not change the
+versioning rules for other incompatible changes or authorize production promotion.
+
 ## Release Checklist
 
 During normal development, publish and test clean committed Dev builds as needed:
