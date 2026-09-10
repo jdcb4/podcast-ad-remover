@@ -6,7 +6,9 @@ from typing import Any, Mapping
 
 
 GROUP_FIELDS = {
-    "content_removal": ("remove_ads", "remove_promos", "remove_intros", "remove_outros"),
+    "content_removal": ("remove_ads", "remove_promos", "remove_intros", "remove_outros",
+                        "remove_editorial_non_speech", "remove_non_editorial_non_speech", "minimum_retained_seconds"),
+    "processing_workflow": ("processing_workflow",),
     "retention": ("retention_limit", "retention_days", "manual_retention_days"),
     "default_features": (
         "ai_rewrite_description",
@@ -22,6 +24,10 @@ GLOBAL_FIELDS = {
     "remove_promos": "default_remove_promos",
     "remove_intros": "default_remove_intros",
     "remove_outros": "default_remove_outros",
+    "processing_workflow": "default_processing_workflow",
+    "remove_editorial_non_speech": "default_remove_editorial_non_speech",
+    "remove_non_editorial_non_speech": "default_remove_non_editorial_non_speech",
+    "minimum_retained_seconds": "default_minimum_retained_seconds",
     "retention_limit": "default_retention_limit",
     "retention_days": "default_retention_days",
     "manual_retention_days": "default_manual_retention_days",
@@ -37,6 +43,8 @@ BOOLEAN_FIELDS = {
     "remove_promos",
     "remove_intros",
     "remove_outros",
+    "remove_editorial_non_speech",
+    "remove_non_editorial_non_speech",
     "ai_rewrite_description",
     "ai_audio_summary",
     "append_title_intro",
@@ -48,6 +56,10 @@ FALLBACKS = {
     "remove_promos": True,
     "remove_intros": False,
     "remove_outros": False,
+    "processing_workflow": "legacy",
+    "remove_editorial_non_speech": False,
+    "remove_non_editorial_non_speech": True,
+    "minimum_retained_seconds": 10,
     "retention_limit": 1,
     "retention_days": 30,
     "manual_retention_days": 14,

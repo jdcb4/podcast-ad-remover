@@ -585,7 +585,7 @@ All fields are optional. Omitted fields keep their current values. The response 
 read endpoints contains effective values: fields in an inheriting group reflect the current global
 settings.
 
-The four `inherit_*` fields control content removal, retention, default features, and custom
+The five `inherit_*` fields control processing workflow, content removal, retention, default features, and custom
 instructions independently. Setting an ordinary group member makes that group explicit unless its
 inheritance flag is supplied in the same request. For backward compatibility, setting
 `custom_instructions` to an empty string or `null` selects global-instruction inheritance. Stored
@@ -593,6 +593,29 @@ podcast overrides are retained while a group inherits and return if inheritance 
 
 The default-features group includes `ai_rewrite_description`, `ai_audio_summary`,
 `append_title_intro`, and `watermark_artwork`.
+
+Complete Timeline adds optional settings without changing an existing podcast's workflow:
+
+```json
+{
+  "processing_workflow": "complete_timeline",
+  "inherit_processing_workflow": false,
+  "remove_editorial_non_speech": false,
+  "remove_non_editorial_non_speech": true,
+  "minimum_retained_seconds": 10
+}
+```
+
+`processing_workflow` accepts `legacy` or `complete_timeline`. Setting it makes workflow explicit
+unless `inherit_processing_workflow` is supplied. The two non-speech choices and threshold belong
+to the content-removal group. The threshold must be finite and between 0 and 600 seconds;
+`0` disables the rule, while omission or `null` preserves the existing value. Null also acts as
+omission for the other new fields. Existing fields retain their prior null semantics.
+New podcasts inherit the global workflow default; pre-migration podcasts are pinned to Legacy.
+New Complete Timeline jobs freeze classification settings when queued, so changes apply to future
+jobs without converting existing jobs or reprocessing published audio. Its JSON report preserves
+root `segments` as final cuts and adds `workflow`, `analysis` and `edit_policy` to distinguish
+model labels from extra short-island cuts. See [COMPLETE_TIMELINE.md](COMPLETE_TIMELINE.md).
 
 Response:
 

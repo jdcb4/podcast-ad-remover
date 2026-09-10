@@ -47,7 +47,10 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+from app.web.timeline_rules import router as timeline_rules_router
+
 router = APIRouter()
+router.include_router(timeline_rules_router)
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 
@@ -998,18 +1001,11 @@ async def refresh_models_from_form(
 # --- Admin: Prompts ---
 @router.get("/admin/prompts", response_class=HTMLResponse)
 async def admin_prompts(request: Request):
-    # Default prompts from ai_services.py
-    default_prompts = {
-        "ad_base": """Identify segments in the transcript that match the Targets.
-Targets: {targets}
-{custom_instr}
-Return a JSON array of objects with "start", "end", "label" (Ad/Promo/Intro/Outro), and "reason" (brief explanation).
-Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for XYZ"}]""",
-        "sponsor": "Sponsor messages, ad reads, promotional segments",
-        "promo": "Cross-promotions, plugs for other shows or content",
-        "summary": "Summarize the key points of this podcast episode in 3-5 bullet points."
-    }
-    
+    from app.core.prompt_defaults import LEGACY_DEFAULTS
+    from app.core import timeline
+    current = get_global_settings()
+    default_prompts = LEGACY_DEFAULTS
+
     user = get_current_user(request)
 
     return templates.TemplateResponse(
@@ -1018,7 +1014,12 @@ Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for
         context={
             "csp_nonce": get_csp_nonce(request),
             "user": user,
-            "settings": get_global_settings(),
+            "settings": current,
+            "timeline_definitions": timeline.definitions(current),
+            "timeline_defaults": timeline.DEFINITIONS,
+            "timeline_labels": timeline.LABEL_NAMES,
+            "timeline_summary_default": timeline.SUMMARY_DEFAULT,
+            "preview_subscriptions": sub_repo.get_all(),
             "default_prompts": default_prompts,
             "pending_requests_count": get_pending_requests_count(),
             "active_tab": "prompts"
@@ -1050,13 +1051,17 @@ async def save_prompts(request: Request, admin_user = Depends(require_admin)):
                 ad_prompt_base = ?,
                 ad_target_sponsor = ?,
                 ad_target_promo = ?,
-                summary_prompt_template = ?
+                summary_prompt_template = ?,
+                ad_target_intro = COALESCE(?, ad_target_intro),
+                ad_target_outro = COALESCE(?, ad_target_outro)
             WHERE id = 1
         """, (
             form.get('ad_prompt_base'),
             form.get('ad_target_sponsor'),
             form.get('ad_target_promo'),
-            form.get('summary_prompt_template')
+            form.get('summary_prompt_template'),
+            form.get('ad_target_intro'),
+            form.get('ad_target_outro')
         ))
         conn.commit()
     
@@ -1064,23 +1069,9 @@ async def save_prompts(request: Request, admin_user = Depends(require_admin)):
 
 @router.post("/admin/prompts/reset")
 async def reset_prompts(request: Request, admin_user = Depends(require_admin)):
-    # Default prompts
-    defaults = {
-        'summary': """You are a smart assistant. Write a short 2-3 sentence summary of this podcast episode.
-The summary must:
-1. NOT mention the podcast name, episode title, or date.
-2. Start immediately with "This episode includes".
-3. Briefly summarize key topics.
-Transcript Context: {transcript_context}""",
-        'ad_base': """Identify segments in the transcript that match the Targets.
-Targets: {targets}
-{custom_instr}
-Return a JSON array of objects with "start", "end", "label" (Ad/Promo/Intro/Outro), and "reason" (brief explanation).
-Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for XYZ"}]""",
-        'sponsor': 'Sponsor messages, ad reads, promotional segments',
-        'promo': 'Cross-promotions, plugs for other shows or content'
-    }
-    
+    from app.core.prompt_defaults import LEGACY_DEFAULTS
+    defaults = LEGACY_DEFAULTS
+
     from app.infra.database import get_db_connection
     with get_db_connection() as conn:
         conn.execute("""
@@ -1088,9 +1079,11 @@ Example: [{"start": 0.0, "end": 10.0, "label": "Ad", "reason": "Sponsor read for
                 summary_prompt_template = ?,
                 ad_prompt_base = ?,
                 ad_target_sponsor = ?,
-                ad_target_promo = ?
+                ad_target_promo = ?,
+                ad_target_intro = ?,
+                ad_target_outro = ?
             WHERE id = 1
-        """, (defaults['summary'], defaults['ad_base'], defaults['sponsor'], defaults['promo']))
+        """, (defaults['summary'], defaults['ad_base'], defaults['sponsor'], defaults['promo'], defaults['intro'], defaults['outro']))
         conn.commit()
     
     return {"status": "success"}
@@ -2015,8 +2008,24 @@ async def update_global_subscription_settings(
     default_manual_retention_days: int = Form(14),
     default_custom_instructions: str = Form(None),
     whitelist_mode: bool = Form(False),
+    default_processing_workflow: str | None = Form(None),
+    default_remove_editorial_non_speech: bool | None = Form(None),
+    default_remove_non_editorial_non_speech: bool | None = Form(None),
+    default_minimum_retained_seconds: float | None = Form(None),
+    timeline_settings_present: bool = Form(False),
     admin_user = Depends(require_admin)
 ):
+    from app.core.timeline import WORKFLOWS, threshold
+    if default_processing_workflow is not None and default_processing_workflow not in WORKFLOWS:
+        raise HTTPException(400, 'Unknown processing workflow')
+    if default_minimum_retained_seconds is not None:
+        try:
+            default_minimum_retained_seconds = threshold(default_minimum_retained_seconds)
+        except ValueError as error:
+            raise HTTPException(400, str(error)) from error
+    if timeline_settings_present:
+        default_remove_editorial_non_speech = bool(default_remove_editorial_non_speech)
+        default_remove_non_editorial_non_speech = bool(default_remove_non_editorial_non_speech)
     with get_db_connection() as conn:
         conn.execute("""
             UPDATE app_settings 
@@ -2032,14 +2041,20 @@ async def update_global_subscription_settings(
                 default_retention_days = ?,
                 default_manual_retention_days = ?,
                 default_custom_instructions = ?,
-                whitelist_mode = ?
+                whitelist_mode = ?,
+                default_processing_workflow = COALESCE(?, default_processing_workflow),
+                default_remove_editorial_non_speech = COALESCE(?, default_remove_editorial_non_speech),
+                default_remove_non_editorial_non_speech = COALESCE(?, default_remove_non_editorial_non_speech),
+                default_minimum_retained_seconds = COALESCE(?, default_minimum_retained_seconds)
             WHERE id = 1
         """, (
             default_remove_ads, default_remove_promos, default_remove_intros, default_remove_outros,
             default_ai_rewrite_description, default_ai_audio_summary, default_append_title_intro,
             default_watermark_artwork,
             default_retention_limit, default_retention_days, default_manual_retention_days,
-            default_custom_instructions, 1 if whitelist_mode else 0
+            default_custom_instructions, 1 if whitelist_mode else 0,
+            default_processing_workflow, default_remove_editorial_non_speech,
+            default_remove_non_editorial_non_speech, default_minimum_retained_seconds
         ))
         conn.commit()
 
@@ -2570,6 +2585,12 @@ async def update_settings(
     inherit_retention: bool = Form(False),
     inherit_default_features: bool = Form(False),
     inherit_custom_instructions: bool = Form(False),
+    processing_workflow: str | None = Form(None),
+    inherit_processing_workflow: bool | None = Form(None),
+    remove_editorial_non_speech: bool | None = Form(None),
+    remove_non_editorial_non_speech: bool | None = Form(None),
+    minimum_retained_seconds: float | None = Form(None),
+    timeline_settings_present: bool = Form(False),
     user = Depends(require_auth),
 ):
     sub = sub_repo.get_by_id(id)
@@ -2579,6 +2600,27 @@ async def update_settings(
         raise HTTPException(status_code=403, detail="Only admins and the podcast owner can change podcast settings")
 
     stored = sub.setting_overrides
+    from app.core.timeline import WORKFLOWS, threshold
+    if processing_workflow is not None and inherit_processing_workflow is None:
+        inherit_processing_workflow = False
+    if processing_workflow is not None and processing_workflow not in WORKFLOWS:
+        raise HTTPException(400, 'Unknown processing workflow')
+    if minimum_retained_seconds is not None:
+        try:
+            minimum_retained_seconds = threshold(minimum_retained_seconds)
+        except ValueError as error:
+            raise HTTPException(400, str(error)) from error
+    if timeline_settings_present:
+        inherit_processing_workflow = bool(inherit_processing_workflow)
+        if inherit_processing_workflow:
+            processing_workflow = stored.get('processing_workflow')
+        if inherit_content_removal:
+            remove_editorial_non_speech = stored.get('remove_editorial_non_speech')
+            remove_non_editorial_non_speech = stored.get('remove_non_editorial_non_speech')
+            minimum_retained_seconds = stored.get('minimum_retained_seconds')
+        else:
+            remove_editorial_non_speech = bool(remove_editorial_non_speech)
+            remove_non_editorial_non_speech = bool(remove_non_editorial_non_speech)
     if inherit_content_removal:
         remove_ads = bool(stored.get("remove_ads"))
         remove_promos = bool(stored.get("remove_promos"))
@@ -2631,6 +2673,11 @@ async def update_settings(
         inherit_default_features=inherit_default_features,
         inherit_custom_instructions=inherit_custom_instructions,
         watermark_artwork=watermark_artwork,
+        processing_workflow=processing_workflow,
+        inherit_processing_workflow=inherit_processing_workflow,
+        remove_editorial_non_speech=remove_editorial_non_speech,
+        remove_non_editorial_non_speech=remove_non_editorial_non_speech,
+        minimum_retained_seconds=minimum_retained_seconds,
     )
     
     # Trigger processing if any ads/promos settings were changed

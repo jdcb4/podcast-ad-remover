@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.core.models import Episode
 from app.core.time_utils import now_utc
 from app.infra.repository import EpisodeRepository, SubscriptionRepository, SourceItemRepository, JobRepository, StaleAttempt
-from app.core.ai_services import Transcriber, AdDetector, RateLimitError, PermanentProviderError
+from app.core.ai_services import Transcriber, AdDetector, RateLimitError, PermanentProviderError, AnalysisError
 from app.core.audio import AudioProcessor
 from app.core.rss_gen import RSSGenerator
 from app.core.youtube import (
@@ -584,6 +584,7 @@ class Processor:
 
             # Actually run the processing
             worker = copy.copy(self)
+            worker.ad_detector = copy.copy(self.ad_detector)
             worker.ep_repo = EpisodeRepository(attempt=(ep_dict['job_id'], ep_dict['claim_token']))
             heartbeat = asyncio.create_task(self._heartbeat_claim(ep_dict))
             budget_token = current_claim.set((ep_dict['job_id'], ep_dict['claim_token']))
@@ -644,6 +645,53 @@ class Processor:
             categories,
         )
 
+    async def _classify_complete_timeline(self, ep, sub, transcript, input_path, fingerprint, snapshot, episode_root):
+        from app.core import timeline
+        duration = await asyncio.to_thread(AudioProcessor.get_duration, input_path)
+        units, notes = timeline.prepare_timeline(transcript, duration)
+        metadata = {'podcast_name': sub.title, 'episode_title': ep.title,
+                    'publication_date': str(ep.pub_date) if ep.pub_date else None}
+        key = timeline.cache_key(fingerprint, transcript, duration, snapshot)
+        cache_path = self._attempt_dir / 'analysis-cache.json'
+        cache_paths = [cache_path]
+        # A reprocess may reuse classification only if the newly acquired source
+        # and transcript still match. Dynamic ad insertion changes the fingerprint.
+        if ep.ad_report_path:
+            previous = Path(ep.ad_report_path).resolve().parent
+            if previous.is_relative_to(episode_root.resolve()):
+                cache_paths.append(previous / 'analysis-cache.json')
+        analysis = None
+        for path in cache_paths:
+            try:
+                cached = json.loads(path.read_text(encoding='utf-8'))
+                if cached['key'] != key:
+                    continue
+                candidate = cached['analysis']
+                rows, summary = timeline.parse_response(json.dumps(candidate['response']), units)
+                if summary is not None and not timeline.valid_summary(summary):
+                    continue
+                analysis = {**candidate, 'segments': rows, 'summary': summary}
+                if summary is None:
+                    summary, error = await asyncio.to_thread(
+                        self.ad_detector.repair_cached_timeline_summary, units, duration, metadata, snapshot,
+                    )
+                    analysis.update(summary=summary, summary_error=error)
+                    analysis['response']['summary'] = summary
+                break
+            except (OSError, ValueError, KeyError, TypeError):
+                pass
+        if analysis is None:
+            analysis = await asyncio.to_thread(
+                self.ad_detector.classify_timeline, units, duration,
+                metadata, snapshot,
+            )
+        cache_path.write_text(json.dumps({'key': key, 'analysis': analysis}), encoding='utf-8')
+        analysis = {**analysis, 'timeline': units, 'normalization_notes': notes,
+                    'duration': duration, 'source_fingerprint': fingerprint, 'cache_key': key}
+        for row in analysis['segments']:
+            row['text'] = self._extract_text(row['start'], row['end'], transcript['segments'])
+        return analysis
+
     async def _process_episode_inner(self, ep: Episode, sub, ep_dict: dict):
         """Core multi-step processing logic for a single episode."""
         logger.info(f"Processing {ep.title}...")
@@ -652,6 +700,16 @@ class Processor:
         ffmpeg_threads = int(global_settings.get("ffmpeg_threads") or 0)
         
         try:
+            from app.core import timeline
+            snapshot = json.loads(ep_dict['processing_snapshot']) if ep_dict.get('processing_snapshot') else {'version': 1, 'workflow': 'legacy'}
+            if not isinstance(snapshot, dict) or snapshot.get('version') != 1 or snapshot.get('workflow') not in timeline.WORKFLOWS:
+                raise PermanentProviderError('Unknown queued processing workflow; requeue with supported settings')
+            complete_timeline = snapshot['workflow'] == 'complete_timeline'
+            if complete_timeline:
+                if snapshot.get('schema_version') != timeline.SCHEMA_VERSION:
+                    raise PermanentProviderError('Queued timeline schema is not supported by this application version')
+                sub = sub.model_copy(update={**snapshot['options'], 'processing_workflow': 'complete_timeline'})
+            analysis, edit_policy = None, None
             self.ep_repo.update_progress(ep.id, "Actively Processing", 0)
             
             if not self._check_cancellation(ep): return
@@ -839,66 +897,78 @@ class Processor:
             
             if not self._check_cancellation(ep): return
 
-            # 3. Detect Ads
-            logger.info("Detecting ads...")
-            
-            detect_options = {
-                "remove_ads": sub.remove_ads,
-                "remove_promos": sub.remove_promos,
-                "remove_intros": sub.remove_intros,
-                "remove_outros": sub.remove_outros,
-                "custom_instructions": sub.custom_instructions
-            }
-            
-            # Check whitelist mode from global settings
-            whitelist_mode = bool(global_settings.get('whitelist_mode', 0))
-            
-            if whitelist_mode:
-                logger.info("Whitelist mode is ENABLED - will keep only Content segments")
-            
-            import hashlib
-            policy = {key: value for key, value in global_settings.items() if key.startswith(('ad_', 'custom_llm_model', 'custom_llm_base_url')) or key in ('active_ai_provider', 'ai_model_cascade', 'openai_model', 'anthropic_model', 'openrouter_model')}
-            cache_key = hashlib.sha256(json.dumps([fingerprint, transcript, detect_options, whitelist_mode, policy], sort_keys=True).encode()).hexdigest()
-            analysis_cache_path = self._attempt_dir / 'analysis-cache.json'
-            ad_segments = None
-            try:
-                cached = json.loads(analysis_cache_path.read_text(encoding='utf-8'))
-                if cached['key'] == cache_key:
-                    ad_segments = cached['segments']
-            except (OSError, ValueError, KeyError):
-                pass
-            if ad_segments is None:
-                ad_segments = await asyncio.to_thread(
-                    self.ad_detector.detect_ads, transcript, detect_options, whitelist_mode=whitelist_mode
+            # 3. Classification is independent of cut preferences in the opt-in workflow.
+            if complete_timeline:
+                analysis = await self._classify_complete_timeline(
+                    ep, sub, transcript, input_path, fingerprint, snapshot, episode_root
                 )
-                analysis_cache_path.write_text(json.dumps({'key': cache_key, 'segments': ad_segments}), encoding='utf-8')
+                if not self._check_cancellation(ep): return
+                sponsor_segments = await self._fetch_sponsorblock_segments(sub, ep)
+                sponsor_segments = [normalized for s in sponsor_segments
+                                    if (normalized := self._normalize_segment(s, analysis['duration'])) is not None]
+                edit_policy = timeline.apply_preferences(analysis['segments'], snapshot['options'], sponsor_segments)
+                ad_segments = edit_policy['segments']
+            else:
+                # 3. Detect Ads
+                logger.info("Detecting ads...")
+            
+                detect_options = {
+                    "remove_ads": sub.remove_ads,
+                    "remove_promos": sub.remove_promos,
+                    "remove_intros": sub.remove_intros,
+                    "remove_outros": sub.remove_outros,
+                    "custom_instructions": sub.custom_instructions
+                }
+            
+                # Check whitelist mode from global settings
+                whitelist_mode = bool(global_settings.get('whitelist_mode', 0))
+            
+                if whitelist_mode:
+                    logger.info("Whitelist mode is ENABLED - will keep only Content segments")
+            
+                import hashlib
+                policy = {key: value for key, value in global_settings.items() if key.startswith(('ad_', 'custom_llm_model', 'custom_llm_base_url')) or key in ('active_ai_provider', 'ai_model_cascade', 'openai_model', 'anthropic_model', 'openrouter_model')}
+                cache_key = hashlib.sha256(json.dumps([fingerprint, transcript, detect_options, whitelist_mode, policy], sort_keys=True).encode()).hexdigest()
+                analysis_cache_path = self._attempt_dir / 'analysis-cache.json'
+                ad_segments = None
+                try:
+                    cached = json.loads(analysis_cache_path.read_text(encoding='utf-8'))
+                    if cached['key'] == cache_key:
+                        ad_segments = cached['segments']
+                except (OSError, ValueError, KeyError):
+                    pass
+                if ad_segments is None:
+                    ad_segments = await asyncio.to_thread(
+                        self.ad_detector.detect_ads, transcript, detect_options, whitelist_mode=whitelist_mode
+                    )
+                    analysis_cache_path.write_text(json.dumps({'key': cache_key, 'segments': ad_segments}), encoding='utf-8')
 
-            if not self._check_cancellation(ep): return
+                if not self._check_cancellation(ep): return
 
-            logger.info(f"Found {len(ad_segments)} segments: {ad_segments}")
+                logger.info(f"Found {len(ad_segments)} segments: {ad_segments}")
 
-            total_duration = AudioProcessor.get_duration(input_path) if whitelist_mode else None
-            ad_segments = self._prepare_remove_segments(ad_segments, whitelist_mode, total_duration=total_duration)
-            for segment in ad_segments:
-                segment.setdefault("source", "llm")
-                segment.setdefault("evidence", [{
-                    "source": "llm",
-                    "label": segment.get("label"),
-                    "reason": segment.get("reason"),
-                }])
-                segment.setdefault("sources", ["llm"])
-            sponsor_segments = await self._fetch_sponsorblock_segments(sub, ep)
-            if sponsor_segments:
-                if total_duration is None:
-                    total_duration = AudioProcessor.get_duration(input_path)
-                sponsor_segments = [
-                    normalized
-                    for segment in sponsor_segments
-                    if (normalized := self._normalize_segment(segment, total_duration)) is not None
-                ]
-                ad_segments = self._merge_remove_segments(ad_segments + sponsor_segments)
-                logger.info("Added %s SponsorBlock segments", len(sponsor_segments))
-            logger.info(f"After merging: {len(ad_segments)} ad segments")
+                total_duration = AudioProcessor.get_duration(input_path) if whitelist_mode else None
+                ad_segments = self._prepare_remove_segments(ad_segments, whitelist_mode, total_duration=total_duration)
+                for segment in ad_segments:
+                    segment.setdefault("source", "llm")
+                    segment.setdefault("evidence", [{
+                        "source": "llm",
+                        "label": segment.get("label"),
+                        "reason": segment.get("reason"),
+                    }])
+                    segment.setdefault("sources", ["llm"])
+                sponsor_segments = await self._fetch_sponsorblock_segments(sub, ep)
+                if sponsor_segments:
+                    if total_duration is None:
+                        total_duration = AudioProcessor.get_duration(input_path)
+                    sponsor_segments = [
+                        normalized
+                        for segment in sponsor_segments
+                        if (normalized := self._normalize_segment(segment, total_duration)) is not None
+                    ]
+                    ad_segments = self._merge_remove_segments(ad_segments + sponsor_segments)
+                    logger.info("Added %s SponsorBlock segments", len(sponsor_segments))
+                logger.info(f"After merging: {len(ad_segments)} ad segments")
             
             # Enrich with Text
             for s in ad_segments:
@@ -912,13 +982,15 @@ class Processor:
                 "segments": ad_segments,
                 "transcript_path": transcript_path
             }
-            async with aiofiles.open(report_path, "w") as f:
+            if complete_timeline:
+                report_data.update(workflow='complete_timeline', analysis=analysis, edit_policy=edit_policy)
+            async with aiofiles.open(report_path, "w", encoding="utf-8") as f:
                 await f.write(json.dumps(report_data, indent=2))
 
             # Generate Human-Readable Report (HTML)
             human_report_path = os.path.join(episode_dir, "report.html")
             
-            html_content = render_ad_report(ep, ad_segments)
+            html_content = render_ad_report(ep, ad_segments, analysis=analysis, edit_policy=edit_policy) if complete_timeline else render_ad_report(ep, ad_segments)
 
             async with aiofiles.open(human_report_path, "w", encoding="utf-8") as f:
                 await f.write(html_content)
@@ -970,8 +1042,12 @@ class Processor:
                 do_text = sub.ai_rewrite_description or sub.append_summary
                 do_audio = sub.ai_audio_summary or sub.append_summary
                 
+                if complete_timeline:
+                    # Keep the combined summary in the report; ai_summary controls RSS
+                    # descriptions in existing feed readers, so populate it only on opt-in.
+                    self.ep_repo.update_ai_summary(ep.id, analysis['summary'] if do_text else None)
                 if do_text or do_audio:
-                    summary_text = None
+                    summary_text = analysis['summary'] if complete_timeline else None
                     try:
                         logger.info(f"Generating episode summary for {ep.title}...")
                         # Build subscription settings dict for targets
@@ -981,22 +1057,26 @@ class Processor:
                             'remove_intros': sub.remove_intros,
                             'remove_outros': sub.remove_outros
                         }
-                        summary_text = await asyncio.to_thread(
-                            self.ad_detector.generate_summary,
-                            transcript, 
-                            sub.title or "Podcast", 
-                            ep.title, 
-                            str(ep.pub_date) if ep.pub_date else "recently",
-                            sub_settings
-                        )
+                        if not complete_timeline:
+                            summary_text = await asyncio.to_thread(
+                                self.ad_detector.generate_summary,
+                                transcript,
+                                sub.title or "Podcast",
+                                ep.title,
+                                str(ep.pub_date) if ep.pub_date else "recently",
+                                sub_settings
+                            )
+                        elif not summary_text:
+                            raise AnalysisError(analysis.get('summary_error') or 'Combined summary unavailable')
                         # Save to DB and file immediately
-                        self.ep_repo.update_ai_summary(ep.id, summary_text)
+                        if not complete_timeline or do_text:
+                            self.ep_repo.update_ai_summary(ep.id, summary_text)
                         summary_txt_path = os.path.join(episode_dir, "summary.txt")
                         async with aiofiles.open(summary_txt_path, "w") as f:
                             await f.write(summary_text)
                     except Exception as e:
                         logger.error(f"Failed to generate/save text summary: {e}")
-                        if not summary_text:
+                        if not summary_text and not complete_timeline:
                             summary_text = f"Welcome to {sub.title}. Today's episode is {ep.title}."
 
                     # Audio Summary (TTS)

@@ -28,6 +28,18 @@ For a rollback after an upgrade, use the previous image and the pre-upgrade snap
 with its corresponding media backup. Downgrading only the executable is not a
 database rollback. No recovery command automatically stops services or replaces data.
 
+Migration `20260910_0016_complete_timeline_opt_in` adds workflow/prompt/non-speech/threshold
+settings and `jobs.processing_snapshot`. It pins existing podcasts to Legacy with workflow
+inheritance off and leaves existing job snapshots NULL (also explicitly Legacy). Saved Legacy
+prompts, whitelist mode, published identifiers, reports and audio paths remain intact. New
+Complete Timeline jobs freeze classification rules and removal choices without credentials.
+Retries keep that snapshot. See [COMPLETE_TIMELINE.md](COMPLETE_TIMELINE.md) for opt-in details.
+
+Use startup's integrity-checked pre-migration snapshot and the dry-run procedure above. Selecting
+Legacy again is a settings change for future jobs, requiring no database rollback. Rolling back
+the application requires the prior immutable image, pre-upgrade database and matching media
+backup; an older binary cannot honour the new job snapshots and must not use the upgraded DB.
+
 Migration `20260910_0015_timestamp_provenance` adds `users.last_login_is_utc` and
 `episodes.processed_at_is_utc`, both defaulting to `0`. It leaves all existing timestamp
 values, media paths, and publication identifiers unchanged. Earlier releases did not record
@@ -70,6 +82,8 @@ an inferred invoice amount. Remote failures may omit token counts.
 
 Automatic retries copy finalized source/cache files into a fresh owned stage. Transcripts
 require matching source SHA-256 and Whisper model; analysis also requires the same
-transcript, prompts, selected provider/models and removal options. Abandoned unpublished
+transcript, prompts and selected provider/models. Legacy analysis additionally keys on removal
+options. Complete Timeline keys on measured duration and schema, excluding cut choices and the
+island threshold so matching classification can be reused on reprocess. Abandoned unpublished
 attempts older than 48 hours are removed unless an active job still references them.
 Published revisions remain available until episode deletion/retention removes their root.

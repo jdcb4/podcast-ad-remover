@@ -1,4 +1,5 @@
 import sqlite3
+import json
 from contextlib import contextmanager
 from uuid import uuid4
 import socket
@@ -42,8 +43,8 @@ class SubscriptionRepository:
                     INSERT INTO subscriptions
                         (feed_url, title, slug, image_url, description, retention_limit, owner_user_id,
                          inherit_content_removal, inherit_retention, source_type, source_external_id,
-                         inherit_default_features, inherit_custom_instructions)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1, 1)
+                         inherit_default_features, inherit_custom_instructions, inherit_processing_workflow)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1, 1, 1)
                     """,
                     (
                         sub.feed_url,
@@ -446,7 +447,17 @@ class SubscriptionRepository:
         inherit_default_features: bool | None = None,
         inherit_custom_instructions: bool | None = None,
         watermark_artwork: bool | None = None,
+        processing_workflow: str | None = None,
+        inherit_processing_workflow: bool | None = None,
+        remove_editorial_non_speech: bool | None = None,
+        remove_non_editorial_non_speech: bool | None = None,
+        minimum_retained_seconds: float | None = None,
     ):
+        from app.core.timeline import WORKFLOWS, threshold
+        if processing_workflow is not None and processing_workflow not in WORKFLOWS:
+            raise ValueError("Unknown processing workflow")
+        if minimum_retained_seconds is not None:
+            minimum_retained_seconds = threshold(minimum_retained_seconds)
         with get_db_connection() as conn:
             conn.execute("""
                 UPDATE subscriptions 
@@ -466,7 +477,12 @@ class SubscriptionRepository:
                     inherit_retention = COALESCE(?, inherit_retention),
                     inherit_default_features = COALESCE(?, inherit_default_features),
                     inherit_custom_instructions = COALESCE(?, inherit_custom_instructions),
-                    watermark_artwork = COALESCE(?, watermark_artwork)
+                    watermark_artwork = COALESCE(?, watermark_artwork),
+                    processing_workflow = COALESCE(?, processing_workflow),
+                    inherit_processing_workflow = COALESCE(?, inherit_processing_workflow),
+                    remove_editorial_non_speech = COALESCE(?, remove_editorial_non_speech),
+                    remove_non_editorial_non_speech = COALESCE(?, remove_non_editorial_non_speech),
+                    minimum_retained_seconds = COALESCE(?, minimum_retained_seconds)
                 WHERE id = ?
             """, (
                 remove_ads,
@@ -486,6 +502,11 @@ class SubscriptionRepository:
                 None if inherit_default_features is None else int(inherit_default_features),
                 None if inherit_custom_instructions is None else int(inherit_custom_instructions),
                 None if watermark_artwork is None else int(watermark_artwork),
+                processing_workflow,
+                inherit_processing_workflow,
+                remove_editorial_non_speech,
+                remove_non_editorial_non_speech,
+                minimum_retained_seconds,
                 id,
             ))
             conn.commit()
@@ -1071,6 +1092,14 @@ class EpisodeRepository:
         return self.request_deletion(id)
 
 
+def _processing_snapshot(conn: sqlite3.Connection, episode_id: int) -> str:
+    from app.core.timeline import make_snapshot
+    row = conn.execute("SELECT s.* FROM subscriptions s JOIN episodes e ON e.subscription_id=s.id WHERE e.id=?", (episode_id,)).fetchone()
+    global_settings = SubscriptionRepository._global_settings(conn)
+    subscription = resolve_subscription_row(dict(row), global_settings) if row else {}
+    return json.dumps(make_snapshot(subscription, global_settings))
+
+
 def _enqueue_job(conn: sqlite3.Connection, episode_id: int, job_type: str = "process_episode", priority: int = 100):
     eligible = conn.execute("""
         SELECT 1
@@ -1104,9 +1133,9 @@ def _enqueue_job(conn: sqlite3.Connection, episode_id: int, job_type: str = "pro
         return existing["id"]
 
     cursor = conn.execute("""
-        INSERT INTO jobs (episode_id, type, status, priority, next_run_at)
-        VALUES (?, ?, 'queued', ?, CURRENT_TIMESTAMP)
-    """, (episode_id, job_type, priority))
+        INSERT INTO jobs (episode_id, type, status, priority, next_run_at, processing_snapshot)
+        VALUES (?, ?, 'queued', ?, CURRENT_TIMESTAMP, ?)
+    """, (episode_id, job_type, priority, _processing_snapshot(conn, episode_id)))
     return cursor.lastrowid
 
 
@@ -1139,9 +1168,9 @@ def _schedule_retry_job(
         return
 
     conn.execute("""
-        INSERT INTO jobs (episode_id, type, status, next_run_at, error)
-        VALUES (?, 'process_episode', ?, ?, ?)
-    """, (episode_id, status, next_run_at, error))
+        INSERT INTO jobs (episode_id, type, status, next_run_at, error, processing_snapshot)
+        VALUES (?, 'process_episode', ?, ?, ?, ?)
+    """, (episode_id, status, next_run_at, error, _processing_snapshot(conn, episode_id)))
 
 
 class JobRepository:
@@ -1269,6 +1298,7 @@ class JobRepository:
             rows = conn.execute("""
                 SELECT j.id AS job_id,
                        j.attempts AS job_attempts, j.work_directory AS resume_directory, j.provider_call_count,
+                       j.processing_snapshot,
                        e.*
                 FROM jobs j
                 JOIN episodes e ON e.id = j.episode_id

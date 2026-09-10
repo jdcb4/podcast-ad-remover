@@ -4,6 +4,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from app.core.config import settings
+from app.core.prompt_defaults import LEGACY_DEFAULTS
 
 
 DEFAULT_GEMINI_MODEL_CASCADE = '["gemini-3.5-flash", "gemini-3-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]'
@@ -301,6 +302,26 @@ FORMAL_MIGRATIONS = [
             "ALTER TABLE episodes ADD COLUMN processed_at_is_utc INTEGER NOT NULL DEFAULT 0",
         ],
     ),
+    (
+        "20260910_0016_complete_timeline_opt_in",
+        [
+            "ALTER TABLE app_settings ADD COLUMN default_processing_workflow TEXT NOT NULL DEFAULT 'legacy'",
+            "ALTER TABLE app_settings ADD COLUMN default_remove_editorial_non_speech INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE app_settings ADD COLUMN default_remove_non_editorial_non_speech INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE app_settings ADD COLUMN default_minimum_retained_seconds REAL NOT NULL DEFAULT 10",
+            "ALTER TABLE app_settings ADD COLUMN timeline_definitions TEXT",
+            "ALTER TABLE app_settings ADD COLUMN timeline_summary_instructions TEXT",
+            "ALTER TABLE app_settings ADD COLUMN timeline_output_mode TEXT NOT NULL DEFAULT 'auto'",
+            # Existing podcasts explicitly retain Legacy even if a global default later changes.
+            "ALTER TABLE subscriptions ADD COLUMN processing_workflow TEXT NOT NULL DEFAULT 'legacy'",
+            "ALTER TABLE subscriptions ADD COLUMN inherit_processing_workflow INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscriptions ADD COLUMN remove_editorial_non_speech INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscriptions ADD COLUMN remove_non_editorial_non_speech INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE subscriptions ADD COLUMN minimum_retained_seconds REAL NOT NULL DEFAULT 10",
+            # NULL is an existing Legacy job, never an instruction to adopt a new default.
+            "ALTER TABLE jobs ADD COLUMN processing_snapshot TEXT",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000
@@ -457,12 +478,7 @@ def init_db():
         UPDATE app_settings 
         SET summary_prompt_template = ?
         WHERE id = 1 AND (summary_prompt_template IS NULL OR summary_prompt_template = '')
-    """, ("""You are a smart assistant. Write a short 2-3 sentence summary of this podcast episode.
-The summary must:
-1. NOT mention the podcast name, episode title, or date.
-2. Start immediately with "This episode includes".
-3. Briefly summarize key topics.
-Transcript Context: {transcript_context}""",))
+    """, (LEGACY_DEFAULTS['summary'],))
 
     # Users Table
     cursor.execute("""

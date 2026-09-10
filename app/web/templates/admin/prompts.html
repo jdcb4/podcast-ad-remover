@@ -1,10 +1,60 @@
 {% extends "admin/layout.html" %}
-
 {% block admin_content %}
-<h3 class="font-display text-xl font-bold mb-6">AI Prompt Rules</h3>
-
-<div id="alert-container"></div>
-
+<h3 class="font-display text-xl font-bold mb-3">AI Prompt Rules</h3>
+<p class="text-text-secondary mb-5">Define what each category means. Choose what to remove in
+    <a class="text-primary-400" href="/admin/global-subscription-settings">Global Subscription Settings</a>
+    or a podcast's Processing Settings. Editing these rules does not enable the new workflow.</p>
+<div class="flex gap-3 mb-6" role="tablist" aria-label="Prompt workflow">
+    <button type="button" class="btn-primary" data-prompt-tab="timeline" id="timeline-tab" role="tab" aria-controls="timeline-prompts" aria-selected="true">Complete Timeline</button>
+    <button type="button" class="btn-secondary" data-prompt-tab="legacy" id="legacy-tab" role="tab" aria-controls="legacy-prompts" aria-selected="false" tabindex="-1">Legacy prompts</button>
+</div>
+<section id="timeline-prompts" role="tabpanel" aria-labelledby="timeline-tab">
+    <p class="text-sm text-text-muted mb-5">Opt-in workflow: classify the complete timeline, then apply cut preferences and the short-island rule.
+        Existing podcasts and queued jobs stay on their previous workflow. Substantive openings and conclusions remain Content.</p>
+    <form id="timeline-prompts-form" class="space-y-6" action="/admin/prompts/timeline" method="POST">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        {% for label, value in timeline_definitions.items() %}
+        <div class="space-y-2">
+            <div class="flex items-center justify-between gap-2">
+                <label class="font-semibold text-sm" for="definition_{{ label }}">{{ timeline_labels[label] }}</label>
+                <span class="text-xs text-text-muted" data-origin-for="definition_{{ label }}">{{ 'Default' if value == timeline_defaults[label] else 'Saved override' }}</span>
+            </div>
+            <textarea class="input text-sm" rows="6" maxlength="10000" id="definition_{{ label }}" name="definition_{{ label }}" data-default="{{ timeline_defaults[label] }}">{{ value }}</textarea>
+            <button type="button" class="text-xs text-primary-400" data-prompt-reset="definition_{{ label }}">Use default definition</button>
+        </div>
+        {% endfor %}
+        </div>
+        <div class="space-y-2">
+            <label class="block font-semibold" for="timeline_summary_instructions">Episode summary</label>
+            <p class="text-xs text-text-muted">Returned with classification. Your existing description-rewrite and spoken-summary switches control how it is used.</p>
+            <textarea class="input text-sm" rows="4" maxlength="10000" id="timeline_summary_instructions" name="timeline_summary_instructions" data-default="{{ timeline_summary_default }}">{{ settings.timeline_summary_instructions or timeline_summary_default }}</textarea>
+            <button type="button" class="text-xs text-primary-400" data-prompt-reset="timeline_summary_instructions">Use default summary instructions</button>
+        </div>
+        <details class="border border-white/10 rounded-lg p-4 space-y-4">
+            <summary class="font-semibold cursor-pointer">Output handling and effective prompt preview</summary>
+            <label class="block text-sm" for="timeline_output_mode">Structured output</label>
+            <select class="select" id="timeline_output_mode" name="timeline_output_mode">
+                <option value="auto" {% if settings.timeline_output_mode == 'auto' %}selected{% endif %}>Auto: schema when supported, validated JSON compatibility otherwise</option>
+                <option value="strict" {% if settings.timeline_output_mode == 'strict' %}selected{% endif %}>Require schema support</option>
+                <option value="json" {% if settings.timeline_output_mode == 'json' %}selected{% endif %}>JSON compatibility</option>
+            </select>
+            <p class="text-xs text-text-muted">Auto falls back only when an endpoint explicitly rejects structured output. Every response is validated for labels and complete timeline coverage.
+                Failures use the configured model cascade within the selected provider. Temperature and reasoning stay at provider defaults.</p>
+            <label class="block text-sm" for="preview_subscription_id">Include podcast-specific classification guidance</label>
+            <select class="select" id="preview_subscription_id" name="preview_subscription_id">
+                <option value="">Global custom instructions</option>
+                {% for sub in preview_subscriptions %}<option value="{{ sub.id }}">{{ sub.title }}</option>{% endfor %}
+            </select>
+            <p class="text-xs text-text-muted">Review saved custom instructions when opting in: guidance about what to cut should be expressed as a category definition and removal choice.</p>
+            <button type="button" class="btn-secondary" id="preview-timeline-prompt">Preview assembled instructions</button>
+            <pre id="timeline-prompt-preview" class="hidden text-xs whitespace-pre-wrap break-words max-h-96 overflow-auto p-3 bg-surface-base rounded" aria-live="polite"></pre>
+        </details>
+        <p class="text-xs text-text-muted">Label IDs, complete coverage and the JSON contract are fixed by the application. Blank definitions use their defaults. Changes apply to newly queued Complete Timeline jobs.</p>
+        <button type="submit" class="btn-primary" id="save-timeline-prompts">Save Complete Timeline rules</button>
+    </form>
+</section>
+<section id="legacy-prompts" class="hidden" role="tabpanel" aria-labelledby="legacy-tab">
+    <p class="text-sm text-text-muted mb-5">Existing prompts and whitelist behaviour remain available here. Saving Complete Timeline rules does not overwrite these values.</p>
 <form id="prompts-form" class="space-y-6">
     <!-- Base Prompt -->
     <div>
@@ -31,6 +81,13 @@
         </div>
     </div>
 
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for key, label in [('intro', 'Intros'), ('outro', 'Outros')] %}
+        <label class="block text-sm text-text-secondary">Target: {{ label }}
+            <textarea name="ad_target_{{ key }}" class="input font-mono text-sm h-24 mt-2">{{ settings['ad_target_' ~ key] or default_prompts[key] }}</textarea>
+        </label>
+        {% endfor %}
+    </div>
     <!-- Summary Prompt -->
     <div>
         <label class="block text-sm font-medium text-text-secondary mb-2">
@@ -48,7 +105,7 @@
         <button type="button" id="reset-btn" class="btn-secondary">Reset to Defaults</button>
     </div>
 </form>
-
+</section>
 <script nonce="{{ csp_nonce }}">
     const form = document.getElementById('prompts-form');
     const saveBtn = document.getElementById('save-btn');
@@ -102,7 +159,7 @@
     });
 
     resetBtn.addEventListener('click', async () => {
-        if (!await appConfirm('Reset all prompts to defaults? This cannot be undone.', { danger: true })) return;
+        if (!await appConfirm('Reset all Legacy prompts to defaults? Saved Legacy overrides will be replaced.', { danger: true })) return;
         resetBtn.disabled = true;
         resetBtn.textContent = 'Resetting...';
 
@@ -121,5 +178,73 @@
             resetBtn.textContent = 'Reset to Defaults';
         }
     });
+</script>
+<script nonce="{{ csp_nonce }}">
+(() => {
+    const form = document.getElementById('timeline-prompts-form');
+    document.querySelectorAll('[data-prompt-tab]').forEach(button => button.addEventListener('click', () => {
+        document.querySelectorAll('[data-prompt-tab]').forEach(tab => {
+            const active = tab === button;
+            tab.setAttribute('aria-selected', String(active));
+            tab.tabIndex = active ? 0 : -1;
+            tab.classList.toggle('btn-primary', active);
+            tab.classList.toggle('btn-secondary', !active);
+        });
+        document.getElementById('timeline-prompts').classList.toggle('hidden', button.dataset.promptTab !== 'timeline');
+        document.getElementById('legacy-prompts').classList.toggle('hidden', button.dataset.promptTab !== 'legacy');
+    }));
+    document.querySelector('[role="tablist"]').addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const tabs = [...document.querySelectorAll('[data-prompt-tab]')];
+        const index = tabs.indexOf(document.activeElement);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 :
+            (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next].click();
+        tabs[next].focus();
+    });
+    form.querySelectorAll('[data-default]').forEach(field => field.addEventListener('input', () => {
+        const origin = document.querySelector(`[data-origin-for="${field.id}"]`);
+        if (origin) origin.textContent = 'Unsaved changes';
+    }));
+    document.querySelectorAll('[data-prompt-reset]').forEach(button => button.addEventListener('click', () => {
+        const field = document.getElementById(button.dataset.promptReset);
+        field.value = field.dataset.default;
+        const origin = document.querySelector(`[data-origin-for="${field.id}"]`);
+        if (origin) origin.textContent = 'Default (save to apply)';
+    }));
+    async function submit(url, button) {
+        button.disabled = true;
+        try {
+            const response = await fetch(url, {method: 'POST', body: new FormData(form)});
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.detail || 'Unable to save prompt rules');
+            return data;
+        } catch (error) {
+            appToast(error.message, {type: 'error'});
+            return null;
+        } finally { button.disabled = false; }
+    }
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const data = await submit(form.action, document.getElementById('save-timeline-prompts'));
+        if (data) {
+            form.querySelectorAll('[data-default]').forEach(field => {
+                const origin = document.querySelector(`[data-origin-for="${field.id}"]`);
+                const isDefault = !field.value.trim() || field.value.trim() === field.dataset.default;
+                if (isDefault) field.value = field.dataset.default;
+                if (origin) origin.textContent = isDefault ? 'Default' : 'Saved override';
+            });
+            appToast(data.detail, {type: 'success'});
+        }
+    });
+    document.getElementById('preview-timeline-prompt').addEventListener('click', async event => {
+        const data = await submit('/admin/prompts/timeline/preview', event.currentTarget);
+        if (!data) return;
+        const preview = document.getElementById('timeline-prompt-preview');
+        preview.textContent = data.system_prompt + '\n\nRequest settings and output contract\n' + JSON.stringify({...data, system_prompt: undefined}, null, 2);
+        preview.classList.remove('hidden');
+    });
+})();
 </script>
 {% endblock %}

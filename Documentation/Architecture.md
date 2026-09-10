@@ -38,13 +38,16 @@ Key areas:
 1. Discover episodes from subscribed feeds.
 2. Download source audio.
 3. Transcribe locally.
-4. Ask the configured LLM provider to identify removable segments.
+4. Use Legacy ad detection or opt-in Complete Timeline classification and deterministic removal choices.
 5. Cut and concatenate audio with FFmpeg.
 6. Update SQLite state and regenerate RSS feeds.
 
 Supporting modules include:
 - `app/core/audio.py`: FFmpeg helpers.
 - `app/core/ai_services.py`: provider integrations, transcription, summaries, and TTS.
+- `app/core/timeline.py`: complete speech/gap timelines, fixed output schema, versioned job settings and category/short-island cuts.
+- `app/core/prompt_defaults.py`: shared Legacy execution, display and reset defaults.
+- `app/web/timeline_rules.py`: administrator category/summary rules and effective request preview.
 - `app/core/artwork.py`: safe source-image retrieval and cached ad-free artwork generation.
 - `app/core/rss_gen.py`: generated feed output.
 - `app/core/feed.py`: feed parsing.
@@ -59,6 +62,12 @@ Gemini remains the default provider. The custom provider is a separate, opt-in O
 configuration with its own base URL, model cascade, and optional credential. It never inherits the
 OpenAI provider credential. Keyless endpoints receive an internal non-secret SDK placeholder because
 the OpenAI client requires a non-empty key value.
+
+[Complete Timeline](COMPLETE_TIMELINE.md) uses schema-constrained output where supported, with
+application validation in every mode. Format compatibility and model cascades stay within the
+selected provider. New Complete Timeline jobs freeze classification settings without credentials;
+existing NULL-snapshot jobs stay Legacy. Classification caches exclude cut choices so matching
+source/transcript analysis can be reused when only the editing policy changes.
 
 ### Text-To-Speech
 

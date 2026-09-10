@@ -10,6 +10,17 @@
 </p>
 
 <form action="/admin/global-subscription-settings/update" method="POST">
+    <input type="hidden" name="timeline_settings_present" value="true">
+    <div class="space-y-3 mb-8">
+        <label class="block font-semibold" for="default_processing_workflow">Default processing workflow</label>
+        <select class="select" name="default_processing_workflow" id="default_processing_workflow">
+            <option value="legacy" {% if settings.default_processing_workflow == 'legacy' %}selected{% endif %}>Legacy (existing behaviour)</option>
+            <option value="complete_timeline" {% if settings.default_processing_workflow == 'complete_timeline' %}selected{% endif %}>Complete Timeline (opt-in)</option>
+        </select>
+        <p class="text-sm text-text-muted">Existing podcasts stay on Legacy until you choose Complete Timeline or enable their workflow's Use global settings toggle.
+            New podcasts follow this default. Queued jobs keep their chosen workflow; published episodes are not automatically reprocessed.</p>
+        <a class="text-sm text-primary-400" href="/admin/prompts">Review category definitions and summary rules</a>
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- Content Removal -->
         <div class="space-y-4">
@@ -41,15 +52,30 @@
                 </label>
             </div>
 
+            <div class="space-y-3 border-t border-white/[0.08] pt-4">
+                <h4 class="font-semibold">Complete Timeline preferences</h4>
+                <label class="flex items-center gap-3">
+                    <input type="checkbox" name="default_remove_non_editorial_non_speech" value="true" {% if settings.default_remove_non_editorial_non_speech %}checked{% endif %}>
+                    Remove non-editorial non-speech (such as ad jingles)
+                </label>
+                <label class="flex items-center gap-3">
+                    <input type="checkbox" name="default_remove_editorial_non_speech" value="true" {% if settings.default_remove_editorial_non_speech %}checked{% endif %}>
+                    Remove editorial non-speech (such as music examples)
+                </label>
+                <label class="block text-sm" for="default_minimum_retained_seconds">Remove retained islands shorter than (seconds)</label>
+                <input class="input" type="number" name="default_minimum_retained_seconds" id="default_minimum_retained_seconds" min="0" max="600" step="0.1" required value="{{ settings.default_minimum_retained_seconds }}">
+                <p class="text-xs text-text-muted">Default 10; 0 disables. Applies only between two selected removal intervals, and can override a Content or editorial classification. Reports show these extra cuts separately. Unknown gaps stay Content.</p>
+            </div>
+
             <div class="p-4 rounded-lg border border-white/[0.08] bg-white/[0.02]">
                 <div class="flex items-start gap-3">
                     <input type="checkbox" name="whitelist_mode" id="whitelist_mode"
                         class="mt-1 h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500"
                         {% if settings.whitelist_mode %}checked{% endif %}>
                     <div>
-                        <label for="whitelist_mode" class="text-sm font-medium text-text-secondary cursor-pointer">Whitelist Mode</label>
+                        <label for="whitelist_mode" class="text-sm font-medium text-text-secondary cursor-pointer">Legacy Whitelist Mode</label>
                         <p class="text-xs text-text-muted mt-1">
-                            Keep only model-labelled content segments instead of removing model-labelled ads/promos.
+                            Applies only to Legacy jobs. Keep only model-labelled content segments instead of removing model-labelled ads/promos.
                         </p>
                     </div>
                 </div>
