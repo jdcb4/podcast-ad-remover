@@ -428,6 +428,7 @@ def init_db():
         ai_model_cascade TEXT DEFAULT '["gemini-3.5-flash", "gemini-3-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]',
         piper_model TEXT DEFAULT 'en_GB-cori-high.onnx',
         concurrent_downloads INTEGER DEFAULT 2,
+        download_max_redirects INTEGER DEFAULT 5,
         retention_days INTEGER DEFAULT 30,
         check_interval_minutes INTEGER DEFAULT 60,
         daily_download_limit INTEGER DEFAULT 0,
@@ -604,6 +605,7 @@ def init_db():
         "ALTER TABLE subscriptions ADD COLUMN manual_retention_days INTEGER DEFAULT 14",
         "ALTER TABLE subscriptions ADD COLUMN retention_limit INTEGER DEFAULT 1",
         "ALTER TABLE app_settings ADD COLUMN check_interval_minutes INTEGER DEFAULT 60",
+        "ALTER TABLE app_settings ADD COLUMN download_max_redirects INTEGER DEFAULT 5",
         
         # Global Subscription Defaults
         "ALTER TABLE app_settings ADD COLUMN default_remove_ads INTEGER DEFAULT 1",

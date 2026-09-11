@@ -14,7 +14,21 @@ import httpx
 from app.core.config import settings
 from app.core.url_utils import validate_http_url
 
-MAX_REDIRECTS = 5
+def max_download_redirects() -> int:
+    """Return the configured download redirect cap."""
+    value = getattr(settings, 'MAX_DOWNLOAD_REDIRECTS', 5)
+    try:
+        from app.core.utils import get_global_settings
+
+        global_settings = get_global_settings()
+        value = global_settings.get('download_max_redirects', value)
+    except Exception:
+        pass
+
+    try:
+        return max(0, min(50, int(value)))
+    except (TypeError, ValueError):
+        return 5
 
 
 def request_target(url: str):
@@ -33,27 +47,29 @@ def request_target(url: str):
 
 @contextmanager
 def stream_get(client, url: str, *, timeout=30.0):
-    for hop in range(MAX_REDIRECTS + 1):
+    redirect_limit = max_download_redirects()
+    for hop in range(redirect_limit + 1):
         target, headers, extensions = request_target(url)
         with client.stream('GET', target, headers=headers, extensions=extensions, follow_redirects=False, timeout=timeout) as response:
             if not response.is_redirect:
                 yield response
                 return
             location = response.headers.get('location')
-            if not location or hop == MAX_REDIRECTS:
+            if not location or hop == redirect_limit:
                 raise ValueError('Invalid redirect or too many redirects')
             url = urljoin(url, location)
 
 
 @asynccontextmanager
 async def async_stream_get(client, url: str, *, timeout=300.0):
-    for hop in range(MAX_REDIRECTS + 1):
+    redirect_limit = max_download_redirects()
+    for hop in range(redirect_limit + 1):
         target, headers, extensions = await asyncio.to_thread(request_target, url)
         async with client.stream('GET', target, headers=headers, extensions=extensions, follow_redirects=False, timeout=timeout) as response:
             if not response.is_redirect:
                 yield response
                 return
             location = response.headers.get('location')
-            if not location or hop == MAX_REDIRECTS:
+            if not location or hop == redirect_limit:
                 raise ValueError('Invalid redirect or too many redirects')
             url = urljoin(url, location)

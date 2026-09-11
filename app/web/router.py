@@ -507,6 +507,7 @@ async def create_setup_admin_user(
 async def update_system_settings(
     request: Request,
     concurrent_downloads: int = Form(2),
+    download_max_redirects: int = Form(5),
     retention_days: int = Form(30),
     check_interval_minutes: int = Form(60),
     whisper_cpu_threads: int = Form(0),
@@ -598,12 +599,14 @@ async def update_system_settings(
         # Update settings
         whisper_cpu_threads = max(0, min(64, whisper_cpu_threads or 0))
         ffmpeg_threads = max(0, min(64, ffmpeg_threads or 0))
+        download_max_redirects = max(0, min(50, download_max_redirects or 0))
         ai_api_default_requests_per_minute = max(1, min(10000, ai_api_default_requests_per_minute or 60))
         ai_api_default_requests_per_day = max(1, min(1000000, ai_api_default_requests_per_day or 1000))
         ai_api_unauth_requests_per_minute = max(1, min(1000, ai_api_unauth_requests_per_minute or 10))
 
         conn.execute("""
             UPDATE app_settings SET concurrent_downloads = ?,
+                download_max_redirects = ?,
                 retention_days = ?,
                 check_interval_minutes = ?,
                 whisper_cpu_threads = ?,
@@ -623,7 +626,7 @@ async def update_system_settings(
                 whitelist_mode = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
-        """, (concurrent_downloads, retention_days, check_interval_minutes,
+        """, (concurrent_downloads, download_max_redirects, retention_days, check_interval_minutes,
               whisper_cpu_threads, ffmpeg_threads, 1 if unload_whisper_after_job else 0,
               1 if ai_api_enabled else 0,
               ai_api_default_requests_per_minute,
