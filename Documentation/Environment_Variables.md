@@ -154,7 +154,7 @@ new budget. Authentication/billing failures and exhausted budgets require interv
 ## Removal warning tones
 
 Global Subscription Settings provides independent on/off switches and sound choices for start,
-middle and end removals. All switches default off; the initial sound choice is Soft chime.
+middle and end removals. All switches default off; the initial sound choice is Wooden notes.
 `warning_tone_start`, `warning_tone_middle`, and `warning_tone_end` control insertion;
 `warning_tone_start_style`, `warning_tone_middle_style`, and `warning_tone_end_style` select
 `soft`, `warm`, `clear`, `bell`, `sonar`, or `wooden` independently.

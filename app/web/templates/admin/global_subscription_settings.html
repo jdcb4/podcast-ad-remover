@@ -186,7 +186,7 @@
             <div class="p-4 rounded-xl border border-white/[0.08] space-y-3 min-w-0">
                 <label class="flex items-center gap-3" id="{{ key }}-{{ position }}-label">
                     <input type="radio" name="warning_tone_{{ position }}_style" value="{{ key }}"
-                        {% if (settings['warning_tone_' ~ position ~ '_style'] or 'soft') == key %}checked{% endif %}>
+                        {% if (settings['warning_tone_' ~ position ~ '_style'] or 'wooden') == key %}checked{% endif %}>
                     <span>{{ style.label }}</span>
                 </label>
                 <audio controls preload="none" aria-labelledby="{{ key }}-{{ position }}-label" class="max-w-full"

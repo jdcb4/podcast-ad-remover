@@ -1007,7 +1007,7 @@ class Processor:
             tone_options = {position: bool(global_settings.get(f'warning_tone_{position}'))
                             for position in ('start', 'middle', 'end')}
             for position in ('start', 'middle', 'end'):
-                tone_options[f'{position}_style'] = global_settings.get(f'warning_tone_{position}_style') or 'soft'
+                tone_options[f'{position}_style'] = global_settings.get(f'warning_tone_{position}_style') or 'wooden'
             audio_options = {'warning_tones': tone_options} if any(
                 tone_options[position] for position in ('start', 'middle', 'end')) else {}
 
