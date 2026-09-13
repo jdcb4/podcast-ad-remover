@@ -130,6 +130,44 @@ async def test_system_settings_refuse_standalone_feed_auth_without_credentials(i
     assert row["enable_feed_auth"] == 0
     assert row["feed_auth_username"] is None
     assert row["feed_auth_password"] is None
+
+
+@pytest.mark.asyncio
+async def test_system_settings_update_saves_download_redirect_limit(isolated_data_dir, monkeypatch):
+    init_db()
+    monkeypatch.setattr(settings, "SESSION_SECRET_KEY", "test-secret-that-is-not-the-default")
+
+    response = await web_router.update_system_settings(
+        request=object(),
+        concurrent_downloads=2,
+        download_max_redirects=12,
+        retention_days=30,
+        check_interval_minutes=60,
+        whisper_cpu_threads=0,
+        ffmpeg_threads=0,
+        unload_whisper_after_job=False,
+        ai_api_enabled=False,
+        ai_api_default_requests_per_minute=60,
+        ai_api_default_requests_per_day=1000,
+        ai_api_unauth_requests_per_minute=10,
+        app_external_url=None,
+        auth_enabled=False,
+        ip_allowlist=None,
+        enable_feed_auth=False,
+        feed_auth_username=None,
+        feed_auth_password=None,
+        public_subscribe_page_enabled=False,
+        whitelist_mode=None,
+        redirect_to=None,
+        admin_user=object(),
+    )
+
+    assert response.status_code == 303
+    with get_db_connection() as conn:
+        row = conn.execute("SELECT download_max_redirects FROM app_settings WHERE id = 1").fetchone()
+    assert row["download_max_redirects"] == 12
+
+
 @pytest.mark.parametrize("secret", ["", " ", "replace-with-a-long-random-secret", "change-me", "changeme"])
 def test_documented_placeholders_are_rejected(monkeypatch, secret):
     from app.core.config import is_default_session_secret, settings

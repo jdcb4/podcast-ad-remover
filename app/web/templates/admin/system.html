@@ -111,6 +111,13 @@
             </div>
 
             <div>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Download Redirect Limit</label>
+                <input type="number" name="download_max_redirects" value="{{ settings.download_max_redirects or 5 }}"
+                    min="0" max="50" class="input">
+                <p class="text-xs text-text-muted mt-1">Maximum HTTP redirects to follow for episode downloads.</p>
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium text-text-secondary mb-2">Retention Policy</label>
                 <div class="flex items-center gap-2">
                     <input type="number" name="retention_days" value="{{ settings.retention_days or 30 }}" min="1"

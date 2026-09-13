@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     LOG_BACKUP_COUNT: int = 5
     MAX_FEED_BYTES: int = 10 * 1024 * 1024  # 10 MB
     MAX_DOWNLOAD_BYTES: int = 1500 * 1024 * 1024  # 1.5 GB
+    MAX_DOWNLOAD_REDIRECTS: int = Field(5, ge=0, le=50)
     MIN_FREE_SPACE_BYTES: int = 1024 * 1024 * 1024  # 1 GB
     FFMPEG_TIMEOUT_SECONDS: int = 7200  # 2 hours per FFmpeg operation
     ALLOW_PRIVATE_FEEDS: bool = True
