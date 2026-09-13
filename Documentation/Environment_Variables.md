@@ -153,10 +153,9 @@ new budget. Authentication/billing failures and exhausted budgets require interv
 
 ## Removal warning tones
 
-Global Subscription Settings provides independent on/off switches and sound choices for start,
-middle and end removals. All switches default off; the initial sound choice is Wooden notes.
-`warning_tone_start`, `warning_tone_middle`, and `warning_tone_end` control insertion;
-`warning_tone_start_style`, `warning_tone_middle_style`, and `warning_tone_end_style` select
-`soft`, `warm`, `clear`, `bell`, `sonar`, or `wooden` independently.
+Global Subscription Settings provides independent on/off switches for start, middle and end
+removals. All switches default off and always use the bundled Wooden notes sounds.
+`warning_tone_start`, `warning_tone_middle`, and `warning_tone_end` control insertion.
+Legacy `warning_tone_*_style` columns remain for rollback compatibility but are ignored.
 These global audio settings apply to all podcasts when processing begins, including reprocessing.
 They do not alter existing published files automatically. See [Warning tones](WARNING_TONES.md).

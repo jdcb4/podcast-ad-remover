@@ -17,10 +17,10 @@ TONE_STYLES = {
 ASSET_DIR = Path(__file__).resolve().parents[1] / "web" / "static" / "audio" / "warning-tones"
 
 
-def tone_path(style: str, kind: str) -> Path:
-    if style not in TONE_STYLES or kind not in ("start", "end", "middle"):
+def tone_path(kind: str) -> Path:
+    if kind not in ("start", "end", "middle"):
         raise ValueError("Unknown warning tone")
-    return ASSET_DIR / f"{style}-{kind}.wav"
+    return ASSET_DIR / f"wooden-{kind}.wav"
 
 
 def generate_assets():
@@ -53,7 +53,7 @@ def generate_assets():
                 if index < len(notes) - 1:
                     samples.extend([0] * int(rate * 0.055))
             samples.extend([0] * int(rate * 0.025))
-            with wave.open(str(tone_path(style, kind)), "wb") as output:
+            with wave.open(str(ASSET_DIR / f"{style}-{kind}.wav"), "wb") as output:
                 output.setparams((1, 2, rate, 0, "NONE", "not compressed"))
                 output.writeframes(struct.pack(f"<{len(samples)}h", *samples))
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Simplify removal-tone settings to three enable switches using fixed Wooden notes. Remove in-app sound selection and previews; ignore legacy style values without deleting stored settings.
+
 - Select Wooden notes as the default beginning, ending and middle-removal sounds; migrate the former Soft chime defaults without changing enable switches or other selected styles.
 
 

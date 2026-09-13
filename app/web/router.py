@@ -1,4 +1,3 @@
-from app.core.warning_tones import TONE_STYLES
 from app.core.model_defaults import MODEL_DEFAULTS
 from app.core.artifacts import artifact_path
 from app.core.permissions import can_manage_subscription as _can_manage_subscription
@@ -1992,7 +1991,6 @@ async def admin_global_subscription_settings(request: Request):
             "user": user,
             "settings": settings_row,
             "active_tab": "global_subs",
-            "tone_styles": TONE_STYLES
         }
     )
 
@@ -2022,14 +2020,8 @@ async def update_global_subscription_settings(
     warning_tone_start: bool = Form(False),
     warning_tone_middle: bool = Form(False),
     warning_tone_end: bool = Form(False),
-    warning_tone_start_style: str = Form("wooden"),
-    warning_tone_middle_style: str = Form("wooden"),
-    warning_tone_end_style: str = Form("wooden"),
     admin_user = Depends(require_admin)
 ):
-    if warning_tones_present and any(style not in TONE_STYLES for style in
-                                     (warning_tone_start_style, warning_tone_middle_style, warning_tone_end_style)):
-        raise HTTPException(400, "Unknown warning tone style")
     from app.core.timeline import WORKFLOWS, threshold
     if default_processing_workflow is not None and default_processing_workflow not in WORKFLOWS:
         raise HTTPException(400, 'Unknown processing workflow')
@@ -2073,10 +2065,8 @@ async def update_global_subscription_settings(
         ))
         if warning_tones_present:
             conn.execute("""UPDATE app_settings SET warning_tone_start = ?, warning_tone_middle = ?,
-                         warning_tone_end = ?, warning_tone_start_style = ?, warning_tone_middle_style = ?,
-                         warning_tone_end_style = ? WHERE id = 1""",
-                         (warning_tone_start, warning_tone_middle, warning_tone_end,
-                          warning_tone_start_style, warning_tone_middle_style, warning_tone_end_style))
+                         warning_tone_end = ? WHERE id = 1""",
+                         (warning_tone_start, warning_tone_middle, warning_tone_end))
         conn.commit()
 
     background_tasks.add_task(_reconcile_artwork_and_feeds)

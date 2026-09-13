@@ -168,7 +168,7 @@
         <h3 id="warning-tones-heading" class="font-semibold">Removal Warning Tones</h3>
         <p class="text-sm text-text-secondary">These global switches apply to all podcasts on their next processing run.
             Each tone marks removed content only. Published episodes stay unchanged until reprocessed.
-            Beginning cues rise; ending cues fall to a lower final note. Each middle removal uses one low note.
+            Wooden notes mark each removal. Beginning cues rise; ending cues fall to a lower final note. Each middle removal uses one low note.
             A start cue plays after any spoken title or summary, just before the retained podcast audio.</p>
         <input type="hidden" name="warning_tones_present" value="true">
         {% for position, label in [('start', 'Content removed at start'), ('middle', 'Content removed in the middle'), ('end', 'Content removed at end')] %}
@@ -177,24 +177,6 @@
                 {% if settings['warning_tone_' ~ position] %}checked{% endif %}>
             <span>{{ label }}</span>
         </label>
-        {% endfor %}
-        {% for position, label in [('start', 'Beginning sound'), ('end', 'Ending sound'), ('middle', 'Middle removal sound')] %}
-        <fieldset class="space-y-3">
-            <legend class="font-medium mb-3">{{ label }}</legend>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {% for key, style in tone_styles.items() %}
-            <div class="p-4 rounded-xl border border-white/[0.08] space-y-3 min-w-0">
-                <label class="flex items-center gap-3" id="{{ key }}-{{ position }}-label">
-                    <input type="radio" name="warning_tone_{{ position }}_style" value="{{ key }}"
-                        {% if (settings['warning_tone_' ~ position ~ '_style'] or 'wooden') == key %}checked{% endif %}>
-                    <span>{{ style.label }}</span>
-                </label>
-                <audio controls preload="none" aria-labelledby="{{ key }}-{{ position }}-label" class="max-w-full"
-                    src="/static/audio/warning-tones/{{ key }}-{{ position }}.wav"></audio>
-            </div>
-            {% endfor %}
-            </div>
-        </fieldset>
         {% endfor %}
     </section>
 

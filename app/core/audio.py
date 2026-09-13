@@ -147,7 +147,7 @@ class AudioProcessor:
         if keep_segments and any(cues.get(position) for position in ('start', 'middle', 'end')):
             from app.core.warning_tones import tone_path
             for position in ('start', 'middle', 'end'):
-                tone_inputs.extend(['-i', str(tone_path(cues.get(f'{position}_style', 'wooden'), position))])
+                tone_inputs.extend(['-i', str(tone_path(position))])
 
         def add_tone(kind):
             label = f'tone{len(concat_inputs)}'
