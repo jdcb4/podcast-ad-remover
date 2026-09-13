@@ -179,3 +179,41 @@ actual source size; streaming rechecks free space every 8 MiB. Estimates are con
 admission guards, not filesystem quotas. External disk writers can still cause ENOSPC;
 attempt isolation preserves the last publication and failed work can resume safely.
 Storage directory scans run off the request loop and are cached for 30 seconds.
+
+## Piper removal assessment — 2026-09-13
+
+Measured from the pinned Linux x86-64 / CPython 3.11 wheels, without installing them:
+
+| Component | Download bytes | Unpacked bytes |
+| --- | ---: | ---: |
+| piper-tts 1.2.0 | 29,454 | 151,257 |
+| piper-phonemize 1.1.0 | 24,955,361 | 46,041,353 |
+| Total exclusive packages | 24,984,815 (~25 MB) | 46,192,610 (~46 MB / 44 MiB) |
+
+The default Cori high voice is another 114,219,352 bytes (~114 MB / 109 MiB), plus a 4,963-byte
+configuration file. It is downloaded into `/data/models/piper` on demand, not included in the image.
+Removing installed Piper and one default voice therefore accounts for about 160 MB combined, across
+image and persistent storage. Additional downloaded voices add more. Do not delete existing voice
+files as part of a code update without a separate user request.
+
+ONNX Runtime is a direct dependency of faster-whisper 1.2.1 as well as Piper, so removing Piper
+**does not remove ONNX Runtime**, NumPy, FFmpeg, or the transcription stack. These are package/file
+measurements, not an exact Docker image delta. Docker Desktop's Linux engine was unavailable during
+this assessment; no comparable pair of images was built. Compression/layers/bytecode affect the
+actual image saving. The old 1.6 GB figure above is a historical image measurement, not a current one.
+
+The existing `INSTALL_TTS=0` Docker build option already excludes Piper; Gemini speech still works.
+A full removal would simplify `requirements-tts.txt`, Piper voice selection/status UI, model/config
+download and filename handling, `tts_worker.py`, subprocess startup/timeout/cleanup, and the
+architecture-dependent phonemizer packaging. Keep shared remote speech generation, audio
+concatenation, and optional title/summary features. Piper is loaded in short-lived subprocesses;
+removal avoids local speech-generation CPU/RAM bursts, but no isolated peak-RAM measurement was
+made, and large steady idle-memory savings should not be assumed.
+
+Assessment only: Piper remains available in this change. The warning sounds use bundled WAV assets
+(total 375,156 bytes), independent of either local or remote TTS.
+
+Sources checked: [Piper 1.2.0 package metadata](https://pypi.org/pypi/piper-tts/1.2.0/json),
+[phonemizer 1.1.0 wheel metadata](https://pypi.org/pypi/piper-phonemize/1.1.0/json),
+[faster-whisper 1.2.1 dependencies](https://pypi.org/pypi/faster-whisper/1.2.1/json), and
+[Cori high file sizes](https://huggingface.co/api/models/rhasspy/piper-voices/tree/main/en/en_GB/cori/high).

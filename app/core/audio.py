@@ -105,6 +105,7 @@ class AudioProcessor:
         output_path: str,
         remove_segments: List[Dict[str, float]],
         ffmpeg_threads: int = 0,
+        warning_tones: dict | None = None,
     ):
         """
         Remove specified segments from audio.
@@ -141,23 +142,44 @@ class AudioProcessor:
         
         filter_parts = []
         concat_inputs = []
-        
+        tone_inputs = []
+        cues = warning_tones or {}
+        if keep_segments and any(cues.get(position) for position in ('start', 'middle', 'end')):
+            from app.core.warning_tones import tone_path
+            for position in ('start', 'middle', 'end'):
+                tone_inputs.extend(['-i', str(tone_path(cues.get(f'{position}_style', 'soft'), position))])
+
+        def add_tone(kind):
+            label = f'tone{len(concat_inputs)}'
+            source = {'start': 1, 'middle': 2, 'end': 3}[kind]
+            filter_parts.append(f'[{source}:a]asetpts=PTS-STARTPTS,aformat=sample_rates=44100:channel_layouts=stereo[{label}]')
+            concat_inputs.append(f'[{label}]')
+
+        if keep_segments and keep_segments[0][0] > 0 and cues.get('start'):
+            add_tone('start')
         for i, (start, end) in enumerate(keep_segments):
+            if i > 0 and cues.get('middle'):
+                add_tone('middle')
             # Add aformat to ensure consistent sample rate and layout for concat
             filter_parts.append(f"[0:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS,aformat=sample_rates=44100:channel_layouts=stereo[a{i}]")
             concat_inputs.append(f"[a{i}]")
             
+        if keep_segments and keep_segments[-1][1] < total_duration and cues.get('end'):
+            add_tone('end')
+        if not keep_segments:
+            raise ValueError('No retained audio remains after removal')
         filter_str = ";".join(filter_parts)
         # Output to intermediate [out_concat], then force format/padding before encoder
         # asetnsamples=n=1152 ensures standard MP3 frame boundaries
         # sample_fmts=s16p ensures we use signed 16-bit planar integers (avoiding float padding issues)
-        concat_str = "".join(concat_inputs) + f"concat=n={len(keep_segments)}:v=0:a=1[out_concat]"
+        concat_str = "".join(concat_inputs) + f"concat=n={len(concat_inputs)}:v=0:a=1[out_concat]"
         format_str = f"[out_concat]asetnsamples=n=1152,aformat=sample_rates=44100:channel_layouts=stereo:sample_fmts=s16p[out]"
         full_filter = f"{filter_str};{concat_str};{format_str}"
         
         cmd = [
             "ffmpeg", "-y",
             "-i", input_path,
+            *tone_inputs,
             "-filter_complex", full_filter,
             "-map", "[out]",
             *AudioProcessor._thread_args(ffmpeg_threads),

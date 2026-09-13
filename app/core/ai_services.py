@@ -14,6 +14,7 @@ from typing import List, Dict
 from urllib.parse import urlsplit, urlunsplit
 from app.core.config import settings
 from app.core.prompt_defaults import LEGACY_DEFAULTS
+from app.core.model_defaults import MODEL_DEFAULTS
 from app.core.provider_budget import provider_request, ProviderBudgetExceeded
 import httpx
 
@@ -597,25 +598,9 @@ class AdDetector:
     GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
     GEMINI_REST_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
-    # Default Gemini Cascade
-    DEFAULT_GEMINI_MODELS = [
-        'gemini-3.5-flash',
-        'gemini-3-flash',
-        'gemini-3.1-flash-lite',
-        'gemini-2.5-flash',
-        'gemini-2.5-flash-lite',
-    ]
-    DEFAULT_OPENROUTER_MODELS = [
-        'google/gemini-3.5-flash',
-        'google/gemini-3-flash',
-        'google/gemini-3.1-flash-lite',
-        'google/gemini-2.5-flash',
-        'google/gemini-2.5-flash-lite',
-    ]
-    DEFAULT_GEMINI_TTS_MODELS = [
-        'gemini-3.1-flash-tts-preview',
-        'gemini-2.5-flash-preview-tts',
-    ]
+    DEFAULT_GEMINI_MODELS = MODEL_DEFAULTS['gemini']
+    DEFAULT_OPENROUTER_MODELS = MODEL_DEFAULTS['openrouter']
+    DEFAULT_GEMINI_TTS_MODELS = MODEL_DEFAULTS['gemini_tts']
     GEMINI_TTS_VOICES = {'Orus', 'Enceladus', 'Laomedeia'}
 
     def __init__(self):
@@ -734,9 +719,9 @@ class AdDetector:
         else:
             # Load from DB
             if provider_type == 'openai':
-                models_list = self._parse_model_setting(self.settings.get('openai_model'), ['gpt-4o'])
+                models_list = self._parse_model_setting(self.settings.get('openai_model'), MODEL_DEFAULTS['openai'])
             elif provider_type == 'anthropic':
-                models_list = self._parse_model_setting(self.settings.get('anthropic_model'), ['claude-3-5-sonnet-20241022'])
+                models_list = self._parse_model_setting(self.settings.get('anthropic_model'), MODEL_DEFAULTS['anthropic'])
             elif provider_type == 'openrouter':
                 models_list = self._parse_model_setting(self.settings.get('openrouter_model'), self.DEFAULT_OPENROUTER_MODELS)
             elif provider_type == 'custom':

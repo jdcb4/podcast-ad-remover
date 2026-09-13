@@ -274,3 +274,9 @@ npm run docker:publish
 ## License
 
 MIT License
+
+### Optional removal sounds
+
+Global Subscription Settings includes separate beginning, middle and ending removal tones, off by
+default, with six previewable sound sets. Beginning/end cues play only when content was removed at
+that edge. Sounds are bundled WAVs and do not require TTS. See [sound choices and behavior](Documentation/WARNING_TONES.md).

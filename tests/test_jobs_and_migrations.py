@@ -136,8 +136,8 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
     assert "gemini-3-flash" in row["ai_model_cascade"]
     assert "gemini-3.1-flash-lite" in row["ai_model_cascade"]
     assert "google/gemini-3.5-flash" in row["openrouter_model"]
-    assert "google/gemini-3-flash" in row["openrouter_model"]
-    assert "google/gemini-3.1-flash-lite" in row["openrouter_model"]
+    assert "openai/gpt-5.6-terra" in row["openrouter_model"]
+    assert "deepseek/deepseek-v4-pro" in row["openrouter_model"]
     assert row["notifications_enabled"] == 0
     assert row["notification_urls"] is None
     assert row["notify_access_requests"] == 1

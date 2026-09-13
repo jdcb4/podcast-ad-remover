@@ -11,7 +11,7 @@ from app.infra.repository import JobRepository, SubscriptionRepository
 def test_upgrade_keeps_legacy_workflows_jobs_prompts_and_publications(isolated_data_dir, monkeypatch):
     migrations = database.FORMAL_MIGRATIONS
     with monkeypatch.context() as patch:
-        patch.setattr(database, 'FORMAL_MIGRATIONS', migrations[:-1])
+        patch.setattr(database, 'FORMAL_MIGRATIONS', [migration for migration in migrations if migration[0] < '20260910_0016_complete_timeline_opt_in'])
         init_db()
     with get_db_connection() as conn:
         conn.execute("UPDATE app_settings SET ad_prompt_base='Saved base', ad_target_sponsor='Saved ads', summary_prompt_template='Saved summary', whitelist_mode=1")

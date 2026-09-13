@@ -60,6 +60,8 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 
 ## Documentation Map
 
+- `Documentation/WARNING_TONES.md`: opt-in removal cues, bundled sound previews and migration.
+
 - `Documentation/Architecture.md`: current application structure and data layout.
 - `Documentation/COMPLETE_TIMELINE.md`: opt-in processing, categories, summaries, provider output handling and migration.
 - `Documentation/API.md`: optional AI-facing REST API, auth, scopes, and rate limits.

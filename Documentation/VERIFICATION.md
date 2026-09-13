@@ -267,3 +267,10 @@ the shipped JavaScript against actual Jinja output; native dialog/focus/layout s
 Before deployment, rehearse `migration_dry_run.py` on an online snapshot of the target database,
 record the immutable image and media backup, and check the disabled-processing clone before
 re-enabling work. A build alone does not validate production data or paid provider behavior.
+
+## Model defaults and warning tones
+
+`test_warning_tones.py` checks fresh defaults, a one-time upgrade preserving custom model choices,
+settings persistence/validation and older form compatibility. Real FFmpeg fixtures exercise all
+combinations of the three tone switches, overlapping cuts, audible cue placement, retained silence,
+edge-free cuts and no-cut output. Previews and processing share the bundled WAV source files.
