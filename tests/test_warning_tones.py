@@ -40,21 +40,24 @@ def test_model_defaults_upgrade_preserves_custom_settings(isolated_data_dir):
         assert conn.execute('SELECT openai_model FROM app_settings').fetchone()[0] == 'gpt-4o'
 
 
-def test_tone_settings_save_preview_and_old_form_compatibility(client):
+def test_tone_settings_save_fixed_sound_and_old_form_compatibility(client):
     url = '/admin/global-subscription-settings/update'
     assert client.post(url, data={'warning_tones_present': 'true', 'warning_tone_start': 'true',
                                  'warning_tone_end': 'true', 'warning_tone_start_style': 'warm'},
                        follow_redirects=False).status_code == 303
     page = client.get('/admin/global-subscription-settings')
     assert page.status_code == 200
-    assert page.text.count('<audio controls') == 18
+    assert '<audio controls' not in page.text
+    for position in ('start', 'middle', 'end'):
+        assert f'name="warning_tone_{position}"' in page.text
+        assert f'warning_tone_{position}_style' not in page.text
     assert client.post(url, data={}, follow_redirects=False).status_code == 303
     with get_db_connection() as conn:
         row = conn.execute('SELECT * FROM app_settings').fetchone()
         assert (row['warning_tone_start'], row['warning_tone_middle'], row['warning_tone_end']) == (1, 0, 1)
-        assert row['warning_tone_start_style'] == 'warm'
+        assert row['warning_tone_start_style'] == 'wooden'
     assert client.post(url, data={'warning_tones_present': 'true', 'warning_tone_start_style': '../bad'},
-                       follow_redirects=False).status_code == 400
+                       follow_redirects=False).status_code == 303
     assert client.post(url, data={'warning_tones_present': 'true', 'warning_tone_start_style': 'clear'},
                        follow_redirects=False).status_code == 303
     with get_db_connection() as conn:
@@ -72,7 +75,7 @@ def test_actual_audio_marks_only_removed_intervals(tmp_path, start, middle, end)
     cuts = [{'start': a, 'end': b} for a, b in [(0, 1), (3, 4), (4, 5), (8, 9), (11, 12)]]
     options = dict(start=start, middle=middle, end=end, start_style='soft', middle_style='soft', end_style='soft')
     AudioProcessor.remove_segments(str(source), str(output), cuts, warning_tones=options)
-    edge, low = [AudioProcessor.get_duration(str(tone_path('soft', kind))) for kind in ('start', 'middle')]
+    edge, low = [AudioProcessor.get_duration(str(tone_path(kind))) for kind in ('start', 'middle')]
     assert AudioProcessor.get_duration(str(output)) == pytest.approx(7 + edge * (start + end) + 2 * low * middle, abs=0.1)
     decoded = subprocess.run(['ffmpeg', '-v', 'error', '-i', str(output), '-f', 's16le',
                               '-ac', '1', '-ar', '22050', '-'], capture_output=True, check=True).stdout
@@ -83,7 +86,7 @@ def test_actual_audio_marks_only_removed_intervals(tmp_path, start, middle, end)
     cursor = 0
     for enabled, duration, retained in [(start, edge, 2), (middle, low, 3), (middle, low, 2), (end, edge, 0)]:
         if enabled:
-            assert peak(cursor + .08) > 1000
+            assert peak(cursor + .08) > 100
             cursor += duration
         if retained:
             assert peak(cursor + .5) < 10

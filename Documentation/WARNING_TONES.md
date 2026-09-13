@@ -1,8 +1,8 @@
 # Removal warning tones
 
 Use **Podcast Preferences > Global Subscription Settings > Removal Warning Tones** to enable
-start, middle, or end cues independently, and preview/select a sound for each position.
-All switches start off. Wooden notes is the initial selection; styles can be mixed.
+start, middle, or end cues independently. All switches start off.
+Wooden notes is the fixed sound set; the app has no sound selectors or previews.
 
 - A beginning cue plays only when source content was removed before the first retained audio.
 - An ending cue plays only when source content was removed after the last retained audio.
@@ -13,24 +13,15 @@ All switches start off. Wooden notes is the initial selection; styles can be mix
 These settings are global for all podcasts and are read when processing begins. They apply to both
 Legacy and Complete Timeline, including SponsorBlock cuts. Source timestamps and removal statistics
 remain on the original timeline; the published duration includes inserted cues. Existing episodes
-need reprocessing to receive changed sounds.
+need reprocessing to receive changed enable switches.
 
-## Sound choices
+## Fixed sound
 
-| Style | Character | Beginning / ending |
-| --- | --- | --- |
-| Soft chime | Gentle pure tones | Three ascending / descending notes |
-| Warm mellow | Lower, rounded tones | Three ascending / descending notes |
-| Clear signal | Brighter, higher tones | Three ascending / descending notes |
-| Gentle bell | Soft harmonic bell | Two ascending / descending notes |
-| Sonar pair | Smooth pulsing tones | Two ascending / descending notes |
-| Wooden notes | Short, damped harmonic taps | Two ascending / descending notes |
-
-Every style includes one low middle-removal tone. Edge cues last approximately 0.47–0.70 seconds;
-middle cues last 0.25 seconds. Peak amplitude is bounded around -18 dBFS with smoothed attack/release.
-Actual perceived loudness depends on the source podcast and playback volume.
-
-Listen in the settings page or open [the standalone sound gallery](WARNING_TONE_SAMPLES.html).
+Wooden notes uses short, damped harmonic taps: two ascending notes at the beginning,
+two descending notes at the end, and one low note at an interior removal.
+Edge cues last approximately 0.47 seconds and middle cues last 0.25 seconds.
+The standalone [personal audition gallery](WARNING_TONE_SAMPLES.html) retains the original
+alternatives for development reference only; these are not settings in the app.
 
 ## Assets and implementation
 
@@ -54,3 +45,7 @@ database readable. To restore exact previous settings, use the pre-migration bac
 already frozen Complete Timeline job snapshots remain unchanged.
 
 Migration `20260913_0019_wooden_tone_default` changes the former Soft chime defaults to Wooden notes once, preserving other selected styles and all enable switches. The same pre-migration backup/rollback procedure applies.
+
+Sound style columns from the earlier migrations are retained for rollback compatibility,
+but processing and settings updates now ignore them and always use Wooden notes.
+No schema migration is required for this simplification.

@@ -271,6 +271,6 @@ re-enabling work. A build alone does not validate production data or paid provid
 ## Model defaults and warning tones
 
 `test_warning_tones.py` checks fresh defaults, a one-time upgrade preserving custom model choices,
-settings persistence/validation and older form compatibility. Real FFmpeg fixtures exercise all
+settings persistence, absence of sound selectors/previews, and older form compatibility. Real FFmpeg fixtures exercise all
 combinations of the three tone switches, overlapping cuts, audible cue placement, retained silence,
-edge-free cuts and no-cut output. Previews and processing share the bundled WAV source files.
+edge-free cuts and no-cut output. Processing always uses Wooden notes, including when legacy style values are supplied.
