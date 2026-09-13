@@ -2022,9 +2022,9 @@ async def update_global_subscription_settings(
     warning_tone_start: bool = Form(False),
     warning_tone_middle: bool = Form(False),
     warning_tone_end: bool = Form(False),
-    warning_tone_start_style: str = Form("soft"),
-    warning_tone_middle_style: str = Form("soft"),
-    warning_tone_end_style: str = Form("soft"),
+    warning_tone_start_style: str = Form("wooden"),
+    warning_tone_middle_style: str = Form("wooden"),
+    warning_tone_end_style: str = Form("wooden"),
     admin_user = Depends(require_admin)
 ):
     if warning_tones_present and any(style not in TONE_STYLES for style in

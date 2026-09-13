@@ -362,6 +362,15 @@ FORMAL_MIGRATIONS = [
         ],
     ),
 
+    (
+        "20260913_0019_wooden_tone_default",
+        [
+            "UPDATE app_settings SET warning_tone_start_style = 'wooden' WHERE warning_tone_start_style = 'soft'",
+            "UPDATE app_settings SET warning_tone_middle_style = 'wooden' WHERE warning_tone_middle_style = 'soft'",
+            "UPDATE app_settings SET warning_tone_end_style = 'wooden' WHERE warning_tone_end_style = 'soft'",
+        ],
+    ),
+
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

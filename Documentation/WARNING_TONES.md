@@ -2,7 +2,7 @@
 
 Use **Podcast Preferences > Global Subscription Settings > Removal Warning Tones** to enable
 start, middle, or end cues independently, and preview/select a sound for each position.
-All switches start off. Soft chime is the initial selection; styles can be mixed.
+All switches start off. Wooden notes is the initial selection; styles can be mixed.
 
 - A beginning cue plays only when source content was removed before the first retained audio.
 - An ending cue plays only when source content was removed after the last retained audio.
@@ -52,3 +52,5 @@ database readable. To restore exact previous settings, use the pre-migration bac
 [Recovery](RECOVERY.md); do not delete or reset `/data`. Model-default migration
 `20260913_0017_model_defaults` changes only known prior defaults, once; customized model lists and
 already frozen Complete Timeline job snapshots remain unchanged.
+
+Migration `20260913_0019_wooden_tone_default` changes the former Soft chime defaults to Wooden notes once, preserving other selected styles and all enable switches. The same pre-migration backup/rollback procedure applies.

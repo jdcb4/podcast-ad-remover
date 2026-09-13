@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Select Wooden notes as the default beginning, ending and middle-removal sounds; migrate the former Soft chime defaults without changing enable switches or other selected styles.
+
+
 - Update Gemini, OpenAI, Anthropic and OpenRouter default cascades to the requested model lists; share runtime/UI defaults and migrate recognized old defaults once without replacing custom selections. Gemini speech defaults stay unchanged.
 - Add opt-in global removal tones with separate beginning, middle and ending switches and sound selections. Ship six previewable original sound sets as tiny WAV files; insert cues only at removed content, without runtime synthesis or TTS dependencies.
 

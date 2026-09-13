@@ -24,6 +24,7 @@ def test_model_defaults_upgrade_preserves_custom_settings(isolated_data_dir):
         for provider, column in columns.items():
             assert json.loads(row[column]) == MODEL_DEFAULTS[provider]
         assert all(row[f'warning_tone_{part}'] == 0 for part in ('start', 'middle', 'end'))
+        assert all(row[f'warning_tone_{part}_style'] == 'wooden' for part in ('start', 'middle', 'end'))
         conn.execute("DELETE FROM schema_migrations WHERE version = '20260913_0017_model_defaults'")
         conn.execute("UPDATE app_settings SET openai_model = ?, anthropic_model = 'my-custom-model'", ('["gpt-4o"]',))
         conn.commit()
