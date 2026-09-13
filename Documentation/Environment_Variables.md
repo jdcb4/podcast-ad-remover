@@ -21,15 +21,48 @@ cloud credential is never forwarded to a custom endpoint.
 
 ## Configured Gemini defaults and provider quotas
 
-The default direct Gemini cascade is:
+The default text-analysis provider is Gemini. Each provider tries the following models in order:
 
-1. `gemini-3.5-flash`
-2. `gemini-3-flash`
-3. `gemini-3.1-flash-lite`
-4. `gemini-2.5-flash`
-5. `gemini-2.5-flash-lite`
+### Gemini
 
-The OpenRouter Gemini cascade uses the same order with the `google/` prefix. The app tries configured models in order and moves to the next model if a request fails or is rate-limited.
+1. `gemini-3.8-flash`
+2. `gemini-3.7-flash`
+3. `gemini-3.6-flash`
+4. `gemini-3.5-flash`
+5. `gemini-3-flash-preview`
+6. `gemini-3.5-flash-lite`
+7. `gemini-3.1-flash-lite`
+
+### OpenAI
+
+1. `gpt-6-astra`
+2. `gpt-5.6-sol`
+3. `gpt-5.6-terra`
+4. `gpt-5.6-luna`
+
+### Anthropic
+
+1. `claude-fable-5-1`
+2. `claude-opus-5`
+3. `claude-sonnet-5`
+4. `claude-haiku-4-5-20251001`
+
+### OpenRouter
+
+1. `openai/gpt-5.6-terra`
+2. `openai/gpt-5.6-luna`
+3. `anthropic/claude-sonnet-5`
+4. `anthropic/claude-haiku-4.5`
+5. `google/gemini-3.8-flash`
+6. `google/gemini-3.5-flash-lite`
+7. `tencent/hy4-preview`
+8. `tencent/hy3`
+9. `z-ai/glm-5.3-flash`
+10. `z-ai/glm-5.3`
+11. `deepseek/deepseek-v4.1-flash`
+12. `deepseek/deepseek-v4-pro`
+
+Custom endpoints have no default model. These are configured application defaults, not a guarantee of provider availability. Saved custom lists take precedence. Migration `20260913_0017_model_defaults` updates only recognized older shipped defaults, including equivalent compact JSON lists. Gemini TTS retains its existing cascade.
 
 Quotas depend on model, project and billing tier. Check your active project limits in
 [Google AI Studio via the rate-limit guide](https://ai.google.dev/gemini-api/docs/rate-limits).
@@ -117,3 +150,13 @@ the environment; change the model in Settings for an existing installation.
 analysis, schema repair, summaries and remote speech. SDK automatic retries are disabled.
 `PROVIDER_TIMEOUT_SECONDS` defaults to 120 (5–600). An operator-triggered new job gets a
 new budget. Authentication/billing failures and exhausted budgets require intervention.
+
+## Removal warning tones
+
+Global Subscription Settings provides independent on/off switches and sound choices for start,
+middle and end removals. All switches default off; the initial sound choice is Soft chime.
+`warning_tone_start`, `warning_tone_middle`, and `warning_tone_end` control insertion;
+`warning_tone_start_style`, `warning_tone_middle_style`, and `warning_tone_end_style` select
+`soft`, `warm`, `clear`, `bell`, `sonar`, or `wooden` independently.
+These global audio settings apply to all podcasts when processing begins, including reprocessing.
+They do not alter existing published files automatically. See [Warning tones](WARNING_TONES.md).

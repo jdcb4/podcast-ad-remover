@@ -22,6 +22,10 @@ data/
 downloads/
 transcripts/*
 audio/
+# Bundled removal cues are application assets, not downloaded podcast audio.
+!app/web/static/audio/
+!app/web/static/audio/warning-tones/
+!app/web/static/audio/warning-tones/*.wav
 feeds/
 Documentation/
 scripts/*

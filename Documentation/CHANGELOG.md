@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Update Gemini, OpenAI, Anthropic and OpenRouter default cascades to the requested model lists; share runtime/UI defaults and migrate recognized old defaults once without replacing custom selections. Gemini speech defaults stay unchanged.
+- Add opt-in global removal tones with separate beginning, middle and ending switches and sound selections. Ship six previewable original sound sets as tiny WAV files; insert cues only at removed content, without runtime synthesis or TTS dependencies.
+
+
 - Show the fixed global Complete Timeline prompt template as read only in AI Prompt Rules, with category definitions arranged vertically at full width.
 - Add opt-in Complete Timeline processing with editable categories, contextual editorial/non-editorial gaps, a combined episode summary, and a configurable short-island rule (10 seconds; 0 disables). Preserve substantive openings and conclusions. Reports separate model classifications from extra cuts; schema support is detected through requests and provider fallback stays within the configured provider. Tidy AI Prompt Rules with separate Complete Timeline/Legacy controls and an effective-prompt preview. Add a backward-compatible migration that keeps existing podcasts/jobs on Legacy and preserves custom prompts, whitelist settings and published audio. See `Documentation/COMPLETE_TIMELINE.md` for opt-in, cache reuse, backup and rollback.
 - Accept valid podcast artwork served with the generic `application/octet-stream` content type. Keep download limits and image decoding checks, and preserve cached artwork when the response is not a valid image.

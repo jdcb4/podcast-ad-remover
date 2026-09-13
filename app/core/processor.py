@@ -1004,12 +1004,20 @@ class Processor:
             
             await asyncio.to_thread(require_scratch, ep.duration, os.path.getsize(input_path))
             logger.info("Removing ads with FFmpeg...")
+            tone_options = {position: bool(global_settings.get(f'warning_tone_{position}'))
+                            for position in ('start', 'middle', 'end')}
+            for position in ('start', 'middle', 'end'):
+                tone_options[f'{position}_style'] = global_settings.get(f'warning_tone_{position}_style') or 'soft'
+            audio_options = {'warning_tones': tone_options} if any(
+                tone_options[position] for position in ('start', 'middle', 'end')) else {}
+
             await asyncio.to_thread(
                 AudioProcessor.remove_segments, 
                 input_path, 
                 output_path, 
                 ad_segments,
                 ffmpeg_threads=ffmpeg_threads,
+                **audio_options,
             )
             logger.info(f"Saved cleaned audio to {output_path}")
             

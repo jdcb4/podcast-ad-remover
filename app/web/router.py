@@ -1,3 +1,5 @@
+from app.core.warning_tones import TONE_STYLES
+from app.core.model_defaults import MODEL_DEFAULTS
 from app.core.artifacts import artifact_path
 from app.core.permissions import can_manage_subscription as _can_manage_subscription
 from app.web.permissions import require_episode_management
@@ -724,6 +726,7 @@ def _render_admin_ai(request: Request, ai_section: str):
             "pending_requests_count": get_pending_requests_count(),
             "active_tab": ai_section,
             "ai_section": ai_section,
+            "model_defaults": MODEL_DEFAULTS,
             "env_keys": env_keys
         }
     )
@@ -850,12 +853,12 @@ async def update_ai_settings(
                 AdDetector.DEFAULT_GEMINI_MODELS,
             )
             selected_openai_models = normalized_models(
-                openai_model, current.get("openai_model"), ["gpt-4o"]
+                openai_model, current.get("openai_model"), MODEL_DEFAULTS["openai"]
             )
             selected_anthropic_models = normalized_models(
                 anthropic_model,
                 current.get("anthropic_model"),
-                ["claude-3-5-sonnet-20241022"],
+                MODEL_DEFAULTS["anthropic"],
             )
             selected_openrouter_models = normalized_models(
                 openrouter_model,
@@ -1988,7 +1991,8 @@ async def admin_global_subscription_settings(request: Request):
             "csp_nonce": get_csp_nonce(request),
             "user": user,
             "settings": settings_row,
-            "active_tab": "global_subs"
+            "active_tab": "global_subs",
+            "tone_styles": TONE_STYLES
         }
     )
 
@@ -2014,8 +2018,18 @@ async def update_global_subscription_settings(
     default_remove_non_editorial_non_speech: bool | None = Form(None),
     default_minimum_retained_seconds: float | None = Form(None),
     timeline_settings_present: bool = Form(False),
+    warning_tones_present: bool = Form(False),
+    warning_tone_start: bool = Form(False),
+    warning_tone_middle: bool = Form(False),
+    warning_tone_end: bool = Form(False),
+    warning_tone_start_style: str = Form("soft"),
+    warning_tone_middle_style: str = Form("soft"),
+    warning_tone_end_style: str = Form("soft"),
     admin_user = Depends(require_admin)
 ):
+    if warning_tones_present and any(style not in TONE_STYLES for style in
+                                     (warning_tone_start_style, warning_tone_middle_style, warning_tone_end_style)):
+        raise HTTPException(400, "Unknown warning tone style")
     from app.core.timeline import WORKFLOWS, threshold
     if default_processing_workflow is not None and default_processing_workflow not in WORKFLOWS:
         raise HTTPException(400, 'Unknown processing workflow')
@@ -2057,6 +2071,12 @@ async def update_global_subscription_settings(
             default_processing_workflow, default_remove_editorial_non_speech,
             default_remove_non_editorial_non_speech, default_minimum_retained_seconds
         ))
+        if warning_tones_present:
+            conn.execute("""UPDATE app_settings SET warning_tone_start = ?, warning_tone_middle = ?,
+                         warning_tone_end = ?, warning_tone_start_style = ?, warning_tone_middle_style = ?,
+                         warning_tone_end_style = ? WHERE id = 1""",
+                         (warning_tone_start, warning_tone_middle, warning_tone_end,
+                          warning_tone_start_style, warning_tone_middle_style, warning_tone_end_style))
         conn.commit()
 
     background_tasks.add_task(_reconcile_artwork_and_feeds)

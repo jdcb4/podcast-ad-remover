@@ -33,6 +33,7 @@ For each queued episode:
     - Complete Timeline first selects categories according to frozen removal preferences. Then it bridges only retained islands strictly shorter than the configured threshold between two selected cuts. Zero disables bridging. Reports preserve model classifications and extra island cuts separately. Legacy keeps its existing merge policy.
     - Calculate "keep" segments (total duration minus ad segments).
     - Use FFmpeg to cut and concatenate "keep" segments.
+    - If global warning tones are enabled, splice bundled beginning/ending cues only at removed edges and one low cue at each interior removal seam. No runtime synthesis is used.
     - Save processed audio in the episode artifact directory.
 
 6.  **Finalize**:

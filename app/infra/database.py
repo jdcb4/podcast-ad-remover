@@ -1,4 +1,6 @@
 import os
+import json
+from app.core.model_defaults import MODEL_DEFAULTS
 from app.infra.backup import backup_database
 import sqlite3
 from contextlib import contextmanager
@@ -7,9 +9,9 @@ from app.core.config import settings
 from app.core.prompt_defaults import LEGACY_DEFAULTS
 
 
-DEFAULT_GEMINI_MODEL_CASCADE = '["gemini-3.5-flash", "gemini-3-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]'
-DEFAULT_OPENROUTER_MODEL_CASCADE = '["google/gemini-3.5-flash", "google/gemini-3-flash", "google/gemini-3.1-flash-lite", "google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"]'
-DEFAULT_GEMINI_TTS_MODEL_CASCADE = '["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]'
+DEFAULT_GEMINI_MODEL_CASCADE = json.dumps(MODEL_DEFAULTS['gemini'])
+DEFAULT_OPENROUTER_MODEL_CASCADE = json.dumps(MODEL_DEFAULTS['openrouter'])
+DEFAULT_GEMINI_TTS_MODEL_CASCADE = json.dumps(MODEL_DEFAULTS['gemini_tts'])
 
 
 FORMAL_MIGRATIONS = [
@@ -322,6 +324,44 @@ FORMAL_MIGRATIONS = [
             "ALTER TABLE jobs ADD COLUMN processing_snapshot TEXT",
         ],
     ),
+    (
+        "20260913_0017_model_defaults",
+        [
+            """UPDATE app_settings SET ai_model_cascade = '["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]'
+            WHERE ai_model_cascade IS NULL
+               OR ai_model_cascade = ''
+               OR ai_model_cascade IN ('["gemini-3.5-flash", "gemini-3-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]')
+               OR CASE WHEN json_valid(ai_model_cascade) THEN json(ai_model_cascade) END IN ('["gemini-3.5-flash","gemini-3-flash","gemini-3.1-flash-lite","gemini-2.5-flash","gemini-2.5-flash-lite"]')""",
+            """UPDATE app_settings SET openrouter_model = '["openai/gpt-5.6-terra", "openai/gpt-5.6-luna", "anthropic/claude-sonnet-5", "anthropic/claude-haiku-4.5", "google/gemini-3.8-flash", "google/gemini-3.5-flash-lite", "tencent/hy4-preview", "tencent/hy3", "z-ai/glm-5.3-flash", "z-ai/glm-5.3", "deepseek/deepseek-v4.1-flash", "deepseek/deepseek-v4-pro"]'
+            WHERE openrouter_model IS NULL
+               OR openrouter_model = ''
+               OR openrouter_model IN ('["google/gemini-3.5-flash", "google/gemini-3-flash", "google/gemini-3.1-flash-lite", "google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"]')
+               OR CASE WHEN json_valid(openrouter_model) THEN json(openrouter_model) END IN ('["google/gemini-3.5-flash","google/gemini-3-flash","google/gemini-3.1-flash-lite","google/gemini-2.5-flash","google/gemini-2.5-flash-lite"]')""",
+            """UPDATE app_settings SET openai_model = '["gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]'
+            WHERE openai_model IS NULL
+               OR openai_model = ''
+               OR openai_model IN ('gpt-4o','["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]')
+               OR CASE WHEN json_valid(openai_model) THEN json(openai_model) END IN ('["gpt-4o"]','["gpt-4o","gpt-4-turbo","gpt-3.5-turbo"]')""",
+            """UPDATE app_settings SET anthropic_model = '["claude-fable-5-1", "claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001"]'
+            WHERE anthropic_model IS NULL
+               OR anthropic_model = ''
+               OR anthropic_model IN ('claude-3-5-sonnet','claude-3-5-sonnet-20241022','["claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"]')
+               OR CASE WHEN json_valid(anthropic_model) THEN json(anthropic_model) END IN ('["claude-3-5-sonnet"]','["claude-3-5-sonnet-20241022"]','["claude-3-5-sonnet-20241022","claude-3-opus-20240229","claude-3-haiku-20240307"]')""",
+        ],
+    ),
+
+    (
+        "20260913_0018_warning_tones",
+        [
+            "ALTER TABLE app_settings ADD COLUMN warning_tone_start INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE app_settings ADD COLUMN warning_tone_middle INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE app_settings ADD COLUMN warning_tone_end INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE app_settings ADD COLUMN warning_tone_start_style TEXT NOT NULL DEFAULT 'soft'",
+            "ALTER TABLE app_settings ADD COLUMN warning_tone_middle_style TEXT NOT NULL DEFAULT 'soft'",
+            "ALTER TABLE app_settings ADD COLUMN warning_tone_end_style TEXT NOT NULL DEFAULT 'soft'",
+        ],
+    ),
+
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000
@@ -425,7 +465,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS app_settings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         whisper_model TEXT DEFAULT 'base',
-        ai_model_cascade TEXT DEFAULT '["gemini-3.5-flash", "gemini-3-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]',
+        ai_model_cascade TEXT DEFAULT '["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]',
         piper_model TEXT DEFAULT 'en_GB-cori-high.onnx',
         concurrent_downloads INTEGER DEFAULT 2,
         retention_days INTEGER DEFAULT 30,
@@ -443,9 +483,9 @@ def init_db():
         openai_api_key TEXT,
         anthropic_api_key TEXT,
         openrouter_api_key TEXT,
-        openai_model TEXT DEFAULT 'gpt-4o',
-        anthropic_model TEXT DEFAULT 'claude-3-5-sonnet',
-        openrouter_model TEXT DEFAULT '["google/gemini-3.5-flash", "google/gemini-3-flash", "google/gemini-3.1-flash-lite", "google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"]',
+        openai_model TEXT DEFAULT '[\"gpt-6-astra\", \"gpt-5.6-sol\", \"gpt-5.6-terra\", \"gpt-5.6-luna\"]',
+        anthropic_model TEXT DEFAULT '[\"claude-fable-5-1\", \"claude-opus-5\", \"claude-sonnet-5\", \"claude-haiku-4-5-20251001\"]',
+        openrouter_model TEXT DEFAULT '["openai/gpt-5.6-terra", "openai/gpt-5.6-luna", "anthropic/claude-sonnet-5", "anthropic/claude-haiku-4.5", "google/gemini-3.8-flash", "google/gemini-3.5-flash-lite", "tencent/hy4-preview", "tencent/hy3", "z-ai/glm-5.3-flash", "z-ai/glm-5.3", "deepseek/deepseek-v4.1-flash", "deepseek/deepseek-v4-pro"]',
         app_external_url TEXT,
         
         enable_feed_auth INTEGER DEFAULT 0,
@@ -575,14 +615,14 @@ def init_db():
         "ALTER TABLE app_settings ADD COLUMN summary_prompt_template TEXT",
         
         # Multi-Provider AI migrations
-        "ALTER TABLE app_settings ADD COLUMN ai_model_cascade TEXT DEFAULT '[\"gemini-3.5-flash\", \"gemini-3-flash\", \"gemini-3.1-flash-lite\", \"gemini-2.5-flash\", \"gemini-2.5-flash-lite\"]'",
+        "ALTER TABLE app_settings ADD COLUMN ai_model_cascade TEXT DEFAULT '[\"gemini-3.8-flash\", \"gemini-3.7-flash\", \"gemini-3.6-flash\", \"gemini-3.5-flash\", \"gemini-3-flash-preview\", \"gemini-3.5-flash-lite\", \"gemini-3.1-flash-lite\"]'",
         "ALTER TABLE app_settings ADD COLUMN active_ai_provider TEXT DEFAULT 'gemini'",
         "ALTER TABLE app_settings ADD COLUMN openai_api_key TEXT",
         "ALTER TABLE app_settings ADD COLUMN anthropic_api_key TEXT",
         "ALTER TABLE app_settings ADD COLUMN openrouter_api_key TEXT",
-        "ALTER TABLE app_settings ADD COLUMN openai_model TEXT DEFAULT 'gpt-4o'",
-        "ALTER TABLE app_settings ADD COLUMN anthropic_model TEXT DEFAULT 'claude-3-5-sonnet'",
-        "ALTER TABLE app_settings ADD COLUMN openrouter_model TEXT DEFAULT '[\"google/gemini-3.5-flash\", \"google/gemini-3-flash\", \"google/gemini-3.1-flash-lite\", \"google/gemini-2.5-flash\", \"google/gemini-2.5-flash-lite\"]'",
+        "ALTER TABLE app_settings ADD COLUMN openai_model TEXT DEFAULT '[\"gpt-6-astra\", \"gpt-5.6-sol\", \"gpt-5.6-terra\", \"gpt-5.6-luna\"]'",
+        "ALTER TABLE app_settings ADD COLUMN anthropic_model TEXT DEFAULT '[\"claude-fable-5-1\", \"claude-opus-5\", \"claude-sonnet-5\", \"claude-haiku-4-5-20251001\"]'",
+        "ALTER TABLE app_settings ADD COLUMN openrouter_model TEXT DEFAULT '[\"openai/gpt-5.6-terra\", \"openai/gpt-5.6-luna\", \"anthropic/claude-sonnet-5\", \"anthropic/claude-haiku-4.5\", \"google/gemini-3.8-flash\", \"google/gemini-3.5-flash-lite\", \"tencent/hy4-preview\", \"tencent/hy3\", \"z-ai/glm-5.3-flash\", \"z-ai/glm-5.3\", \"deepseek/deepseek-v4.1-flash\", \"deepseek/deepseek-v4-pro\"]'",
         "ALTER TABLE episodes ADD COLUMN processing_flags TEXT",
         "ALTER TABLE app_settings ADD COLUMN gemini_api_key TEXT",
         "ALTER TABLE app_settings ADD COLUMN app_external_url TEXT",
