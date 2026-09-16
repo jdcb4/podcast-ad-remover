@@ -45,7 +45,7 @@
                 <span
                     class="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-500/30 text-slate-400 text-[8px] font-black tracking-widest leading-none hover:bg-slate-500/40 transition-colors">
                     <span class="w-1 h-1 rounded-full bg-slate-400"></span>
-                    DELETED
+                    {{ 'SKIPPED / NON-EPISODE' if ep.processing_step == 'skipped/non-episode' else 'DELETED' }}
                 </span>
                 {% elif ep.status == 'failed' %}
                 <span
@@ -135,6 +135,9 @@
             </div>
 
             <!-- Progress Bar -->
+            {% if ep.processing_step == 'skipped/non-episode' %}
+            <p class="mt-4 text-sm text-text-muted">{{ ep.error_message }}</p>
+            {% endif %}
             {% if ep.status == 'processing' %}
             <div class="mt-4 bg-surface-base rounded-md p-1.5 border border-white/[0.06]">
                 <div class="flex justify-between text-[10px] uppercase font-bold text-text-muted mb-1">

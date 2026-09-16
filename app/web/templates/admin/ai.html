@@ -133,7 +133,7 @@
                 <div>
                     <label class="block text-sm font-medium text-text-secondary mb-2">Gemini API Keys</label>
                     <p class="text-xs text-text-muted mb-2">Add multiple API keys for automatic failover when rate
-                        limits are reached.</p>
+                        limits are reached when free-tier handling is off. When enabled, keys share each model's quota and cooldown.</p>
                     <div id="gemini_keys_container" class="space-y-2 mb-2">
                         <!-- Keys will be rendered here by JS -->
                     </div>
@@ -155,6 +155,27 @@
                     {% endif %}
                     <input type="hidden" name="gemini_api_keys" id="gemini_api_keys_input" value="">
                 </div>
+                <input type="hidden" name="gemini_free_tier_present" value="true">
+                <label class="flex items-center gap-2 text-sm text-text-secondary">
+                    <input type="checkbox" name="gemini_free_tier_enabled" value="true"
+                        {% if settings.gemini_free_tier_enabled %}checked{% endif %}>
+                    enable gemini free tier rate limit handling
+                </label>
+                <p class="text-xs text-text-muted">All configured Gemini keys share one quota pool per model. Usage is local to this installation; provider errors account for quota consumed elsewhere. Disabled by default. Cooldowns do not edit your saved cascade.</p>
+                {% if settings.gemini_free_tier_enabled %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-text-secondary">
+                        <thead><tr><th>Model</th><th>Requests/minute</th><th>Input tokens/minute</th><th>Requests/day (Pacific)</th><th>Status</th></tr></thead>
+                        <tbody>{% for row in gemini_usage %}
+                            <tr><td>{{ row.model }}</td><td>{{ row.minute_requests }} / {{ row.limits[0] if row.limits else 'provider-defined' }}</td>
+                                <td>{{ row.minute_tokens }} / {{ row.limits[1] if row.limits else 'provider-defined' }}</td>
+                                <td>{{ row.day_requests }} / {{ row.limits[2] if row.limits else 'provider-defined' }}</td>
+                                <td>{{ row.reason }}{% if row.retry_at %} — {{ row.retry_at|local_time('datetime') }}{% endif %}</td></tr>
+                        {% endfor %}</tbody>
+                    </table>
+                    <p class="text-xs text-text-muted">Refresh to update. Input tokens include conservative reservations for requests without reported usage. Unlisted model limits are provider-defined.</p>
+                </div>
+                {% endif %}
                 {{ shuttle_ui('gemini', 'Gemini Model Cascade', 'ai_model_cascade', settings.ai_model_cascade | tojson)
                 }}
             </div>

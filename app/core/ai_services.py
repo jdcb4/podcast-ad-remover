@@ -38,17 +38,20 @@ class PermanentProviderError(RuntimeError):
 class RateLimitError(Exception):
     """Custom exception for API rate limit errors with retry timing info."""
 
-    def __init__(self, message: str, is_daily_limit: bool = False, provider: str = "gemini", retry_after: float | None = None):
+    def __init__(self, message: str, is_daily_limit: bool = False, provider: str = "gemini", retry_after: float | None = None, retry_at=None):
         super().__init__(message)
         self.is_daily_limit = is_daily_limit  # True = wait until midnight PT, False = short retry
         self.provider = provider
         self.original_message = message
         self.retry_after = retry_after
+        self.retry_at = retry_at
 
     def get_next_retry_time(self):
         """Calculate appropriate retry time based on limit type."""
         from datetime import datetime, timedelta
         from zoneinfo import ZoneInfo
+        if self.retry_at is not None:
+            return self.retry_at
         if self.retry_after is not None:
             return datetime.utcnow() + timedelta(seconds=max(1, min(self.retry_after, 86400)))
 
@@ -414,6 +417,7 @@ class OpenAIProvider(LLMProvider):
         provider_name: str = "OpenAI/Compatible",
         model_prefixes: tuple[str, ...] | None = ("gpt-", "o1-", "chatgpt-"),
         rate_limit_provider: str = "openai",
+        gemini_free_tier: bool = False,
     ):
         import openai
         self.openai = openai
@@ -424,6 +428,7 @@ class OpenAIProvider(LLMProvider):
         self.provider_name = provider_name
         self.model_prefixes = model_prefixes
         self.rate_limit_provider = rate_limit_provider
+        self.gemini_free_tier = gemini_free_tier and rate_limit_provider == 'gemini'
         self.is_openrouter = base_url and "openrouter" in base_url
         self.last_model = None
         self._init_client()
@@ -457,6 +462,7 @@ class OpenAIProvider(LLMProvider):
 
         last_error = None
         call_count = 0
+        deferred = []
 
         while True:
             all_rate_limited = True
@@ -471,8 +477,7 @@ class OpenAIProvider(LLMProvider):
                         use_schema = False
                     formats = [use_schema, False] if use_schema and output_mode == "auto" else [use_schema]
                     for native_schema in formats:
-                        call_count += 1
-                        if call_count > settings.MAX_PROVIDER_CALLS_PER_JOB:
+                        if call_count >= settings.MAX_PROVIDER_CALLS_PER_JOB:
                             raise ProviderBudgetExceeded('Model/key fallback request limit reached')
                         kwargs = {"model": model, "messages": messages}
                         if native_schema:
@@ -483,7 +488,11 @@ class OpenAIProvider(LLMProvider):
                         elif schema is not None:
                             kwargs["messages"] = [{"role": "system", "content": "Return only JSON matching this schema: " + json.dumps(schema)}, *messages]
                         try:
-                            with provider_request(self.rate_limit_provider, model) as metrics:
+                            from app.core.gemini_quota import estimate_input_tokens
+                            with provider_request(self.rate_limit_provider, model,
+                                                  gemini_free_tier=self.gemini_free_tier,
+                                                  input_tokens=estimate_input_tokens(kwargs) if self.gemini_free_tier else 0) as metrics:
+                                call_count += 1
                                 response = self.client.chat.completions.create(**kwargs)
                                 record_usage(metrics, response)
                                 choice = response.choices[0]
@@ -502,12 +511,24 @@ class OpenAIProvider(LLMProvider):
                             raise
                 except Exception as e:
                     raise_permanent_provider_error(e)
+                    if self.gemini_free_tier:
+                        from app.core.gemini_quota import GeminiCooldown, record_error
+                        cooldown = e if isinstance(e, GeminiCooldown) else record_error(model, e)
+                        if cooldown:
+                            deferred.append(cooldown)
+                            continue
                     logger.warning(f"{self.provider_name} model {model} failed: {e}")
                     last_error = e
                     if not self._is_rate_limit(e):
                         all_rate_limited = False
 
-            if all_rate_limited and self._rotate_key():
+            if self.gemini_free_tier and deferred:
+                from datetime import datetime, timezone
+                earliest = min(deferred, key=lambda error: error.until)
+                raise RateLimitError('; '.join(str(error) for error in deferred), provider='gemini',
+                                     retry_at=datetime.fromtimestamp(earliest.until, timezone.utc).replace(tzinfo=None))
+
+            if all_rate_limited and not self.gemini_free_tier and self._rotate_key():
                 continue
 
             if all_rate_limited:
@@ -799,6 +820,7 @@ class AdDetector:
                 provider_name="Gemini",
                 model_prefixes=("gemini-",),
                 rate_limit_provider="gemini",
+                gemini_free_tier=bool(self.settings.get('gemini_free_tier_enabled', 0)),
             )
 
     def _get_provider(self) -> LLMProvider:
@@ -884,13 +906,17 @@ class AdDetector:
         classification_model = getattr(provider, "last_model", None)
         classification_format = getattr(provider, "last_output_mode", None)
         summary_error = None
+        summary_retry_at = None
         if not timeline.valid_summary(summary):
             try:
                 summary = self._repair_timeline_summary(provider, mode, source, snapshot)
             except Exception as error:
                 summary, summary_error = None, str(error)
+                if isinstance(error, RateLimitError) and error.retry_at is not None:
+                    summary_retry_at = error.retry_at.isoformat()
                 logger.warning("Classification retained after summary generation failed: %s", error)
         return {"segments": segments, "summary": summary, "summary_error": summary_error,
+                "summary_retry_at": summary_retry_at,
                 "provider": detector.settings.get("active_ai_provider", "gemini"), "model": classification_model,
                 "output_mode": classification_format, "prompt_version": snapshot["prompt_version"],
                 "schema_version": snapshot["schema_version"],
@@ -922,6 +948,8 @@ class AdDetector:
             )
             return summary, None
         except Exception as error:
+            if isinstance(error, RateLimitError) and error.retry_at is not None:
+                raise
             logger.warning("Cached classification retained after summary repair failed: %s", error)
             return None, str(error)
 
@@ -963,6 +991,8 @@ class AdDetector:
             provider = self._get_provider()
             return provider.generate(prompt).strip()
         except Exception as e:
+            if isinstance(e, RateLimitError) and e.retry_at is not None:
+                raise
             logger.error(f"Summary generation failed: {e}")
             return f"Welcome to {podcast_name}. Today's episode is {episode_title}."
 
@@ -1173,15 +1203,19 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
         last_error = None
         call_count = 0
         async with httpx.AsyncClient(timeout=settings.PROVIDER_TIMEOUT_SECONDS) as client:
+            quota_enabled = bool(self.settings.get('gemini_free_tier_enabled', 0))
+            deferred = []
             for model in models:
                 url = f"{self.GEMINI_REST_BASE_URL}/models/{model}:generateContent"
                 for key_idx, api_key in enumerate(api_keys):
-                    call_count += 1
-                    if call_count > settings.MAX_PROVIDER_CALLS_PER_JOB:
+                    if call_count >= settings.MAX_PROVIDER_CALLS_PER_JOB:
                         raise ProviderBudgetExceeded('Speech request budget exhausted; review provider settings')
                     try:
                         logger.info(f"Generating TTS with Gemini model {model}, key #{key_idx + 1}.")
-                        with provider_request('gemini_tts', model):
+                        from app.core.gemini_quota import estimate_input_tokens
+                        with provider_request('gemini_tts', model, gemini_free_tier=quota_enabled,
+                                              input_tokens=estimate_input_tokens(payload) if quota_enabled else 0) as metrics:
+                            call_count += 1
                             response = await client.post(
                                 url,
                                 headers={
@@ -1192,6 +1226,7 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                             )
                             if response.status_code >= 400:
                                 raise httpx.HTTPStatusError(f'HTTP {response.status_code}', request=httpx.Request('POST', url), response=response)
+                            metrics['input_tokens'] = response.json().get('usageMetadata', {}).get('promptTokenCount')
 
                         audio = self._extract_gemini_tts_audio(response.json())
                         self._write_pcm_wav(output_path, audio)
@@ -1199,9 +1234,20 @@ Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main disc
                         return
                     except Exception as e:
                         raise_permanent_provider_error(e)
+                        if quota_enabled:
+                            from app.core.gemini_quota import GeminiCooldown, record_error
+                            cooldown = e if isinstance(e, GeminiCooldown) else record_error(model, e)
+                            if cooldown:
+                                deferred.append(cooldown)
+                                break
                         last_error = e
                         logger.warning(f"Gemini TTS model {model} failed with key #{key_idx + 1}: {e}")
 
+        if deferred:
+            from datetime import datetime, timezone
+            earliest = min(deferred, key=lambda error: error.until)
+            raise RateLimitError('; '.join(str(error) for error in deferred), provider='gemini',
+                                 retry_at=datetime.fromtimestamp(earliest.until, timezone.utc).replace(tzinfo=None))
         raise RuntimeError(f"All Gemini TTS models failed. Last error: {last_error}")
 
     async def validate_tts(self):

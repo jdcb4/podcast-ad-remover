@@ -19,6 +19,18 @@ pip install -r requirements-dev.txt
 
 ## Standard Check
 
+Focused regression checks for download redirects, empty removals and Gemini quotas:
+
+```bash
+python -m pytest tests/test_download_redirects.py tests/test_empty_audio.py tests/test_gemini_quota.py -q
+```
+
+These cover eight/nine-hop boundaries, per-hop URL validation and loops; Legacy and Complete
+Timeline empty cuts, claim fencing and removal from both feeds; atomic multi-process accounting,
+token reservations/reconciliation, restart persistence, Pacific DST resets, provider error mixtures,
+retry timing, job deferral, checkbox round trips, provider isolation and additive migration backups.
+The Gemini provider responses are deterministic fixtures; tests do not spend live API quota.
+
 Run:
 
 ```bash

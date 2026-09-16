@@ -876,6 +876,16 @@ class EpisodeRepository:
                 JobRepository().cancel_active_for_episode(id, conn=conn)
             conn.commit()
 
+    def mark_non_episode(self, id: int, reason: str):
+        """Finish an owned attempt without publishing or scheduling another attempt."""
+        with self._write_connection(id) as conn:
+            cursor = conn.execute("""UPDATE episodes SET status='ignored',
+                processing_step='skipped/non-episode', error_message=?, next_retry_at=NULL,
+                progress=100, publication_pending=1 WHERE id=? AND status='processing'""", (reason, id))
+            if cursor.rowcount:
+                JobRepository().complete_for_episode(id, conn=conn)
+            conn.commit()
+
     def update_status(self, id: int, status: str, error: str = None, filename: str = None, file_size: int = None):
         with self._write_connection(id) as conn:
             eligibility = ""

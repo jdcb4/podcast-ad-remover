@@ -24,6 +24,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/core/unified_feed.py`: validates and resolves backward-compatible unified-feed presentation settings.
 - `app/core/artifacts.py`, `publication.py`, `reports.py`: artifact identity, atomic RSS writes and escaped reports.
 - `app/core/provider_budget.py`, `worker_health.py`: durable request limits and processing readiness.
+- `app/core/gemini_quota.py`: opt-in shared Gemini quotas, token reservations, Pacific resets and provider cooldowns.
 - `app/core/permissions.py`, `http_downloads.py`: shared ownership policy and redirect validation.
 - `app/infra/backup.py`: WAL-safe, integrity-checked snapshots.
 - `app/web/templates/_episode_cards.html`, `static/js/episodes.js`: one card renderer plus incremental interactions.

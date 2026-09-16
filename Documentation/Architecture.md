@@ -163,6 +163,17 @@ reconciles artwork and republishes feeds with the new cache keys.
 
 ### Job State
 
+An empty retained-audio selection is a terminal non-episode: the episode uses the compatible
+`ignored` status with `processing_step='skipped/non-episode'` and a visible reason, while its job
+completes without retry. Feed regeneration removes it from both feeds. The deletion finalizer
+preserves this reason and any older published files; only this attempt's staging files are cleaned.
+An unreadable source or failed duration probe remains an error rather than a non-episode.
+
+Opt-in Gemini quota state lives in `gemini_quota_state` and `gemini_quota_requests`, independent of
+per-job provider-call budgets. Reservations and job budget increments commit in one immediate SQLite
+transaction. See [Environment variables](Environment_Variables.md#configured-gemini-defaults-and-provider-quotas)
+for shared-project assumptions, limits, resets, unknown models and rollback.
+
 Processing is coordinated through a durable SQLite `jobs` table. Episodes still keep a user-facing `episodes.status`, while workers claim due jobs transactionally and update job state as work runs, retries, completes, or is cancelled.
 
 Active job columns include:

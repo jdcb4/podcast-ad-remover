@@ -371,6 +371,19 @@ FORMAL_MIGRATIONS = [
         ],
     ),
 
+    (
+        "20260916_0020_gemini_free_tier",
+        [
+            "ALTER TABLE app_settings ADD COLUMN gemini_free_tier_enabled INTEGER NOT NULL DEFAULT 0",
+            """CREATE TABLE gemini_quota_state (
+            model TEXT PRIMARY KEY, day TEXT NOT NULL, requests INTEGER NOT NULL DEFAULT 0,
+            cooldown_until REAL NOT NULL DEFAULT 0, reason TEXT NOT NULL DEFAULT '')""",
+            """CREATE TABLE gemini_quota_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, model TEXT NOT NULL, started REAL NOT NULL,
+            input_tokens INTEGER NOT NULL)""",
+            "CREATE INDEX gemini_quota_window ON gemini_quota_requests(model, started)",
+        ],
+    ),
 ]
 
 SQLITE_BUSY_TIMEOUT_MS = 30000

@@ -704,6 +704,11 @@ async def revoke_api_token(token_id: int, admin_user = Depends(require_admin)):
 
 def _render_admin_ai(request: Request, ai_section: str):
     from app.core.config import settings
+    from app.core.gemini_quota import usage
+    from app.core.ai_services import AdDetector
+    saved_settings = get_global_settings()
+    quota_models = AdDetector._parse_model_setting(saved_settings.get('ai_model_cascade'), MODEL_DEFAULTS['gemini'])
+    quota_models += AdDetector._parse_model_setting(saved_settings.get('gemini_tts_model_cascade'), MODEL_DEFAULTS['gemini_tts'])
     
     # helper to check which env vars are set
     env_keys = {
@@ -721,7 +726,8 @@ def _render_admin_ai(request: Request, ai_section: str):
         context={
             "csp_nonce": get_csp_nonce(request),
             "user": user,
-            "settings": get_global_settings(),
+            "settings": saved_settings,
+            "gemini_usage": usage(quota_models),
             "pending_requests_count": get_pending_requests_count(),
             "active_tab": ai_section,
             "ai_section": ai_section,
@@ -763,6 +769,8 @@ async def update_ai_settings(
     anthropic_api_key: str = Form(None),
     openrouter_api_key: str = Form(None),
     gemini_api_keys: str = Form(None),
+    gemini_free_tier_enabled: bool = Form(False),
+    gemini_free_tier_present: bool = Form(False),
     openai_model: str = Form(None),
     anthropic_model: str = Form(None),
     openrouter_model: str = Form(None),
@@ -906,6 +914,7 @@ async def update_ai_settings(
                     anthropic_api_key = ?,
                     openrouter_api_key = ?,
                     gemini_api_keys = ?,
+                    gemini_free_tier_enabled = ?,
                     openai_model = ?,
                     anthropic_model = ?,
                     openrouter_model = ?,
@@ -922,6 +931,7 @@ async def update_ai_settings(
                     updated_secret(anthropic_api_key, clear_anthropic_api_key, current.get("anthropic_api_key")),
                     updated_secret(openrouter_api_key, clear_openrouter_api_key, current.get("openrouter_api_key")),
                     selected_gemini_keys,
+                    int(gemini_free_tier_enabled) if gemini_free_tier_present else current.get('gemini_free_tier_enabled', 0),
                     selected_openai_models,
                     selected_anthropic_models,
                     selected_openrouter_models,
