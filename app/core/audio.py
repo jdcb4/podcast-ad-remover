@@ -6,6 +6,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+class EmptyAudioResult(ValueError):
+    """Removal deliberately retained no episode audio."""
+
 class AudioProcessor:
     @staticmethod
     def _timeout_seconds() -> int:
@@ -129,6 +132,8 @@ class AudioProcessor:
             return
 
         total_duration = AudioProcessor.get_duration(input_path)
+        if total_duration <= 0:
+            raise ValueError('Source audio failed duration validation')
         keep_segments = AudioProcessor._calculate_keep_segments(total_duration, remove_segments)
             
         logger.info(f"Keeping segments: {keep_segments}")
@@ -167,7 +172,7 @@ class AudioProcessor:
         if keep_segments and keep_segments[-1][1] < total_duration and cues.get('end'):
             add_tone('end')
         if not keep_segments:
-            raise ValueError('No retained audio remains after removal')
+            raise EmptyAudioResult('Skipped/non-episode: no retained audio remains after removal')
         filter_str = ";".join(filter_parts)
         # Output to intermediate [out_concat], then force format/padding before encoder
         # asetnsamples=n=1152 ensures standard MP3 frame boundaries

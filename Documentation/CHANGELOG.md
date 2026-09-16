@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Allow eight validated download redirects, rejecting loops and a ninth redirect cleanly.
+- Mark episodes with no retained audio as skipped/non-episodes without FFmpeg concatenation or automatic retries; exclude them from individual and unified feeds, including previously published reprocessing results.
+- Add the opt-in Gemini free-tier checkbox, shared durable per-model request/token accounting, Pacific daily resets, provider-aware cooldowns and usage display. Exhausted models leave the effective cascade temporarily; jobs wait for the earliest eligible model without editing saved choices. Retain Dev's existing removal of the exact `gemini-3-flash` default.
 - Simplify removal-tone settings to three enable switches using fixed Wooden notes. Remove in-app sound selection and previews; ignore legacy style values without deleting stored settings.
 
 - Select Wooden notes as the default beginning, ending and middle-removal sounds; migrate the former Soft chime defaults without changing enable switches or other selected styles.

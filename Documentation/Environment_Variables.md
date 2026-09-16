@@ -66,7 +66,50 @@ Custom endpoints have no default model. These are configured application default
 
 Quotas depend on model, project and billing tier. Check your active project limits in
 [Google AI Studio via the rate-limit guide](https://ai.google.dev/gemini-api/docs/rate-limits).
-The app does not assume a fixed free-tier allowance.
+By default the app does not assume a fixed free-tier allowance. Under **AI Settings > Text Analysis**,
+the checkbox **enable gemini free tier rate limit handling** opts into the explicit limits below.
+It defaults off and affects direct Gemini requests only, not OpenRouter-hosted Gemini or other providers.
+
+| Model | Requests/minute | Input tokens/minute | Requests/day |
+|---|---:|---:|---:|
+| `gemini-3.5-flash` | 5 | 250,000 | 20 |
+| `gemini-3.5-flash-lite` | 15 | 250,000 | 500 |
+| `gemini-3.6-flash` | 5 | 250,000 | 20 |
+| `gemini-3.8-flash` | 5 | 250,000 | 20 |
+| `gemini-2.5-flash` | 5 | 250,000 | 20 |
+| `gemini-3.1-flash-lite` | 15 | 250,000 | 500 |
+| `gemini-3.7-flash` | 5 | 250,000 | 20 |
+
+SQLite reservations serialize workers and share counters across jobs, summaries and keys. Because API
+keys do not reveal their Google project, **all configured keys conservatively share one pool per
+model**, even if some actually belong to different projects. Key rotation cannot grant extra quota.
+Usage shown in the settings table is local to this installation, not a query of Google project usage.
+Provider quota errors account for usage by other applications. Unlisted models (including speech
+models) have provider-defined limits: requests are recorded and provider cooldowns respected without
+inventing a fixed allowance. Model IDs and saved cascade order remain unchanged.
+
+Request counts include attempted calls, including failures. Input-token reservations use UTF-8 payload
+bytes plus overhead as a conservative estimate, replaced by reported input tokens when available.
+Unknown usage retains its reservation; output tokens do not count against the input TPM allowance.
+Requests exceeding a model's entire token allowance cannot fit and fall through to another model.
+Minute windows roll over after 60 seconds; daily counts reset at midnight America/Los_Angeles,
+including daylight-saving transitions. Counters and cooldowns survive process restarts.
+
+Provider `QuotaFailure` identifiers distinguish minute/daily limits. `RetryInfo` and numeric/date
+`Retry-After` values can extend the wait; a short retry hint cannot override a daily suspension.
+Temporary overload uses a separate short cooldown, not a daily quota suspension. Eligible models
+continue immediately; an exhausted cascade raises a scheduled retry for the earliest eligible model,
+including mixed quota/overload/model-not-found responses. This also defers enabled Gemini summary
+and speech requests; valid Complete Timeline classifications remain cached during summary waits. Authentication
+and billing failures still require settings correction. Turning the checkbox off restores existing
+provider behaviour without deleting recorded usage or modifying saved model choices.
+
+Migration `20260916_0020_gemini_free_tier` adds one default-off setting and two independent accounting
+tables. Startup makes the normal integrity-checked database backup first. Existing episode/media
+data is not transformed. For rollback, disable the checkbox before running the older application;
+the additive tables can remain. A full restore uses the pre-migration backup as described in
+[Recovery](RECOVERY.md), at the cost of changes made after that backup. Do not delete quota tables
+or reset counters to work around provider limits.
 
 Gemini TTS is optional and uses the same saved Gemini API keys. The default TTS cascade is:
 
@@ -112,6 +155,7 @@ inheritance toggle is enabled. `default_watermark_artwork` is off by default.
 
 | Setting | Description | Default |
 |---------|-------------|---------|
+| `gemini_free_tier_enabled` | Opt into the Gemini quota accounting and provider cooldown handling described above. | `0` |
 | `default_processing_workflow` | Workflow for inheriting/new podcasts: `legacy` or `complete_timeline`. Existing podcasts remain pinned to Legacy on migration. | `legacy` |
 | `default_remove_editorial_non_speech` | Complete Timeline: remove contextual music examples/illustrative audio. | `0` |
 | `default_remove_non_editorial_non_speech` | Complete Timeline: remove contextual ad jingles/non-editorial gaps. | `1` |

@@ -17,7 +17,7 @@ from app.core.models import Episode
 from app.core.time_utils import now_utc
 from app.infra.repository import EpisodeRepository, SubscriptionRepository, SourceItemRepository, JobRepository, StaleAttempt
 from app.core.ai_services import Transcriber, AdDetector, RateLimitError, PermanentProviderError, AnalysisError
-from app.core.audio import AudioProcessor
+from app.core.audio import AudioProcessor, EmptyAudioResult
 from app.core.rss_gen import RSSGenerator
 from app.core.youtube import (
     YouTubeDownloadCancelled,
@@ -305,7 +305,7 @@ class Processor:
             conn.execute('BEGIN IMMEDIATE')
             row = conn.execute("SELECT e.*, s.slug FROM episodes e JOIN subscriptions s ON s.id=e.subscription_id WHERE e.id=? AND e.status='ignored'", (episode_id,)).fetchone()
             running = conn.execute("SELECT 1 FROM jobs WHERE episode_id=? AND status='running'", (episode_id,)).fetchone()
-            if not row or running:
+            if not row or running or row['processing_step'] == 'skipped/non-episode':
                 return
             self._remove_episode_directory(str(episode_directory(row['slug'], episode_id)), 'delete')
             legacy = legacy_directory(row['slug'], row['guid'])
@@ -676,6 +676,7 @@ class Processor:
                         self.ad_detector.repair_cached_timeline_summary, units, duration, metadata, snapshot,
                     )
                     analysis.update(summary=summary, summary_error=error)
+                    analysis['summary_retry_at'] = None
                     analysis['response']['summary'] = summary
                 break
             except (OSError, ValueError, KeyError, TypeError):
@@ -1018,6 +1019,9 @@ class Processor:
                 **audio_options,
             )
             logger.info(f"Saved cleaned audio to {output_path}")
+            if complete_timeline and analysis.get('summary_retry_at'):
+                raise RateLimitError(analysis['summary_error'], provider='gemini',
+                                     retry_at=datetime.fromisoformat(analysis['summary_retry_at']))
             
             # 4.5 Generate & Append Summary (If enabled)
             
@@ -1042,6 +1046,8 @@ class Processor:
                         await self.ad_detector.generate_audio(intro_text, intro_path)
                         intro_files.append(intro_path)
                     except Exception as e:
+                        if isinstance(e, RateLimitError) and e.retry_at is not None:
+                            raise
                         logger.error(f"Failed to generate Title Intro: {e}")
 
                 # B. AI Summary Features
@@ -1081,6 +1087,8 @@ class Processor:
                         async with aiofiles.open(summary_txt_path, "w") as f:
                             await f.write(summary_text)
                     except Exception as e:
+                        if isinstance(e, RateLimitError) and e.retry_at is not None:
+                            raise
                         logger.error(f"Failed to generate/save text summary: {e}")
                         if not summary_text and not complete_timeline:
                             summary_text = f"Welcome to {sub.title}. Today's episode is {ep.title}."
@@ -1094,6 +1102,8 @@ class Processor:
                             await self.ad_detector.generate_audio(summary_text, summary_path)
                             intro_files.append(summary_path)
                         except Exception as e:
+                            if isinstance(e, RateLimitError) and e.retry_at is not None:
+                                raise
                             logger.error(f"Failed to generate Audio Summary: {e}")
                 
                 # C. Prepend Intros to Episode
@@ -1121,6 +1131,8 @@ class Processor:
                         logger.info("Intros prepended successfully.")
                         
             except Exception as e:
+                if isinstance(e, RateLimitError) and e.retry_at is not None:
+                    raise
                 logger.error(f"Failed to append intros: {e}")
                 # Restore original if things failed and we moved it
                 if temp_clean_path and os.path.exists(temp_clean_path) and not os.path.exists(output_path):
@@ -1152,6 +1164,14 @@ class Processor:
                 severity="success",
             )
 
+        except EmptyAudioResult as e:
+            if self.ep_repo.owns_attempt(ep.id):
+                self.ep_repo.mark_non_episode(ep.id, str(e))
+                await self.publish_pending_feeds()
+                self._cleanup_artifacts(ep)
+            else:
+                self._acknowledge_cancellation(ep)
+            return
         except StaleAttempt:
             self._acknowledge_cancellation(ep)
             return
