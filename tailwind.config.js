@@ -7,11 +7,22 @@ module.exports = {
       colors: {
         // Background layers - Rich, not flat
         surface: {
-          base: '#0a0a0f',
-          DEFAULT: '#12121a',
-          elevated: '#1a1a25',
-          hover: '#22222f',
+          base: 'rgb(var(--surface-base) / <alpha-value>)',
+          DEFAULT: 'rgb(var(--surface) / <alpha-value>)',
+          elevated: 'rgb(var(--surface-elevated) / <alpha-value>)',
+          hover: 'rgb(var(--surface-hover) / <alpha-value>)',
         },
+        ink: 'rgb(var(--ink) / <alpha-value>)',
+        text: {
+          primary: 'rgb(var(--foreground) / <alpha-value>)',
+          secondary: 'rgb(var(--foreground-secondary) / <alpha-value>)',
+          muted: 'rgb(var(--foreground-muted) / <alpha-value>)',
+        },
+        'on-brand': '#ffffff',
+        link: { DEFAULT: 'var(--link)', hover: 'var(--link-hover)' },
+        positive: 'var(--positive)',
+        danger: 'var(--danger)',
+        caution: 'var(--caution)',
         // Primary - Electric Violet
         primary: {
           50: '#faf5ff',

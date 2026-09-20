@@ -2,9 +2,9 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto mt-8 px-4">
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div class="bg-surface rounded-lg shadow-lg overflow-hidden">
         <div class="bg-purple-600 px-6 py-4">
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <h2 class="text-xl font-bold text-on-brand flex items-center gap-2">
                 <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
                     <path
                         d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
@@ -14,43 +14,43 @@
         </div>
 
         <div class="p-6">
-            <p class="text-gray-600 mb-6">
+            <p class="text-text-secondary mb-6">
                 {{ client.intro }}
             </p>
 
             {% if client.best_effort_url %}
-            <div class="mb-8 rounded-lg border border-purple-200 bg-purple-50 p-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Try opening {{ client.label }}</h3>
-                <p class="text-gray-700 text-sm mb-4">
+            <div class="mb-8 rounded-lg border border-primary-500/30 bg-primary-500/10 p-4">
+                <h3 class="text-lg font-semibold text-text-primary mb-2">Try opening {{ client.label }}</h3>
+                <p class="text-text-secondary text-sm mb-4">
                     This might work if your device and browser can hand the feed to {{ client.label }}. If it does not,
                     follow the manual instructions below.
                 </p>
                 <a href="{{ client.best_effort_url }}"
-                    class="inline-flex items-center justify-center bg-purple-600 text-white px-6 py-2 rounded-md font-medium hover:bg-purple-700 transition-colors">
+                    class="inline-flex items-center justify-center bg-purple-600 text-on-brand px-6 py-2 rounded-md font-medium hover:bg-purple-700 transition-colors">
                     Try {{ client.label }}
                 </a>
             </div>
             {% endif %}
 
             <div class="mb-8">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">1. Copy your Feed URL</h3>
+                <h3 class="text-lg font-semibold text-text-primary mb-2">1. Copy your Feed URL</h3>
                 <div class="flex gap-2">
                     <input type="text" value="{{ client.feed_url }}" readonly
                         id="feedUrl"
-                        class="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-md font-mono text-sm text-gray-600 select-all"
+                        class="flex-1 p-3 bg-surface-base border border-ink/20 rounded-md font-mono text-sm text-text-secondary select-all"
                         onclick="selectFeedUrl()">
                     <button onclick="copyUrl()" id="copyBtn"
-                        class="bg-purple-600 text-white px-6 py-2 rounded-md font-medium hover:bg-purple-700 transition-colors flex items-center gap-2">
+                        class="bg-purple-600 text-on-brand px-6 py-2 rounded-md font-medium hover:bg-purple-700 transition-colors flex items-center gap-2">
                         <span id="btnText">Copy</span>
                     </button>
                 </div>
-                <p id="copyFeedback" class="text-green-600 text-sm mt-2 hidden font-medium">Copied to clipboard.</p>
-                <p id="copyError" class="text-amber-700 text-sm mt-2 hidden font-medium">Could not copy automatically. The URL is selected; use your browser's Copy action.</p>
+                <p id="copyFeedback" class="text-positive text-sm mt-2 hidden font-medium">Copied to clipboard.</p>
+                <p id="copyError" class="text-caution text-sm mt-2 hidden font-medium">Could not copy automatically. The URL is selected; use your browser's Copy action.</p>
             </div>
 
             <div class="mb-8">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">2. {{ client.steps_title }}</h3>
-                <ol class="list-decimal pl-5 space-y-3 text-gray-700">
+                <h3 class="text-lg font-semibold text-text-primary mb-2">2. {{ client.steps_title }}</h3>
+                <ol class="list-decimal pl-5 space-y-3 text-text-secondary">
                     {% for step in client.steps %}
                     <li>{{ step }}</li>
                     {% endfor %}
@@ -58,12 +58,12 @@
             </div>
 
             <div class="border-t pt-6 flex justify-between items-center">
-                <a href="/" class="text-gray-600 hover:text-gray-900 font-medium text-sm flex items-center gap-1">
+                <a href="/" class="text-text-secondary hover:text-text-primary font-medium text-sm flex items-center gap-1">
                     ← <span class="hidden xs:inline">Back to Dashboard</span><span class="xs:hidden">Back</span>
                 </a>
                 {% if client.app_url %}
                 <a href="{{ client.app_url }}"
-                    class="text-purple-600 hover:text-purple-700 font-medium text-sm flex items-center gap-1">
+                    class="text-link hover:text-link-hover font-medium text-sm flex items-center gap-1">
                     {{ client.app_link_label or "Open App" }} →
                 </a>
                 {% endif %}

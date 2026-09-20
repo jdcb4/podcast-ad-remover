@@ -19,6 +19,12 @@ pip install -r requirements-dev.txt
 
 ## Standard Check
 
+Theme behavior is covered by `tests/test_theme.py`, using the rendered shared header and actual
+JavaScript in jsdom: dark default, light/dark toggling, reload persistence, invalid preferences,
+cross-tab storage changes and disabled storage. For visual changes, check both themes in a real
+browser at desktop and 320–390px mobile widths, including keyboard focus, navigation/reloads,
+dashboard view changes, episode cards, inputs, menus, dialogs, notifications and public pages.
+
 Focused regression checks for download redirects, empty removals and Gemini quotas:
 
 ```bash
@@ -30,6 +36,10 @@ Timeline empty cuts, claim fencing and removal from both feeds; atomic multi-pro
 token reservations/reconciliation, restart persistence, Pacific DST resets, provider error mixtures,
 retry timing, job deferral, checkbox round trips, provider isolation and additive migration backups.
 The Gemini provider responses are deterministic fixtures; tests do not spend live API quota.
+
+`tests/test_redirect_settings.py` additionally covers configurable sync/async boundaries (including
+zero and 50), persisted-value bounds, HTTP validation and save/reload, omitted-field preservation,
+and upgrade backups/idempotency from both the prior schema and PR #29 installations.
 
 Run:
 

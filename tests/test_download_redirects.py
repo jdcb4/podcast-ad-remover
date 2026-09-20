@@ -5,6 +5,12 @@ import pytest
 
 from app.core.config import settings
 from app.core.http_downloads import stream_get, async_stream_get
+from app.infra.database import get_db_connection, init_db
+
+
+@pytest.fixture(autouse=True)
+def redirect_database(isolated_data_dir):
+    init_db()
 
 
 @pytest.fixture

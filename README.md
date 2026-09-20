@@ -6,6 +6,11 @@ It is built for homelab-style deployment: one Docker container, SQLite state und
 
 ## Current UI
 
+Use the header's light/dark toggle to change appearance. Dark is the default. Your choice is
+saved in this browser only and shared across tabs for the same site; it does not follow the
+system theme or change another user's preference. If browser storage is disabled, the toggle
+still works until the page is reloaded.
+
 ### Dashboard
 
 The compact dashboard switches between My Podcasts and the global Library without a page reload,

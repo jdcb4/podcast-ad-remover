@@ -286,18 +286,19 @@ def test_checkbox_save_reload_scoping_and_usage(client):
         assert conn.execute('SELECT gemini_free_tier_enabled FROM app_settings').fetchone()[0] == 0
 
 
-def test_upgrade_is_additive_backed_up_and_idempotent(isolated_data_dir):
+def test_upgrade_is_additive_backed_up_and_idempotent(isolated_data_dir, monkeypatch):
     import sqlite3
     from pathlib import Path
     from app.infra import database
-    migration = database.FORMAL_MIGRATIONS.pop()
-    try:
+    with monkeypatch.context() as patch:
+        patch.setattr(database, 'FORMAL_MIGRATIONS', [
+            migration for migration in database.FORMAL_MIGRATIONS
+            if migration[0] != '20260916_0020_gemini_free_tier'
+        ])
         init_db()
         with get_db_connection() as conn:
             conn.execute("UPDATE app_settings SET ai_model_cascade='[\"custom-gemini-model\"]'")
             conn.commit()
-    finally:
-        database.FORMAL_MIGRATIONS.append(migration)
     backups_before = set(Path(settings.DATA_DIR).glob('backups/*.db'))
     init_db()
     with get_db_connection() as conn:

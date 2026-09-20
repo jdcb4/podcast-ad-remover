@@ -1,5 +1,19 @@
 # Environment Variables
 
+## Download redirect limit
+
+**Admin > System Settings > Download Redirect Limit** controls the shared HTTP redirect cap
+for RSS feeds, episode audio and artwork. It accepts 0–50, defaults to 8, and zero disallows
+redirects while still allowing direct responses. Each download snapshots the current value;
+changes apply to the next download without a restart. Loops and disallowed network targets
+remain rejected at every hop. YouTube extraction uses its separate downloader.
+
+This is a database-backed setting, with no environment override. Migration
+`20260921_0021_download_redirect_limit` adds it with the standard pre-migration backup;
+existing PR #29 values are preserved. Older forms that omit the field preserve its value.
+The change is additive and older application versions ignore the column; a rollback restores
+the older version's fixed redirect cap. Follow `RECOVERY.md` if restoring a database backup.
+
 Environment variables provide startup defaults; many runtime settings are stored in SQLite and configured in the Admin UI.
 
 ## AI Provider Keys (Optional)

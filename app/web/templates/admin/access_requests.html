@@ -7,7 +7,7 @@
 <div class="alert-success mb-6">
     <div>
         <p class="font-medium">User <strong>{{ request.query_params.get('approved') }}</strong> approved.</p>
-        <p class="text-sm text-emerald-300/80 mt-1">They can now sign in with the password they chose.</p>
+        <p class="text-sm text-positive mt-1">They can now sign in with the password they chose.</p>
     </div>
 </div>
 {% endif %}
@@ -27,7 +27,7 @@
 </div>
 
 {% if pending_requests %}
-<div class="hidden md:block rounded-xl border border-white/[0.06] overflow-hidden">
+<div class="hidden md:block rounded-xl border border-ink/[0.06] overflow-hidden">
     <table class="table-dark w-full table-fixed">
         <thead>
             <tr>
@@ -42,7 +42,7 @@
             {% for req in pending_requests %}
             <tr>
                 <td class="font-medium truncate">
-                    <button class="hover:text-primary-400 transition-colors truncate max-w-full"
+                    <button class="hover:text-link transition-colors truncate max-w-full"
                         onclick="editRequestUsername('{{ req.id }}', '{{ req.username }}')">
                         {{ req.username }}
                     </button>
@@ -52,10 +52,10 @@
                 <td class="text-text-secondary truncate">{{ req.ip_address }}</td>
                 <td class="text-right">
                     <form method="post" action="/admin/access-requests/{{ req.id }}/approve" class="inline">
-                        <button type="submit" class="text-emerald-400 hover:text-emerald-300 font-medium mr-3">Approve</button>
+                        <button type="submit" class="text-positive hover:text-positive font-medium mr-3">Approve</button>
                     </form>
                     <form method="post" action="/admin/access-requests/{{ req.id }}/deny" class="inline">
-                        <button type="submit" class="text-red-400 hover:text-red-300 font-medium">Deny</button>
+                        <button type="submit" class="text-danger hover:text-danger font-medium">Deny</button>
                     </form>
                 </td>
             </tr>
@@ -73,10 +73,10 @@
 
 <div class="md:hidden space-y-3">
     {% for req in pending_requests %}
-    <div class="rounded-xl border border-white/[0.08] bg-surface-base p-4">
+    <div class="rounded-xl border border-ink/[0.08] bg-surface-base p-4">
         <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
-                <button class="font-semibold hover:text-primary-400 truncate max-w-full"
+                <button class="font-semibold hover:text-link truncate max-w-full"
                     onclick="editRequestUsername('{{ req.id }}', '{{ req.username }}')">
                     {{ req.username }}
                 </button>
@@ -90,17 +90,17 @@
         <p class="text-xs text-text-muted mt-2">{{ req.ip_address }}</p>
         <div class="flex gap-3 mt-4">
             <form method="post" action="/admin/access-requests/{{ req.id }}/approve">
-                <button type="submit" class="btn-secondary btn-sm text-emerald-300">Approve</button>
+                <button type="submit" class="btn-secondary btn-sm text-positive">Approve</button>
             </form>
             <form method="post" action="/admin/access-requests/{{ req.id }}/deny">
-                <button type="submit" class="btn-secondary btn-sm text-red-300">Deny</button>
+                <button type="submit" class="btn-secondary btn-sm text-danger">Deny</button>
             </form>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="text-center py-12 rounded-xl border border-dashed border-white/[0.1]">
+<div class="text-center py-12 rounded-xl border border-dashed border-ink/[0.1]">
     <p class="text-text-muted">No pending access requests</p>
 </div>
 {% endif %}

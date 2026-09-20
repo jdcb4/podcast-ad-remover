@@ -3,6 +3,7 @@ from app.core.artifacts import artifact_path
 from app.core.permissions import can_manage_subscription as _can_manage_subscription
 from app.web.permissions import require_episode_management
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status
+from typing import Annotated
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from app.infra.repository import ApiTokenRepository, SubscriptionRepository, EpisodeRepository, FeedTokenRepository
@@ -507,6 +508,7 @@ async def create_setup_admin_user(
 @router.post("/admin/system/update")
 async def update_system_settings(
     request: Request,
+    download_max_redirects: Annotated[int | None, Form(ge=0, le=50)] = None,
     concurrent_downloads: int = Form(2),
     retention_days: int = Form(30),
     check_interval_minutes: int = Form(60),
@@ -605,6 +607,7 @@ async def update_system_settings(
 
         conn.execute("""
             UPDATE app_settings SET concurrent_downloads = ?,
+                download_max_redirects = COALESCE(?, download_max_redirects),
                 retention_days = ?,
                 check_interval_minutes = ?,
                 whisper_cpu_threads = ?,
@@ -624,7 +627,7 @@ async def update_system_settings(
                 whitelist_mode = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
-        """, (concurrent_downloads, retention_days, check_interval_minutes,
+        """, (concurrent_downloads, download_max_redirects, retention_days, check_interval_minutes,
               whisper_cpu_threads, ffmpeg_threads, 1 if unload_whisper_after_job else 0,
               1 if ai_api_enabled else 0,
               ai_api_default_requests_per_minute,

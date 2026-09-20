@@ -12,19 +12,19 @@
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
         <!-- Auto-Refresh Controls -->
         <div
-            class="flex items-center text-sm bg-surface-base px-3 py-2 rounded-xl border border-white/[0.08] justify-between sm:justify-start">
+            class="flex items-center text-sm bg-surface-base px-3 py-2 rounded-xl border border-ink/[0.08] justify-between sm:justify-start">
             <label class="flex items-center cursor-pointer mr-3">
                 <input type="checkbox" id="auto-refresh-toggle" checked
-                    class="rounded border-white/20 bg-surface-base text-primary-500 focus:ring-primary-500 mr-2 w-4 h-4">
+                    class="rounded border-ink/20 bg-surface-base text-primary-500 focus:ring-primary-500 mr-2 w-4 h-4">
                 <span class="font-medium text-text-secondary">Auto</span>
             </label>
             <div class="flex items-center">
                 <input type="number" id="refresh-interval" aria-label="Refresh interval in seconds" value="30" min="5" max="300"
-                    class="w-10 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-primary-400 appearance-none"
+                    class="w-10 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-link appearance-none"
                     style="-moz-appearance: textfield;">
                 <span class="mr-2 text-text-muted">s</span>
                 <span
-                    class="text-xs font-mono font-bold bg-primary-500/20 text-primary-400 px-2.5 py-1 rounded-full min-w-[3rem] text-center"
+                    class="text-xs font-mono font-bold bg-primary-500/20 text-link px-2.5 py-1 rounded-full min-w-[3rem] text-center"
                     id="refresh-countdown">30s</span>
             </div>
         </div>
@@ -42,18 +42,18 @@
 
 {% if operation_status %}
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-6" id="operation-dashboard">
-    <div class="bg-surface-base rounded-xl border border-white/[0.06] p-4">
+    <div class="bg-surface-base rounded-xl border border-ink/[0.06] p-4">
         <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Active Job</p>
         {% if operation_status.active_job %}
         <p class="font-semibold truncate" title="{{ operation_status.active_job.episode_title }}">{{ operation_status.active_job.episode_title }}</p>
         <p class="text-xs text-text-muted truncate">{{ operation_status.active_job.podcast_title }}</p>
-        <p class="text-xs text-primary-400 mt-2" data-active-job-step>{{ operation_status.active_job.processing_step or 'running' }}</p>
+        <p class="text-xs text-link mt-2" data-active-job-step>{{ operation_status.active_job.processing_step or 'running' }}</p>
         {% else %}
         <p class="font-semibold text-text-secondary" data-active-job-step>{{ operation_status.worker.label }}</p>
         <p class="text-xs text-text-muted">No episode is currently running.</p>
         {% endif %}
     </div>
-    <div class="bg-surface-base rounded-xl border border-white/[0.06] p-4">
+    <div class="bg-surface-base rounded-xl border border-ink/[0.06] p-4">
         <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Disk</p>
         <p class="font-semibold"><span data-disk-free>{{ operation_status.disk.free_display }}</span> free</p>
         <div class="progress-bar mt-3">
@@ -69,7 +69,7 @@
             {% endfor %}
         </div>
     </div>
-    <div class="bg-surface-base rounded-xl border border-white/[0.06] p-4">
+    <div class="bg-surface-base rounded-xl border border-ink/[0.06] p-4">
         <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Memory / CPU</p>
         {% if operation_status.memory %}
         <p class="font-semibold"><span data-memory-used>{{ operation_status.memory.used_percent }}</span>% {{ operation_status.memory.scope }} memory used</p>
@@ -82,12 +82,12 @@
         <p class="text-xs text-text-muted mt-2">Load: <span data-load-average>{{ operation_status.load_average.one_minute }}</span></p>
         {% endif %}
     </div>
-    <div class="bg-surface-base rounded-xl border border-white/[0.06] p-4">
+    <div class="bg-surface-base rounded-xl border border-ink/[0.06] p-4">
         <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Schedule</p>
         <p class="font-semibold">Next feed check</p>
         <p class="text-xs text-text-muted" data-next-feed-check>{{ operation_status.next_feed_check|local_time('datetime') }}</p>
         {% if operation_status.next_retry %}
-        <p class="text-xs text-amber-400 mt-2" data-next-retry>Retry: {{ operation_status.next_retry.next_run_at|local_time('datetime') }}</p>
+        <p class="text-xs text-caution mt-2" data-next-retry>Retry: {{ operation_status.next_retry.next_run_at|local_time('datetime') }}</p>
         {% else %}
         <p class="text-xs text-text-muted mt-2" data-next-retry>No retries scheduled</p>
         {% endif %}
@@ -98,7 +98,7 @@
 {% if queue %}
 <div class="space-y-3">
     {% for item in queue %}
-    <div class="bg-surface-elevated rounded-xl border border-white/[0.06] p-4" data-queue-item="{{ item.id }}" data-current-status="{{ item.status }}">
+    <div class="bg-surface-elevated rounded-xl border border-ink/[0.06] p-4" data-queue-item="{{ item.id }}" data-current-status="{{ item.status }}">
         <div class="flex flex-wrap items-start gap-4 justify-between mb-3">
             <div class="flex items-center gap-3 min-w-0 flex-1">
                 {% if item.status == 'processing' %}
@@ -107,7 +107,7 @@
                 <span class="badge-neutral flex-shrink-0" data-queue-badge>Queued</span>
                 {% elif item.status == 'rate_limited' %}
                 <span
-                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex-shrink-0"
+                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-caution border border-amber-500/30 flex-shrink-0"
                     title="Waiting for API quota reset: {{ item.next_retry_at|utc_isoformat }}" data-queue-badge>
                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -127,14 +127,14 @@
             <div class="flex flex-wrap items-center gap-3 flex-shrink-0">
                 {% if item.status != 'processing' %}
                 <form action="/admin/queue/retry/{{ item.id }}" method="post" class="inline">
-                    <button type="submit" class="text-primary-400 hover:text-primary-300 font-medium text-sm">
+                    <button type="submit" class="text-link hover:text-link-hover font-medium text-sm">
                         {% if item.status == 'failed' or item.status == 'rate_limited' %}Retry Now{% else %}Process
                         Now{% endif %}
                     </button>
                 </form>
                 {% endif %}
                 <form action="/admin/queue/cancel/{{ item.id }}" method="post" class="inline">
-                    <button type="submit" class="text-red-400 hover:text-red-300 font-medium text-sm"
+                    <button type="submit" class="text-danger hover:text-danger font-medium text-sm"
                         onclick="return appConfirmSubmit(this.form, 'Cancel this queue item?', { danger: true })">Cancel</button>
                 </form>
             </div>
@@ -142,7 +142,7 @@
         {% if item.status == 'processing' %}
         <div class="mt-3" data-progress-container>
             <div class="flex justify-between items-center text-xs mb-1.5">
-                <span class="text-primary-400 font-medium" data-progress-step>{{ item.processing_step }}</span>
+                <span class="text-link font-medium" data-progress-step>{{ item.processing_step }}</span>
                 <span class="text-text-muted" data-progress-percent>{{ item.progress }}%</span>
             </div>
             <div class="progress-bar">
@@ -151,7 +151,7 @@
         </div>
         {% elif item.status == 'rate_limited' %}
         <div class="mt-3 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-            <div class="flex items-center gap-2 text-sm text-amber-400">
+            <div class="flex items-center gap-2 text-sm text-caution">
                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -159,7 +159,7 @@
                 <span class="font-medium">Waiting for API quota reset</span>
             </div>
             {% if item.next_retry_at %}
-            <p class="text-xs text-amber-400/70 mt-1 ml-6">Scheduled retry: {{ item.next_retry_at|local_time('datetime') }}</p>
+            <p class="text-xs text-caution mt-1 ml-6">Scheduled retry: {{ item.next_retry_at|local_time('datetime') }}</p>
             {% endif %}
             {% if item.error_message %}
             <p class="text-xs text-text-muted mt-2 ml-6 truncate" title="{{ item.error_message }}">{{
@@ -171,7 +171,7 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="text-center py-16 rounded-xl border-2 border-dashed border-white/[0.1]">
+<div class="text-center py-16 rounded-xl border-2 border-dashed border-ink/[0.1]">
     <svg class="mx-auto h-14 w-14 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -193,25 +193,25 @@
     </div>
     <div class="space-y-2">
         {% for item in recently_processed %}
-        <div class="bg-surface-base/50 rounded-lg border border-white/[0.04] p-3 opacity-70 hover:opacity-90 transition-opacity">
+        <div class="bg-surface-base/50 rounded-lg border border-ink/[0.04] p-3 opacity-70 hover:opacity-90 transition-opacity">
             <div class="flex flex-wrap items-center gap-3 justify-between">
                 <div class="flex items-center gap-3 min-w-0 flex-1">
                     {% if item.status == 'completed' %}
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-positive border border-emerald-500/20">
                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
                         Completed
                     </span>
                     {% elif item.status == 'failed' %}
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400/80 border border-red-500/20">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-danger border border-red-500/20">
                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
                         Failed
                     </span>
                     {% elif item.status == 'ignored' %}
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400/80 border border-slate-500/20">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-500/10 text-text-muted border border-slate-500/20">
                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
                         </svg>
@@ -228,7 +228,7 @@
                     <span>{{ item.processed_at|local_time('datetime', item.processed_at_is_utc) }}</span>
                     {% endif %}
                     {% if item.status == 'failed' and item.error_message %}
-                    <span class="text-red-400/60 truncate max-w-[150px]" title="{{ item.error_message }}">{{ item.error_message[:30] }}...</span>
+                    <span class="text-danger truncate max-w-[150px]" title="{{ item.error_message }}">{{ item.error_message[:30] }}...</span>
                     {% endif %}
                 </div>
             </div>
@@ -279,12 +279,12 @@
             countdownDisplay.textContent = timeLeft + 's';
             if (toggle.checked) {
                 intervalId = setInterval(updateCountdown, 1000);
-                countdownDisplay.classList.remove('bg-white/5', 'text-text-muted');
-                countdownDisplay.classList.add('bg-primary-500/20', 'text-primary-400');
+                countdownDisplay.classList.remove('bg-ink/5', 'text-text-muted');
+                countdownDisplay.classList.add('bg-primary-500/20', 'text-link');
             } else {
                 countdownDisplay.textContent = 'Off';
-                countdownDisplay.classList.remove('bg-primary-500/20', 'text-primary-400');
-                countdownDisplay.classList.add('bg-white/5', 'text-text-muted');
+                countdownDisplay.classList.remove('bg-primary-500/20', 'text-link');
+                countdownDisplay.classList.add('bg-ink/5', 'text-text-muted');
             }
         }
 

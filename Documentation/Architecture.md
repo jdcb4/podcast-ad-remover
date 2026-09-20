@@ -23,6 +23,12 @@ The application is intentionally simple: one web app, one SQLite database, local
 
 ### Web App
 
+The shared header offers a light/dark toggle. `static/js/theme.js` applies the browser's saved
+`podcast-ad-remover-theme` localStorage value before the stylesheet loads; missing or invalid
+values use dark. There is no system-theme mode or account setting. Disabled storage still allows
+switching for the current page, and storage events synchronize other tabs on the same origin.
+Semantic Tailwind colors and shared CSS variables cover server templates and dynamic controls.
+
 `app/main.py` creates the FastAPI app, configures middleware and routes, and starts the background processor process.
 
 Key areas:

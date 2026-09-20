@@ -8,20 +8,20 @@
 <div class="mb-4 flex flex-wrap gap-4 items-center">
     <!-- All controls in one unified bar -->
     <div
-        class="flex flex-wrap items-center gap-3 bg-surface-base px-4 py-2 rounded-xl border border-white/[0.08] flex-1">
+        class="flex flex-wrap items-center gap-3 bg-surface-base px-4 py-2 rounded-xl border border-ink/[0.08] flex-1">
         <input type="text" id="log_filter" placeholder="Filter logs..."
-            class="flex-1 min-w-[200px] max-w-md px-3 py-1.5 rounded-lg bg-surface-elevated border border-white/[0.1] text-white placeholder:text-text-muted focus:border-primary-500 outline-none text-sm">
+            class="flex-1 min-w-[200px] max-w-md px-3 py-1.5 rounded-lg bg-surface-elevated border border-ink/[0.1] text-text-primary placeholder:text-text-muted focus:border-primary-500 outline-none text-sm">
         <select id="log_level"
-            class="px-3 py-1.5 rounded-lg bg-surface-elevated border border-white/[0.1] text-white text-sm cursor-pointer focus:border-primary-500 outline-none">
+            class="px-3 py-1.5 rounded-lg bg-surface-elevated border border-ink/[0.1] text-text-primary text-sm cursor-pointer focus:border-primary-500 outline-none">
             <option value="">All Levels</option>
             <option value="ERROR">Errors Only</option>
             <option value="WARNING">Warnings</option>
             <option value="INFO">Info</option>
             <option value="AUTH">Auth Events</option>
         </select>
-        <div class="h-6 w-px bg-white/[0.1] hidden sm:block"></div>
+        <div class="h-6 w-px bg-ink/[0.1] hidden sm:block"></div>
         <button onclick="copyLogs()"
-            class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-elevated border border-white/[0.08] rounded-lg text-text-secondary hover:bg-surface-hover text-sm transition-colors">
+            class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-elevated border border-ink/[0.08] rounded-lg text-text-secondary hover:bg-surface-hover text-sm transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
@@ -29,15 +29,15 @@
             </svg>
             Copy
         </button>
-        <div class="h-6 w-px bg-white/[0.1] hidden sm:block"></div>
+        <div class="h-6 w-px bg-ink/[0.1] hidden sm:block"></div>
         <label class="flex items-center cursor-pointer">
             <input type="checkbox" id="auto_refresh" checked
-                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 mr-2">
+                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 mr-2">
             <span class="text-sm text-text-secondary">Auto</span>
         </label>
-        <span class="text-primary-400 font-semibold text-sm">10s</span>
+        <span class="text-link font-semibold text-sm">10s</span>
         <span id="countdown"
-            class="bg-primary-500/20 text-primary-400 text-xs font-bold px-2 py-1 rounded-full">10s</span>
+            class="bg-primary-500/20 text-link text-xs font-bold px-2 py-1 rounded-full">10s</span>
         <button onclick="refreshLogs()" class="btn-secondary btn-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -51,40 +51,40 @@
 
 <style>
     .log-startup {
-        color: #34d399;
+        color: var(--positive);
         font-weight: 600;
     }
 
     .log-shutdown {
-        color: #fbbf24;
+        color: var(--caution);
         font-weight: 600;
     }
 
     .log-error {
-        color: #f87171;
+        color: var(--danger);
         font-weight: 600;
     }
 
     .log-warning {
-        color: #fbbf24;
+        color: var(--caution);
     }
 
     .log-auth {
-        color: #a78bfa;
+        color: var(--link);
     }
 </style>
 
 <div class="flex-1 min-w-0">
     <div id="log_container"
-        class="bg-surface-base text-gray-100 p-4 rounded-xl border border-white/[0.06] font-mono text-xs overflow-auto scrollbar-dark"
+        class="bg-surface-base text-text-primary p-4 rounded-xl border border-ink/[0.06] font-mono text-xs overflow-auto scrollbar-dark"
         style="height: calc(100vh - 340px); min-height: 300px;">
         <pre id="log_content" class="whitespace-pre-wrap break-all">{{ logs }}</pre>
     </div>
 </div>
 
 <div class="mt-2 text-sm text-text-muted flex justify-between items-center">
-    <span>Showing last {{ current_lines }} lines from <code class="text-primary-400">data/app.log</code></span>
-    <button onclick="scrollToBottom()" class="text-primary-400 hover:text-primary-300 text-xs">↓ Scroll to
+    <span>Showing last {{ current_lines }} lines from <code class="text-link">data/app.log</code></span>
+    <button onclick="scrollToBottom()" class="text-link hover:text-link-hover text-xs">↓ Scroll to
         latest</button>
 </div>
 
@@ -154,7 +154,7 @@
         navigator.clipboard.writeText(text).then(() => {
             const btn = document.querySelector('button[onclick="copyLogs()"]');
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+            btn.innerHTML = `<svg class="w-4 h-4 text-positive" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
             setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
         });
     }

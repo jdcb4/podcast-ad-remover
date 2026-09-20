@@ -8,11 +8,11 @@
 
     <!-- Sidebar / Drawer -->
     <aside id="admin-sidebar"
-        class="admin-drawer md:relative md:translate-x-0 md:w-64 md:shadow-none md:border-r md:border-white/[0.06] md:bg-transparent">
+        class="admin-drawer md:relative md:translate-x-0 md:w-64 md:shadow-none md:border-r md:border-ink/[0.06] md:bg-transparent">
 
         <!-- Close button (mobile only) -->
         <button onclick="closeAdminDrawer()"
-            class="md:hidden absolute top-4 right-4 p-2 text-text-secondary hover:text-text-primary rounded-xl hover:bg-white/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            class="md:hidden absolute top-4 right-4 p-2 text-text-secondary hover:text-text-primary rounded-xl hover:bg-ink/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Close menu">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -21,14 +21,14 @@
 
         <div class="p-4 pt-16 md:pt-4 h-full overflow-y-auto">
             <!-- Admin Header -->
-            <div class="bg-surface-elevated border border-white/[0.08] rounded-2xl p-5 mb-6 relative overflow-hidden">
+            <div class="bg-surface-elevated border border-ink/[0.08] rounded-2xl p-5 mb-6 relative overflow-hidden">
                 <!-- Subtle accent line -->
                 <div
                     class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary-500 via-accent-500 to-primary-500">
                 </div>
                 <h2 class="font-display font-bold text-lg flex items-center gap-2">
                     <div class="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-link" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
                             </path>
@@ -77,7 +77,7 @@
                     Text Analysis
                 </a>
 
-                <div class="border-t border-white/[0.06] my-4"></div>
+                <div class="border-t border-ink/[0.06] my-4"></div>
                 <p class="px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-muted">Podcast Preferences</p>
 
                 <a href="/admin/global-subscription-settings"
@@ -113,7 +113,7 @@
                     Prompt Rules
                 </a>
 
-                <div class="border-t border-white/[0.06] my-4"></div>
+                <div class="border-t border-ink/[0.06] my-4"></div>
                 <p class="px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-muted">System</p>
 
                 <a href="/admin/system"
@@ -161,7 +161,7 @@
                     Logs
                 </a>
 
-                <div class="border-t border-white/[0.06] my-4"></div>
+                <div class="border-t border-ink/[0.06] my-4"></div>
                 <p class="px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-muted">User Management</p>
 
                 <a href="/admin/users"
@@ -185,7 +185,7 @@
                     </svg>
                     Access Requests
                     {% if pending_requests_count is defined and pending_requests_count > 0 %}
-                    <span class="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{
+                    <span class="ml-auto bg-red-500 text-on-brand text-xs font-bold px-2 py-0.5 rounded-full">{{
                         pending_requests_count }}</span>
                     {% endif %}
                 </a>

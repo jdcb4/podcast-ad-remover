@@ -218,13 +218,13 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
         // Build menu items
         let html = '';
         if (hasTranscript) {
-            html += `<a href="/episodes/${episodeId}/transcript" class="block w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-xl flex items-center gap-3">
+            html += `<a href="/episodes/${episodeId}/transcript" class="block w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-text-primary hover:bg-ink/5 rounded-xl flex items-center gap-3">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 View Transcript
             </a>`;
         }
         if (hasReport) {
-            html += `<a href="/artifacts/report/${episodeId}" target="_blank" class="block w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-xl flex items-center gap-3">
+            html += `<a href="/artifacts/report/${episodeId}" target="_blank" class="block w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-text-primary hover:bg-ink/5 rounded-xl flex items-center gap-3">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 View Report
             </a>`;
@@ -232,19 +232,19 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
         if (episodePage.canManage) {
         const status = document.getElementById(`card-${episodeId}`)?.dataset.status;
         if (['pending', 'processing', 'rate_limited'].includes(status)) {
-            html += `<button onclick="closeActionSheet(); cancelEpisode(${episodeId})" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-white/5 rounded-xl">Cancel processing</button>`;
+            html += `<button onclick="closeActionSheet(); cancelEpisode(${episodeId})" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-ink/5 rounded-xl">Cancel processing</button>`;
         }
-        html += `<button onclick="closeActionSheet(); processEpisode(${episodeId}, false)" class="w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-xl flex items-center gap-3">
+        html += `<button onclick="closeActionSheet(); processEpisode(${episodeId}, false)" class="w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-text-primary hover:bg-ink/5 rounded-xl flex items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             Full Reprocess
         </button>`;
         if (hasTranscript) {
-            html += `<button onclick="closeActionSheet(); processEpisode(${episodeId}, true)" class="w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-white hover:bg-white/5 rounded-xl flex items-center gap-3">
+            html += `<button onclick="closeActionSheet(); processEpisode(${episodeId}, true)" class="w-full text-left px-4 py-3 text-sm font-semibold text-text-secondary hover:text-text-primary hover:bg-ink/5 rounded-xl flex items-center gap-3">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                 Reprocess (Keep Transcript)
             </button>`;
         }
-        html += `<button onclick="closeActionSheet(); deleteEpisode(${episodeId})" class="w-full text-left px-4 py-3 text-sm font-semibold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-3">
+        html += `<button onclick="closeActionSheet(); deleteEpisode(${episodeId})" class="w-full text-left px-4 py-3 text-sm font-semibold text-danger hover:bg-red-500/10 rounded-xl flex items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             Ignore Episode and Remove Files
         </button>`;
@@ -314,13 +314,13 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
             if (isNaN(timeLeft) || timeLeft < 5) timeLeft = 5;
             countdownDisplay.textContent = timeLeft + 's';
             if (toggle.checked) {
-                countdownDisplay.classList.remove('bg-white/5', 'text-text-muted');
-                countdownDisplay.classList.add('bg-primary-500/20', 'text-primary-400');
+                countdownDisplay.classList.remove('bg-ink/5', 'text-text-muted');
+                countdownDisplay.classList.add('bg-primary-500/20', 'text-link');
                 intervalId = setInterval(updateCountdown, 1000);
             } else {
                 countdownDisplay.textContent = 'Off';
-                countdownDisplay.classList.remove('bg-primary-500/20', 'text-primary-400');
-                countdownDisplay.classList.add('bg-white/5', 'text-text-muted');
+                countdownDisplay.classList.remove('bg-primary-500/20', 'text-link');
+                countdownDisplay.classList.add('bg-ink/5', 'text-text-muted');
             }
         }
 
@@ -354,11 +354,11 @@ const episodePage = JSON.parse(document.getElementById('episode-page-data').text
                 const btn = document.getElementById(`view-${m}`);
                 if (btn) {
                     if (m === mode) {
-                        btn.classList.add('bg-primary-500', 'text-white');
-                        btn.classList.remove('text-text-muted', 'hover:bg-white/[0.1]');
+                        btn.classList.add('bg-primary-500', 'text-on-brand');
+                        btn.classList.remove('text-text-muted', 'hover:bg-ink/[0.1]');
                     } else {
-                        btn.classList.remove('bg-primary-500', 'text-white');
-                        btn.classList.add('text-text-muted', 'hover:bg-white/[0.1]');
+                        btn.classList.remove('bg-primary-500', 'text-on-brand');
+                        btn.classList.add('text-text-muted', 'hover:bg-ink/[0.1]');
                     }
                 }
             });

@@ -31,7 +31,7 @@
         queueContent.replaceChildren();
         items.forEach((item) => {
             const card = document.createElement('div');
-            card.className = 'queue-item p-4 bg-surface-elevated rounded-xl border border-white/[0.06]';
+            card.className = 'queue-item p-4 bg-surface-elevated rounded-xl border border-ink/[0.06]';
 
             const header = document.createElement('div');
             header.className = 'flex items-start justify-between mb-2';
@@ -56,7 +56,7 @@
                 const labels = document.createElement('div');
                 labels.className = 'flex justify-between items-center text-xs mb-1.5';
                 const step = document.createElement('span');
-                step.className = 'text-primary-400 font-medium';
+                step.className = 'text-link font-medium';
                 step.textContent = item.processing_step;
                 const amount = document.createElement('span');
                 amount.className = 'text-text-muted';
@@ -111,8 +111,8 @@
         timeLeft = normalizedInterval();
         countdown.textContent = toggle.checked ? `${timeLeft}s` : 'Off';
         countdown.classList.toggle('bg-primary-500/20', toggle.checked);
-        countdown.classList.toggle('text-primary-400', toggle.checked);
-        countdown.classList.toggle('bg-white/5', !toggle.checked);
+        countdown.classList.toggle('text-link', toggle.checked);
+        countdown.classList.toggle('bg-ink/5', !toggle.checked);
         countdown.classList.toggle('text-text-muted', !toggle.checked);
     }
 

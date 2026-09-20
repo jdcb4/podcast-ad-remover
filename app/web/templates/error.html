@@ -58,13 +58,13 @@
 
             <!-- Additional help for specific errors -->
             {% if status_code == 401 %}
-            <div class="mt-6 pt-6 border-t border-white/[0.08]">
+            <div class="mt-6 pt-6 border-t border-ink/[0.08]">
                 <p class="text-sm text-text-muted">
-                    Need access? <a href="/request-access" class="text-primary-400 hover:text-primary-300 transition-colors">Request Access →</a>
+                    Need access? <a href="/request-access" class="text-link hover:text-link-hover transition-colors">Request Access →</a>
                 </p>
             </div>
             {% elif status_code == 404 %}
-            <div class="mt-6 pt-6 border-t border-white/[0.08]">
+            <div class="mt-6 pt-6 border-t border-ink/[0.08]">
                 <p class="text-sm text-text-muted">
                     The URL may be mistyped or the page may have been moved.
                 </p>
