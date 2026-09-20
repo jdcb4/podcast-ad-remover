@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.14.0 - 2026-09-21
+
 - Allow eight validated download redirects, rejecting loops and a ninth redirect cleanly.
 - Mark episodes with no retained audio as skipped/non-episodes without FFmpeg concatenation or automatic retries; exclude them from individual and unified feeds, including previously published reprocessing results.
 - Add the opt-in Gemini free-tier checkbox, shared durable per-model request/token accounting, Pacific daily resets, provider-aware cooldowns and usage display. Exhausted models leave the effective cascade temporarily; jobs wait for the earliest eligible model without editing saved choices. Retain Dev's existing removal of the exact `gemini-3-flash` default.
