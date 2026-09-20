@@ -30,7 +30,7 @@
             {% if public_subscribe_page_enabled %}
             <p class="text-sm text-text-secondary text-center mt-6">
                 Don't have an account?
-                <a href="/subscribe" class="text-primary-400 hover:text-primary-300 transition-colors">
+                <a href="/subscribe" class="text-link hover:text-link-hover transition-colors">
                     Browse and subscribe here
                 </a>
             </p>
@@ -48,7 +48,7 @@
                 <div>
                     <p class="font-bold mb-1">⚠️ Save this password!</p>
                     <code
-                        class="block bg-surface-base px-3 py-2 rounded-lg text-lg font-mono mt-2 select-all border border-white/[0.08]">{{ initial_password }}</code>
+                        class="block bg-surface-base px-3 py-2 rounded-lg text-lg font-mono mt-2 select-all border border-ink/[0.08]">{{ initial_password }}</code>
                     <p class="text-xs mt-2 opacity-80">You'll need to change it after first login.</p>
                 </div>
             </div>
@@ -83,11 +83,11 @@
 
             <div class="mt-6 space-y-3 text-center">
                 <a href="/request-access"
-                    class="text-sm text-primary-400 hover:text-primary-300 transition-colors">Request Access →</a>
+                    class="text-sm text-link hover:text-link-hover transition-colors">Request Access →</a>
                 {% if public_subscribe_page_enabled %}
                 <p class="text-sm text-text-secondary">
                     Don't have an account?
-                    <a href="/subscribe" class="text-primary-400 hover:text-primary-300 transition-colors">
+                    <a href="/subscribe" class="text-link hover:text-link-hover transition-colors">
                         Browse and subscribe here
                     </a>
                 </p>

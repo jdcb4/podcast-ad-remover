@@ -13,19 +13,19 @@
 {% endif %}
 
 <div class="mb-6">
-    <a href="/" class="text-primary-400 hover:text-primary-300 transition-colors">&larr; Back to Subscriptions</a>
+    <a href="/" class="text-link hover:text-link-hover transition-colors">&larr; Back to Subscriptions</a>
 </div>
 
 <div class="card mb-10 overflow-hidden relative group border-0 bg-transparent shadow-none p-0">
     <!-- Cinematic Header -->
     <div
-        class="relative overflow-hidden rounded-3xl p-6 md:p-10 border border-white/5 bg-surface-elevated/40 backdrop-blur-none md:backdrop-blur-md">
+        class="relative overflow-hidden rounded-3xl p-6 md:p-10 border border-ink/5 bg-surface-elevated/40 backdrop-blur-none md:backdrop-blur-md">
         <div class="absolute inset-0 z-0">
             {% if artwork_url %}
             <div class="hidden md:block absolute inset-0 bg-cover bg-center blur-[100px] opacity-30 scale-125"
                 style="background-image: url('{{ artwork_url }}');"></div>
             {% endif %}
-            <div class="absolute inset-0 bg-gradient-to-br from-bg-surface/90 via-bg-surface/60 to-transparent"></div>
+            <div class="absolute inset-0 bg-gradient-to-br from-surface/90 via-surface/60 to-transparent"></div>
         </div>
 
         <div class="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
@@ -33,15 +33,15 @@
             {% if artwork_url %}
             <div class="shrink-0 relative flex flex-col items-center gap-4">
                 <img src="{{ artwork_url }}" alt="{{ subscription.title }}"
-                    class="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10 group-hover:scale-[1.02] transition-transform duration-500">
-                <div class="absolute inset-0 rounded-2xl ring-inset ring-1 ring-white/20 pointer-events-none"></div>
+                    class="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-ink/10 group-hover:scale-[1.02] transition-transform duration-500">
+                <div class="absolute inset-0 rounded-2xl ring-inset ring-1 ring-ink/20 pointer-events-none"></div>
             </div>
             {% endif %}
 
             <!-- Mobile Delete / Library Button (Between Image and Title) -->
             {% if user and user.is_admin %}
             <button onclick="deleteSubscription({{ subscription.id }})"
-                class="md:hidden px-6 py-3 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-sm font-bold border border-red-500/20 shadow-lg -mt-4 mb-2"
+                class="md:hidden px-6 py-3 text-danger hover:text-danger bg-red-500/10 hover:bg-red-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-sm font-bold border border-red-500/20 shadow-lg -mt-4 mb-2"
                 title="Delete subscription and all local files">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
@@ -55,7 +55,7 @@
                 <input type="hidden" name="action" value="remove">
                 <input type="hidden" name="redirect_to" value="/?view=mine">
                 <button type="submit"
-                    class="px-6 py-3 text-primary-300 hover:text-primary-200 bg-primary-500/10 hover:bg-primary-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-sm font-bold border border-primary-500/20 shadow-lg">
+                    class="px-6 py-3 text-link-hover hover:text-link-hover bg-primary-500/10 hover:bg-primary-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-sm font-bold border border-primary-500/20 shadow-lg">
                     Remove from My Podcasts
                 </button>
             </form>
@@ -65,7 +65,7 @@
             <div class="flex-1 min-w-0 text-center md:text-left pt-2 pb-2">
                 <div class="mb-4">
                     <h1
-                        class="font-display text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-4 leading-tight">
+                        class="font-display text-4xl md:text-5xl font-extrabold tracking-tight text-text-primary mb-4 leading-tight">
                         {{ subscription.title }}
                     </h1>
                     <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-4">
@@ -108,16 +108,16 @@
                         Refresh Show
                     </button>
                     <!-- Listen count -->
-                    <div class="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10">
-                        <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="flex items-center gap-2 px-4 py-2 rounded-full bg-ink/5 border border-ink/10">
+                        <svg class="w-4 h-4 text-link" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z">
                             </path>
                         </svg>
-                        <span class="text-sm font-semibold text-white">{{ total_listens }}</span>
+                        <span class="text-sm font-semibold text-text-primary">{{ total_listens }}</span>
                         <span class="text-xs text-text-muted">plays</span>
                     </div>
-                    <div class="h-10 w-px bg-white/10 hidden md:block"></div>
+                    <div class="h-10 w-px bg-ink/10 hidden md:block"></div>
                     <div class="flex gap-2 flex-wrap justify-center md:justify-start">
                         {% for link in links.app_links %}
                         <a href="{{ link.url }}"
@@ -130,7 +130,7 @@
                         {% endfor %}
                     </div>
                     {% if settings.enable_feed_auth %}
-                    <p class="basis-full text-xs text-amber-300/80 text-center md:text-left max-w-2xl">
+                    <p class="basis-full text-xs text-caution text-center md:text-left max-w-2xl">
                         These protected subscription links include feed tokens. Treat each full URL as a bearer secret
                         because anyone with it can read the feed and download audio until the token is revoked.
                     </p>
@@ -141,7 +141,7 @@
             <!-- Delete button (desktop only - top right) -->
             {% if user and user.is_admin %}
             <button onclick="deleteSubscription({{ subscription.id }})"
-                class="hidden md:block absolute top-6 right-6 p-3 text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-2xl transition-all"
+                class="hidden md:block absolute top-6 right-6 p-3 text-text-primary/20 hover:text-danger hover:bg-red-500/10 rounded-2xl transition-all"
                 title="Delete subscription and all local files">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -209,17 +209,17 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
             <div class="space-y-6">
                 <section class="space-y-4" data-inheritance-group>
-                <div class="flex items-center justify-between gap-4 border-b border-white/[0.08] pb-2">
+                <div class="flex items-center justify-between gap-4 border-b border-ink/[0.08] pb-2">
                     <h4 class="font-semibold">Content Removal</h4>
                     <label class="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
                         <input type="checkbox" name="inherit_content_removal" value="true"
                             data-inheritance-toggle {% if subscription.inherit_content_removal %}checked{% endif %}
-                            class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                            class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                         Use global settings
                     </label>
                 </div>
                 {% if subscription.inherit_content_removal %}
-                <p class="text-xs text-primary-300">Currently using the global content-removal settings.</p>
+                <p class="text-xs text-link-hover">Currently using the global content-removal settings.</p>
                 {% endif %}
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="remove_ads" value="true" data-inherited-control
@@ -227,7 +227,7 @@
                         data-override-checked="{{ 'true' if stored.get('remove_ads') else 'false' }}"
                         {% if (subscription.remove_ads if subscription.inherit_content_removal else stored.get('remove_ads')) %}checked{% endif %}
                         {% if subscription.inherit_content_removal %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                     <span class="ml-3">Remove Ads</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
@@ -236,7 +236,7 @@
                         data-override-checked="{{ 'true' if stored.get('remove_promos') else 'false' }}"
                         {% if (subscription.remove_promos if subscription.inherit_content_removal else stored.get('remove_promos')) %}checked{% endif %}
                         {% if subscription.inherit_content_removal %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                     <span class="ml-3">Remove Promos</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
@@ -245,7 +245,7 @@
                         data-override-checked="{{ 'true' if stored.get('remove_intros') else 'false' }}"
                         {% if (subscription.remove_intros if subscription.inherit_content_removal else stored.get('remove_intros')) %}checked{% endif %}
                         {% if subscription.inherit_content_removal %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                     <span class="ml-3">Remove Intros</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
@@ -254,10 +254,10 @@
                         data-override-checked="{{ 'true' if stored.get('remove_outros') else 'false' }}"
                         {% if (subscription.remove_outros if subscription.inherit_content_removal else stored.get('remove_outros')) %}checked{% endif %}
                         {% if subscription.inherit_content_removal %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                     <span class="ml-3">Remove Outros</span>
                 </label>
-                <div class="space-y-3 pt-3 border-t border-white/[0.08]">
+                <div class="space-y-3 pt-3 border-t border-ink/[0.08]">
                     <h5 class="text-sm font-semibold">Complete Timeline only</h5>
                     {% for field, title in [('remove_non_editorial_non_speech', 'Remove non-editorial non-speech (ad jingles)'), ('remove_editorial_non_speech', 'Remove editorial non-speech (music examples)')] %}
                     <label class="flex items-center gap-3 text-sm">
@@ -278,17 +278,17 @@
                 </section>
 
                 <section class="pt-4 space-y-4" data-inheritance-group>
-                    <div class="flex items-center justify-between gap-4 border-b border-white/[0.08] pb-2">
+                    <div class="flex items-center justify-between gap-4 border-b border-ink/[0.08] pb-2">
                         <h4 class="font-semibold">Retention Policy</h4>
                         <label class="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
                             <input type="checkbox" name="inherit_retention" value="true"
                                 data-inheritance-toggle {% if subscription.inherit_retention %}checked{% endif %}
-                                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                             Use global settings
                         </label>
                     </div>
                     {% if subscription.inherit_retention %}
-                    <p class="text-xs text-primary-300">Global policy: keep latest {{ subscription.retention_limit }},
+                    <p class="text-xs text-link-hover">Global policy: keep latest {{ subscription.retention_limit }},
                         automatic files {{ subscription.retention_days }} days, manual files {{ subscription.manual_retention_days }} days.</p>
                     {% endif %}
                     <input type="hidden" name="retention_days"
@@ -342,17 +342,17 @@
 
             <div class="space-y-4">
                 <section class="space-y-4" data-inheritance-group>
-                <div class="flex items-center justify-between gap-4 border-b border-white/[0.08] pb-2">
+                <div class="flex items-center justify-between gap-4 border-b border-ink/[0.08] pb-2">
                     <h4 class="font-semibold">Default Features</h4>
                     <label class="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
                         <input type="checkbox" name="inherit_default_features" value="true"
                             data-inheritance-toggle {% if subscription.inherit_default_features %}checked{% endif %}
-                            class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                            class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                         Use global settings
                     </label>
                 </div>
                 {% if subscription.inherit_default_features %}
-                <p class="text-xs text-primary-300">Currently using the global feature settings.</p>
+                <p class="text-xs text-link-hover">Currently using the global feature settings.</p>
                 {% endif %}
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="ai_rewrite_description" value="true" data-inherited-control
@@ -360,7 +360,7 @@
                         data-override-checked="{{ 'true' if stored.get('ai_rewrite_description') else 'false' }}"
                         {% if (subscription.ai_rewrite_description if subscription.inherit_default_features else stored.get('ai_rewrite_description')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                     <span class="ml-3">Rewrite Description (AI Text)</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
@@ -369,7 +369,7 @@
                         data-override-checked="{{ 'true' if stored.get('ai_audio_summary') else 'false' }}"
                         {% if (subscription.ai_audio_summary if subscription.inherit_default_features else stored.get('ai_audio_summary')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                     <span class="ml-3">Append Audio Summary (AI TTS)</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
@@ -378,7 +378,7 @@
                         data-override-checked="{{ 'true' if stored.get('append_title_intro') else 'false' }}"
                         {% if (subscription.append_title_intro if subscription.inherit_default_features else stored.get('append_title_intro')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                     <span class="ml-3">Append Audio Title as Intro (TTS)</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
@@ -387,7 +387,7 @@
                         data-override-checked="{{ 'true' if stored.get('watermark_artwork') else 'false' }}"
                         {% if (subscription.watermark_artwork if subscription.inherit_default_features else stored.get('watermark_artwork')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                     <span class="ml-3">Add “Ad Free” Artwork Badge</span>
                 </label>
                 </section>
@@ -398,12 +398,12 @@
                         <label class="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
                             <input type="checkbox" name="inherit_custom_instructions" value="true"
                                 data-inheritance-toggle {% if subscription.inherit_custom_instructions %}checked{% endif %}
-                                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-white/20 focus:ring-primary-500">
+                                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
                             Use global instructions
                         </label>
                     </div>
                     {% if subscription.inherit_custom_instructions %}
-                    <p class="text-xs text-primary-300">
+                    <p class="text-xs text-link-hover">
                         Global instructions: {{ subscription.custom_instructions or "No custom instructions configured globally." }}
                     </p>
                     {% endif %}
@@ -416,7 +416,7 @@
             </div>
         </div>
 
-        <div class="mt-6 flex justify-end pt-4 border-t border-white/[0.08]">
+        <div class="mt-6 flex justify-end pt-4 border-t border-ink/[0.08]">
             <button type="submit" class="btn-primary">Save Settings</button>
         </div>
     </form>
@@ -431,37 +431,37 @@
             </div>
         </div>
         <dl class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-sm text-text-secondary">
-            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Processing workflow</dt>
                 <dd>{{ 'Complete Timeline' if subscription.processing_workflow == 'complete_timeline' else 'Legacy' }}</dd>
             </div>
             {% if subscription.processing_workflow == 'complete_timeline' %}
-            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Remove editorial non-speech</dt>
                 <dd>{{ 'On' if subscription.remove_editorial_non_speech else 'Off' }}</dd>
             </div>
-            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Remove non-editorial non-speech</dt>
                 <dd>{{ 'On' if subscription.remove_non_editorial_non_speech else 'Off' }}</dd>
             </div>
-            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Short-island threshold</dt>
                 <dd>{{ subscription.minimum_retained_seconds }}s</dd>
             </div>
             {% endif %}
-            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Remove ads</dt>
                 <dd>{{ "On" if subscription.remove_ads else "Off" }}</dd>
             </div>
-            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Remove promos</dt>
                 <dd>{{ "On" if subscription.remove_promos else "Off" }}</dd>
             </div>
-            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Auto-downloads</dt>
                 <dd>{{ subscription.retention_limit or 0 }} episode{% if (subscription.retention_limit or 0) != 1 %}s{% endif %}</dd>
             </div>
-            <div class="flex justify-between gap-4 border-b border-white/[0.06] py-2">
+            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>AI audio summary</dt>
                 <dd>{{ "On" if subscription.ai_audio_summary else "Off" }}</dd>
             </div>
@@ -492,7 +492,7 @@
     <!-- Search Input -->
     <div class="relative flex-1 md:w-80">
         <input type="text" id="episode-search" aria-label="Search episodes" placeholder="Search episodes..."
-            class="w-full bg-surface-base border border-white/[0.1] rounded-2xl pl-12 pr-4 py-3 text-sm text-text-primary focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all shadow-inner">
+            class="w-full bg-surface-base border border-ink/[0.1] rounded-2xl pl-12 pr-4 py-3 text-sm text-text-primary focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all shadow-inner">
         <svg class="w-5 h-5 text-text-muted absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" fill="none"
             stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
@@ -509,27 +509,27 @@
 
     {% if has_processing.value %}
     <!-- Processing Indicator with Inline Refresh Controls -->
-    <div class="flex items-center gap-3 bg-surface-base/50 border border-white/[0.08] rounded-2xl px-4 py-2.5">
+    <div class="flex items-center gap-3 bg-surface-base/50 border border-ink/[0.08] rounded-2xl px-4 py-2.5">
         <div class="flex items-center gap-2">
             <div class="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
             <span class="text-xs font-semibold text-text-secondary">Processing</span>
         </div>
-        <div class="h-4 w-px bg-white/10"></div>
+        <div class="h-4 w-px bg-ink/10"></div>
         <label class="flex items-center cursor-pointer">
             <input type="checkbox" id="auto-refresh-toggle" checked
-                class="rounded border-white/20 bg-surface-base text-primary-500 focus:ring-primary-500 mr-1.5 w-3.5 h-3.5">
+                class="rounded border-ink/20 bg-surface-base text-primary-500 focus:ring-primary-500 mr-1.5 w-3.5 h-3.5">
             <span class="text-xs font-medium text-text-muted">Auto</span>
         </label>
         <div class="flex items-center gap-1">
             <input type="number" id="refresh-interval" aria-label="Refresh interval in seconds" value="30" min="5" max="300"
-                class="w-8 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-primary-400 appearance-none text-xs"
+                class="w-8 text-center border-none bg-transparent focus:ring-0 p-0 font-bold text-link appearance-none text-xs"
                 style="-moz-appearance: textfield;">
             <span class="text-xs text-text-muted">s</span>
             <span
-                class="text-[10px] font-mono font-bold bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full min-w-[2.5rem] text-center"
+                class="text-[10px] font-mono font-bold bg-primary-500/20 text-link px-2 py-0.5 rounded-full min-w-[2.5rem] text-center"
                 id="refresh-countdown">30s</span>
         </div>
-        <button onclick="location.reload()" class="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+        <button onclick="location.reload()" class="p-1.5 bg-ink/5 hover:bg-ink/10 rounded-lg transition-colors"
             title="Refresh Now">
             <svg class="w-3.5 h-3.5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -542,9 +542,9 @@
 
     <!-- View Toggles -->
     <div class="flex items-center gap-2">
-        <div class="flex items-center bg-surface-base rounded-lg p-1 border border-white/[0.1]">
+        <div class="flex items-center bg-surface-base rounded-lg p-1 border border-ink/[0.1]">
             <button type="button" id="view-grid"
-                class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
+                class="p-1.5 rounded hover:bg-ink/[0.1] text-text-muted hover:text-text-primary transition-colors"
                 title="Grid View">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -553,7 +553,7 @@
                 </svg>
             </button>
             <button type="button" id="view-list"
-                class="p-1.5 rounded hover:bg-white/[0.1] text-text-muted hover:text-white transition-colors"
+                class="p-1.5 rounded hover:bg-ink/[0.1] text-text-muted hover:text-text-primary transition-colors"
                 title="List View">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
@@ -608,7 +608,7 @@
         min-height: 52px;
         gap: 0;
         overflow: visible !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid rgb(var(--ink) / 0.03);
     }
 
     /* Fix: Ensure hidden class overrides list view display */
@@ -686,7 +686,7 @@
     }
 
     /* Hide elements not needed in list view row */
-    #episodes-grid[data-view="list"] .episode-card .text-white\/10,
+    #episodes-grid[data-view="list"] .episode-card .text-text-primary\/10,
     #episodes-grid[data-view="list"] .episode-card .flex.flex-wrap.gap-2.mt-2,
     #episodes-grid[data-view="list"] .episode-card .mt-4.bg-surface-base,
     #episodes-grid[data-view="list"] .episode-card .flex.items-center.gap-3:not(.list-actions) {
@@ -747,7 +747,7 @@
             padding: 0.875rem 0.5rem !important;
             min-height: 60px !important;
             gap: 0 !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            border-bottom: 1px solid rgb(var(--ink) / 0.06) !important;
             border-left: none !important;
             border-right: none !important;
             border-top: none !important;
@@ -811,15 +811,15 @@
 <!-- Load More Button -->
 <div id="load-more-container" class="flex justify-center mt-8 mb-12" {% if not has_more %}style="display:none"{% endif %}>
     <button id="load-more-btn" onclick="loadMoreEpisodes()"
-        class="px-8 py-4 rounded-2xl bg-surface-base border border-white/10 hover:border-primary-500/50 hover:bg-primary-500/10 transition-all duration-300 flex items-center gap-3 group">
-        <svg class="w-5 h-5 text-text-muted group-hover:text-primary-400 transition-colors" fill="none"
+        class="px-8 py-4 rounded-2xl bg-surface-base border border-ink/10 hover:border-primary-500/50 hover:bg-primary-500/10 transition-all duration-300 flex items-center gap-3 group">
+        <svg class="w-5 h-5 text-text-muted group-hover:text-link transition-colors" fill="none"
             stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
         </svg>
-        <span class="text-sm font-bold text-text-secondary group-hover:text-white transition-colors">
+        <span class="text-sm font-bold text-text-secondary group-hover:text-text-primary transition-colors">
             Load More Episodes
         </span>
-        <span id="load-more-count" class="text-xs font-semibold text-text-muted bg-white/5 px-2 py-1 rounded-full">
+        <span id="load-more-count" class="text-xs font-semibold text-text-muted bg-ink/5 px-2 py-1 rounded-full">
             {{ episodes|length }} of {{ total_episodes }}
         </span>
     </button>
@@ -827,16 +827,16 @@
 
 <!-- Global Action Sheet Modal -->
 <dialog id="action-sheet" aria-label="Episode actions" aria-modal="true"
-    class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-[9999] flex items-center justify-center"
+    class="app-dialog-overlay hidden z-[9999]"
     onclick="closeActionSheet()">
-    <div class="bg-surface-elevated border border-white/10 rounded-2xl w-72 max-w-[90vw] shadow-2xl"
+    <div class="bg-surface-elevated border border-ink/10 rounded-2xl w-72 max-w-[90vw] shadow-2xl"
         onclick="event.stopPropagation()">
         <div class="p-2 space-y-1" id="action-sheet-content">
             <!-- Content populated by JS -->
         </div>
-        <div class="border-t border-white/10 p-2">
+        <div class="border-t border-ink/10 p-2">
             <button onclick="closeActionSheet()"
-                class="w-full py-3 text-sm font-semibold text-text-secondary hover:text-white rounded-xl hover:bg-white/5 transition-colors">
+                class="w-full py-3 text-sm font-semibold text-text-secondary hover:text-text-primary rounded-xl hover:bg-ink/5 transition-colors">
                 Cancel
             </button>
         </div>
@@ -847,30 +847,30 @@
 <script src="/static/js/episodes.js?v={{ static_asset_version('js/episodes.js') }}" defer></script>
 <!-- Batch Actions Toolbar -->
 <div id="batch-actions"
-    style="position: fixed; bottom: 24px; left: 0; right: 0; margin-left: auto; margin-right: auto; width: max-content; min-width: 320px; max-width: 90vw; z-index: 2147483647; display: none; opacity: 0; transform: translateY(20px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; background-color: #151515;"
-    class="border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,1)] px-6 py-4 flex items-center gap-4">
+    style="position: fixed; bottom: 24px; left: 0; right: 0; margin-left: auto; margin-right: auto; width: max-content; min-width: 320px; max-width: 90vw; z-index: 2147483647; display: none; opacity: 0; transform: translateY(20px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; background-color: var(--bg-surface);"
+    class="border border-ink/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,1)] px-6 py-4 flex items-center gap-4">
 
     <div class="flex items-center gap-3">
         <div class="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></div>
-        <span id="batch-count" class="text-sm font-bold text-white whitespace-nowrap">0 selected</span>
+        <span id="batch-count" class="text-sm font-bold text-text-primary whitespace-nowrap">0 selected</span>
     </div>
 
-    <div class="h-6 w-px bg-white/20 shrink-0"></div>
+    <div class="h-6 w-px bg-ink/20 shrink-0"></div>
 
     <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
         <button onclick="selectAllEpisodes()"
-            class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10 transition-colors whitespace-nowrap">
+            class="px-3 py-1.5 rounded-lg bg-ink/5 border border-ink/10 text-xs font-bold hover:bg-ink/10 transition-colors whitespace-nowrap">
             Select All
         </button>
         <button onclick="clearSelection()"
-            class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold hover:bg-white/10 transition-colors whitespace-nowrap">
+            class="px-3 py-1.5 rounded-lg bg-ink/5 border border-ink/10 text-xs font-bold hover:bg-ink/10 transition-colors whitespace-nowrap">
             Clear
         </button>
 
-        <div class="h-6 w-px bg-white/20 shrink-0 mx-1"></div>
+        <div class="h-6 w-px bg-ink/20 shrink-0 mx-1"></div>
 
         <button onclick="batchReprocess()"
-            class="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-bold shadow-lg flex items-center gap-2 transition-all">
+            class="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-on-brand text-sm font-bold shadow-lg flex items-center gap-2 transition-all">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -879,7 +879,7 @@
         </button>
 
         <button onclick="batchDelete()"
-            class="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-bold flex items-center gap-2 transition-all">
+            class="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-danger text-sm font-bold flex items-center gap-2 transition-all">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

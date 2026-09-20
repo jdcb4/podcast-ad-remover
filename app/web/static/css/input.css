@@ -4,24 +4,56 @@
 
 /* ============================================
    MIDNIGHT STUDIO DESIGN SYSTEM
-   Premium dark theme for Podcast Ad Remover
+   Light and dark themes for Podcast Ad Remover
    ============================================ */
 
 @layer base {
     :root {
-        --bg-base: #0f0f11;
-        --bg-surface: #18181b;
-        --bg-surface-elevated: #202025;
+        color-scheme: dark;
+        --surface-base: 10 10 15;
+        --surface: 18 18 26;
+        --surface-elevated: 26 26 37;
+        --surface-hover: 34 34 47;
+        --foreground: 237 237 239;
+        --foreground-secondary: 161 161 170;
+        --foreground-muted: 148 148 160;
+        --ink: 255 255 255;
+        --link: #a78bfa;
+        --link-hover: #c4b5fd;
+        --positive: #34d399;
+        --danger: #f87171;
+        --caution: #fbbf24;
+        --pink: #f472b6;
+        --gradient-end: #06b6d4;
+        --control-border: rgb(255 255 255 / 0.16);
+        --bg-base: rgb(var(--surface-base));
+        --bg-surface: rgb(var(--surface));
+        --bg-surface-elevated: rgb(var(--surface-elevated));
+        --bg-elevated: var(--bg-surface-elevated);
+        --bg-hover: rgb(var(--surface-hover));
+        --text-primary: rgb(var(--foreground));
+        --text-secondary: rgb(var(--foreground-secondary));
+        --text-muted: rgb(var(--foreground-muted));
+    }
 
-        --bg-hover: #303036;
-        --text-primary: #ededef;
-        /* Increased contrast */
-        --text-secondary: #a1a1aa;
-        --text-muted: #71717a;
-
-        --primary-500: #8b5cf6;
-        --primary-400: #a78bfa;
-        --primary-300: #c4b5fd;
+    :root[data-theme="light"] {
+        color-scheme: light;
+        --surface-base: 246 247 251;
+        --surface: 255 255 255;
+        --surface-elevated: 237 240 247;
+        --surface-hover: 225 230 240;
+        --foreground: 24 32 49;
+        --foreground-secondary: 65 78 99;
+        --foreground-muted: 82 96 116;
+        --ink: 15 23 42;
+        --link: #6d28d9;
+        --link-hover: #5b21b6;
+        --positive: #047857;
+        --danger: #b91c1c;
+        --caution: #92400e;
+        --pink: #be185d;
+        --gradient-end: #0e7490;
+        --control-border: #94a3b8;
     }
 
     html {
@@ -54,6 +86,20 @@
 
 @layer components {
 
+    .theme-toggle {
+        @apply inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] px-3 rounded-xl text-sm font-medium;
+        color: var(--text-primary);
+        background: var(--bg-surface-elevated);
+        border: 1px solid var(--control-border);
+    }
+
+    .theme-toggle[hidden] { display: none; }
+    .theme-toggle:hover { background: var(--bg-hover); }
+    .theme-toggle:focus-visible {
+        outline: 2px solid var(--link);
+        outline-offset: 3px;
+    }
+
     /* Buttons */
     .btn {
         @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 min-h-[44px] font-medium text-sm rounded-xl transition-all duration-200;
@@ -64,8 +110,8 @@
     }
 
     .btn-primary {
-        @apply btn text-white;
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        @apply btn text-on-brand;
+        background: linear-gradient(135deg, #7c3aed, #6d28d9);
         box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
     }
 
@@ -75,31 +121,31 @@
     }
 
     .btn-secondary {
-        @apply btn text-white border;
-        background: #1a1a25;
-        border-color: rgba(255, 255, 255, 0.1);
+        @apply btn text-text-primary border;
+        background: var(--bg-surface-elevated);
+        border-color: rgb(var(--ink) / 0.1);
     }
 
     .btn-secondary:hover {
-        background: #22222f;
+        background: var(--bg-hover);
         border-color: rgba(139, 92, 246, 0.3);
     }
 
     .btn-ghost {
         @apply btn;
         background: transparent;
-        color: #a1a1aa;
+        color: var(--text-secondary);
     }
 
     .btn-ghost:hover {
-        background: rgba(255, 255, 255, 0.05);
-        color: #fafafa;
+        background: rgb(var(--ink) / 0.05);
+        color: var(--text-primary);
     }
 
     .btn-danger {
         @apply btn border;
         background: rgba(239, 68, 68, 0.1);
-        color: #f87171;
+        color: var(--danger);
         border-color: rgba(239, 68, 68, 0.2);
     }
 
@@ -111,14 +157,14 @@
     .card {
         @apply rounded-xl p-6 transition-all duration-300 relative;
         background: linear-gradient(145deg, var(--bg-surface) 0%, var(--bg-elevated) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        border: 1px solid rgb(var(--ink) / 0.06);
         box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.2);
     }
 
     .card:hover {
         transform: translateY(-4px);
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
-        border-color: rgba(255, 255, 255, 0.1);
+        border-color: rgb(var(--ink) / 0.1);
     }
 
     /* Typography */
@@ -155,7 +201,7 @@
 
     /* Semantic Utilities */
     .text-success {
-        color: #4ade80;
+        color: var(--positive);
     }
 
     .bg-success-soft {
@@ -164,7 +210,7 @@
     }
 
     .text-warning {
-        color: #fbbf24;
+        color: var(--caution);
     }
 
     .bg-warning-soft {
@@ -173,7 +219,7 @@
     }
 
     .text-error {
-        color: #f87171;
+        color: var(--danger);
     }
 
     .bg-error-soft {
@@ -182,7 +228,7 @@
     }
 
     .text-body-bright {
-        color: rgba(255, 255, 255, 0.85);
+        color: var(--text-primary);
     }
 
     @screen sm {
@@ -193,7 +239,7 @@
 
     .card-interactive {
         @apply card transition-all duration-300;
-        border-color: rgba(255, 255, 255, 0.1);
+        border-color: rgb(var(--ink) / 0.1);
     }
 
     .card-interactive:hover {
@@ -204,10 +250,10 @@
 
     .card-glass {
         @apply rounded-2xl p-6;
-        background: rgba(26, 26, 37, 0.7);
+        background: rgb(var(--surface-elevated) / 0.7);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgb(var(--ink) / 0.08);
     }
 
     @screen sm {
@@ -219,8 +265,8 @@
     /* Stat Cards */
     .stat-card {
         @apply relative overflow-hidden rounded-2xl p-6 transition-all duration-300;
-        background: #1a1a25;
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--bg-surface-elevated);
+        border: 1px solid rgb(var(--ink) / 0.06);
     }
 
     .stat-card-compact {
@@ -249,7 +295,7 @@
     .stat-value {
         @apply text-4xl font-bold;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        background: linear-gradient(135deg, #a78bfa, #06b6d4);
+        background: linear-gradient(135deg, var(--link), var(--gradient-end));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -263,7 +309,7 @@
 
     .stat-label {
         @apply text-sm uppercase tracking-widest mt-2;
-        color: #a1a1aa;
+        color: var(--text-secondary);
     }
 
     /* Badges */
@@ -273,69 +319,69 @@
 
     .badge-soft {
         @apply badge;
-        background: rgba(255, 255, 255, 0.06);
-        color: #a1a1aa;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgb(var(--ink) / 0.06);
+        color: var(--text-secondary);
+        border: 1px solid rgb(var(--ink) / 0.08);
     }
 
     .badge-soft:hover {
         background: rgba(139, 92, 246, 0.15);
-        color: #a78bfa;
+        color: var(--link);
         border-color: rgba(139, 92, 246, 0.3);
     }
 
     .badge-secondary {
         @apply badge;
         background: rgba(236, 72, 153, 0.15);
-        color: #f472b6;
+        color: var(--pink);
         border: 1px solid rgba(236, 72, 153, 0.2);
     }
 
     .badge-success {
         @apply badge;
         background: rgba(52, 211, 153, 0.15);
-        color: #34d399;
+        color: var(--positive);
         border: 1px solid rgba(52, 211, 153, 0.2);
     }
 
     .badge-warning {
         @apply badge;
         background: rgba(251, 191, 36, 0.15);
-        color: #fbbf24;
+        color: var(--caution);
         border: 1px solid rgba(251, 191, 36, 0.2);
     }
 
     .badge-error {
         @apply badge;
         background: rgba(248, 113, 113, 0.15);
-        color: #f87171;
+        color: var(--danger);
         border: 1px solid rgba(248, 113, 113, 0.2);
     }
 
     .badge-info {
         @apply badge;
         background: rgba(139, 92, 246, 0.15);
-        color: #a78bfa;
+        color: var(--link);
         border: 1px solid rgba(139, 92, 246, 0.2);
     }
 
     .badge-neutral {
         @apply badge;
-        background: rgba(255, 255, 255, 0.06);
-        color: #a1a1aa;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgb(var(--ink) / 0.06);
+        color: var(--text-secondary);
+        border: 1px solid rgb(var(--ink) / 0.08);
     }
 
     /* Form Inputs */
     .input {
         @apply w-full px-4 py-3 min-h-[44px] rounded-xl transition-all duration-200;
-        background: #0a0a0f;
-        color: #fafafa;
-        border: 2px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-base);
+        color: var(--text-primary);
+        border: 2px solid var(--control-border);
     }
 
     .input::placeholder {
-        color: #52525b;
+        color: var(--text-muted);
     }
 
     .input:focus {
@@ -359,34 +405,34 @@
     /* Navigation */
     .header-glass {
         @apply sticky top-0 z-50;
-        background: rgba(10, 10, 15, 0.85);
+        background: rgb(var(--surface-base) / 0.85);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgb(var(--ink) / 0.06);
     }
 
     .nav-link {
         @apply flex items-center gap-3 px-4 py-3 min-h-[44px] text-sm font-medium rounded-xl transition-all duration-200;
-        color: #a1a1aa;
+        color: var(--text-secondary);
     }
 
     .nav-link:hover {
-        background: rgba(255, 255, 255, 0.05);
-        color: #fafafa;
+        background: rgb(var(--ink) / 0.05);
+        color: var(--text-primary);
     }
 
     .nav-link-active {
         @apply nav-link;
         background: rgba(139, 92, 246, 0.1);
-        color: #a78bfa;
+        color: var(--link);
         border-left: 2px solid #8b5cf6;
     }
 
     /* Podcast Card */
     .podcast-card {
         @apply rounded-2xl overflow-hidden transition-all duration-300;
-        background: #1a1a25;
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--bg-surface-elevated);
+        border: 1px solid rgb(var(--ink) / 0.06);
     }
 
     .podcast-card:hover {
@@ -449,7 +495,7 @@
     }
 
     #podcast-grid[data-view="art"] .podcast-artwork {
-        @apply rounded-xl border border-white/[0.1];
+        @apply rounded-xl border border-ink/[0.1];
         aspect-ratio: 1;
         /* Return to square for art grid */
     }
@@ -481,8 +527,8 @@
 
     .admin-drawer {
         @apply fixed left-0 top-0 bottom-0 z-50 w-72 max-w-[85vw] transition-transform duration-300;
-        background: #1a1a25;
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-surface-elevated);
+        border-right: 1px solid rgb(var(--ink) / 0.08);
         transform: translateX(-100%);
         box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
     }
@@ -492,8 +538,8 @@
     }
 
     .admin-fab {
-        @apply fixed bottom-6 left-6 z-30 w-14 h-14 flex items-center justify-center text-white rounded-full transition-all duration-200;
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        @apply fixed bottom-6 left-6 z-30 w-14 h-14 flex items-center justify-center text-on-brand rounded-full transition-all duration-200;
+        background: linear-gradient(135deg, #7c3aed, #6d28d9);
         box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
     }
 
@@ -515,29 +561,29 @@
     .alert-success {
         @apply alert;
         background: rgba(52, 211, 153, 0.1);
-        border-color: #34d399;
-        color: #6ee7b7;
+        border-color: var(--positive);
+        color: var(--positive);
     }
 
     .alert-warning {
         @apply alert;
         background: rgba(251, 191, 36, 0.1);
-        border-color: #fbbf24;
-        color: #fcd34d;
+        border-color: var(--caution);
+        color: var(--caution);
     }
 
     .alert-error {
         @apply alert;
         background: rgba(248, 113, 113, 0.1);
-        border-color: #f87171;
-        color: #fca5a5;
+        border-color: var(--danger);
+        color: var(--danger);
     }
 
     .alert-info {
         @apply alert;
         background: rgba(139, 92, 246, 0.1);
         border-color: #8b5cf6;
-        color: #c4b5fd;
+        color: var(--link-hover);
     }
 
     /* Toasts and lightweight confirmations */
@@ -560,8 +606,8 @@
         align-items: start;
         padding: 1rem;
         border-radius: 1rem;
-        background: rgba(26, 26, 37, 0.92);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgb(var(--surface-elevated) / 0.92);
+        border: 1px solid rgb(var(--ink) / 0.08);
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
@@ -578,27 +624,27 @@
         height: 0.625rem;
         margin-top: 0.45rem;
         border-radius: 999px;
-        background: #a78bfa;
+        background: var(--link);
         box-shadow: 0 0 16px rgba(167, 139, 250, 0.55);
     }
 
     .toast-success .toast-icon {
-        background: #34d399;
+        background: var(--positive);
         box-shadow: 0 0 16px rgba(52, 211, 153, 0.55);
     }
 
     .toast-error .toast-icon {
-        background: #f87171;
+        background: var(--danger);
         box-shadow: 0 0 16px rgba(248, 113, 113, 0.55);
     }
 
     .toast-warning .toast-icon {
-        background: #fbbf24;
+        background: var(--caution);
         box-shadow: 0 0 16px rgba(251, 191, 36, 0.55);
     }
 
     .toast-title {
-        color: #fafafa;
+        color: var(--text-primary);
         font-size: 0.875rem;
         font-weight: 700;
         line-height: 1.25rem;
@@ -606,20 +652,20 @@
 
     .toast-message {
         margin-top: 0.125rem;
-        color: #a1a1aa;
+        color: var(--text-secondary);
         font-size: 0.8125rem;
         line-height: 1.25rem;
     }
 
     .toast-close {
-        color: #71717a;
+        color: var(--text-muted);
         font-size: 1.125rem;
         line-height: 1;
         transition: color 150ms ease;
     }
 
     .toast-close:hover {
-        color: #fafafa;
+        color: var(--text-primary);
     }
 
     .app-dialog-overlay {
@@ -655,14 +701,14 @@
     .app-dialog {
         width: min(28rem, 100%);
         border-radius: 1rem;
-        background: rgba(26, 26, 37, 0.96);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgb(var(--surface-elevated) / 0.96);
+        border: 1px solid rgb(var(--ink) / 0.1);
         box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
         padding: 1.25rem;
     }
 
     .app-dialog-title {
-        color: #fafafa;
+        color: var(--text-primary);
         font-size: 1rem;
         font-weight: 800;
         line-height: 1.5rem;
@@ -670,7 +716,7 @@
 
     .app-dialog-message {
         margin-top: 0.5rem;
-        color: #a1a1aa;
+        color: var(--text-secondary);
         font-size: 0.875rem;
         line-height: 1.5rem;
         white-space: pre-wrap;
@@ -713,7 +759,7 @@
     /* Progress Bar */
     .progress-bar {
         @apply h-2 w-full rounded-full overflow-hidden;
-        background: rgba(255, 255, 255, 0.06);
+        background: rgb(var(--ink) / 0.06);
     }
 
     .progress-bar-fill {
@@ -727,22 +773,22 @@
     }
 
     .table-dark thead {
-        background: #0a0a0f;
+        background: var(--bg-base);
     }
 
     .table-dark th {
         @apply px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider;
-        color: #52525b;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--text-muted);
+        border-bottom: 1px solid rgb(var(--ink) / 0.06);
     }
 
     .table-dark tbody tr {
         @apply transition-colors duration-150;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid rgb(var(--ink) / 0.04);
     }
 
     .table-dark tbody tr:hover {
-        background: rgba(255, 255, 255, 0.02);
+        background: rgb(var(--ink) / 0.02);
     }
 
     .table-dark td {
@@ -751,7 +797,7 @@
 
     /* Markdown Content (for AI Summary) */
     .markdown-content {
-        @apply text-sm leading-relaxed text-white;
+        @apply text-sm leading-relaxed text-text-primary;
     }
 
     .markdown-content p {
@@ -776,18 +822,18 @@
     }
 
     .markdown-content strong {
-        @apply font-bold text-white;
+        @apply font-bold text-text-primary;
     }
 
     .markdown-content em {
-        @apply italic text-gray-300;
+        @apply italic text-text-secondary;
     }
 
     .markdown-content h1,
     .markdown-content h2,
     .markdown-content h3,
     .markdown-content h4 {
-        @apply font-bold text-white mt-6 mb-3 first:mt-0;
+        @apply font-bold text-text-primary mt-6 mb-3 first:mt-0;
     }
 
     /* Episode Card Equal Heights */
@@ -826,14 +872,14 @@
 
 @layer utilities {
     .text-gradient {
-        background: linear-gradient(135deg, #a78bfa, #06b6d4);
+        background: linear-gradient(135deg, var(--link), var(--gradient-end));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
     }
 
     .text-gradient-primary {
-        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        background: linear-gradient(135deg, #7c3aed, #6d28d9);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         -webkit-text-fill-color: transparent;
@@ -841,10 +887,10 @@
     }
 
     .glass {
-        background: rgba(26, 26, 37, 0.7);
+        background: rgb(var(--surface-elevated) / 0.7);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgb(var(--ink) / 0.08);
     }
 
     .glow-primary {
@@ -866,7 +912,7 @@
     .overflow-y-auto,
     .overflow-x-auto {
         scrollbar-width: thin;
-        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+        scrollbar-color: rgb(var(--ink) / 0.15) transparent;
     }
 
     .scrollbar-dark::-webkit-scrollbar,
@@ -888,7 +934,7 @@
     .overflow-auto::-webkit-scrollbar-thumb,
     .overflow-y-auto::-webkit-scrollbar-thumb,
     .overflow-x-auto::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.15);
+        background: rgb(var(--ink) / 0.15);
         border-radius: 4px;
     }
 
@@ -896,7 +942,7 @@
     .overflow-auto::-webkit-scrollbar-thumb:hover,
     .overflow-y-auto::-webkit-scrollbar-thumb:hover,
     .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.25);
+        background: rgb(var(--ink) / 0.25);
     }
 
     .touch-target {

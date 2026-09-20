@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a light/dark toggle to the shared header. Dark remains the default; the choice is saved only in this browser and shared across its tabs. Theme-aware colors cover dashboard and episode views, admin pages, public pages, dialogs and live updates.
+
 - Add a System Settings download redirect limit (0–50, default 8) for RSS, audio and artwork, following [PR #29](https://github.com/jdcb4/podcast-ad-remover/pull/29). Preserve zero, per-hop URL protection and loop detection, with a backup-aware migration that retains existing contributor-build settings.
 
 ## 1.14.0 - 2026-09-21

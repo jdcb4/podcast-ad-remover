@@ -2,7 +2,7 @@
 {% block admin_content %}
 <h3 class="font-display text-xl font-bold mb-3">AI Prompt Rules</h3>
 <p class="text-text-secondary mb-5">Define what each category means. Choose what to remove in
-    <a class="text-primary-400" href="/admin/global-subscription-settings">Global Subscription Settings</a>
+    <a class="text-link" href="/admin/global-subscription-settings">Global Subscription Settings</a>
     or a podcast's Processing Settings. Editing these rules does not enable the new workflow.</p>
 <div class="flex gap-3 mb-6" role="tablist" aria-label="Prompt workflow">
     <button type="button" class="btn-primary" data-prompt-tab="timeline" id="timeline-tab" role="tab" aria-controls="timeline-prompts" aria-selected="true">Complete Timeline</button>
@@ -28,7 +28,7 @@
                 <span class="text-xs text-text-muted" data-origin-for="definition_{{ label }}">{{ 'Default' if value == timeline_defaults[label] else 'Saved override' }}</span>
             </div>
             <textarea class="input text-sm" rows="4" maxlength="10000" id="definition_{{ label }}" name="definition_{{ label }}" data-default="{{ timeline_defaults[label] }}">{{ value }}</textarea>
-            <button type="button" class="text-xs text-primary-400" data-prompt-reset="definition_{{ label }}">Use default definition</button>
+            <button type="button" class="text-xs text-link" data-prompt-reset="definition_{{ label }}">Use default definition</button>
         </div>
         {% endfor %}
         </div>
@@ -36,9 +36,9 @@
             <label class="block font-semibold" for="timeline_summary_instructions">Episode summary</label>
             <p class="text-xs text-text-muted">Returned with classification. Your existing description-rewrite and spoken-summary switches control how it is used.</p>
             <textarea class="input text-sm" rows="4" maxlength="10000" id="timeline_summary_instructions" name="timeline_summary_instructions" data-default="{{ timeline_summary_default }}">{{ settings.timeline_summary_instructions or timeline_summary_default }}</textarea>
-            <button type="button" class="text-xs text-primary-400" data-prompt-reset="timeline_summary_instructions">Use default summary instructions</button>
+            <button type="button" class="text-xs text-link" data-prompt-reset="timeline_summary_instructions">Use default summary instructions</button>
         </div>
-        <details class="border border-white/10 rounded-lg p-4 space-y-4">
+        <details class="border border-ink/10 rounded-lg p-4 space-y-4">
             <summary class="font-semibold cursor-pointer">Output handling and effective prompt preview</summary>
             <label class="block text-sm" for="timeline_output_mode">Structured output</label>
             <select class="select" id="timeline_output_mode" name="timeline_output_mode">
@@ -68,8 +68,8 @@
     <div>
         <label class="block text-sm font-medium text-text-secondary mb-2">
             Ad Detection Base Prompt
-            <span class="text-xs text-text-muted">(Required variables: <code class="text-primary-400">{targets}</code>,
-                <code class="text-primary-400">{custom_instr}</code>)</span>
+            <span class="text-xs text-text-muted">(Required variables: <code class="text-link">{targets}</code>,
+                <code class="text-link">{custom_instr}</code>)</span>
         </label>
         <textarea name="ad_prompt_base" id="ad_prompt_base"
             class="input font-mono text-sm h-40">{{ settings.ad_prompt_base or default_prompts.ad_base }}</textarea>
@@ -101,8 +101,8 @@
         <label class="block text-sm font-medium text-text-secondary mb-2">
             Summary Generation Template
             <span class="text-xs text-text-muted">(Required variable: <code
-                    class="text-primary-400">{transcript_context}</code>. Optional: <code
-                    class="text-primary-400">{targets}</code>)</span>
+                    class="text-link">{transcript_context}</code>. Optional: <code
+                    class="text-link">{targets}</code>)</span>
         </label>
         <textarea name="summary_prompt_template" id="summary_prompt_template"
             class="input font-mono text-sm h-40">{{ settings.summary_prompt_template or default_prompts.summary }}</textarea>

@@ -4,7 +4,7 @@
 
 {% block admin_content %}
 {% if setup_status %}
-<div class="mb-8 rounded-xl border border-white/[0.08] bg-surface-base p-5">
+<div class="mb-8 rounded-xl border border-ink/[0.08] bg-surface-base p-5">
     <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
         <div>
             <h2 class="font-display text-2xl font-bold">Setup Checklist</h2>
@@ -44,7 +44,7 @@
 
     {% if not setup_status.has_admin %}
     <form method="post" action="/admin/setup/admin-user" class="mt-5 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
-        <h3 class="font-semibold text-amber-300 mb-3">Create Admin Account</h3>
+        <h3 class="font-semibold text-caution mb-3">Create Admin Account</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
                 <label class="block text-sm font-medium text-text-secondary mb-2">Username</label>
@@ -67,23 +67,23 @@
     {% endif %}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
-        <div class="rounded-lg border border-white/[0.06] bg-surface-elevated p-4">
+        <div class="rounded-lg border border-ink/[0.06] bg-surface-elevated p-4">
             <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Base URL</p>
-            <code class="text-xs text-primary-400 break-all">{{ setup_status.base_url }}</code>
+            <code class="text-xs text-link break-all">{{ setup_status.base_url }}</code>
             <div class="mt-3">
                 <a href="{{ setup_status.health_url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">Test Health URL</a>
             </div>
         </div>
-        <div class="rounded-lg border border-white/[0.06] bg-surface-elevated p-4">
+        <div class="rounded-lg border border-ink/[0.06] bg-surface-elevated p-4">
             <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Subscribe Page</p>
-            <code class="text-xs text-primary-400 break-all">{{ setup_status.subscribe_url }}</code>
+            <code class="text-xs text-link break-all">{{ setup_status.subscribe_url }}</code>
             <div class="mt-3">
                 <a href="{{ setup_status.subscribe_url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">Open Subscribe Page</a>
             </div>
         </div>
-        <div class="rounded-lg border border-white/[0.06] bg-surface-elevated p-4">
+        <div class="rounded-lg border border-ink/[0.06] bg-surface-elevated p-4">
             <p class="text-xs uppercase tracking-wide text-text-muted mb-2">Unified Feed</p>
-            <code class="text-xs text-primary-400 break-all">{{ setup_status.unified_feed_url }}</code>
+            <code class="text-xs text-link break-all">{{ setup_status.unified_feed_url }}</code>
             <p class="text-xs text-text-muted mt-2">
                 {% if setup_status.feed_auth_enabled %}
                 Podcast apps need a protected feed link or Basic Auth credentials.
@@ -101,7 +101,7 @@
 
     <!-- Processing -->
     <div>
-        <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Processing</h4>
+        <h4 class="text-lg font-medium border-b border-ink/[0.08] pb-2 mb-4">Processing</h4>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
                 <label class="block text-sm font-medium text-text-secondary mb-2">Concurrent Downloads</label>
@@ -140,7 +140,7 @@
         </div>
 
         <div class="mt-6">
-            <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Resource Use</h4>
+            <h4 class="text-lg font-medium border-b border-ink/[0.08] pb-2 mb-4">Resource Use</h4>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-text-secondary mb-2">Whisper CPU Threads</label>
@@ -156,10 +156,10 @@
                     <p class="text-xs text-text-muted mt-1">0 lets FFmpeg choose automatically.</p>
                 </div>
 
-                <div class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+                <div class="rounded-lg border border-ink/[0.08] bg-ink/[0.02] p-4">
                     <div class="flex items-start gap-3">
                         <input type="checkbox" name="unload_whisper_after_job" id="unload_whisper_after_job"
-                            class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                            class="mt-1 w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary"
                             {% if settings.unload_whisper_after_job %}checked{% endif %}>
                         <div>
                             <label for="unload_whisper_after_job" class="text-sm font-medium text-text-secondary cursor-pointer">Unload Whisper After Jobs</label>
@@ -173,12 +173,12 @@
 
     <!-- AI API -->
     <div>
-        <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4 mt-6">AI API</h4>
+        <h4 class="text-lg font-medium border-b border-ink/[0.08] pb-2 mb-4 mt-6">AI API</h4>
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+            <div class="rounded-lg border border-ink/[0.08] bg-ink/[0.02] p-4">
                 <div class="flex items-start gap-3">
                     <input type="checkbox" name="ai_api_enabled" id="ai_api_enabled"
-                        class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        class="mt-1 w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary"
                         {% if settings.ai_api_enabled %}checked{% endif %}>
                     <div>
                         <label for="ai_api_enabled" class="text-sm font-medium text-text-secondary cursor-pointer">Enable AI API</label>
@@ -209,7 +209,7 @@
 
     <!-- Network -->
     <div>
-        <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4 mt-6">Network</h4>
+        <h4 class="text-lg font-medium border-b border-ink/[0.08] pb-2 mb-4 mt-6">Network</h4>
         <div>
             <label class="block text-sm font-medium text-text-secondary mb-2">Public Application URL</label>
             <input type="text" name="app_external_url" value="{{ settings.app_external_url or '' }}"
@@ -221,7 +221,7 @@
         </div>
     </div>
 
-    <div class="flex justify-end pt-4 border-t border-white/[0.08] mt-6">
+    <div class="flex justify-end pt-4 border-t border-ink/[0.08] mt-6">
         <!-- Hidden fields to preserve Auth/Access settings -->
         <input type="hidden" name="auth_enabled" value="{% if settings.auth_enabled %}on{% endif %}">
         <input type="hidden" name="enable_feed_auth" value="{% if settings.enable_feed_auth %}on{% endif %}">
@@ -235,7 +235,7 @@
 
 <div class="mt-8 space-y-6">
     <div>
-        <h4 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">AI API Tokens</h4>
+        <h4 class="text-lg font-medium border-b border-ink/[0.08] pb-2 mb-4">AI API Tokens</h4>
         {% if new_api_token %}
         <div class="alert-warning mb-4">
             <div>
@@ -245,7 +245,7 @@
         </div>
         {% endif %}
 
-        <form method="post" action="/admin/api-tokens" class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+        <form method="post" action="/admin/api-tokens" class="rounded-lg border border-ink/[0.08] bg-ink/[0.02] p-4">
             <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-text-secondary mb-2">Token Name</label>
@@ -280,7 +280,7 @@
                 {% for scope in ["read", "write", "process", "admin"] %}
                 <label class="inline-flex items-center gap-2 text-sm text-text-secondary">
                     <input type="checkbox" name="scopes" value="{{ scope }}"
-                        class="w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        class="w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary"
                         {% if scope == "read" %}checked{% endif %}>
                     {{ scope }}
                 </label>
@@ -289,9 +289,9 @@
         </form>
     </div>
 
-    <div class="overflow-x-auto rounded-lg border border-white/[0.08]">
+    <div class="overflow-x-auto rounded-lg border border-ink/[0.08]">
         <table class="w-full text-sm">
-            <thead class="bg-white/[0.03] text-text-muted">
+            <thead class="bg-ink/[0.03] text-text-muted">
                 <tr>
                     <th class="text-left p-3 font-medium">Name</th>
                     <th class="text-left p-3 font-medium">User</th>
@@ -302,7 +302,7 @@
                     <th class="text-right p-3 font-medium">Action</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-white/[0.06]">
+            <tbody class="divide-y divide-ink/[0.06]">
                 {% for token in active_api_tokens %}
                 <tr>
                     <td class="p-3 font-medium">{{ token.name }}</td>
@@ -310,7 +310,7 @@
                         {% if token.username %}
                         {{ token.username }}{% if token.is_admin %} <span class="badge-info ml-1">Admin</span>{% endif %}
                         {% else %}
-                        <span class="text-amber-300">Unlinked</span>
+                        <span class="text-caution">Unlinked</span>
                         {% endif %}
                     </td>
                     <td class="p-3 text-text-secondary"><code>{{ token.token_prefix }}...</code></td>

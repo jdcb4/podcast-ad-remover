@@ -10,17 +10,17 @@
     </div>
 
     <div class="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
-        <p class="text-sm text-amber-200 font-medium">Notification URLs are secrets.</p>
-        <p class="text-xs text-amber-100/80 mt-1">
+        <p class="text-sm text-caution font-medium">Notification URLs are secrets.</p>
+        <p class="text-xs text-caution mt-1">
             Many Apprise URLs include tokens, passwords, or webhooks. Only enter URLs you trust, and avoid sharing screenshots of this page.
         </p>
     </div>
 
     <form method="post" action="/admin/notifications/update" class="space-y-6">
-        <div class="rounded-xl border border-white/[0.08] bg-surface-base p-5">
+        <div class="rounded-xl border border-ink/[0.08] bg-surface-base p-5">
             <div class="flex items-start gap-3">
                 <input type="checkbox" name="notifications_enabled" id="notifications_enabled"
-                    class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                    class="mt-1 w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary"
                     {% if settings.notifications_enabled %}checked{% endif %}>
                 <div>
                     <label for="notifications_enabled" class="text-sm font-medium text-text-secondary cursor-pointer">Enable Notifications</label>
@@ -40,11 +40,11 @@
         </div>
 
         <div>
-            <h3 class="text-lg font-medium border-b border-white/[0.08] pb-2 mb-4">Events</h3>
+            <h3 class="text-lg font-medium border-b border-ink/[0.08] pb-2 mb-4">Events</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 flex items-start gap-3 cursor-pointer">
+                <label class="rounded-lg border border-ink/[0.08] bg-ink/[0.02] p-4 flex items-start gap-3 cursor-pointer">
                     <input type="checkbox" name="notify_access_requests"
-                        class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        class="mt-1 w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary"
                         {% if settings.notify_access_requests %}checked{% endif %}>
                     <span>
                         <span class="block text-sm font-medium text-text-secondary">User Access Requested</span>
@@ -52,9 +52,9 @@
                     </span>
                 </label>
 
-                <label class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 flex items-start gap-3 cursor-pointer">
+                <label class="rounded-lg border border-ink/[0.08] bg-ink/[0.02] p-4 flex items-start gap-3 cursor-pointer">
                     <input type="checkbox" name="notify_new_podcasts"
-                        class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        class="mt-1 w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary"
                         {% if settings.notify_new_podcasts %}checked{% endif %}>
                     <span>
                         <span class="block text-sm font-medium text-text-secondary">New Podcast Added</span>
@@ -62,9 +62,9 @@
                     </span>
                 </label>
 
-                <label class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 flex items-start gap-3 cursor-pointer">
+                <label class="rounded-lg border border-ink/[0.08] bg-ink/[0.02] p-4 flex items-start gap-3 cursor-pointer">
                     <input type="checkbox" name="notify_episode_downloads"
-                        class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        class="mt-1 w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary"
                         {% if settings.notify_episode_downloads %}checked{% endif %}>
                     <span>
                         <span class="block text-sm font-medium text-text-secondary">Episode Available</span>
@@ -72,9 +72,9 @@
                     </span>
                 </label>
 
-                <label class="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 flex items-start gap-3 cursor-pointer">
+                <label class="rounded-lg border border-ink/[0.08] bg-ink/[0.02] p-4 flex items-start gap-3 cursor-pointer">
                     <input type="checkbox" name="notify_breaking_errors"
-                        class="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-accent-primary focus:ring-accent-primary"
+                        class="mt-1 w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary"
                         {% if settings.notify_breaking_errors %}checked{% endif %}>
                     <span>
                         <span class="block text-sm font-medium text-text-secondary">Breaking Errors</span>
@@ -84,13 +84,13 @@
             </div>
         </div>
 
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-white/[0.08]">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-ink/[0.08]">
             <p class="text-xs text-text-muted">Use the test button after saving changes.</p>
             <button type="submit" class="btn-primary">Save Notification Settings</button>
         </div>
     </form>
 
-    <form method="post" action="/admin/notifications/test" class="rounded-xl border border-white/[0.08] bg-surface-base p-5">
+    <form method="post" action="/admin/notifications/test" class="rounded-xl border border-ink/[0.08] bg-surface-base p-5">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
                 <h3 class="font-medium">Test Current Configuration</h3>

@@ -8,7 +8,7 @@
         action.value = inLibrary ? 'remove' : 'add';
         button.title = inLibrary ? 'Remove from My Podcasts' : 'Add to My Podcasts';
         button.setAttribute('aria-label', button.title);
-        button.classList.toggle('text-primary-400', inLibrary);
+        button.classList.toggle('text-link', inLibrary);
         button.classList.toggle('text-text-muted', !inLibrary);
         if (icon) icon.setAttribute('fill', inLibrary ? 'currentColor' : 'none');
     }

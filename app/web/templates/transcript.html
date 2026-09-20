@@ -4,7 +4,7 @@
 <div class="max-w-4xl mx-auto">
     <div class="mb-6 flex items-center justify-between">
         <a href="javascript:history.back()"
-            class="text-primary-400 hover:text-primary-300 transition-colors flex items-center gap-2">
+            class="text-link hover:text-link-hover transition-colors flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18">
                 </path>
@@ -32,7 +32,7 @@
     </div>
 
     <div class="card p-8">
-        <div class="mb-8 border-b border-white/10 pb-6">
+        <div class="mb-8 border-b border-ink/10 pb-6">
             <h1 class="font-display text-2xl font-bold mb-2">{{ episode.title }}</h1>
             <p class="text-text-muted text-sm">{{ episode.pub_date|local_time('date') }} • {{ format_duration(episode.duration) }}</p>
         </div>
@@ -40,14 +40,14 @@
         <div class="space-y-6 text-text-secondary leading-relaxed font-serif text-lg" id="transcript-content">
             {% if transcript_data.segments %}
             {% for segment in transcript_data.segments %}
-            <div class="group hover:bg-white/[0.02] -mx-4 px-4 py-2 rounded-lg transition-colors">
+            <div class="group hover:bg-ink/[0.02] -mx-4 px-4 py-2 rounded-lg transition-colors">
                 <div class="flex gap-4 mb-1">
                     <span
                         class="text-xs font-mono text-text-muted opacity-50 pt-1 shrink-0 w-12 text-right select-none">
                         {{ format_duration(segment.start) }}
                     </span>
                     {% if segment.speaker %}
-                    <span class="text-sm font-bold text-primary-400 uppercase tracking-wide pt-0.5">{{ segment.speaker
+                    <span class="text-sm font-bold text-link uppercase tracking-wide pt-0.5">{{ segment.speaker
                         }}</span>
                     {% endif %}
                 </div>
