@@ -31,6 +31,10 @@ token reservations/reconciliation, restart persistence, Pacific DST resets, prov
 retry timing, job deferral, checkbox round trips, provider isolation and additive migration backups.
 The Gemini provider responses are deterministic fixtures; tests do not spend live API quota.
 
+`tests/test_redirect_settings.py` additionally covers configurable sync/async boundaries (including
+zero and 50), persisted-value bounds, HTTP validation and save/reload, omitted-field preservation,
+and upgrade backups/idempotency from both the prior schema and PR #29 installations.
+
 Run:
 
 ```bash

@@ -111,6 +111,14 @@
             </div>
 
             <div>
+                <label class="block text-sm font-medium text-text-secondary mb-2" for="download-max-redirects">Download Redirect Limit</label>
+                <input id="download-max-redirects" type="number" name="download_max_redirects"
+                    value="{{ settings.download_max_redirects if settings.download_max_redirects is defined and settings.download_max_redirects is not none else 8 }}"
+                    min="0" max="50" required class="input" aria-describedby="redirect-limit-help">
+                <p id="redirect-limit-help" class="text-xs text-text-muted mt-1">Redirects allowed for RSS feeds, episode audio and artwork (0–50, default 8). Zero disables redirects. Applies to new downloads.</p>
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium text-text-secondary mb-2">Retention Policy</label>
                 <div class="flex items-center gap-2">
                     <input type="number" name="retention_days" value="{{ settings.retention_days or 30 }}" min="1"

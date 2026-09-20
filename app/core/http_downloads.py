@@ -6,6 +6,7 @@ when connecting to a pinned IP: https://www.python-httpx.org/advanced/extensions
 import asyncio
 import ipaddress
 import socket
+import sqlite3
 from contextlib import contextmanager, asynccontextmanager
 from urllib.parse import urljoin
 
@@ -15,6 +16,19 @@ from app.core.config import settings
 from app.core.url_utils import validate_http_url
 
 MAX_REDIRECTS = 8
+
+
+def max_download_redirects() -> int:
+    """Snapshot the shared RSS/audio/artwork limit once per download."""
+    from app.infra.database import get_db_connection
+    try:
+        with get_db_connection() as conn:
+            row = conn.execute('SELECT download_max_redirects FROM app_settings WHERE id = 1').fetchone()
+        value = row[0] if row else None
+        return max(0, min(50, int(value))) if value is not None else MAX_REDIRECTS
+    except (sqlite3.Error, OSError, TypeError, ValueError, OverflowError):
+        # Bootstrap/older databases and invalid stored values retain the stable default.
+        return MAX_REDIRECTS
 
 
 def request_target(url: str):
@@ -33,8 +47,9 @@ def request_target(url: str):
 
 @contextmanager
 def stream_get(client, url: str, *, timeout=30.0):
+    redirect_limit = max_download_redirects()
     visited = set()
-    for hop in range(MAX_REDIRECTS + 1):
+    for hop in range(redirect_limit + 1):
         if url in visited:
             raise ValueError('Redirect loop detected')
         visited.add(url)
@@ -44,15 +59,16 @@ def stream_get(client, url: str, *, timeout=30.0):
                 yield response
                 return
             location = response.headers.get('location')
-            if not location or hop == MAX_REDIRECTS:
+            if not location or hop == redirect_limit:
                 raise ValueError('Invalid redirect or too many redirects')
             url = urljoin(url, location)
 
 
 @asynccontextmanager
 async def async_stream_get(client, url: str, *, timeout=300.0):
+    redirect_limit = await asyncio.to_thread(max_download_redirects)
     visited = set()
-    for hop in range(MAX_REDIRECTS + 1):
+    for hop in range(redirect_limit + 1):
         if url in visited:
             raise ValueError('Redirect loop detected')
         visited.add(url)
@@ -62,6 +78,6 @@ async def async_stream_get(client, url: str, *, timeout=300.0):
                 yield response
                 return
             location = response.headers.get('location')
-            if not location or hop == MAX_REDIRECTS:
+            if not location or hop == redirect_limit:
                 raise ValueError('Invalid redirect or too many redirects')
             url = urljoin(url, location)

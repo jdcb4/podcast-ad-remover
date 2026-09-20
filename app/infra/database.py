@@ -386,6 +386,11 @@ FORMAL_MIGRATIONS = [
     ),
 ]
 
+DOWNLOAD_REDIRECT_MIGRATION = "20260921_0021_download_redirect_limit"
+FORMAL_MIGRATIONS.append((DOWNLOAD_REDIRECT_MIGRATION, [
+    "ALTER TABLE app_settings ADD COLUMN download_max_redirects INTEGER NOT NULL DEFAULT 8",
+]))
+
 SQLITE_BUSY_TIMEOUT_MS = 30000
 
 
@@ -427,6 +432,12 @@ def _apply_formal_migrations(conn: sqlite3.Connection):
     pending = [(version, statements) for version, statements in FORMAL_MIGRATIONS if version not in applied]
 
     for version, statements in pending:
+        # PR #29 installations may already have this column and a chosen value.
+        if version == DOWNLOAD_REDIRECT_MIGRATION and any(
+            row[1] == 'download_max_redirects'
+            for row in cursor.execute('PRAGMA table_info(app_settings)').fetchall()
+        ):
+            statements = []
         for sql in statements:
             cursor.execute(sql)
         cursor.execute("INSERT INTO schema_migrations (version) VALUES (?)", (version,))
