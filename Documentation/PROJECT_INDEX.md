@@ -61,6 +61,8 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 
 ## Documentation Map
 
+- `Documentation/CUDA.md`: experimental optional runtime setup, precision settings and GPU qualification.
+
 - `Documentation/WARNING_TONES.md`: opt-in removal cues, bundled sound previews and migration.
 
 - `Documentation/Architecture.md`: current application structure and data layout.

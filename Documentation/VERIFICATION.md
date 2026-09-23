@@ -251,6 +251,9 @@ This publishes `jdcb4/podcast-ad-remover:experimental-arm64` when pushed. It pas
 
 ## Current Gaps
 
+- Optional CUDA is experimental: automated installer/settings/process tests do not replace the
+  Linux NVIDIA and Windows WSL2 hardware matrix in [CUDA.md](CUDA.md#hardware-qualification-before-supported-release).
+
 - Python coverage should continue expanding around full processor lifecycles and service boundaries.
 - Migration tests cover additive schema and data transforms, but a copied realistic `podcasts.db`
   dry run remains a release-time check rather than a routine automated test.
@@ -272,6 +275,7 @@ pip install -r requirements-dev.txt
 npm ci
 npm run verify:docker
 docker run --rm --network none podcast-ad-remover:verify python scripts/container_smoke.py
+docker run --rm --network none -e CUDA_SETUP=true podcast-ad-remover:verify python scripts/container_smoke.py
 docker run --rm --network none podcast-ad-remover:verify python -m pip check
 ```
 

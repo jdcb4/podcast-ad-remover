@@ -1,5 +1,15 @@
 # Architecture
 
+## Optional GPU transcription
+
+`cuda_runtime.py` downloads a pinned optional runtime into `/data/runtimes/cuda`; `cuda_setup.py`
+coordinates startup/manual validation and conditional settings activation. CPU is the default.
+`cuda_client.py` owns a persistent private subprocess (`cuda_worker.py`) with CUDA library paths
+set before native imports. Only that subprocess loads GPU libraries/models. File locks serialize
+setup and GPU access, and worker crashes/timeouts trigger a single CPU transcription retry.
+Transcript provenance includes actual device, precision, model and GPU bundle identity.
+See [CUDA.md](CUDA.md) for constraints, recovery and the required hardware qualification.
+
 ## Overview
 
 Podcast Ad Remover is a Dockerized FastAPI application that subscribes to podcast RSS feeds, downloads episodes, processes the audio to remove ads or promotional segments, and republishes replacement RSS feeds for podcast clients.

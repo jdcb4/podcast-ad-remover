@@ -88,6 +88,7 @@ Features:&#xD;
       <Mode/>
     </Variable>
   </Environment>
+  <Config Name="Optional CUDA Setup" Target="CUDA_SETUP" Default="false" Mode="" Description="Experimental: request first-start GPU library setup. Requires host NVIDIA driver and Docker GPU access already configured. A saved CPU choice overrides this flag." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
   <Config Name="Web UI Port" Target="8000" Default="8000" Mode="tcp" Description="Port for the Web UI and generated RSS/audio links." Type="Port" Display="always" Required="true" Mask="false">8000</Config>
   <Config Name="Internal Data" Target="/data" Default="/mnt/user/appdata/podcast-ad-remover" Mode="rw" Description="SQLite database, downloaded podcast files, generated feeds, models, backups, and logs." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/podcast-ad-remover</Config>
   <Config Name="Session Secret Key" Target="SESSION_SECRET_KEY" Default="" Mode="" Description="Stable random secret used for signed sessions and optional authentication. Generate a long value before enabling dashboard or feed authentication." Type="Variable" Display="always" Required="false" Mask="true"></Config>
