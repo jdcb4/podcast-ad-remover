@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add capability-validated CPU transcription precision settings while preserving CPU/float32 defaults and existing saved settings.
+- Add a pinned, checksum-verified optional CUDA runtime installer under persistent storage; ordinary CPU images contain no CUDA libraries.
 
 ## 1.15.0 - 2026-09-24
 
