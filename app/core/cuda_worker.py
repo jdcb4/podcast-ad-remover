@@ -19,7 +19,8 @@ def main():
     if sys.platform == 'linux':
         if ctypes.CDLL(None).prctl(1, signal.SIGKILL) != 0:
             raise RuntimeError('Cannot establish GPU worker parent-death protection')
-        if os.getppid() != parent or parent == 1:
+        # The web server may legitimately be PID 1 in Docker.
+        if os.getppid() != parent:
             return
     from app.core.ai_services import Transcriber
     from app.core.transcription_settings import supported_compute_types

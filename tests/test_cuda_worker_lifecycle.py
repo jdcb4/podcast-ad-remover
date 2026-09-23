@@ -49,3 +49,16 @@ def test_worker_timeout_is_bounded(worker, monkeypatch):
     with pytest.raises(client.GpuFailure, match='limit'):
         worker.request({'action': 'hang'})
     assert worker.process is None
+def test_container_pid_one_is_a_valid_worker_parent(monkeypatch, capsys):
+    import io
+    import json
+    from types import SimpleNamespace
+    from app.core import cuda_worker, transcription_settings
+    monkeypatch.setattr(cuda_worker, 'sys', SimpleNamespace(platform='linux', stdin=io.StringIO(json.dumps({
+        'action': 'invalid', 'runtime': {'whisper_cuda_compute_type': 'float16'}}) + '\n')))
+    monkeypatch.setattr(cuda_worker, 'signal', SimpleNamespace(SIGKILL=9))
+    monkeypatch.setattr(cuda_worker.os, 'getppid', lambda: 1)
+    monkeypatch.setattr(cuda_worker.ctypes, 'CDLL', lambda *args: SimpleNamespace(prctl=lambda *args: 0))
+    monkeypatch.setattr(transcription_settings, 'supported_compute_types', lambda device: ['float16'])
+    cuda_worker.main()
+    assert json.loads(capsys.readouterr().out)['error'] == 'Unknown GPU worker action'

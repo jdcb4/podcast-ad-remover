@@ -100,7 +100,7 @@ Windows Docker Desktop/WSL2. Test on disposable data with a short licensed speec
 1. Fresh CPU startup and upgraded CPU data: no runtime download, same transcript behavior.
 2. First-start flag and manual setup: libraries persist across container replacement; repeated setup
    reuses them. Test interrupted downloads, low disk space and damaged cached libraries.
-3. All offered precisions for small and larger models: compare CPU/GPU text and word timestamps,
+3. All offered precisions for small and larger models: compare CPU/GPU text and segment timestamps,
    normal and chunked audio, and downstream ad boundaries. Measure time and memory.
 4. Missing/old driver, absent GPU access, unsupported precision and out-of-memory: clear diagnosis,
    retained settings, one CPU retry and no duplicate provider calls or publication.
