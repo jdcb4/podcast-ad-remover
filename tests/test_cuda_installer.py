@@ -50,6 +50,18 @@ def test_disk_failure_does_not_download(installer, monkeypatch):
         cuda.install_bundle()
 
 
+def test_corruption_is_detected_before_reuse(installer):
+    cuda.install_bundle()
+    (cuda.bundle() / 'nvidia/cublas/lib/a.so').write_bytes(b'changed')
+    assert not cuda.installed(verify=True)
+
+
+def test_damaged_inventory_is_treated_as_uninstalled(installer):
+    cuda.install_bundle()
+    (cuda.bundle() / 'inventory.json').write_text('{"missing": {}}')
+    assert not cuda.installed()
+
+
 def test_archive_path_escape_is_rejected(tmp_path):
     p = tmp_path / 'bad.whl'
     with zipfile.ZipFile(p, 'w') as z:

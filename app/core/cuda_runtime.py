@@ -64,11 +64,24 @@ def prerequisites():
         raise RuntimeError("NVIDIA GPU is not accessible. Install the host driver and enable Docker GPU access; then recreate the container.")
 
 
-def installed():
+def installed(verify=False):
     try:
         marker = json.loads((bundle() / "installed.json").read_text())
-        return marker == MANIFEST and all((bundle() / "nvidia" / name / "lib").is_dir() for name in ("cublas", "cudnn"))
-    except (OSError, ValueError):
+        if marker != MANIFEST or not all((bundle() / "nvidia" / name / "lib").is_dir() for name in ("cublas", "cudnn")):
+            return False
+        inventory = json.loads((bundle() / "inventory.json").read_text())
+        if not inventory:
+            return False
+        for name, expected in inventory.items():
+            file = bundle() / name
+            if not file.resolve().is_relative_to(bundle().resolve()) or file.stat().st_size != expected['size']:
+                return False
+            if verify:
+                with file.open('rb') as stream:
+                    if hashlib.file_digest(stream, 'sha256').hexdigest() != expected['sha256']:
+                        return False
+        return True
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return False
 
 
@@ -99,7 +112,7 @@ def extract_wheel(wheel, destination):
 def install_bundle():
     """Caller owns setup.lock. A failed download cannot replace a working bundle."""
     prerequisites()
-    if installed():
+    if installed(verify=True):
         return
     root().mkdir(parents=True, exist_ok=True)
     for abandoned in root().glob("staging-*"):
@@ -139,6 +152,12 @@ def install_bundle():
                 extract_wheel(wheel, payload)
                 wheel.unlink()
                 downloaded += size
+        inventory = {}
+        for file in payload.rglob('*'):
+            if file.is_file():
+                with file.open('rb') as stream:
+                    inventory[str(file.relative_to(payload))] = {'size': file.stat().st_size, 'sha256': hashlib.file_digest(stream, 'sha256').hexdigest()}
+        (payload / "inventory.json").write_text(json.dumps(inventory))
         (payload / "installed.json").write_text(json.dumps(MANIFEST))
         # An incomplete bundle is not active. Preserve it for diagnosis rather than overwrite.
         if bundle().exists():

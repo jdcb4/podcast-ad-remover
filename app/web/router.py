@@ -708,6 +708,8 @@ async def revoke_api_token(token_id: int, admin_user = Depends(require_admin)):
 def _render_admin_ai(request: Request, ai_section: str):
     from app.core.config import settings
     from app.core.gemini_quota import usage
+    from app.core.cuda_runtime import state as cuda_state
+    from app.core.transcription_settings import supported_compute_types
     from app.core.ai_services import AdDetector
     saved_settings = get_global_settings()
     quota_models = AdDetector._parse_model_setting(saved_settings.get('ai_model_cascade'), MODEL_DEFAULTS['gemini'])
@@ -734,7 +736,8 @@ def _render_admin_ai(request: Request, ai_section: str):
             "pending_requests_count": get_pending_requests_count(),
             "active_tab": ai_section,
             "ai_section": ai_section,
-            "cpu_compute_types": __import__("app.core.transcription_settings", fromlist=["supported_compute_types"]).supported_compute_types() if ai_section == "ai_transcription" else [],
+            "cuda_status": cuda_state() if ai_section == "ai_transcription" else {},
+            "cpu_compute_types": supported_compute_types() if ai_section == "ai_transcription" else [],
             "model_defaults": MODEL_DEFAULTS,
             "env_keys": env_keys
         }
@@ -758,12 +761,31 @@ async def admin_ai_voice(request: Request):
 async def admin_ai_text_analysis(request: Request):
     return _render_admin_ai(request, "ai_text")
 
+@router.get("/admin/ai/cuda/status")
+async def cuda_status(admin_user=Depends(require_admin)):
+    from app.core.cuda_runtime import state
+    return state()
+
+
+@router.post("/admin/ai/cuda/setup")
+async def cuda_setup(request: Request, admin_user=Depends(require_admin)):
+    from app.core.cuda_setup import start_setup, preferences
+    from app.web.auth_utils import is_same_origin_request
+    if not is_same_origin_request(request, preferences().get('app_external_url')):
+        raise HTTPException(status_code=403, detail="Cross-origin setup is not allowed")
+    if not start_setup():
+        raise HTTPException(status_code=409, detail="GPU setup is already running")
+    return RedirectResponse(url='/admin/ai/transcription', status_code=303)
+
+
 @router.post("/admin/ai/update")
 async def update_ai_settings(
     request: Request,
     section: str = Form("ai_text"),
     whisper_model: str = Form(None),
     whisper_compute_type: str = Form(None),
+    whisper_device: str = Form(None),
+    whisper_cuda_compute_type: str = Form(None),
     ai_model_cascade: str = Form(None),
     piper_model: str = Form(None),
     tts_provider: str = Form(None),
@@ -821,12 +843,30 @@ async def update_ai_settings(
 
         if section == "ai_transcription":
             from app.core.transcription_settings import supported_compute_types
+            from app.web.auth_utils import is_same_origin_request
+            if not is_same_origin_request(request, current.get('app_external_url')):
+                raise HTTPException(status_code=403, detail="Cross-origin transcription changes are not allowed")
             precision = whisper_compute_type if whisper_compute_type is not None else current.get("whisper_compute_type", "float32")
             if precision not in supported_compute_types():
                 raise HTTPException(status_code=400, detail="Unsupported CPU precision for this hardware")
             selected_whisper = whisper_model if whisper_model in {"tiny", "base", "small", "medium", "large"} else "base"
+            from app.core.cuda_setup import start_setup
+            device = whisper_device if whisper_device is not None else current.get("whisper_device", "cpu")
+            if device not in {"cpu", "cuda"}:
+                raise HTTPException(status_code=400, detail="Unsupported transcription device")
+            gpu_precision = whisper_cuda_compute_type or current.get("whisper_cuda_compute_type", "float16")
+            if device == 'cuda':
+                from app.core import cuda_runtime
+                if gpu_precision not in cuda_runtime.state().get('supported', []):
+                    raise HTTPException(status_code=400, detail="Run GPU setup first and select a supported GPU precision")
+                if not start_setup(proposed={'whisper_model': selected_whisper, 'whisper_compute_type': precision,
+                                             'whisper_cuda_compute_type': gpu_precision}):
+                    raise HTTPException(status_code=409, detail="GPU setup is already running")
+                return RedirectResponse(url='/admin/ai/transcription', status_code=303)
             conn.execute(
-                "UPDATE app_settings SET whisper_model = ?, whisper_compute_type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1",
+                """UPDATE app_settings SET whisper_model = ?, whisper_compute_type = ?, whisper_device='cpu',
+                   whisper_choice_version=whisper_choice_version+1, cuda_bootstrap_done=1,
+                   updated_at = CURRENT_TIMESTAMP WHERE id = 1""",
                 (selected_whisper, precision),
             )
         elif section == "ai_voice":

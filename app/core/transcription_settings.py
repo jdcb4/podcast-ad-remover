@@ -23,6 +23,15 @@ def cpu_compute_type(runtime):
 def provenance_matches(source, runtime):
     """Legacy transcripts are CPU/float32; explicit reuse is handled by the caller."""
     device = runtime.get("whisper_device", "cpu")
+    if device == 'cuda':
+        from app.core.cuda_setup import ready
+        if not ready(runtime):
+            device = 'cpu'
+            runtime = dict(runtime, whisper_compute_type='float32')
     precision = (runtime.get("whisper_cuda_compute_type", "float16") if device == "cuda"
                  else cpu_compute_type(runtime))
-    return (source.get("device", "cpu"), source.get("compute_type", "float32")) == (device, precision)
+    matches = (source.get("device", "cpu"), source.get("compute_type", "float32")) == (device, precision)
+    if device == 'cuda':
+        from app.core.cuda_runtime import MANIFEST
+        matches = matches and source.get('cuda_bundle') == MANIFEST['id']
+    return matches

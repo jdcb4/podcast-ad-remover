@@ -125,6 +125,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error checking/updating app settings on startup: {e}")
     
+    from app.core.cuda_setup import startup as cuda_startup
+    cuda_startup()
+
     if settings.PROCESSOR_ENABLED:
         # Start background scheduler in a separate process
         from app.core.processor import start_processor_process
