@@ -157,10 +157,11 @@ class Transcriber:
             from app.infra.database import get_db_connection
             with get_db_connection() as conn:
                 row = conn.execute("""
-                    SELECT whisper_model, whisper_cpu_threads, ffmpeg_threads
+                    SELECT whisper_model, whisper_cpu_threads, ffmpeg_threads, whisper_device, whisper_compute_type, whisper_cuda_compute_type
                     FROM app_settings WHERE id = 1
                 """).fetchone()
                 if row:
+                    runtime.update({key: row[key] for key in ("whisper_device", "whisper_compute_type", "whisper_cuda_compute_type")})
                     runtime["whisper_model"] = row["whisper_model"] or settings.WHISPER_MODEL
                     runtime["whisper_cpu_threads"] = int(row["whisper_cpu_threads"] or 0)
                     runtime["ffmpeg_threads"] = int(row["ffmpeg_threads"] or 0)
@@ -180,14 +181,15 @@ class Transcriber:
         runtime_settings = runtime_settings or self._load_runtime_settings()
         idx = runtime_settings.get("whisper_model") or "base"
         cpu_threads = int(runtime_settings.get("whisper_cpu_threads") or 0)
-        desired_config = (idx, cpu_threads)
+        from app.core.transcription_settings import cpu_compute_type
+        compute_type = cpu_compute_type(runtime_settings)
+        desired_config = (idx, cpu_threads, "cpu", compute_type)
         if self.model and self.model_config != desired_config:
             logger.info("Whisper settings changed; reloading Faster-Whisper model.")
             self.unload_model()
 
         if not self.model:
             # Use float32 for maximum compatibility and stability on CPU (especially ARM64)
-            compute_type = "float32"
             logger.info(f"Loading Faster-Whisper model: {idx} (Download Root: {settings.MODELS_DIR})")
             logger.info(f"Using {compute_type} compute type for optimization.")
             if cpu_threads > 0:

@@ -60,6 +60,13 @@
                 </option>
                 {% endfor %}
             </select>
+            <label class="block text-sm font-medium text-text-secondary mt-4 mb-2">CPU precision</label>
+            <select name="whisper_compute_type" class="select">
+                {% for precision in cpu_compute_types %}
+                <option value="{{ precision }}" {% if (settings.whisper_compute_type or 'float32') == precision %}selected{% endif %}>{{ precision }}</option>
+                {% endfor %}
+            </select>
+            <p class="text-sm text-text-muted mt-2">float32 is the stable default. Lower precision can save memory and change speed or transcription results.</p>
         </div>
         {% endif %}
 

@@ -734,6 +734,7 @@ def _render_admin_ai(request: Request, ai_section: str):
             "pending_requests_count": get_pending_requests_count(),
             "active_tab": ai_section,
             "ai_section": ai_section,
+            "cpu_compute_types": __import__("app.core.transcription_settings", fromlist=["supported_compute_types"]).supported_compute_types() if ai_section == "ai_transcription" else [],
             "model_defaults": MODEL_DEFAULTS,
             "env_keys": env_keys
         }
@@ -762,6 +763,7 @@ async def update_ai_settings(
     request: Request,
     section: str = Form("ai_text"),
     whisper_model: str = Form(None),
+    whisper_compute_type: str = Form(None),
     ai_model_cascade: str = Form(None),
     piper_model: str = Form(None),
     tts_provider: str = Form(None),
@@ -818,10 +820,14 @@ async def update_ai_settings(
         current = dict(current_row) if current_row else {}
 
         if section == "ai_transcription":
+            from app.core.transcription_settings import supported_compute_types
+            precision = whisper_compute_type if whisper_compute_type is not None else current.get("whisper_compute_type", "float32")
+            if precision not in supported_compute_types():
+                raise HTTPException(status_code=400, detail="Unsupported CPU precision for this hardware")
             selected_whisper = whisper_model if whisper_model in {"tiny", "base", "small", "medium", "large"} else "base"
             conn.execute(
-                "UPDATE app_settings SET whisper_model = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1",
-                (selected_whisper,),
+                "UPDATE app_settings SET whisper_model = ?, whisper_compute_type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1",
+                (selected_whisper, precision),
             )
         elif section == "ai_voice":
             selected_tts_provider = tts_provider if tts_provider in {"piper", "gemini"} else "piper"

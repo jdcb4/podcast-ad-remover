@@ -403,6 +403,18 @@ def _connect_db() -> sqlite3.Connection:
     return conn
 
 
+CUDA_SETTINGS_MIGRATION = "20260924_0022_transcription_runtime"
+FORMAL_MIGRATIONS.append((CUDA_SETTINGS_MIGRATION, [
+    "ALTER TABLE app_settings ADD COLUMN whisper_device TEXT DEFAULT 'cpu'",
+    "ALTER TABLE app_settings ADD COLUMN whisper_compute_type TEXT DEFAULT 'float32'",
+    "ALTER TABLE app_settings ADD COLUMN whisper_cuda_compute_type TEXT DEFAULT 'float16'",
+    "ALTER TABLE app_settings ADD COLUMN whisper_choice_version INTEGER DEFAULT 0",
+    "ALTER TABLE app_settings ADD COLUMN cuda_bootstrap_done INTEGER DEFAULT 0",
+    "CREATE TABLE IF NOT EXISTS cuda_runtime (id INTEGER PRIMARY KEY CHECK(id=1), state_json TEXT NOT NULL DEFAULT '{}')",
+    "INSERT OR IGNORE INTO cuda_runtime(id) VALUES (1)",
+]))
+
+
 def _backup_database_if_needed(migration_ids: list[str]):
     """Create a timestamped DB backup before applying formal migrations."""
     if not migration_ids or not os.path.exists(settings.DB_PATH):

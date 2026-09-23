@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add capability-validated CPU transcription precision settings while preserving CPU/float32 defaults and existing saved settings.
+
 ## 1.15.0 - 2026-09-24
 
 - Add a light/dark toggle to the shared header. Dark remains the default; the choice is saved only in this browser and shared across its tabs. Theme-aware colors cover dashboard and episode views, admin pages, public pages, dialogs and live updates.
