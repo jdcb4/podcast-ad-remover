@@ -112,4 +112,6 @@ Windows Docker Desktop/WSL2. Test on disposable data with a short licensed speec
 Automated coverage lives in `test_transcription_settings.py`, `test_cuda_installer.py`,
 `test_cuda_setup.py` and `test_cuda_worker_lifecycle.py`. The first real Linux GPU results are
 recorded in [the Runpod RTX A4000 report](CUDA_RUNPOD_2026-09-24.md). This covers one host/GPU
-combination; the remaining hardware and transcription-quality matrix is still required.
+combination. The [68-minute real-podcast comparison on an NVIDIA L4](CUDA_LONGFORM_2026-09-24.md)
+adds full-episode CPU/GPU model and precision comparisons; the remaining hardware and
+transcription-quality matrix is still required.
