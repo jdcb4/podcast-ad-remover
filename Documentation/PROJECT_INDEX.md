@@ -62,6 +62,7 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 ## Documentation Map
 
 - `Documentation/CUDA.md`: experimental optional runtime setup, precision settings and GPU qualification.
+- `Documentation/CUDA_RUNPOD_2026-09-24.md`: real RTX A4000 inference, failure recovery and qualification limits.
 
 - `Documentation/WARNING_TONES.md`: opt-in removal cues, bundled sound previews and migration.
 

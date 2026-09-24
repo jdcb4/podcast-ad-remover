@@ -253,6 +253,8 @@ This publishes `jdcb4/podcast-ad-remover:experimental-arm64` when pushed. It pas
 
 - Optional CUDA is experimental: automated installer/settings/process tests do not replace the
   Linux NVIDIA and Windows WSL2 hardware matrix in [CUDA.md](CUDA.md#hardware-qualification-before-supported-release).
+  [Runpod RTX A4000 results](CUDA_RUNPOD_2026-09-24.md) establish real Linux GPU inference and
+  recovery, while recording the remaining hardware coverage and chunk-boundary quality caveat.
 
 - Python coverage should continue expanding around full processor lifecycles and service boundaries.
 - Migration tests cover additive schema and data transforms, but a copied realistic `podcasts.db`
