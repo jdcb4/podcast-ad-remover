@@ -1,0 +1,21 @@
+# Standalone experimental NVIDIA example; does not use the live CPU install's data.
+services:
+  app:
+    image: ${CUDA_IMAGE:-jdcb4/podcast-ad-remover:experimental-cuda}
+    ports:
+      - '127.0.0.1:8011:8000'
+    volumes:
+      - cuda-test-data:/data
+    environment:
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:?Set a persistent random SESSION_SECRET_KEY in .env}
+      BASE_URL: http://localhost:8011
+      CUDA_SETUP: 'true'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+volumes:
+  cuda-test-data:

@@ -146,6 +146,7 @@ class Transcriber:
     def __init__(self):
         self.model = None
         self.model_config = None
+        self.gpu_worker = None
 
     def _load_runtime_settings(self) -> Dict:
         runtime = {
@@ -157,10 +158,11 @@ class Transcriber:
             from app.infra.database import get_db_connection
             with get_db_connection() as conn:
                 row = conn.execute("""
-                    SELECT whisper_model, whisper_cpu_threads, ffmpeg_threads
+                    SELECT whisper_model, whisper_cpu_threads, ffmpeg_threads, whisper_device, whisper_compute_type, whisper_cuda_compute_type
                     FROM app_settings WHERE id = 1
                 """).fetchone()
                 if row:
+                    runtime.update({key: row[key] for key in ("whisper_device", "whisper_compute_type", "whisper_cuda_compute_type")})
                     runtime["whisper_model"] = row["whisper_model"] or settings.WHISPER_MODEL
                     runtime["whisper_cpu_threads"] = int(row["whisper_cpu_threads"] or 0)
                     runtime["ffmpeg_threads"] = int(row["ffmpeg_threads"] or 0)
@@ -169,6 +171,9 @@ class Transcriber:
         return runtime
 
     def unload_model(self):
+        if self.gpu_worker is not None:
+            self.gpu_worker.dispose()
+            self.gpu_worker = None
         if self.model is None:
             return
         logger.info("Unloading Faster-Whisper model from memory.")
@@ -180,14 +185,16 @@ class Transcriber:
         runtime_settings = runtime_settings or self._load_runtime_settings()
         idx = runtime_settings.get("whisper_model") or "base"
         cpu_threads = int(runtime_settings.get("whisper_cpu_threads") or 0)
-        desired_config = (idx, cpu_threads)
+        from app.core.transcription_settings import cpu_compute_type
+        device = runtime_settings.get("_execution_device", "cpu")
+        compute_type = runtime_settings.get("_execution_precision") if device == "cuda" else cpu_compute_type(runtime_settings)
+        desired_config = (idx, cpu_threads, device, compute_type)
         if self.model and self.model_config != desired_config:
             logger.info("Whisper settings changed; reloading Faster-Whisper model.")
             self.unload_model()
 
         if not self.model:
             # Use float32 for maximum compatibility and stability on CPU (especially ARM64)
-            compute_type = "float32"
             logger.info(f"Loading Faster-Whisper model: {idx} (Download Root: {settings.MODELS_DIR})")
             logger.info(f"Using {compute_type} compute type for optimization.")
             if cpu_threads > 0:
@@ -197,7 +204,7 @@ class Transcriber:
             start_load = time.time()
 
             model_kwargs = {
-                "device": "cpu",
+                "device": device,
                 "compute_type": compute_type,
                 "download_root": settings.MODELS_DIR,
             }
@@ -213,9 +220,45 @@ class Transcriber:
             logger.info(f"Model loaded in {load_duration:.2f}s")
 
     def transcribe(self, audio_path: str, progress_callback=None) -> Dict:
+        from app.core import cuda_runtime as cuda
+        from app.core.cuda_setup import ready
+        from app.core.cuda_client import GpuWorker, GpuFailure
+        from app.core.transcription_settings import cpu_compute_type
+        runtime = self._load_runtime_settings()
+        requested_gpu = runtime.get("whisper_device") == "cuda"
+        if requested_gpu and ready(runtime):
+            if self.model is not None:
+                self.unload_model()
+            if self.gpu_worker is None:
+                self.gpu_worker = GpuWorker()
+            try:
+                result = self.gpu_worker.request({'action': 'transcribe', 'runtime': runtime, 'audio': audio_path}, progress_callback)
+                result['_execution'] = {'device': 'cuda', 'compute_type': runtime['whisper_cuda_compute_type'],
+                                        'whisper_model': runtime['whisper_model'], 'cuda_bundle': cuda.MANIFEST['id']}
+                cuda.update_state(effective_device='cuda', effective_compute_type=runtime['whisper_cuda_compute_type'])
+                return result
+            except GpuFailure as exc:
+                logger.warning("GPU transcription failed; retrying once on CPU: %s", exc)
+                cuda.update_state(disabled=True, phase='failed', message=str(exc)[:1000])
+                self.unload_model()
+        if self.gpu_worker is not None:
+            self.unload_model()
+        if requested_gpu:
+            runtime['whisper_compute_type'] = 'float32'
+            if cuda.state().get('phase') not in {'checking', 'downloading', 'validating', 'failed'}:
+                cuda.update_state(message='GPU configuration needs validation; using CPU. Run GPU setup/test.')
+        precision = cpu_compute_type(runtime)
+        if not requested_gpu and runtime.get('whisper_compute_type', 'float32') != precision:
+            cuda.update_state(message='Saved CPU precision is unsupported on this hardware; using float32.')
+        cuda.update_state(effective_device='cpu', effective_compute_type=precision)
+        result = self._transcribe_local(audio_path, progress_callback, runtime)
+        result['_execution'] = {'device': 'cpu', 'compute_type': precision, 'whisper_model': runtime['whisper_model']}
+        return result
+
+    def _transcribe_local(self, audio_path: str, progress_callback=None, runtime_settings=None) -> Dict:
         from app.core.audio import AudioProcessor
 
-        runtime_settings = self._load_runtime_settings()
+        runtime_settings = runtime_settings or self._load_runtime_settings()
         self.load_model(runtime_settings)
         ffmpeg_threads = int(runtime_settings.get("ffmpeg_threads") or 0)
 

@@ -1,5 +1,6 @@
 """Offline smoke check for a disposable container; never use against live /data."""
 import json
+import importlib.metadata
 import os
 import subprocess
 import sys
@@ -19,6 +20,8 @@ def main():
         from app.core.audio import AudioProcessor
         from app.core.config import settings
         from faster_whisper import WhisperModel  # Validate native runtime imports without downloading models.
+        assert not any((dist.metadata.get('Name') or '').lower().startswith('nvidia-')
+                       for dist in importlib.metadata.distributions()), 'CPU image unexpectedly bundles NVIDIA packages'
         init_db()
         with get_db_connection() as conn:
             assert conn.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
@@ -46,6 +49,22 @@ def main():
                 assert response.status == 200 and b'Podcast' in response.read()
             with urllib.request.urlopen('http://127.0.0.1:8199/static/js/episodes.js', timeout=5) as response:
                 assert response.status == 200
+            from app.core.cuda_runtime import state, installed
+            from app.core.cuda_setup import preferences
+            if settings.CUDA_SETUP:
+                # This variant deliberately runs without --gpus and without network access.
+                for _ in range(150):
+                    status = state()
+                    if status.get('phase') == 'failed':
+                        break
+                    time.sleep(0.25)
+                else:
+                    raise AssertionError('Missing-GPU setup did not fail promptly')
+                assert 'NVIDIA GPU is not accessible' in status['message'], status
+                assert status['effective_device'] == 'cpu'
+            assert preferences()['whisper_device'] == 'cpu'
+            assert not installed()
+            assert not list((Path(temporary) / 'runtimes' / 'cuda').glob('staging-*'))
         finally:
             server.terminate()
             server.wait(timeout=10)

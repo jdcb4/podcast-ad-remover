@@ -1,5 +1,16 @@
 # Environment Variables
 
+## Optional CUDA setup (experimental)
+
+`CUDA_SETUP` defaults to `false`. Set it to `true` to request first-start background GPU setup.
+A later manually saved CPU choice wins over the flag. A saved GPU choice is revalidated on restart.
+The host NVIDIA driver and Docker GPU access must already work. See [CUDA.md](CUDA.md).
+
+Database-backed `whisper_device` defaults to `cpu`, `whisper_compute_type` to `float32`, and
+`whisper_cuda_compute_type` to `float16` (first activation selects a supported GPU default).
+The Transcription page validates precision and tests GPU changes before activation. These fields
+are preserved when saving other AI settings pages. They have no environment overrides.
+
 ## Download redirect limit
 
 **Admin > System Settings > Download Redirect Limit** controls the shared HTTP redirect cap

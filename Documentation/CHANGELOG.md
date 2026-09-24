@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add capability-validated CPU transcription precision settings while preserving CPU/float32 defaults and existing saved settings.
+- Add a pinned, checksum-verified optional CUDA runtime installer under persistent storage; ordinary CPU images contain no CUDA libraries.
+- Add experimental GPU setup through `CUDA_SETUP=true` or Transcription settings, isolated GPU inference, capability validation and visible CPU fallback. Real NVIDIA qualification on Linux and Windows Docker Desktop/WSL2 is required before production support.
+
 ## 1.15.0 - 2026-09-24
 
 - Add a light/dark toggle to the shared header. Dark remains the default; the choice is saved only in this browser and shared across its tabs. Theme-aware colors cover dashboard and episode views, admin pages, public pages, dialogs and live updates.

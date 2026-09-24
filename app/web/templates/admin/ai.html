@@ -52,7 +52,18 @@
         {% if ai_section == 'ai_transcription' %}
         <div>
             <h4 class="text-lg font-medium border-b border-ink/[0.08] pb-2 mb-4">Transcription</h4>
-            <label class="block text-sm font-medium text-text-secondary mb-2">Whisper Model</label>
+            <div class="p-4 mb-4 rounded border border-ink/10" aria-live="polite" id="cuda-status">
+                <p>GPU setup: <span id="cuda-phase">{{ cuda_status.get('phase', 'idle') }}</span></p>
+                <p id="cuda-message">{{ cuda_status.get('message', 'CPU selected. GPU setup is optional.') }}</p>
+                <p>Actual processing: <span id="cuda-effective">{{ cuda_status.get('effective_device', 'cpu') }} / {{ cuda_status.get('effective_compute_type', 'float32') }}</span></p>
+                <p id="cuda-download"></p>
+            </div>
+            <label class="block text-sm font-medium text-text-secondary mb-2">Requested processing device</label>
+            <select name="whisper_device" class="select mb-4">
+                <option value="cpu" {% if settings.whisper_device != 'cuda' %}selected{% endif %}>CPU (default)</option>
+                <option value="cuda" {% if settings.whisper_device == 'cuda' %}selected{% endif %} {% if not cuda_status.get('supported') %}disabled{% endif %}>NVIDIA GPU (requires successful setup)</option>
+            </select>
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Whisper Model</label>
             <select name="whisper_model" class="select">
                 {% for model in ['tiny', 'base', 'small', 'medium', 'large'] %}
                 <option value="{{ model }}" {% if settings.whisper_model==model %}selected{% endif %}>
@@ -60,6 +71,22 @@
                 </option>
                 {% endfor %}
             </select>
+            <label class="block text-sm font-medium text-text-secondary mt-4 mb-2">CPU precision</label>
+            <select name="whisper_compute_type" class="select">
+                {% for precision in cpu_compute_types %}
+                <option value="{{ precision }}" {% if (settings.whisper_compute_type or 'float32') == precision %}selected{% endif %}>{{ precision }}</option>
+                {% endfor %}
+            </select>
+            {% if cuda_status.get('supported') %}
+            <label class="block text-sm font-medium text-text-secondary mt-4 mb-2">GPU precision (advanced)</label>
+            <select name="whisper_cuda_compute_type" class="select">
+                {% for precision in cuda_status.get('supported', []) %}
+                <option value="{{ precision }}" {% if settings.whisper_cuda_compute_type == precision %}selected{% endif %}>{{ precision }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            <p class="text-sm text-text-muted mt-2">GPU changes are tested before activation, after any active GPU transcription finishes. Failed tests retain your previous settings. Model changes may download a model.</p>
+            <p class="text-sm text-text-muted mt-2">float32 is the stable default. Lower precision can save memory and change speed or transcription results.</p>
         </div>
         {% endif %}
 
@@ -636,4 +663,11 @@
         } catch (e) { out.textContent = "Fail: " + e; }
     }
 </script>
+{% if ai_section == 'ai_transcription' %}
+<form action="/admin/ai/cuda/setup" method="POST" class="mt-6">
+    <button type="submit" class="btn btn-secondary">Set up / retest GPU acceleration</button>
+    <p class="text-sm text-text-muted mt-2">Tests your saved Whisper model, then selects GPU after success. Requires an NVIDIA host driver and Docker GPU access. Downloads about 1.3 GB of optional libraries once (6 GiB free space required), plus any missing model. CPU processing stays available.</p>
+</form>
+<script src="/static/js/cuda-setup.js?v={{ static_asset_version('js/cuda-setup.js') }}" defer></script>
+{% endif %}
 {% endblock %}

@@ -2,6 +2,15 @@
 
 This is a lightweight decision log. Keep entries short, dated, and focused on choices that future maintainers may otherwise revisit.
 
+## 2026-09-24: Keep CPU defaults and install optional CUDA runtime separately
+
+Use one application image with optional pinned NVIDIA libraries in persistent `/data`, activated
+by first-start flag or manual setup. Host drivers remain an operator prerequisite. Validate actual
+model inference and precision before saving GPU settings; a later manual CPU choice overrides
+startup automation. Isolate native GPU failures in a persistent subprocess and retry transcription
+once on CPU/float32. Keep CPU/GPU precision separate and record actual transcript provenance.
+Ship an experimental candidate pending real Linux NVIDIA and Windows WSL2 qualification. See [CUDA.md](CUDA.md).
+
 ## 2026-09-10: Opt in to complete classification before choosing cuts
 
 Keep existing podcasts, queued jobs and custom prompts on Legacy. Introduce Complete Timeline
