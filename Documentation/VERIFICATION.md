@@ -150,6 +150,10 @@ With feed authentication enabled, copy the displayed feed address into a fresh c
 it opens. Save an external HTTP artwork URL and confirm the page explains that its preview needs
 HTTPS while RSS retains the saved HTTP URL. HTTPS and same-origin HTTP images should still preview.
 
+In Art View, confirm podcasts without artwork retain a visible, keyboard-accessible title link.
+Toggle queue details with the keyboard and confirm `aria-expanded` matches visibility. Check the
+queue controls wrap without horizontal page overflow at 320px, and feed/view controls remain usable.
+
 At a mobile width, also confirm the four compact statistics remain readable, feed actions retain
 accessible touch targets, and approximately three queue rows are visible before internal scrolling.
 Switch My Podcasts/Library after setting a search, filter, sort, and display mode; the toolbar,

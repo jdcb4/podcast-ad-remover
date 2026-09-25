@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="dashboard">
+<div class="dashboard-heading">
+    <h1>Your podcasts</h1>
+    <p>Manage subscriptions, follow processing, and find your next listen.</p>
+</div>
 <!-- Config Warning -->
 {% if config_warning %}
 <div class="alert-warning mb-6">
@@ -23,15 +28,16 @@
 </script>
 {% endif %}
 
-<!-- Search & Stats Card -->
-<div class="card dashboard-add-card mb-4 sm:mb-8">
+<!-- Subscription search and library totals -->
+<div class="card dashboard-add-card">
+    <div class="dashboard-search-group">
     <h2 class="font-display text-xl sm:text-3xl font-bold mb-4 sm:mb-6">Add Subscription</h2>
 
     <!-- Search -->
-    <div class="mb-4 sm:mb-8">
+    <div class="dashboard-search">
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="relative flex-1">
-                <input type="text" id="search-input" placeholder="Search podcasts or paste an RSS or YouTube URL..." aria-label="Search Podcasts"
+                <input type="text" id="search-input" placeholder="Podcast name or feed URL" aria-label="Search Podcasts"
                     class="input-lg pl-12">
                 <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" fill="none"
                     stroke="currentColor" viewBox="0 0 24 24">
@@ -47,11 +53,13 @@
                 Search
             </button>
         </div>
+        <p class="dashboard-search-hint">Search by name, or paste an RSS or YouTube URL.</p>
         <div id="search-results" class="mt-4 space-y-3"></div>
     </div>
 
+    </div>
     <!-- Stats Grid -->
-    <div class="border-t border-ink/[0.06] pt-4 sm:pt-8">
+    <div class="dashboard-stats" aria-label="Library totals">
         <div class="grid grid-cols-4 gap-2 sm:gap-4">
             <div class="stat-card stat-card-compact text-center">
                 <div class="stat-value">{{ stats.podcasts }}</div>
@@ -74,15 +82,15 @@
 </div>
 
 <!-- Processing Queue -->
-<section id="dashboard-queue-region" class="card mb-4 sm:mb-8{% if not queue %} hidden{% endif %}"
+<section id="dashboard-queue-region" class="card dashboard-queue{% if not queue %} hidden{% endif %}"
     aria-live="polite" aria-busy="false">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <div class="flex items-center gap-3">
             <div class="w-3 h-3 bg-primary-500 rounded-full animate-pulse"></div>
             <h2 class="font-display text-xl font-bold">Actively processing</h2>
-            <span id="queue-total-count" class="badge-info">{{ queue|length }} items</span>
+            <span id="queue-total-count" class="badge-info">{{ queue|length }} item{{ '' if queue|length == 1 else 's' }}</span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="dashboard-queue-controls flex items-center gap-3">
             <div class="flex items-center text-sm bg-surface-base px-3 py-2 rounded-xl border border-ink/[0.08]">
                 <label class="flex items-center cursor-pointer mr-3">
                     <input type="checkbox" id="auto-refresh-toggle" checked
@@ -108,7 +116,7 @@
         </div>
     </div>
 
-    <button onclick="toggleQueue()"
+    <button onclick="toggleQueue()" id="queue-details-toggle" aria-expanded="true" aria-controls="queue-content"
         class="flex items-center justify-between w-full text-left py-2 text-text-secondary hover:text-text-primary transition-colors">
         <span>Show/Hide Details</span>
         <svg id="queue-chevron" class="w-5 h-5 transform transition-transform rotate-180" fill="none"
@@ -158,13 +166,14 @@
         const content = document.getElementById('queue-content');
         const chevron = document.getElementById('queue-chevron');
         content.classList.toggle('hidden');
+        document.getElementById('queue-details-toggle').setAttribute('aria-expanded', String(!content.classList.contains('hidden')));
         chevron.classList.toggle('rotate-180');
     }
 </script>
 
 <!-- Unified RSS Feed -->
 {% if subscriptions %}
-<div class="mb-4 sm:mb-8 rounded-xl border border-ink/[0.06] bg-surface-elevated/50 px-3 py-2.5">
+<div class="dashboard-feed rounded-xl border border-ink/[0.06] bg-surface-elevated/50 px-3 py-2.5">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div class="flex items-center gap-2 min-w-0">
             <h3 class="font-display text-sm font-semibold flex items-center gap-2 whitespace-nowrap">
@@ -187,7 +196,7 @@
             <a href="{{ link.url }}" class="badge-soft{% if link.key == 'direct' %} hover:glow-primary{% endif %}"
                 {% if link.target %}target="{{ link.target }}"{% endif %}
                 {% if link.key == 'apps' %}data-subscription-help data-feed-url="{{ unified_links.rss }}"{% endif %}
-                style="padding: 0 16px; height: 24px; line-height: 24px;">{{ link.label }}</a>
+                >{{ link.label }}</a>
             {% endfor %}
         </div>
     </div>
@@ -195,6 +204,7 @@
 {% endif %}
 
 <section id="dashboard-library-region" aria-live="polite" aria-busy="false">
+<h2 class="dashboard-library-heading">Podcast library</h2>
 {% if user and user.id and user.id > 0 %}
 <div class="flex flex-wrap items-center gap-2 mb-4">
     <a href="/?view=mine" data-library-view-link="mine"
@@ -214,8 +224,8 @@
 
 <!-- Podcast Filter Toolbar -->
 {% if subscriptions or (user and user.id and user.id > 0) %}
-<div class="flex flex-wrap items-center gap-3 mb-6 bg-surface-elevated rounded-xl border border-ink/[0.08] p-3">
-    <input type="text" id="podcast-search" placeholder="Search podcasts..."
+<div class="dashboard-toolbar flex flex-wrap items-center gap-3 mb-6 bg-surface-elevated rounded-xl border border-ink/[0.08] p-3">
+    <input type="text" id="podcast-search" aria-label="Filter your podcast library" placeholder="Find in your library..."
         class="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-surface-base border border-ink/[0.1] text-text-primary placeholder:text-text-muted focus:border-primary-500 outline-none text-sm">
 
     <select id="podcast-filter" aria-label="Filter podcasts"
@@ -479,7 +489,7 @@
         <div class="podcast-artwork">
             <img src="{{ item.artwork_url }}" alt="{{ item.sub.title }}" loading="lazy">
             <div class="podcast-overlay">
-                <a href="/subscriptions/{{ item.sub.id }}"
+                <a href="/subscriptions/{{ item.sub.id }}" aria-label="Open {{ item.sub.title }}"
                     class="w-14 h-14 rounded-full bg-primary-500 flex items-center justify-center text-on-brand shadow-glow-md hover:scale-110 transition-transform">
                     <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
@@ -487,6 +497,11 @@
                 </a>
             </div>
         </div>
+        {% endif %}
+
+        {% if not item.artwork_url %}
+        <a href="/subscriptions/{{ item.sub.id }}" class="podcast-artwork-fallback"
+            aria-label="Open {{ item.sub.title }}">{{ item.sub.title }}</a>
         {% endif %}
 
         <!-- Content -->
@@ -852,4 +867,5 @@
 <script src="/static/js/dashboard-library.js?v={{ static_asset_version('js/dashboard-library.js') }}" defer></script>
 <script src="/static/js/dashboard-refresh.js?v={{ static_asset_version('js/dashboard-refresh.js') }}" defer></script>
 <script src="/static/js/bulk-subscriptions.js?v={{ static_asset_version('js/bulk-subscriptions.js') }}" defer></script>
+</div>
 {% endblock %}

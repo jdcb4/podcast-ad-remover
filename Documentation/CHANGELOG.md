@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refine the dashboard with compact subscription search and library totals, calmer processing panels, clearer library hierarchy, and larger mobile feed/view controls. Add visible keyboard focus, accessible queue disclosure state, and a title fallback for podcasts without artwork in Art View.
+
 ## 1.15.0 - 2026-09-24
 
 - Add a light/dark toggle to the shared header. Dark remains the default; the choice is saved only in this browser and shared across its tabs. Theme-aware colors cover dashboard and episode views, admin pages, public pages, dialogs and live updates.
