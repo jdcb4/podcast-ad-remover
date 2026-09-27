@@ -104,7 +104,7 @@ The configurator intentionally uses system-ui without loading Inter. Its install
 
 The desktop sidebar is fixed at 240px wide with 24px vertical and 16px horizontal padding. Main content offsets by that width, uses 28px by 32px padding and caps at 1600px; settings content caps at 960px. Sub-navigation expands within the same sidebar.
 
-At 900px and below, the sidebar becomes a toggled drawer; an app bar and fixed bottom navigation replace the persistent rail. Main padding becomes 18px by 16px with 88px plus the safe-area inset reserved beneath content. Bottom navigation actions have a 48px minimum height.
+At 900px and below, the sidebar becomes a settings-and-account drawer; an app bar and fixed bottom navigation replace the persistent rail. The drawer omits the primary destinations already present below. Main padding becomes 18px by 16px with 88px plus the safe-area inset reserved beneath content. Bottom navigation actions have a 48px minimum height.
 
 Settings rows have a 58px minimum height, 12px vertical padding and a fine bottom divider. Direct text/select controls occupy 22rem, capped at 58%; below 900px they occupy 55%. At 480px and below, those rows stack the label over a full-width control. Numeric controls and switches retain their compact inline relationship.
 
@@ -128,9 +128,15 @@ Controls and cards use gently rounded corners; navigation is slightly tighter an
 
 **Fields.** Inputs and selects use the base surface, primary text, a two-pixel control border and a violet focus border plus four-pixel translucent ring. A label names the setting; units remain next to numeric values. The shared macros preserve label/control association.
 
+**Settings hierarchy.** A concise introduction explains each page using secondary text (14px, line-height 1.6, maximum 72ch). Section headings and legends are 17px and weight 650, with 22px above and 8px below. Contextual help is 13px with line-height 1.5 and a 75ch maximum. These additions retain the existing compact type scale rather than introducing display typography.
+
+**Catalog selectors.** Model and voice controls expose a real select with an explicit manual-ID choice. Choosing manual entry reveals a labeled text field below the select. Their shared container is 22rem capped at 58%, with an 8px gap; at 480px it stacks below the row label at full width. Refresh and preview actions have adjacent status feedback.
+
 **Switches.** A white thumb moves 16px between gray and violet tracks. The complete labeled row is the checkbox label, so the visible track is not the entire activation target.
 
-**Navigation.** Current destinations receive a violet wash and stronger weight. Sidebar settings links remain subordinate to the main destinations. Navigation names stay visible on phones rather than requiring icon-only recognition.
+Unavailable speech switches retain their saved preferences and show disabled controls at 0.45 opacity with secondary label text. Nearby help explains how to configure speech. Disabled appearance communicates availability, not a reset preference.
+
+**Navigation.** Current destinations receive a violet wash and stronger weight. Inline stroke SVG icons accompany visible labels, with a 10px gap in the sidebar; phone bottom navigation stacks icons over labels with a 3px gap. Sidebar settings links remain subordinate to the main destinations. The mobile settings-and-account drawer has a 44px close action, dim clickable backdrop, contained keyboard focus and focus return to the menu trigger. The background shell becomes inert while it is open. A single RSS-marked Unified Feed action sits in the browsing toolbar instead of repeating feed actions in navigation.
 
 **Disclosures.** Native details/summary groups retain keyboard behavior and reveal advanced settings in place. Summary rows are compact, separated by rules, with semibold labels.
 
@@ -153,4 +159,3 @@ Controls and cards use gently rounded corners; navigation is slightly tighter an
 - Don't introduce invented status metrics or decorative live badges.
 - Don't turn the standalone configurator palette into the app theme.
 - Don't treat legacy display utilities or overlay wrappers as new shared patterns.
-

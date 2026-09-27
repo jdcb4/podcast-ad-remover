@@ -9,15 +9,14 @@
   if (event.target.closest('[data-toggle-sidebar]')) setSidebar(!document.querySelector('.app-sidebar').hasAttribute('data-open'));
   if (event.target.closest('[data-close-sidebar]')) setSidebar(false);
  });
- document.querySelectorAll('[data-copy-feed],[data-feed-apps]').forEach(button=>button.addEventListener('click',async()=>{
+ document.querySelectorAll('[data-feed-apps]').forEach(button=>button.addEventListener('click',async()=>{
   try { const response=await fetch('/account/feed'); if(!response.ok) throw new Error('Could not load feed URL'); const links=await response.json();
-   if(button.hasAttribute('data-feed-apps')) { window.location.assign(links.apps); }
-   else { await navigator.clipboard.writeText(links.rss); button.textContent='Copied'; setTimeout(()=>button.textContent='Copy feed URL',2000); }
+   window.location.assign(links.apps);
   } catch(error) { window.appToast?.(error.message,{type:'error'}); }
  }));
  const sidebar=document.querySelector('.app-sidebar'), menuButton=document.querySelector('[data-toggle-sidebar]');
  function setSidebar(open){
-  sidebar.toggleAttribute('data-open',open);menuButton?.setAttribute('aria-expanded',String(open));
+  sidebar.toggleAttribute('data-open',open);document.querySelector('.sidebar-backdrop').hidden=!open;menuButton?.setAttribute('aria-expanded',String(open));
   for(const element of document.querySelectorAll('.app-main,.mobile-bottom,.mobile-appbar')) element.inert=open;
   if(open) sidebar.querySelector('[data-close-sidebar]')?.focus(); else menuButton?.focus();
  }
@@ -34,9 +33,9 @@
  matchMedia('(max-width:900px)').addEventListener('change',()=>{if(sidebar?.hasAttribute('data-open'))setSidebar(false);});
  const setupProvider=document.getElementById('setup-provider');
  if(setupProvider){const update=()=>{document.getElementById('setup-custom').hidden=setupProvider.value!=='custom';};setupProvider.addEventListener('change',update);update();}
- document.querySelectorAll('.app-sidebar nav>a,.mobile-bottom>a').forEach(link=>{
+ document.querySelectorAll('.app-sidebar .primary-navigation>a,.mobile-bottom>a').forEach(link=>{
   const url=new URL(link.href),current=new URL(location.href);
-  const active=url.pathname==='/'?current.pathname==='/'&&!url.hash&&(url.searchParams.get('view')||'mine')===(current.searchParams.get('view')||'mine'):url.pathname==='/admin/queue'?current.pathname==='/admin/queue':url.pathname==='/admin/ai/text-analysis'&&current.pathname.startsWith('/admin')&&current.pathname!=='/admin/queue';
+  const active=url.pathname==='/'?current.pathname==='/'&&!url.hash&&(url.searchParams.get('view')||'mine')===(current.searchParams.get('view')||'mine'):url.pathname==='/admin/queue'?current.pathname==='/admin/queue':url.pathname==='/admin/ai/transcription'&&current.pathname.startsWith('/admin')&&current.pathname!=='/admin/queue';
   if(active)link.setAttribute('aria-current','page');
  });
  if (location.hash === '#add') document.getElementById('add-podcast-dialog')?.showModal();
@@ -69,16 +68,50 @@
  const speechProvider=document.getElementById('speech-provider');
  const speechOptions={};
  for(const id of ['speech-models','speech-voices']) speechOptions[id]=Array.from(document.querySelectorAll(`#${id} option`)).map(o=>({provider:o.dataset.provider,value:o.value}));
- function speechFields(event){
-  document.getElementById('speech-custom').hidden=speechProvider.value!=='custom';
-  for(const id of ['speech-models','speech-voices']){
-   const list=document.getElementById(id);list.replaceChildren();
-   const selected=speechOptions[id].filter(o=>o.provider===speechProvider.value || (id==='speech-voices' && speechProvider.value==='openrouter' && o.provider==='openai'));
-   selected.forEach(o=>{const option=document.createElement('option');option.value=o.value;list.append(option);});
-   if(event){document.getElementById(id==='speech-models'?'speech-model':'speech-voice').value=selected[0]?.value||'';}
-  }
+ let catalogRequest=0;
+ function options(id,values){
+  const list=document.getElementById(id), field=document.getElementById(id==='speech-models'?'speech-model':'speech-voice'), picker=document.getElementById(field.id+'-picker');
+  list.replaceChildren();picker.replaceChildren();
+  const empty=document.createElement('option');empty.value='';empty.textContent='Choose '+(id==='speech-models'?'model':'voice');picker.append(empty);
+  values.forEach(value=>{const option=document.createElement('option');option.value=value;option.textContent=value;list.append(option.cloneNode(true));picker.append(option);});
+  const manual=document.createElement('option');manual.value='__manual__';manual.textContent='Enter another ID…';picker.append(manual);
+  picker.value=values.includes(field.value)?field.value:field.value?'__manual__':'';field.hidden=picker.value!=='__manual__';
  }
- if(speechProvider){speechProvider.addEventListener('change',speechFields);speechFields();}
+ function voiceFields(){
+  if(!speechProvider)return;
+  const provider=speechProvider.value,model=document.getElementById('speech-model').value;
+  let source=provider==='openrouter'?(model.startsWith('openai/')?'openai':model.startsWith('google/gemini-')?'gemini':''):provider;
+  let voices=speechOptions['speech-voices'].filter(o=>o.provider===source).map(o=>o.value);
+  if(source==='openai'&&model.replace('openai/','').startsWith('tts-1'))voices=voices.filter(v=>!['ballad','verse','marin','cedar'].includes(v));
+  options('speech-voices',voices);
+ }
+ function speechFields(event){
+  catalogRequest++;
+  document.getElementById('speech-custom').hidden=speechProvider.value!=='custom';
+  const models=speechOptions['speech-models'].filter(o=>o.provider===speechProvider.value).map(o=>o.value);
+  if(event){document.getElementById('speech-model').value=models[0]||'';document.getElementById('speech-voice').value='';}
+  options('speech-models',models);
+  voiceFields();
+  document.getElementById('speech-catalog-status').textContent='Refresh to discover available models and voices. You can also enter an ID.';
+ }
+ if(speechProvider){speechProvider.addEventListener('change',speechFields);speechFields();document.getElementById('speech-model').addEventListener('input',()=>{catalogRequest++;voiceFields();});}
+ for(const id of ['speech-model','speech-voice'])document.getElementById(id+'-picker')?.addEventListener('change',event=>{
+  const field=document.getElementById(id);field.hidden=event.target.value!=='__manual__';
+  if(event.target.value==='__manual__'){field.focus();field.select();}else{field.value=event.target.value;field.dispatchEvent(new Event('input',{bubbles:true}));}
+ });
+ document.getElementById('refresh-speech-catalog')?.addEventListener('click',async event=>{
+  const button=event.currentTarget,status=document.getElementById('speech-catalog-status'),request=++catalogRequest;
+  const data=new FormData();data.set('provider',speechProvider.value);data.set('model',document.getElementById('speech-model').value);
+  data.set('api_key',document.querySelector('[name=speech_credential]').value);data.set('base_url',document.querySelector('[name=tts_base_url]').value);
+  button.disabled=true;status.textContent='Refreshing catalog…';
+  try{const response=await fetch('/admin/ai/voice/catalog',{method:'POST',body:data});const catalog=await response.json();
+   if(request!==catalogRequest)return;
+   if(!response.ok)throw Error(catalog.detail||'Could not refresh catalog.');
+   options('speech-models',catalog.models);options('speech-voices',catalog.voices);
+   if(speechProvider.value==='gemini')speechOptions['speech-voices']=speechOptions['speech-voices'].filter(o=>o.provider!=='gemini').concat(catalog.voices.map(value=>({provider:'gemini',value})));
+   status.textContent=`${catalog.models.length} models · ${catalog.voices.length} voices. ${catalog.note}`;
+  }catch(error){if(request===catalogRequest)status.textContent=error.message;}finally{button.disabled=false;}
+ });
  function showProvider() { document.querySelectorAll('[data-provider-panel]').forEach(panel => { panel.hidden=panel.dataset.providerPanel!==provider.value; panel.querySelectorAll('input,select').forEach(input=>input.disabled=panel.hidden); }); }
  if(provider) { provider.addEventListener('change',showProvider); showProvider(); }
  document.querySelectorAll('[data-refresh-models],[data-test-provider]').forEach(button=>button.addEventListener('click',async()=>{

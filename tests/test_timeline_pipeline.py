@@ -51,6 +51,7 @@ async def test_cached_classification_can_repair_a_previously_failed_summary(isol
 async def test_complete_pipeline_preserves_editorial_audio_and_summary_preferences(isolated_data_dir, tmp_path, monkeypatch, rewrite, spoken):
     init_db()
     with get_db_connection() as conn:
+        conn.execute("UPDATE app_settings SET cut_tone_enabled=0 WHERE id=1")  # isolate cut durations from optional tones
         conn.execute("INSERT INTO subscriptions(id,feed_url,title,slug,processing_workflow,minimum_retained_seconds,remove_ads,remove_intros,remove_outros,ai_rewrite_description,ai_audio_summary) VALUES(1,'https://example.com/feed','Show','show','complete_timeline',0,1,1,1,?,?)", (rewrite, spoken))
         conn.execute("INSERT INTO episodes(id,subscription_id,guid,title,original_url,status,duration,description) VALUES(1,1,'guid','Episode','https://example.com/source','pending',6,'Original description')")
         conn.commit()

@@ -2,7 +2,7 @@
 {% from '_settings.html' import toggle, text %}
 {% block title %}Unified feed{% endblock %}
 {% block admin_content %}
-<h1>Unified feed</h1>
+<h1>Unified feed</h1><p class="settings-intro">Combine your podcasts into one subscription feed. Set its name and artwork, and choose how episode titles appear.</p>
 <form method="post" action="/admin/unified-feed/update" enctype="multipart/form-data">
 {{ text('unified_feed_title','Feed name',settings.title,required=true) }}
 {{ toggle('unified_feed_include_podcast_name','Include podcast name in episode titles',settings.include_podcast_name) }}

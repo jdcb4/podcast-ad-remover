@@ -1,5 +1,5 @@
-{% macro toggle(name, label, checked=false) %}
-<label class="setting-row" for="{{ name }}"><span>{{ label }}</span><input class="setting-switch" type="checkbox" id="{{ name }}" name="{{ name }}" value="true" {% if checked %}checked{% endif %}></label>
+{% macro toggle(name, label, checked=false, disabled=false) %}
+<label class="setting-row" for="{{ name }}"><span>{{ label }}</span><input class="setting-switch" type="checkbox" id="{{ name }}" name="{{ name }}" value="true" {% if checked %}checked{% endif %} {% if disabled %}disabled aria-describedby="speech-unavailable"{% endif %}></label>
 {% endmacro %}
 {% macro number(name, label, value, unit='', min=0, max=100000, step=1) %}
 <label class="setting-row" for="{{ name }}"><span>{{ label }}</span><span class="setting-control"><input class="input" type="number" id="{{ name }}" name="{{ name }}" value="{{ value }}" min="{{ min }}" max="{{ max }}" step="{{ step }}" required><span>{{ unit }}</span></span></label>

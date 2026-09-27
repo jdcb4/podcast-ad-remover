@@ -347,22 +347,22 @@
                     <span class="ml-3">Rewrite Description (AI Text)</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="ai_audio_summary" value="true" data-inherited-control
+                    <input type="checkbox" name="ai_audio_summary" value="true" data-inherited-control {% if not speech_ready(settings) %}data-unavailable disabled title="Configure Voice settings to enable speech"{% endif %}
                         data-effective-checked="{{ 'true' if settings.default_ai_audio_summary else 'false' }}"
                         data-override-checked="{{ 'true' if stored.get('ai_audio_summary') else 'false' }}"
                         {% if (subscription.ai_audio_summary if subscription.inherit_default_features else stored.get('ai_audio_summary')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Append Audio Summary (AI TTS)</span>
+                    <span class="ml-3">Add generated spoken summary</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="append_title_intro" value="true" data-inherited-control
+                    <input type="checkbox" name="append_title_intro" value="true" data-inherited-control {% if not speech_ready(settings) %}data-unavailable disabled title="Configure Voice settings to enable speech"{% endif %}
                         data-effective-checked="{{ 'true' if settings.default_append_title_intro else 'false' }}"
                         data-override-checked="{{ 'true' if stored.get('append_title_intro') else 'false' }}"
                         {% if (subscription.append_title_intro if subscription.inherit_default_features else stored.get('append_title_intro')) %}checked{% endif %}
                         {% if subscription.inherit_default_features %}disabled{% endif %}
                         class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Append Audio Title as Intro (TTS)</span>
+                    <span class="ml-3">Add generated spoken title</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" name="watermark_artwork" value="true" data-inherited-control

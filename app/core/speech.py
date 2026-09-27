@@ -13,7 +13,7 @@ from app.core.provider_budget import provider_request
 
 PROVIDERS = ('gemini', 'openai', 'openrouter', 'custom')
 VOICES = {
-    'gemini': ('Orus', 'Enceladus', 'Laomedeia', 'Kore', 'Puck', 'Charon', 'Fenrir', 'Aoede'),
+    'gemini': tuple('Zephyr Puck Charon Kore Fenrir Leda Orus Aoede Callirrhoe Autonoe Enceladus Iapetus Umbriel Algieba Despina Erinome Algenib Rasalgethi Laomedeia Achernar Alnilam Schedar Gacrux Pulcherrima Achird Zubenelgenubi Vindemiatrix Sadachbia Sadaltager Sulafat'.split()),
     'openai': ('alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse', 'marin', 'cedar'),
 }
 
@@ -37,6 +37,14 @@ def speech_configuration(values):
         'openai': 'https://api.openai.com/v1', 'openrouter': 'https://openrouter.ai/api/v1',
     }[provider]
     return provider, model, voice, key, url
+
+
+def speech_ready(values):
+    try:
+        speech_configuration(dict(values))
+        return True
+    except ValueError:
+        return False
 
 
 async def generate_speech(text, output_path, values):

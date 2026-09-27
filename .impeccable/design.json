@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-27T11:18:33.617Z",
+  "generatedAt": "2026-09-27T12:24:55.7922964Z",
   "title": "Design System: Podcast Ad Remover",
   "extensions": {
     "colorMeta": {
@@ -248,7 +248,11 @@
       "app/web/templates/base.html",
       "app/web/templates/_settings.html",
       "app/web/templates/admin/global_subscription_settings.html",
-      "configurator/style.css"
+      "configurator/style.css",
+      "app/web/templates/_icons.html",
+      "app/web/static/js/v2.js",
+      "app/web/templates/admin/ai.html",
+      "app/web/templates/admin/notifications.html"
     ]
   },
   "components": [
@@ -280,17 +284,17 @@
       "name": "Navigation",
       "kind": "nav",
       "refersTo": "navigation",
-      "description": "Navigation extracted from the application styles.",
-      "html": "<nav class=\"ds-nav\"><a href=\"#library\">Library</a><a href=\"#settings\" aria-current=\"page\">Settings</a></nav>",
-      "css": ".ds-nav{display:grid;gap:4px;font:16px Inter,system-ui,sans-serif;background:rgb(var(--surface-elevated,26 26 37));padding:16px}.ds-nav a{color:var(--text-primary,#ededef);text-decoration:none;padding:10px 12px;border-radius:8px}.ds-nav a:hover{background:#80808018}.ds-nav a[aria-current=page]{background:#7c3aed18;font-weight:650}.ds-nav a:focus-visible{outline:2px solid #9b72f7;outline-offset:3px}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"
+      "description": "Inline stroke icons accompany visible labels; mobile bottom navigation stacks each icon above its label. The mobile drawer contains settings and account actions.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#library\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 4h4v16H4zM10 4h4v16h-4zM17 4l4 15-3 1-4-15z\"/></svg>Library</a><a href=\"#settings\" aria-current=\"page\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6\"/></svg>Settings</a></nav>",
+      "css": ".ds-nav{display:grid;gap:4px;font:16px Inter,system-ui,sans-serif;background:rgb(var(--surface-elevated,26 26 37));padding:16px}.ds-nav a{color:var(--text-primary,#ededef);text-decoration:none;padding:10px 12px;border-radius:8px}.ds-nav a:hover{background:#80808018}.ds-nav a[aria-current=page]{background:#7c3aed18;font-weight:650}.ds-nav a:focus-visible{outline:2px solid #9b72f7;outline-offset:3px}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}.ds-nav a{display:flex;align-items:center;gap:10px}.ds-nav svg{flex:none}"
     },
     {
       "name": "Setting switch",
       "kind": "custom",
       "refersTo": "setting-switch",
-      "description": "Setting switch extracted from the application styles.",
+      "description": "Labeled checkbox row. Unavailable speech controls remain visible and disabled while preserving saved preferences; adjacent help explains setup.",
       "html": "<label class=\"ds-row\">Remove ads<input class=\"ds-switch\" type=\"checkbox\" checked></label>",
-      "css": ".ds-row{display:flex;justify-content:space-between;align-items:center;gap:24px;min-height:58px;padding:12px 0;border-bottom:1px solid #80808022;font:14px Inter,system-ui,sans-serif;color:var(--text-primary,#ededef)}.ds-switch{appearance:none;width:40px;height:24px;border-radius:20px;background:#737380;position:relative;cursor:pointer;border:0;flex-shrink:0}.ds-switch::after{content:'';position:absolute;width:18px;height:18px;top:3px;left:3px;border-radius:50%;background:white;transition:transform .15s}.ds-switch:checked{background:#7c3aed}.ds-switch:checked::after{transform:translateX(16px)}.ds-switch:focus-visible{outline:2px solid #9b72f7;outline-offset:3px}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"
+      "css": ".ds-row{display:flex;justify-content:space-between;align-items:center;gap:24px;min-height:58px;padding:12px 0;border-bottom:1px solid #80808022;font:14px Inter,system-ui,sans-serif;color:var(--text-primary,#ededef)}.ds-switch{appearance:none;width:40px;height:24px;border-radius:20px;background:#737380;position:relative;cursor:pointer;border:0;flex-shrink:0}.ds-switch::after{content:'';position:absolute;width:18px;height:18px;top:3px;left:3px;border-radius:50%;background:white;transition:transform .15s}.ds-switch:checked{background:#7c3aed}.ds-switch:checked::after{transform:translateX(16px)}.ds-switch:focus-visible{outline:2px solid #9b72f7;outline-offset:3px}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}.ds-switch:disabled{opacity:.45;cursor:not-allowed}.ds-row:has(:disabled){color:var(--text-secondary,#a1a1aa)}"
     },
     {
       "name": "Status chip",

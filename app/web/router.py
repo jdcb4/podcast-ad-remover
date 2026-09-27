@@ -57,6 +57,8 @@ from app.web.setup import router as setup_router
 router.include_router(setup_router)
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
+from app.core.speech import speech_ready
+templates.env.globals["speech_ready"] = speech_ready
 
 # Helper to get CSP nonce from request
 def get_csp_nonce(request: Request) -> str:
@@ -1019,6 +1021,27 @@ async def update_ai_settings(
             raise HTTPException(status_code=400, detail="Unsupported AI settings section.")
         conn.commit()
     return RedirectResponse(url=_safe_local_redirect(redirect_to, "/admin/ai/text-analysis"), status_code=303)
+
+@router.post('/admin/ai/voice/catalog')
+async def speech_catalog(request: Request, provider: str = Form(...), model: str = Form(''),
+                         api_key: str = Form(''), base_url: str = Form(''), admin=Depends(require_admin)):
+    from app.core.speech_catalog import refresh_catalog
+    from app.web.auth_utils import is_same_origin_request
+    values = dict(get_global_settings())
+    if not is_same_origin_request(request, values.get('app_external_url')):
+        raise HTTPException(403, 'Cross-origin catalog refresh is not allowed')
+    if api_key.strip():
+        values['tts_api_key' if provider=='custom' else provider+'_api_key'] = api_key.strip()
+        if provider=='gemini': values['gemini_api_keys'] = None
+    if provider=='custom' and base_url.strip(): values['tts_base_url'] = base_url.strip()
+    try:
+        return await refresh_catalog(provider, model, values)
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from error
+    except Exception as error:
+        logger.warning('Speech catalog refresh failed (%s)', type(error).__name__)
+        raise HTTPException(502, 'Catalog refresh failed. Check the endpoint and API key, then try again. Your selections have not changed.') from error
+
 
 @router.post('/admin/ai/voice/preview')
 async def preview_voice(request: Request, admin=Depends(require_admin)):
@@ -2076,6 +2099,10 @@ async def update_global_subscription_settings(
     cut_tone_enabled: bool = Form(False),
     admin_user = Depends(require_admin)
 ):
+    saved = get_global_settings()
+    if not speech_ready(saved):
+        default_ai_audio_summary = bool(saved.get('default_ai_audio_summary'))
+        default_append_title_intro = bool(saved.get('default_append_title_intro'))
     from app.core.timeline import WORKFLOWS, threshold
     if default_processing_workflow is not None and default_processing_workflow not in WORKFLOWS:
         raise HTTPException(400, 'Unknown processing workflow')
@@ -2416,6 +2443,8 @@ async def bulk_update_subscription_settings(
             ("append_title_intro", append_title_intro),
             ("watermark_artwork", watermark_artwork),
         ):
+            if column in ('ai_audio_summary','append_title_intro') and not speech_ready(get_global_settings()):
+                continue
             set_value(column, int(value))
 
     if instructions_mode == "inherit":
@@ -2708,6 +2737,9 @@ async def update_settings(
         ai_rewrite_description = bool(stored.get("ai_rewrite_description"))
         ai_audio_summary = bool(stored.get("ai_audio_summary"))
         watermark_artwork = bool(stored.get("watermark_artwork"))
+    if not speech_ready(get_global_settings()):
+        ai_audio_summary = bool(stored.get('ai_audio_summary'))
+        append_title_intro = bool(stored.get('append_title_intro'))
     custom_instructions = (custom_instructions or "").strip() or None
 
     sub_repo.update_settings(

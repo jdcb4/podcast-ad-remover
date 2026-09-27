@@ -53,7 +53,7 @@ for (const saved of [null, 'dark', 'light', 'system', 'invalid']) {
     assert.equal(root.classList.contains('dark'), next === 'dark');
     assert.equal(w.document.activeElement, button);
     assert.equal(w.localStorage.getItem(key), next);
-    assert.equal(button.querySelector('[data-theme-label]').textContent, next === 'light' ? 'Light' : 'Dark');
+    assert.equal(button.querySelector('[data-theme-label]').textContent, next === 'light' ? 'Light mode' : 'Dark mode');
     const reload = open(w.localStorage.getItem(key));
     assert.equal(reload.root.dataset.theme, next);
     reload.dom.window.close();

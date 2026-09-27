@@ -2,7 +2,7 @@
 {% from '_settings.html' import toggle, number, text %}
 {% block title %}System{% endblock %}
 {% block admin_content %}
-<h1>System</h1>
+<h1>System</h1><p class="settings-intro">Manage processing capacity, storage limits and the address used by podcast apps. Changes apply to this installation.</p>
 <form method="post" action="/admin/system/update">
 <input type="hidden" name="section" value="system">
 {{ number('concurrent_downloads','Concurrent downloads',settings.concurrent_downloads, min=1,max=10) }}

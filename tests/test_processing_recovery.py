@@ -21,6 +21,7 @@ from app.infra.repository import EpisodeRepository, JobRepository, SubscriptionR
 def episodes(isolated_data_dir):
     init_db()
     with get_db_connection() as conn:
+        conn.execute("UPDATE app_settings SET cut_tone_enabled=0 WHERE id=1")  # isolate cut durations from optional tones
         conn.execute("INSERT INTO subscriptions(id,feed_url,title,slug) VALUES(90,'https://example.com/feed','Show','show')")
         for i, guid in [(90, '..'), (91, 'a/b'), (92, 'a_b')]:
             conn.execute("INSERT INTO episodes(id,subscription_id,guid,title,original_url,status,duration) VALUES(?,90,?,'Episode','https://example.com/source','pending',4)", (i, guid))

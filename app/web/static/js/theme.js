@@ -16,8 +16,9 @@
         root.dataset.theme = theme;
         document.querySelectorAll('[data-theme-toggle]').forEach(button => {
             button.setAttribute('aria-pressed', String(theme === 'light'));
+            button.setAttribute('aria-label', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
             button.title = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
-            button.querySelector('[data-theme-label]').textContent = theme === 'light' ? 'Light' : 'Dark';
+            button.querySelector('[data-theme-label]').textContent = theme === 'light' ? 'Light mode' : 'Dark mode';
         });
     }
     apply(theme);

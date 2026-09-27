@@ -126,3 +126,28 @@ def test_setup_error_retains_values_and_ai_can_be_skipped(client):
     client.post('/admin/setup', data={'action':'finish'})
     assert web.get_global_settings()['whisper_model'] == 'small'
     assert web.get_global_settings()['default_retention_limit'] == 1
+
+
+def test_speech_defaults_disabled_controls_preserve_intent(client):
+    import re
+    values = web.get_global_settings()
+    assert values['default_watermark_artwork']==1 and values['cut_tone_enabled']==1
+    assert values['default_ai_rewrite_description']==values['default_ai_audio_summary']==values['default_append_title_intro']==0
+    with get_db_connection() as conn:
+        conn.execute('UPDATE app_settings SET default_ai_audio_summary=1 WHERE id=1')
+        conn.commit()
+    page=client.get('/admin/global-subscription-settings').text
+    assert 'disabled' in re.search(r'<input[^>]*name="default_ai_audio_summary"[^>]*>', page).group()
+    client.post('/admin/global-subscription-settings/update',data={'cut_tone_enabled':'true'})
+    assert web.get_global_settings()['default_ai_audio_summary']==1
+    init_db()
+    assert web.get_global_settings()['default_watermark_artwork']==0  # saved preference survives restart
+
+
+def test_speech_catalog_failure_does_not_expose_endpoint_details(client, monkeypatch):
+    from app.core import speech_catalog
+    async def fail(*args):
+        raise RuntimeError('secret-token-in-url')
+    monkeypatch.setattr(speech_catalog,'refresh_catalog',fail)
+    response=client.post('/admin/ai/voice/catalog',data={'provider':'openai'},headers={'Origin':'http://testserver'})
+    assert response.status_code==502 and 'secret-token' not in response.text

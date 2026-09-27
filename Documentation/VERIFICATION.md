@@ -298,6 +298,8 @@ re-enabling work. A build alone does not validate production data or paid provid
 
 ## V2 qualification
 
+Speech catalog tests cover pagination, credential precedence/isolation, speech-model filtering, model-specific voices and safe discovery errors. Browser checks cover Tasks/Settings separation, feed placement, drawer backdrop/focus, dropdowns and responsive navigation. Metadata tests use mocked providers; live account availability is not assumed.
+
 Run `npm run verify` with Python 3.11, and `npm run verify:docker` for the image. Timeline tests cover complete coverage, mandatory provider schemas, refusal/truncation failure and valid JSON wrapper cleanup. Migration tests cover backups, repeat startup, queued snapshots, unconfigured former Piper installs and unchanged ownership/media. Real FFmpeg fixtures cover cuts, publication/recovery and the one-switch tone behavior at all cut positions.
 
 `test_v2_interface.py` exercises compact page rendering, grouped saves, artwork uploads, consolidated account links, staged wizard review/cancel/conflicts and provider-preview failures. `test_configurator.py` exercises stable/regenerated secrets, separate env files, POSIX/PowerShell generation, private state clearing and offline bundle contents. The install output also needs an actual `docker compose config` and env-file round-trip check, plus PowerShell parsing on Windows; use synthetic credentials only.

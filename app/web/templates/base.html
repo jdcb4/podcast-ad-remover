@@ -1,3 +1,4 @@
+{% from "_icons.html" import icon %}
 <!DOCTYPE html>
 <html lang="en" class="dark">
 
@@ -21,18 +22,18 @@
 
 <body class="bg-surface-base text-text-primary min-h-screen font-sans antialiased">
     <div class="mobile-appbar"><button type="button" data-toggle-sidebar aria-label="Open navigation" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="/">Podcast Ad Remover</a></div>
-    <aside class="app-sidebar" aria-label="Main navigation">
-      <button class="sidebar-close" type="button" data-close-sidebar aria-label="Close navigation">Close navigation</button>
+    <button class="sidebar-backdrop" data-close-sidebar aria-label="Close settings navigation" hidden tabindex="-1"></button>
+    <aside class="app-sidebar" aria-label="Settings and account navigation">
+      <button class="sidebar-close" type="button" data-close-sidebar aria-label="Close navigation">{{ icon('close') }}</button>
       <a class="brand" href="/">Podcast Ad Remover</a>
-      {% if user %}<a href="/#add" class="btn-primary" data-add-podcast>Add podcast</a>{% endif %}
-      <nav><a href="/?view=mine">My Podcasts</a><a href="/?view=library">Library</a>
-      {% if user and user.is_admin %}<a href="/admin/queue">Tasks</a><a href="/admin/ai/text-analysis">Settings</a>
-      {% if request.url.path.startswith('/admin') %}{% include 'admin/_navigation.html' %}{% endif %}{% endif %}</nav>
-      {% if user %}<div><button type="button" data-copy-feed>Copy feed URL</button><button type="button" data-feed-apps>Podcast apps</button><span data-feed-status role="status"></span></div>{% endif %}
-      <div class="account"><button type="button" data-theme-toggle hidden aria-label="Light mode" aria-pressed="false"><span data-theme-label>Theme</span></button>
-      {% if user %}<a href="/change-password">{{ user.username }}</a><a href="/logout">Log out</a>{% else %}<a href="/login">Log in</a>{% endif %}</div>
+      {% if user %}<a href="/#add" class="btn-primary sidebar-primary" data-add-podcast>{{ icon('add') }}Add podcast</a>{% endif %}
+      <nav class="primary-navigation"><a class="sidebar-primary" href="/?view=mine">{{ icon('podcasts') }}My Podcasts</a><a class="sidebar-primary" href="/?view=library">{{ icon('library') }}Library</a>
+      {% if user and user.is_admin %}<a class="sidebar-primary" href="/admin/queue">{{ icon('tasks') }}Tasks</a><a class="sidebar-primary" href="/admin/ai/transcription">{{ icon('settings') }}Settings</a>
+      <div class="settings-links {% if not request.url.path.startswith('/admin') or request.url.path.startswith('/admin/queue') %}desktop-collapsed{% endif %}">{% include 'admin/_navigation.html' %}</div>{% endif %}</nav>
+      <div class="account"><button type="button" data-theme-toggle hidden aria-label="Switch color mode" aria-pressed="false">{{ icon('theme') }}<span data-theme-label>Color mode</span></button>
+      {% if user %}<a href="/change-password">{{ icon('key') }}Change password<span class="sr-only"> for {{ user.username }}</span></a><a href="/logout">{{ icon('logout') }}Log out</a>{% else %}<a href="/login">{{ icon('key') }}Log in</a>{% endif %}</div>
     </aside>
-    {% if user %}<nav class="mobile-bottom" aria-label="Mobile navigation"><a href="/?view=mine">My Podcasts</a><a href="/?view=library">Library</a><a href="/#add" data-add-podcast>Add</a><button type="button" data-copy-feed>Feed</button>{% if user.is_admin %}<a href="/admin/ai/text-analysis">Settings</a>{% endif %}</nav>{% endif %}
+    {% if user %}<nav class="mobile-bottom" aria-label="Mobile navigation"><a href="/?view=mine">{{ icon('podcasts') }}My Podcasts</a><a href="/?view=library">{{ icon('library') }}Library</a><a href="/#add" data-add-podcast>{{ icon('add') }}Add</a>{% if user.is_admin %}<a href="/admin/queue">{{ icon('tasks') }}Tasks</a><a href="/admin/ai/transcription">{{ icon('settings') }}Settings</a>{% endif %}</nav>{% endif %}
     <script nonce="{{ csp_nonce }}">
         // Mobile menu toggle
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');

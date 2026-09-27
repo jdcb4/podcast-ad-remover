@@ -2,7 +2,7 @@
 {% from '_settings.html' import toggle, number, text %}
 {% block title %}Users & access{% endblock %}
 {% block admin_content %}
-<div class="dialog-heading"><h1>Users & access</h1><button class="btn-primary" data-open-dialog="create-user">Create user</button></div>
+<div class="dialog-heading"><h1>Users & access</h1><button class="btn-primary" data-open-dialog="create-user">Create user</button></div><p class="settings-intro">Manage dashboard access and the credentials used by podcast apps and integrations. Expand an account or token section to make changes.</p>
 <dialog id="create-user"><div class="dialog-heading"><h2>Create user</h2><button data-close-dialog aria-label="Close">×</button></div>
 <form method="post" action="/admin/users">
 {{ text('username','Username',required=true) }}{{ text('password','Password',type='password',required=true) }}{{ text('confirm_password','Confirm password',type='password',required=true) }}

@@ -36,7 +36,7 @@
             if (!controls) return;
             const enabled = mode.value === 'override';
             controls.querySelectorAll('input, select, textarea').forEach((control) => {
-                control.disabled = !enabled;
+                control.disabled = !enabled || control.hasAttribute('data-unavailable');
             });
             controls.classList.toggle('opacity-50', !enabled);
         };

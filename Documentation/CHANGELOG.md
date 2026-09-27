@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Refine V2 settings explanations, section headings, GPU status, navigation icons and the mobile settings drawer. Move Unified Feed beside podcast search.
+- Add speech model/voice dropdowns and metadata refresh, with documented/manual fallbacks where providers do not expose voice discovery.
+- Fresh installs enable artwork badging and cut tones; other enhancements start off. Disable spoken additions until Voice is configured, preserving requested preferences.
+
 - V2: timeline-only analysis with mandatory schema output, minimal JSON unwrapping, one model and one credential per provider; environment credentials win.
 - Remove local Piper speech and exclusive dependencies, legacy classification/whitelist, model cascades and SponsorBlock integration. YouTube sources remain supported.
 - Add OpenAI, OpenRouter and custom API speech alongside Gemini. Former local-speech installs continue core processing and show configuration guidance.

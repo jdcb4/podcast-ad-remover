@@ -27,7 +27,7 @@
                     showValue(control, 'override');
                 }
             }
-            control.disabled = toggle.checked;
+            control.disabled = toggle.checked || control.hasAttribute('data-unavailable');
         });
         group.classList.toggle('opacity-75', toggle.checked);
     }

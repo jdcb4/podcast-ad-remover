@@ -62,4 +62,14 @@ These runtime settings are database-backed. Except provider credentials, environ
 
 ## Migration
 
+### Speech catalog discovery
+
+Voice provides model/voice dropdowns, manual IDs and an explicit Refresh models & voices action. Refresh only reads metadata; it never synthesizes speech or saves the form. Entered keys override saved keys for that request, while cloud environment keys retain precedence. Errors preserve selections.
+
+Gemini pages through its models and prebuilt voices, retaining the 30 documented studio voices if discovery is unavailable. OpenAI discovers TTS models and uses documented built-in voices, filtered by model. OpenRouter discovers speech-output models but has no universal voice catalog: documented OpenAI/Gemini voices are listed for those model families, and other models require a provider voice ID. Custom endpoints use models and, if implemented, audio/voices discovery. Voice creation and cloning are outside this feature.
+
+References: [Gemini voices](https://ai.google.dev/api/voices), [OpenAI speech](https://developers.openai.com/api/docs/guides/text-to-speech), [OpenRouter speech discovery](https://openrouter.ai/docs/guides/overview/multimodal/tts).
+
+New databases enable Ad-free artwork and Insert tone at content cuts; the other enhancements start off. Existing saved preferences are unchanged. Unavailable spoken controls retain their requested values when other settings are saved.
+
 [The implementation and rollback guide](V2_IMPLEMENTATION.md) describes the pre-upgrade backup, queued-job conversion and per-install migration report. Do not downgrade the executable alone after v2 writes. Restore a matching pre-upgrade database and previous immutable image; preserve the media recovery point.

@@ -1,5 +1,5 @@
 {% extends "admin/layout.html" %}
-{% block admin_content %}<h1>Prompt rules</h1>
+{% block admin_content %}<h1>Prompt rules</h1><p class="settings-intro">These rules tell the AI how to classify each part of an episode and write its summary. Change a definition to adjust classification; Podcast defaults controls which categories are removed.</p>
 <form id="timeline-prompts-form" action="/admin/prompts/timeline" method="post" data-json-form>
 {% for label,value in timeline_definitions.items() %}<details><summary>{{ timeline_labels[label] }} <span class="text-sm text-text-muted">{{ 'Default' if value==timeline_defaults[label] else 'Custom' }} · Edit</span></summary>
 <label for="definition_{{ label }}" class="sr-only">{{ timeline_labels[label] }} definition</label><textarea class="input mt-3" id="definition_{{ label }}" name="definition_{{ label }}" data-default="{{ timeline_defaults[label] }}" maxlength="10000" rows="5">{{ value }}</textarea><button type="button" data-reset-field="definition_{{ label }}" class="btn-ghost">Use default</button></details>{% endfor %}

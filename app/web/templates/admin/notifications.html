@@ -2,12 +2,12 @@
 {% from '_settings.html' import toggle %}
 {% block title %}Notifications{% endblock %}
 {% block admin_content %}
-<h1>Notifications</h1>
+<h1>Notifications</h1><p class="settings-intro">Send updates to your chosen services through Apprise. Save your destinations and select the events you want to receive.</p>
 <form method="post" action="/admin/notifications/update">
 {{ toggle('notifications_enabled','Enable notifications',settings.notifications_enabled) }}
 <label class="block mt-4" for="notification_urls">Apprise URLs</label>
 <textarea class="input mt-2" id="notification_urls" name="notification_urls" rows="4" autocomplete="off">{{ settings.notification_urls or '' }}</textarea>
-<details><summary>URL help</summary><p>One Apprise URL per line. URLs may contain credentials; treat them as secrets. Blank lines and lines starting with # are ignored.</p></details>
+<p class="settings-help">One Apprise URL per line. URLs may contain credentials; treat them as secrets. Blank lines and lines starting with # are ignored.</p><h2 class="settings-section-title">Notifications to include</h2>
 {% for name,label in [('notify_access_requests','Access requests'),('notify_new_podcasts','New podcasts'),('notify_episode_downloads','Episodes ready'),('notify_breaking_errors','Processing failures')] %}{{ toggle(name,label,settings[name]) }}{% endfor %}
 <button class="btn-primary">Save</button></form>
 <form method="post" action="/admin/notifications/test" class="mt-4"><button class="btn-secondary">Test saved configuration</button></form>
