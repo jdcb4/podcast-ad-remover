@@ -55,10 +55,10 @@ class SubscriptionSettingsUpdate(BaseModel):
     inherit_content_removal: bool | None = None
     inherit_retention: bool | None = None
     inherit_default_features: bool | None = None
-    inherit_custom_instructions: bool | None = None
-    processing_workflow: Literal["legacy", "complete_timeline"] | None = None
+    inherit_custom_instructions: Literal[False] | None = None
+    processing_workflow: Literal["complete_timeline"] | None = None
     inherit_processing_workflow: bool | None = None
-    remove_editorial_non_speech: bool | None = None
+    remove_editorial_non_speech: Literal[False] | None = None
     remove_non_editorial_non_speech: bool | None = None
     minimum_retained_seconds: float | None = Field(default=None, ge=0, le=600, allow_inf_nan=False)
 

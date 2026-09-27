@@ -1,308 +1,45 @@
-{% extends "admin/layout.html" %}
-
-{% block title %}User Management{% endblock %}
-
+{% extends 'admin/layout.html' %}
+{% from '_settings.html' import toggle, number, text %}
+{% block title %}Users & access{% endblock %}
 {% block admin_content %}
-<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-8">
-    <div>
-        <h2 class="font-display text-2xl font-bold">User Management</h2>
-        <p class="text-sm text-text-muted mt-1">Manage dashboard users, login protection, and recent login activity.</p>
-    </div>
-    <a href="/admin/access-requests" class="btn-secondary btn-sm">
-        Pending requests
-        {% if pending_requests_count > 0 %}
-        <span class="badge-error ml-1">{{ pending_requests_count }}</span>
-        {% endif %}
-    </a>
-</div>
-
-<section class="mb-8">
-    <h3 class="font-display text-xl font-bold mb-4">Authentication</h3>
-    <form method="post" action="/admin/system/update">
-        <div class="space-y-5">
-            <label class="flex items-center cursor-pointer">
-                <input type="checkbox" name="auth_enabled" id="auth_enabled" {% if settings.auth_enabled %}checked{% endif %}
-                    class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                <span class="ml-3 font-medium">Require login for management pages</span>
-            </label>
-
-            <div id="auth_settings" style="display: {% if settings.auth_enabled %}block{% else %}none{% endif %}">
-                <label class="block text-sm font-medium text-text-secondary mb-2">IP allowlist</label>
-                <input type="text" name="ip_allowlist" value="{{ settings.ip_allowlist or '' }}"
-                    placeholder="192.168.1.100, 10.0.0.0/24" class="input">
-                <p class="text-xs text-text-muted mt-1">Comma-separated IPs or CIDR ranges. Leave blank to allow all IPs.</p>
-            </div>
-
-            {% if not settings.auth_enabled %}
-            <div class="alert-info">
-                Enabling authentication will create a default admin account only if no admin exists.
-            </div>
-            {% endif %}
-
-            <input type="hidden" name="concurrent_downloads" value="{{ settings.concurrent_downloads or 3 }}">
-            <input type="hidden" name="retention_days" value="{{ settings.retention_days or 30 }}">
-            <input type="hidden" name="check_interval_minutes" value="{{ settings.check_interval_minutes or 60 }}">
-            <input type="hidden" name="whisper_cpu_threads" value="{{ settings.whisper_cpu_threads or 0 }}">
-            <input type="hidden" name="ffmpeg_threads" value="{{ settings.ffmpeg_threads or 0 }}">
-            <input type="hidden" name="unload_whisper_after_job" value="{% if settings.unload_whisper_after_job %}on{% endif %}">
-            <input type="hidden" name="ai_api_enabled" value="{% if settings.ai_api_enabled %}on{% endif %}">
-            <input type="hidden" name="ai_api_default_requests_per_minute" value="{{ settings.ai_api_default_requests_per_minute or 60 }}">
-            <input type="hidden" name="ai_api_default_requests_per_day" value="{{ settings.ai_api_default_requests_per_day or 1000 }}">
-            <input type="hidden" name="ai_api_unauth_requests_per_minute" value="{{ settings.ai_api_unauth_requests_per_minute or 10 }}">
-            <input type="hidden" name="app_external_url" value="{{ settings.app_external_url or '' }}">
-            <input type="hidden" name="enable_feed_auth" value="{% if settings.enable_feed_auth %}on{% endif %}">
-            <input type="hidden" name="public_subscribe_page_enabled" value="{% if settings.public_subscribe_page_enabled %}on{% endif %}">
-            <input type="hidden" name="feed_auth_username" value="{{ settings.feed_auth_username or '' }}">
-            <input type="hidden" name="whitelist_mode" value="{% if settings.whitelist_mode %}on{% endif %}">
-            <input type="hidden" name="redirect_to" value="/admin/users">
-        </div>
-
-        <div class="flex justify-end pt-4 border-t border-ink/[0.08] mt-6">
-            <button type="submit" class="btn-primary">Save Authentication</button>
-        </div>
-    </form>
-</section>
-
-<section class="mb-8">
-    <h3 class="font-display text-xl font-bold mb-4">Create User</h3>
-    <form method="post" action="/admin/users" class="rounded-xl border border-ink/[0.08] bg-ink/[0.02] p-4">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-text-secondary mb-2">Username</label>
-                <input type="text" name="username" minlength="3" maxlength="80" required class="input">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-text-secondary mb-2">Password</label>
-                <input type="password" name="password" minlength="8" required class="input">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-text-secondary mb-2">Confirm Password</label>
-                <input type="password" name="confirm_password" minlength="8" required class="input">
-            </div>
-            <div class="flex items-end">
-                <button type="submit" class="btn-primary w-full">Create User</button>
-            </div>
-        </div>
-        <label class="inline-flex items-center gap-2 text-sm text-text-secondary mt-4">
-            <input type="checkbox" name="is_admin"
-                class="w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary">
-            Admin user
-        </label>
-    </form>
-</section>
-
-<section class="mb-8">
-    <h3 class="font-display text-xl font-bold mb-4">Active Users</h3>
-
-    <div class="hidden md:block rounded-xl border border-ink/[0.06] overflow-hidden">
-        <table class="table-dark w-full table-fixed">
-            <thead>
-                <tr>
-                    <th class="w-[28%]">User</th>
-                    <th class="w-[13%]">Role</th>
-                    <th class="w-[18%]">Created</th>
-                    <th class="w-[18%]">Last Login</th>
-                    <th class="w-[23%] text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for active_user in active_users %}
-                <tr>
-                    <td class="font-medium truncate">
-                        <button class="hover:text-link transition-colors truncate max-w-full"
-                            onclick="editUsername('{{ active_user.id }}', '{{ active_user.username }}')">
-                            {{ active_user.username }}
-                        </button>
-                    </td>
-                    <td>
-                        {% if active_user.is_admin %}
-                        <span class="badge-info">Admin</span>
-                        {% else %}
-                        <span class="badge-neutral">User</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-text-secondary">{{ active_user.created_at | local_time }}</td>
-                    <td class="text-text-secondary">{{ active_user.last_login | local_time('compact', active_user.last_login_is_utc) }}</td>
-                    <td class="text-right">
-                        {% if user.id != active_user.id %}
-                        <button onclick="changeUserPassword('{{ active_user.id }}', '{{ active_user.username }}')"
-                            class="text-link hover:text-link-hover font-medium mr-3">Password</button>
-                        <form method="post" action="/admin/users/{{ active_user.id }}/delete"
-                            onsubmit="return appConfirmSubmit(this, 'Delete this user account?', { danger: true });"
-                            class="inline">
-                            <button type="submit" class="text-danger hover:text-danger font-medium">Delete</button>
-                        </form>
-                        {% else %}
-                        <span class="text-text-muted">Current user</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="md:hidden space-y-3">
-        {% for active_user in active_users %}
-        <div class="rounded-xl border border-ink/[0.08] bg-surface-base p-4">
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <button class="font-semibold hover:text-link truncate max-w-full"
-                        onclick="editUsername('{{ active_user.id }}', '{{ active_user.username }}')">
-                        {{ active_user.username }}
-                    </button>
-                    <p class="text-xs text-text-muted">Created {{ active_user.created_at | local_time }}</p>
-                    <p class="text-xs text-text-muted">Last login {{ active_user.last_login | local_time('compact', active_user.last_login_is_utc) }}</p>
-                </div>
-                {% if active_user.is_admin %}
-                <span class="badge-info">Admin</span>
-                {% else %}
-                <span class="badge-neutral">User</span>
-                {% endif %}
-            </div>
-            <div class="flex gap-3 mt-4">
-                {% if user.id != active_user.id %}
-                <button onclick="changeUserPassword('{{ active_user.id }}', '{{ active_user.username }}')"
-                    class="btn-secondary btn-sm">Password</button>
-                <form method="post" action="/admin/users/{{ active_user.id }}/delete"
-                    onsubmit="return appConfirmSubmit(this, 'Delete this user account?', { danger: true });">
-                    <button type="submit" class="btn-secondary btn-sm text-danger">Delete</button>
-                </form>
-                {% else %}
-                <span class="text-sm text-text-muted">Current user</span>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    {% if not active_users %}
-    <div class="text-center py-8 rounded-xl border border-dashed border-ink/[0.1]">
-        <p class="text-text-muted">No users found.</p>
-    </div>
-    {% endif %}
-</section>
-
-<section>
-    <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
-        <h3 class="font-display text-xl font-bold">Login History <span
-                class="text-sm font-normal text-text-muted">(last 30 days)</span></h3>
-        <input type="text" id="login-filter" placeholder="Search logins..."
-            class="px-4 py-2 rounded-xl bg-surface-elevated border border-ink/[0.1] text-text-primary placeholder:text-text-muted focus:border-primary-500 outline-none max-w-xs">
-    </div>
-
-    {% if login_history %}
-    <div class="rounded-xl border border-ink/[0.06] overflow-auto max-h-[500px]">
-        <table class="table-dark w-full table-fixed" id="login-table">
-            <thead class="sticky top-0 bg-surface-elevated z-10">
-                <tr>
-                    <th class="w-[18%] cursor-pointer hover:text-link" onclick="sortTable(0)">Status</th>
-                    <th class="w-[26%] cursor-pointer hover:text-link" onclick="sortTable(1)">Username</th>
-                    <th class="w-[26%] cursor-pointer hover:text-link" onclick="sortTable(2)">IP</th>
-                    <th class="w-[30%] cursor-pointer hover:text-link" onclick="sortTable(3)">Time</th>
-                </tr>
-            </thead>
-            <tbody id="login-tbody">
-                {% for login in login_history %}
-                <tr class="login-row {% if not login.success %}bg-red-500/10 hover:bg-red-500/20{% endif %}">
-                    <td>
-                        {% if login.success %}
-                        <span class="badge-success">Success</span>
-                        {% else %}
-                        <span class="badge-error">Failed</span>
-                        {% endif %}
-                    </td>
-                    <td class="font-medium truncate">{{ login.username or 'unknown' }}</td>
-                    <td class="text-text-secondary truncate">{{ login.ip_address }}</td>
-                    <td class="text-text-secondary">{{ login.timestamp | local_time }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div class="mt-2 text-xs text-text-muted" id="login-count">Showing {{ login_history|length }} entries</div>
-    {% else %}
-    <div class="text-center py-12 rounded-xl border border-dashed border-ink/[0.1]">
-        <p class="text-text-muted">No login history recorded</p>
-    </div>
-    {% endif %}
-</section>
-
-<script nonce="{{ csp_nonce }}">
-    const authEnabledCheckbox = document.getElementById('auth_enabled');
-    const authSettingsIP = document.getElementById('auth_settings');
-    if (authEnabledCheckbox && authSettingsIP) {
-        authEnabledCheckbox.addEventListener('change', function () {
-            authSettingsIP.style.display = this.checked ? 'block' : 'none';
-        });
-    }
-
-    async function editUsername(id, currentName) {
-        const newName = await appPrompt("Enter new username:", {
-            title: 'Change username',
-            defaultValue: currentName,
-            confirmText: 'Save'
-        });
-        if (newName && newName !== currentName) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/admin/users/${id}/username`;
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'username';
-            input.value = newName;
-            form.appendChild(input);
-            document.body.appendChild(form);
-            form.submit();
-        }
-    }
-
-    async function changeUserPassword(userId, username) {
-        const newPassword = await appPrompt(`Enter new password for ${username}:`, {
-            title: 'Change password',
-            inputType: 'password',
-            confirmText: 'Continue'
-        });
-        if (!newPassword) return;
-        if (!await appConfirm(`Change password for ${username}?`, { danger: true })) return;
-
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/admin/users/${userId}/password`;
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'password';
-        input.value = newPassword;
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-    }
-
-    const loginFilter = document.getElementById('login-filter');
-    if (loginFilter) {
-        loginFilter.addEventListener('input', function (e) {
-            const filter = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('.login-row');
-            let count = 0;
-            rows.forEach(row => {
-                const match = row.textContent.toLowerCase().includes(filter);
-                row.style.display = match ? '' : 'none';
-                if (match) count++;
-            });
-            const loginCount = document.getElementById('login-count');
-            if (loginCount) loginCount.textContent = `Showing ${count} entries`;
-        });
-    }
-
-    let sortDirection = {};
-    function sortTable(colIndex) {
-        const tbody = document.getElementById('login-tbody');
-        if (!tbody) return;
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-        sortDirection[colIndex] = !sortDirection[colIndex];
-        const dir = sortDirection[colIndex] ? 1 : -1;
-        rows.sort((a, b) => a.cells[colIndex].textContent.trim().localeCompare(b.cells[colIndex].textContent.trim()) * dir);
-        rows.forEach(row => tbody.appendChild(row));
-    }
-</script>
+<div class="dialog-heading"><h1>Users & access</h1><button class="btn-primary" data-open-dialog="create-user">Create user</button></div>
+<dialog id="create-user"><div class="dialog-heading"><h2>Create user</h2><button data-close-dialog aria-label="Close">×</button></div>
+<form method="post" action="/admin/users">
+{{ text('username','Username',required=true) }}{{ text('password','Password',type='password',required=true) }}{{ text('confirm_password','Confirm password',type='password',required=true) }}
+{{ toggle('is_admin','Administrator') }}<button class="btn-primary mt-4">Create</button></form></dialog>
+{% for active_user in active_users %}
+<details><summary>{{ active_user.username }} <span class="text-sm text-text-muted">· {{ 'Admin' if active_user.is_admin else 'User' }} · Edit</span></summary>
+<p class="text-sm text-text-muted">Created {{ active_user.created_at | local_time }} · Last login {{ active_user.last_login | local_time('compact', active_user.last_login_is_utc) }}</p>
+<div class="flex flex-wrap gap-3 py-3">
+<form method="post" action="/admin/users/{{ active_user.id }}/username"><label>Username <input class="input" name="username" value="{{ active_user.username }}" required minlength="3" maxlength="80"></label><button class="btn-secondary mt-2">Rename</button></form>
+{% if user.id != active_user.id %}
+<form method="post" action="/admin/users/{{ active_user.id }}/password"><label>New password <input class="input" name="password" type="password" minlength="8" required autocomplete="new-password"></label><button class="btn-secondary mt-2">Change password</button></form>
+<form method="post" action="/admin/users/{{ active_user.id }}/delete" onsubmit="return appConfirmSubmit(this, 'Delete this user account?', { danger: true });"><button class="btn-secondary text-danger">Delete user</button></form>
+{% else %}<a href="/change-password" class="btn-secondary">My account</a>{% endif %}
+</div></details>
+{% else %}<p>No users yet.</p>{% endfor %}
+<details id="access-requests" {% if pending_requests %}open{% endif %}><summary>Access requests ({{ pending_requests|length }})</summary>
+{% for req in pending_requests %}<div class="setting-row"><div><strong>{{ req.username }}</strong><p>{{ req.email or '' }}</p><p>{{ req.reason or '' }}</p></div><div class="flex gap-2"><form method="post" action="/admin/access-requests/{{ req.id }}/approve"><button class="btn-secondary">Approve</button></form><form method="post" action="/admin/access-requests/{{ req.id }}/deny"><button class="btn-secondary">Deny</button></form></div></div>{% else %}<p>No pending requests.</p>{% endfor %}</details>
+<details id="authentication"><summary>Dashboard & feed access</summary>
+<form method="post" action="/admin/system/update"><input type="hidden" name="section" value="access"><input type="hidden" name="redirect_to" value="/admin/users">
+{{ toggle('auth_enabled','Require dashboard login',settings.auth_enabled) }}
+{{ text('ip_allowlist','IP allowlist',settings.ip_allowlist) }}
+{{ toggle('public_subscribe_page_enabled','Public subscription page',settings.public_subscribe_page_enabled) }}
+{{ toggle('enable_feed_auth','Protect feeds and audio',settings.enable_feed_auth) }}
+<details><summary>Standalone feed credentials</summary><p class="text-sm text-text-muted">Only needed for protected feeds when dashboard login is off. Blank password keeps the saved value.</p>
+{{ text('feed_auth_username','Username',settings.feed_auth_username) }}{{ text('feed_auth_password','Password',type='password') }}</details>
+<button class="btn-primary">Save access</button></form></details>
+<details id="api-tokens" {% if new_api_token %}open{% endif %}><summary>API tokens</summary>
+<form method="post" action="/admin/system/update"><input type="hidden" name="section" value="api"><input type="hidden" name="redirect_to" value="/admin/users">
+{{ toggle('ai_api_enabled','Enable API',settings.ai_api_enabled) }}
+{{ number('ai_api_default_requests_per_minute','Default requests per minute',settings.ai_api_default_requests_per_minute,min=1,max=10000) }}
+{{ number('ai_api_default_requests_per_day','Default requests per day',settings.ai_api_default_requests_per_day,min=1,max=1000000) }}
+{{ number('ai_api_unauth_requests_per_minute','Unauthenticated requests per minute',settings.ai_api_unauth_requests_per_minute,min=1,max=1000) }}
+<button class="btn-primary">Save API limits</button></form>
+{% include 'admin/_api_tokens.html' %}</details>
+<details id="feed-tokens"><summary>Feed tokens</summary><p class="text-sm text-text-muted">A token link is a bearer secret: anyone with it can access the feed until revoked.</p>
+{% for token in active_feed_tokens %}<div class="setting-row"><span>{{ token.name }} · {{ token.username or 'Shared' }}</span><form method="post" action="/admin/feed-token/{{ token.id }}/revoke" onsubmit="return appConfirmSubmit(this, 'Revoke this feed token? Podcast apps using it will need updated feed URLs.', { danger: true });"><button class="btn-secondary">Revoke</button></form></div>{% else %}<p>No active feed tokens.</p>{% endfor %}
+{% if settings.enable_feed_auth %}<form method="post" action="/admin/feed-token/regenerate" onsubmit="return appConfirmSubmit(this, 'Replace your feed token? Your podcast apps will need updated feed URLs.', { danger: true });"><button class="btn-secondary mt-4">Replace my feed token</button></form>{% endif %}</details>
+<details><summary>Login history</summary>{% include 'admin/_login_history.html' %}</details>
+{% include 'admin/_user_scripts.html' %}
 {% endblock %}

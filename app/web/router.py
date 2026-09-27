@@ -2,7 +2,7 @@ from app.core.model_defaults import MODEL_DEFAULTS
 from app.core.artifacts import artifact_path
 from app.core.permissions import can_manage_subscription as _can_manage_subscription
 from app.web.permissions import require_episode_management
-from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status, UploadFile, File
 from typing import Annotated
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -53,6 +53,8 @@ from app.web.timeline_rules import router as timeline_rules_router
 
 router = APIRouter()
 router.include_router(timeline_rules_router)
+from app.web.setup import router as setup_router
+router.include_router(setup_router)
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 
@@ -149,6 +151,11 @@ def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=No
     return _build_rss_links(
         request, f"/feeds/{sub.slug}.xml", global_settings, user_obj, include_auth_token,
     )
+
+
+@router.get('/account/feed')
+async def account_feed(request: Request, user=Depends(require_auth)):
+    return _build_rss_links(request, '/feed/unified.xml', get_global_settings(), user)
 
 # Helper to get pending access requests count for sidebar badge
 def get_pending_requests_count():
@@ -526,10 +533,34 @@ async def update_system_settings(
     feed_auth_username: str = Form(None),
     feed_auth_password: str = Form(None),
     public_subscribe_page_enabled: bool = Form(False),
-    whitelist_mode: str = Form(None),
+    section: Annotated[str | None, Form()] = None,
     redirect_to: str = Form(None),
     admin_user = Depends(require_admin)
 ):
+    current = get_global_settings()
+    if section not in {None, "system", "access", "api"}:
+        raise HTTPException(422, "Unknown settings section")
+    if section is not None and section != "system":
+        concurrent_downloads = current.get("concurrent_downloads")
+        retention_days = current.get("retention_days")
+        check_interval_minutes = current.get("check_interval_minutes")
+        whisper_cpu_threads = current.get("whisper_cpu_threads")
+        ffmpeg_threads = current.get("ffmpeg_threads")
+        unload_whisper_after_job = current.get("unload_whisper_after_job")
+        app_external_url = current.get("app_external_url")
+    if section is not None and section != "access":
+        auth_enabled = current.get("auth_enabled")
+        ip_allowlist = current.get("ip_allowlist")
+        enable_feed_auth = current.get("enable_feed_auth")
+        feed_auth_username = current.get("feed_auth_username")
+        public_subscribe_page_enabled = current.get("public_subscribe_page_enabled")
+    if section is not None and section != "api":
+        ai_api_enabled = current.get("ai_api_enabled")
+        ai_api_default_requests_per_minute = current.get("ai_api_default_requests_per_minute")
+        ai_api_default_requests_per_day = current.get("ai_api_default_requests_per_day")
+        ai_api_unauth_requests_per_minute = current.get("ai_api_unauth_requests_per_minute")
+    if app_external_url:
+        validate_http_url(app_external_url, allow_private=True)
     from app.infra.database import get_db_connection
 
     if (auth_enabled or enable_feed_auth) and is_default_session_secret():
@@ -591,12 +622,7 @@ async def update_system_settings(
         old_url = conn.execute("SELECT app_external_url FROM app_settings WHERE id = 1").fetchone()
         url_changed = old_url and old_url['app_external_url'] != app_external_url
         
-        current_whitelist_mode = current_settings["whitelist_mode"] if current_settings and "whitelist_mode" in current_settings.keys() else 0
-        next_whitelist_mode = (
-            current_whitelist_mode
-            if whitelist_mode is None
-            else 1 if str(whitelist_mode).lower() in {"1", "true", "yes", "on"} else 0
-        )
+        next_whitelist_mode = 0
 
         # Update settings
         whisper_cpu_threads = max(0, min(64, whisper_cpu_threads or 0))
@@ -679,7 +705,7 @@ async def create_api_token(
     with get_db_connection() as conn:
         token_user = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
         if not token_user:
-            return RedirectResponse(url="/admin/system?error=Select+a+valid+user+for+the+API+token", status_code=303)
+            return RedirectResponse(url="/admin/users?error=Select+a+valid+user+for+the+API+token", status_code=303)
 
     allowed_scopes = ApiTokenRepository.VALID_SCOPES
     selected_scopes = [scope for scope in scopes if scope in allowed_scopes]
@@ -694,15 +720,15 @@ async def create_api_token(
         requests_per_day=requests_per_day,
     )
     request.session["new_api_token"] = token
-    return RedirectResponse(url="/admin/system?success=API+token+created", status_code=303)
+    return RedirectResponse(url="/admin/users?success=API+token+created", status_code=303)
 
 
 @router.post("/admin/api-tokens/{token_id}/revoke")
 async def revoke_api_token(token_id: int, admin_user = Depends(require_admin)):
     revoked = api_token_repo.revoke_by_id(token_id)
     if not revoked:
-        return RedirectResponse(url="/admin/system?error=API+token+not+found", status_code=303)
-    return RedirectResponse(url="/admin/system?success=API+token+revoked", status_code=303)
+        return RedirectResponse(url="/admin/users?error=API+token+not+found", status_code=303)
+    return RedirectResponse(url="/admin/users?success=API+token+revoked", status_code=303)
 
 
 def _render_admin_ai(request: Request, ai_section: str):
@@ -788,6 +814,7 @@ async def update_ai_settings(
     whisper_cuda_compute_type: str = Form(None),
     ai_model_cascade: str = Form(None),
     piper_model: str = Form(None),
+    speech_credential: str = Form(None),
     tts_model: str = Form(None),
     tts_voice: str = Form(None),
     tts_api_key: str = Form(None),
@@ -875,6 +902,13 @@ async def update_ai_settings(
             from app.core.speech import speech_configuration, PROVIDERS
             if tts_provider not in (*PROVIDERS, 'unconfigured'):
                 raise HTTPException(400, 'Choose an API speech provider.')
+            if speech_credential and tts_provider in PROVIDERS:
+                field = 'tts_api_key' if tts_provider == 'custom' else tts_provider + '_api_key'
+                current[field] = speech_credential.strip()
+                conn.execute(f'UPDATE app_settings SET {field}=? WHERE id=1', (current[field],))
+                if tts_provider == 'gemini':
+                    current['gemini_api_keys'] = None
+                    conn.execute('UPDATE app_settings SET gemini_api_keys=NULL WHERE id=1')
             proposed = {**current, 'tts_provider': tts_provider,
                 'tts_model': tts_model or current.get('tts_model'),
                 'tts_voice': tts_voice or current.get('tts_voice'),
@@ -986,6 +1020,26 @@ async def update_ai_settings(
             raise HTTPException(status_code=400, detail="Unsupported AI settings section.")
         conn.commit()
     return RedirectResponse(url=_safe_local_redirect(redirect_to, "/admin/ai/text-analysis"), status_code=303)
+
+@router.post('/admin/ai/voice/preview')
+async def preview_voice(request: Request, admin=Depends(require_admin)):
+    import tempfile
+    from pathlib import Path
+    from fastapi.responses import Response
+    from app.core.speech import generate_speech
+    from app.web.auth_utils import is_same_origin_request
+    values = get_global_settings()
+    if not is_same_origin_request(request, values.get('app_external_url')):
+        raise HTTPException(403, 'Cross-origin preview is not allowed')
+    try:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'preview.audio'
+            await generate_speech('This is your podcast voice preview.', str(path), values)
+            data = path.read_bytes()
+            return Response(data, media_type='audio/wav' if data.startswith(b'RIFF') else 'audio/mpeg')
+    except (ValueError, RuntimeError) as error:
+        raise HTTPException(400, str(error)) from error
+
 
 @router.post("/admin/ai/test")
 async def test_ai_connection(
@@ -1188,15 +1242,15 @@ async def regenerate_feed_token(request: Request, user = Depends(require_admin))
         feed_token_repo.revoke(current_token)
     new_token = feed_token_repo.create(user_id=user.id if user and user.id and user.id > 0 else None, name="Generated subscription links")
     request.session["feed_token"] = new_token
-    return RedirectResponse(url="/admin/feed-access?success=Feed+token+regenerated", status_code=303)
+    return RedirectResponse(url="/admin/users?success=Feed+token+regenerated", status_code=303)
 
 
 @router.post("/admin/feed-token/{token_id}/revoke")
 async def revoke_feed_token(token_id: int, admin_user = Depends(require_admin)):
     revoked = feed_token_repo.revoke_by_id(token_id)
     if not revoked:
-        return RedirectResponse(url="/admin/feed-access?error=Feed+token+not+found", status_code=303)
-    return RedirectResponse(url="/admin/feed-access?success=Feed+token+revoked", status_code=303)
+        return RedirectResponse(url="/admin/users?error=Feed+token+not+found", status_code=303)
+    return RedirectResponse(url="/admin/users?success=Feed+token+revoked", status_code=303)
 
 @router.post("/admin/queue/cancel/{episode_id}")
 async def cancel_episode(episode_id: int, admin_user = Depends(require_admin)):
@@ -1409,6 +1463,10 @@ async def admin_users(request: Request):
     context.update({
         "active_users": _active_users(),
         "login_history": _recent_login_history(),
+        "pending_requests": _pending_access_requests(),
+        "active_api_tokens": api_token_repo.list_active(),
+        "active_feed_tokens": feed_token_repo.list_active(),
+        "new_api_token": request.session.pop("new_api_token", None),
     })
 
     return templates.TemplateResponse(
@@ -1450,30 +1508,12 @@ async def create_user(
 
 @router.get("/admin/access-requests", response_class=HTMLResponse)
 async def admin_access_requests(request: Request):
-    context = _admin_context(request, "access_requests")
-    context.update({
-        "pending_requests": _pending_access_requests(),
-    })
-    
-    return templates.TemplateResponse(
-        request=request,
-        name="admin/access_requests.html",
-        context=context,
-    )
+    return RedirectResponse("/admin/users#access-requests", status_code=303)
 
 
 @router.get("/admin/feed-access", response_class=HTMLResponse)
 async def admin_feed_access(request: Request):
-    context = _admin_context(request, "feed_access")
-    context.update({
-        "active_feed_tokens": feed_token_repo.list_active(),
-    })
-
-    return templates.TemplateResponse(
-        request=request,
-        name="admin/feed_access.html",
-        context=context,
-    )
+    return RedirectResponse("/admin/users#feed-tokens", status_code=303)
 
 
 @router.get("/admin/notifications", response_class=HTMLResponse)
@@ -1607,11 +1647,11 @@ async def approve_access_request(request: Request, request_id: int, admin_user =
         ).fetchone()
         
         if not access_req:
-            return RedirectResponse(url="/admin/access-requests?error=Request+not+found", status_code=303)
+            return RedirectResponse(url="/admin/users?error=Request+not+found", status_code=303)
 
         if not access_req["password_hash"]:
             return RedirectResponse(
-                url="/admin/access-requests?error=Request+was+submitted+before+password+capture.+Ask+the+user+to+submit+a+new+request.",
+                url="/admin/users?error=Request+was+submitted+before+password+capture.+Ask+the+user+to+submit+a+new+request.",
                 status_code=303,
             )
         
@@ -1627,7 +1667,7 @@ async def approve_access_request(request: Request, request_id: int, admin_user =
                 (request_id,)
             )
             conn.commit()
-            return RedirectResponse(url="/admin/access-requests?error=Username+already+exists", status_code=303)
+            return RedirectResponse(url="/admin/users?error=Username+already+exists", status_code=303)
         
         # Create the new user
         conn.execute(
@@ -1645,7 +1685,7 @@ async def approve_access_request(request: Request, request_id: int, admin_user =
         logger.info(f"AUTH - Access request approved: {access_req['username']}")
         
     # Redirect back to access page with success message
-    return RedirectResponse(url=f"/admin/access-requests?approved={access_req['username']}", status_code=303)
+    return RedirectResponse(url=f"/admin/users?approved={access_req['username']}", status_code=303)
 
 # --- Admin: Deny Access Request ---
 @router.post("/admin/access-requests/{request_id}/deny")
@@ -1659,7 +1699,7 @@ async def deny_access_request(request: Request, request_id: int, admin_user = De
         ).fetchone()
         
         if not access_req:
-            return RedirectResponse(url="/admin/access-requests?error=Request+not+found", status_code=303)
+            return RedirectResponse(url="/admin/users?error=Request+not+found", status_code=303)
         
         # Update access request status to denied
         conn.execute(
@@ -1670,7 +1710,7 @@ async def deny_access_request(request: Request, request_id: int, admin_user = De
         
         logger.info(f"AUTH - Access request denied: {access_req['username']}")
         
-    return RedirectResponse(url="/admin/access-requests?denied=1", status_code=303)
+    return RedirectResponse(url="/admin/users?denied=1", status_code=303)
 
 # --- Admin: Update User Username ---
 @router.post("/admin/users/{user_id}/username")
@@ -1918,6 +1958,16 @@ async def public_subscribe(request: Request):
 
 from app.core.processor import Processor
 
+@router.get("/artwork/unified/{filename}")
+async def unified_artwork(filename: str):
+    if not re.fullmatch(r"[a-f0-9]{64}\.jpg", filename):
+        raise HTTPException(404)
+    path = Path(runtime_settings.ARTWORK_DIR) / "unified" / filename
+    if not path.is_file():
+        raise HTTPException(404)
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
 # --- Admin: Podcast Preferences ---
 @router.get("/admin/unified-feed", response_class=HTMLResponse)
 async def admin_unified_feed(
@@ -1938,7 +1988,7 @@ async def admin_unified_feed(
             "settings": feed_settings,
             "feed_url": links["direct"],
             "artwork_preview_url": resolve_unified_feed_artwork_preview(
-                feed_settings["custom_artwork_url"], get_request_base_origin(request),
+                feed_settings["artwork_url"], get_request_base_origin(request),
             ),
             "default_title": DEFAULT_UNIFIED_FEED_TITLE,
             "default_description": DEFAULT_UNIFIED_FEED_DESCRIPTION,
@@ -1951,7 +2001,9 @@ async def admin_unified_feed(
 async def update_unified_feed_settings(
     background_tasks: BackgroundTasks,
     unified_feed_title: str = Form(...),
-    unified_feed_description: str = Form(...),
+    unified_feed_description: str = Form(DEFAULT_UNIFIED_FEED_DESCRIPTION),
+    artwork_source: str = Form("default"),
+    artwork_upload: UploadFile | None = File(None),
     unified_feed_include_podcast_name: bool = Form(False),
     unified_feed_artwork_url: str = Form(""),
     admin_user=Depends(require_admin),
@@ -1959,7 +2011,7 @@ async def update_unified_feed_settings(
     try:
         normalized = normalize_unified_feed_settings(
             unified_feed_title,
-            unified_feed_description,
+            DEFAULT_UNIFIED_FEED_DESCRIPTION,
             unified_feed_include_podcast_name,
             unified_feed_artwork_url,
         )
@@ -1969,6 +2021,21 @@ async def update_unified_feed_settings(
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
+    from app.core.feed_artwork import save_artwork, MAX_UPLOAD_BYTES
+    upload_name = get_global_settings().get("unified_feed_artwork_upload")
+    try:
+        if artwork_source not in {"default", "url", "upload"}:
+            raise ValueError("Choose an artwork source")
+        if artwork_upload and artwork_upload.filename:
+            payload = await artwork_upload.read(MAX_UPLOAD_BYTES + 1)
+            upload_name = await asyncio.to_thread(save_artwork, payload)
+        if artwork_source == "upload" and not upload_name:
+            raise ValueError("Upload an image first")
+        if artwork_source == "url" and not normalized["custom_artwork_url"]:
+            raise ValueError("Enter an artwork URL")
+    except ValueError as exc:
+        return RedirectResponse(f"/admin/unified-feed?error={quote(str(exc))}", status_code=303)
+
     with get_db_connection() as conn:
         conn.execute(
             """
@@ -1977,6 +2044,8 @@ async def update_unified_feed_settings(
                 unified_feed_description = ?,
                 unified_feed_include_podcast_name = ?,
                 unified_feed_artwork_url = ?,
+                unified_feed_artwork_source = ?,
+                unified_feed_artwork_upload = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
             """,
@@ -1985,6 +2054,7 @@ async def update_unified_feed_settings(
                 normalized["description"],
                 1 if normalized["include_podcast_name"] else 0,
                 normalized["custom_artwork_url"],
+                artwork_source, upload_name,
             ),
         )
         conn.commit()
@@ -2659,6 +2729,10 @@ async def update_settings(
         raise HTTPException(status_code=404, detail="Subscription not found")
     if not _can_manage_subscription(user, sub):
         raise HTTPException(status_code=403, detail="Only admins and the podcast owner can change podcast settings")
+
+    if remove_editorial_non_speech or inherit_custom_instructions:
+        raise HTTPException(422, "Editorial removal and global classification guidance were retired in v2")
+    remove_editorial_non_speech = False
 
     stored = sub.setting_overrides
     from app.core.timeline import WORKFLOWS, threshold

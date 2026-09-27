@@ -1,0 +1,102 @@
+<div class="mt-8 space-y-6">
+    <div>
+        <h4 class="text-lg font-medium border-b border-ink/[0.08] pb-2 mb-4">AI API Tokens</h4>
+        {% if new_api_token %}
+        <div class="alert-warning mb-4">
+            <div>
+                <p class="font-medium">Copy this token now. It will not be shown again.</p>
+                <code class="block mt-2 text-xs break-all">{{ new_api_token }}</code>
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="post" action="/admin/api-tokens" class="rounded-lg border border-ink/[0.08] bg-ink/[0.02] p-4">
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Token Name</label>
+                    <input type="text" name="name" value="AI assistant" maxlength="120" required class="input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Act As User</label>
+                    <select name="user_id" required class="input" {% if not active_users %}disabled{% endif %}>
+                        {% for api_user in active_users %}
+                        <option value="{{ api_user.id }}">{{ api_user.username }}{% if api_user.is_admin %} (Admin){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Requests Per Minute</label>
+                    <input type="number" name="requests_per_minute"
+                        value="{{ settings.ai_api_default_requests_per_minute or 60 }}" min="1" max="10000" class="input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Requests Per Day</label>
+                    <input type="number" name="requests_per_day"
+                        value="{{ settings.ai_api_default_requests_per_day or 1000 }}" min="1" max="1000000" class="input">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="btn-primary w-full" {% if not active_users %}disabled{% endif %}>Create Token</button>
+                </div>
+            </div>
+            {% if not active_users %}
+            <p class="text-sm text-text-muted mt-3">Create a dashboard user before issuing API tokens.</p>
+            {% endif %}
+            <div class="mt-4 flex flex-wrap gap-4">
+                {% for scope in ["read", "write", "process", "admin"] %}
+                <label class="inline-flex items-center gap-2 text-sm text-text-secondary">
+                    <input type="checkbox" name="scopes" value="{{ scope }}"
+                        class="w-4 h-4 rounded border-ink/20 bg-ink/5 text-link focus:ring-accent-primary"
+                        {% if scope == "read" %}checked{% endif %}>
+                    {{ scope }}
+                </label>
+                {% endfor %}
+            </div>
+        </form>
+    </div>
+
+    <div class="overflow-x-auto rounded-lg border border-ink/[0.08]">
+        <table class="w-full text-sm">
+            <thead class="bg-ink/[0.03] text-text-muted">
+                <tr>
+                    <th class="text-left p-3 font-medium">Name</th>
+                    <th class="text-left p-3 font-medium">User</th>
+                    <th class="text-left p-3 font-medium">Prefix</th>
+                    <th class="text-left p-3 font-medium">Scopes</th>
+                    <th class="text-left p-3 font-medium">Limits</th>
+                    <th class="text-left p-3 font-medium">Last Used</th>
+                    <th class="text-right p-3 font-medium">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-ink/[0.06]">
+                {% for token in active_api_tokens %}
+                <tr>
+                    <td class="p-3 font-medium">{{ token.name }}</td>
+                    <td class="p-3 text-text-secondary">
+                        {% if token.username %}
+                        {{ token.username }}{% if token.is_admin %} <span class="badge-info ml-1">Admin</span>{% endif %}
+                        {% else %}
+                        <span class="text-caution">Unlinked</span>
+                        {% endif %}
+                    </td>
+                    <td class="p-3 text-text-secondary"><code>{{ token.token_prefix }}...</code></td>
+                    <td class="p-3 text-text-secondary">{{ token.scopes }}</td>
+                    <td class="p-3 text-text-secondary">
+                        {{ token.requests_per_minute or settings.ai_api_default_requests_per_minute or 60 }}/min,
+                        {{ token.requests_per_day or settings.ai_api_default_requests_per_day or 1000 }}/day
+                    </td>
+                    <td class="p-3 text-text-secondary">{{ token.last_used_at | local_time }}</td>
+                    <td class="p-3 text-right">
+                        <form method="post" action="/admin/api-tokens/{{ token.id }}/revoke" class="inline">
+                            <button type="submit" class="btn-danger btn-sm"
+                                onclick="return appConfirmSubmit(this.form, 'Revoke this API token?', { danger: true })">Revoke</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not active_api_tokens %}
+        <p class="p-4 text-sm text-text-muted">No active API tokens.</p>
+        {% endif %}
+    </div>
+</div>

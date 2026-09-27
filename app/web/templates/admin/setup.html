@@ -1,0 +1,30 @@
+{% extends 'admin/layout.html' %}
+{% from '_settings.html' import toggle, text %}
+{% block title %}Set up Podcast Ad Remover{% endblock %}
+{% block admin_content %}
+<h1>Set up Podcast Ad Remover</h1>
+<p class="text-sm text-text-muted mb-6">{{ step }} of 4 · You can change these settings later.</p>
+<form method="post" action="/admin/setup">
+<input type="hidden" name="step" value="{{ step }}">
+{% if step == 1 %}
+<h2>Your installation</h2>
+{{ text('app_external_url','Public application URL',settings.app_external_url,'url') }}
+<p class="text-sm text-text-muted mt-3">Use an address reachable by your podcast apps. Local network addresses work too.</p>
+<p class="mt-4">Dashboard login is {{ 'enabled' if settings.auth_enabled else 'off' }}. <a href="/admin/users#authentication" class="text-link">Manage access</a></p>
+{% elif step == 2 %}
+<h2>Text analysis</h2>
+<label class="setting-row"><span>Provider</span><select class="select" name="provider">{% for provider in ['gemini','openai','anthropic','openrouter','custom'] %}<option value="{{ provider }}" {% if settings.active_ai_provider == provider %}selected{% endif %}>{{ provider }}</option>{% endfor %}</select></label>
+{{ text('model','Model ID',settings.get({'gemini':'ai_model_cascade','openai':'openai_model','anthropic':'anthropic_model','openrouter':'openrouter_model','custom':'custom_llm_model'}.get(settings.active_ai_provider,'ai_model_cascade')),required=true) }}
+{{ text('api_key','API key',type='password') }}<p class="text-sm text-text-muted">Leave blank to use an environment or saved key. API use may be billed by your provider.</p>
+{{ text('base_url','Custom endpoint URL',settings.custom_llm_base_url,'url') }}
+{% elif step == 3 %}
+<h2>Remove by default</h2>
+{% for field,label in [('ads','Ads'),('promos','Promos'),('intros','Intros'),('outros','Outros'),('non_editorial_non_speech','Non-editorial non-speech')] %}{{ toggle('remove_'~field,label,settings['default_remove_'~field]) }}{% endfor %}
+{% else %}
+<h2>Ready to add a podcast</h2>
+<p class="my-4">Transcription runs locally using faster-whisper. Optional speech needs an API provider in <a href="/admin/ai/voice" class="text-link">Voice settings</a>.</p>
+<p class="my-4">You can rerun this wizard from System settings.</p>
+{% endif %}
+<div class="flex gap-3 mt-6">{% if step > 1 %}<a class="btn-secondary" href="/admin/setup?step={{ step - 1 }}">Back</a>{% endif %}<button class="btn-primary" name="action" value="{{ 'finish' if step == 4 else 'next' }}">{{ 'Finish & add podcast' if step == 4 else 'Next' }}</button><button class="btn-secondary" name="action" value="dismiss" formnovalidate>Set up later</button></div>
+</form>
+{% endblock %}

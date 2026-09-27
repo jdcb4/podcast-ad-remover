@@ -1,0 +1,45 @@
+<section>
+    <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+        <h3 class="font-display text-xl font-bold">Login History <span
+                class="text-sm font-normal text-text-muted">(last 30 days)</span></h3>
+        <input type="text" id="login-filter" placeholder="Search logins..."
+            class="px-4 py-2 rounded-xl bg-surface-elevated border border-ink/[0.1] text-text-primary placeholder:text-text-muted focus:border-primary-500 outline-none max-w-xs">
+    </div>
+
+    {% if login_history %}
+    <div class="rounded-xl border border-ink/[0.06] overflow-auto max-h-[500px]">
+        <table class="table-dark w-full table-fixed" id="login-table">
+            <thead class="sticky top-0 bg-surface-elevated z-10">
+                <tr>
+                    <th class="w-[18%] cursor-pointer hover:text-link" onclick="sortTable(0)">Status</th>
+                    <th class="w-[26%] cursor-pointer hover:text-link" onclick="sortTable(1)">Username</th>
+                    <th class="w-[26%] cursor-pointer hover:text-link" onclick="sortTable(2)">IP</th>
+                    <th class="w-[30%] cursor-pointer hover:text-link" onclick="sortTable(3)">Time</th>
+                </tr>
+            </thead>
+            <tbody id="login-tbody">
+                {% for login in login_history %}
+                <tr class="login-row {% if not login.success %}bg-red-500/10 hover:bg-red-500/20{% endif %}">
+                    <td>
+                        {% if login.success %}
+                        <span class="badge-success">Success</span>
+                        {% else %}
+                        <span class="badge-error">Failed</span>
+                        {% endif %}
+                    </td>
+                    <td class="font-medium truncate">{{ login.username or 'unknown' }}</td>
+                    <td class="text-text-secondary truncate">{{ login.ip_address }}</td>
+                    <td class="text-text-secondary">{{ login.timestamp | local_time }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-2 text-xs text-text-muted" id="login-count">Showing {{ login_history|length }} entries</div>
+    {% else %}
+    <div class="text-center py-12 rounded-xl border border-dashed border-ink/[0.1]">
+        <p class="text-text-muted">No login history recorded</p>
+    </div>
+    {% endif %}
+</section>
+

@@ -1,0 +1,5 @@
+<div class="settings-navigation">
+{% for path,label in [('ai/transcription','Transcription'),('ai/voice','Voice'),('ai/text-analysis','Text analysis'),('global-subscription-settings','Podcast defaults'),('unified-feed','Unified feed'),('prompts','Prompt rules'),('system','System'),('users','Users & access'),('notifications','Notifications'),('logs','Logs')] %}
+<a href="/admin/{{ path }}" {% if request.url.path == '/admin/' ~ path %}aria-current="page"{% endif %}>{{ label }}</a>
+{% endfor %}
+</div>

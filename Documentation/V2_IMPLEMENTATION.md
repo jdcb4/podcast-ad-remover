@@ -33,3 +33,9 @@ One cut-tone switch controls all cut positions. Existing publication/report read
 Validation: 23 focused migration, provider, speech-adapter and real-audio timeline tests pass.
 The broad suite exposed tests asserting retired legacy/cascade behavior; those and the UI contract
 tests are being revised with the interface milestone. This is not yet a full verification pass.
+
+## Milestone 3 — compact interface and onboarding
+
+Desktop sidebar and mobile navigation replace the header; mobile podcasts use artwork/title/manage rows. Shared settings rows cover AI, defaults, system, notifications and feed appearance. Users now owns access requests, feed tokens and API credentials. Scoped settings saves preserve other sections. Added bounded raster artwork upload and an optional, resumable setup wizard. Ownership policy remains unchanged.
+
+Focused verification: 39 migration/provider/pipeline/interface tests passed on Python 3.11. Full-suite compatibility updates and browser qualification remain in progress.

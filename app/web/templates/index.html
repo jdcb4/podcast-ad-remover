@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% if user.is_admin and settings.onboarding_status in ['not_started','in_progress'] %}<div class="alert-info mb-4"><a href="/admin/setup" class="btn-primary">Continue setup</a><form method="post" action="/admin/setup"><button class="btn-secondary" name="action" value="dismiss">Dismiss</button></form></div>{% endif %}
+
 <!-- Config Warning -->
 {% if config_warning %}
 <div class="alert-warning mb-6">
@@ -23,10 +25,8 @@
 </script>
 {% endif %}
 
-<!-- Search & Stats Card -->
-<div class="card dashboard-add-card mb-4 sm:mb-8">
-    <h2 class="font-display text-xl sm:text-3xl font-bold mb-4 sm:mb-6">Add Subscription</h2>
-
+<h1 class="text-2xl font-semibold mb-5">{{ 'Library' if library_view == 'library' else 'My Podcasts' }}</h1>
+<dialog id="add-podcast-dialog"><div class="dialog-heading"><h2>Add podcast</h2><button type="button" data-close-dialog aria-label="Close add podcast">Close</button></div>
     <!-- Search -->
     <div class="mb-4 sm:mb-8">
         <div class="flex flex-col sm:flex-row gap-3">
@@ -50,29 +50,7 @@
         <div id="search-results" class="mt-4 space-y-3"></div>
     </div>
 
-    <!-- Stats Grid -->
-    <div class="border-t border-ink/[0.06] pt-4 sm:pt-8">
-        <div class="grid grid-cols-4 gap-2 sm:gap-4">
-            <div class="stat-card stat-card-compact text-center">
-                <div class="stat-value">{{ stats.podcasts }}</div>
-                <div class="stat-label">Podcasts</div>
-            </div>
-            <div class="stat-card stat-card-compact text-center">
-                <div class="stat-value">{{ stats.episodes }}</div>
-                <div class="stat-label">Episodes</div>
-            </div>
-            <div class="stat-card stat-card-compact text-center">
-                <div class="stat-value">{{ stats.hours }}</div>
-                <div class="stat-label">Hours</div>
-            </div>
-            <div class="stat-card stat-card-compact text-center">
-                <div class="stat-value">{{ stats.size_gb }}</div>
-                <div class="stat-label">GB of audio stored</div>
-            </div>
-        </div>
-    </div>
-</div>
-
+</dialog>
 <!-- Processing Queue -->
 <section id="dashboard-queue-region" class="card mb-4 sm:mb-8{% if not queue %} hidden{% endif %}"
     aria-live="polite" aria-busy="false">
@@ -161,38 +139,6 @@
         chevron.classList.toggle('rotate-180');
     }
 </script>
-
-<!-- Unified RSS Feed -->
-{% if subscriptions %}
-<div class="mb-4 sm:mb-8 rounded-xl border border-ink/[0.06] bg-surface-elevated/50 px-3 py-2.5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div class="flex items-center gap-2 min-w-0">
-            <h3 class="font-display text-sm font-semibold flex items-center gap-2 whitespace-nowrap">
-                <svg class="w-5 h-5 text-link" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                        d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19 7.38 20 6.18 20C5 20 4 19 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1Z" />
-                </svg>
-                Unified RSS Feed
-            </h3>
-            <p class="hidden md:block text-text-muted text-xs">All podcasts in one feed</p>
-            {% if settings.enable_feed_auth %}
-            <span class="text-xs text-caution"
-                title="Protected links contain a bearer secret; anyone with the URL can use the feed until the token is revoked.">
-                Protected
-            </span>
-            {% endif %}
-        </div>
-        <div class="flex flex-wrap gap-2 items-center">
-            {% for link in unified_links.app_links %}
-            <a href="{{ link.url }}" class="badge-soft{% if link.key == 'direct' %} hover:glow-primary{% endif %}"
-                {% if link.target %}target="{{ link.target }}"{% endif %}
-                {% if link.key == 'apps' %}data-subscription-help data-feed-url="{{ unified_links.rss }}"{% endif %}
-                style="padding: 0 16px; height: 24px; line-height: 24px;">{{ link.label }}</a>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-{% endif %}
 
 <section id="dashboard-library-region" aria-live="polite" aria-busy="false">
 {% if user and user.id and user.id > 0 %}
@@ -393,6 +339,12 @@
 </form>
 
 <div id="dashboard-podcast-results" data-library-view="{{ library_view }}">
+<div class="mobile-podcasts">
+{% for item in subscriptions %}<article class="mobile-podcast" data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}" data-processing="{{ item.processing_count|default(0) }}">
+{% if item.artwork_url %}<img src="{{ item.artwork_url }}" alt="" loading="lazy">{% endif %}
+<a class="podcast-title" href="/subscriptions/{{ item.sub.id }}">{{ item.sub.title }}</a>
+<a class="manage" href="/subscriptions/{{ item.sub.id }}{% if item.can_manage %}#processing-settings{% endif %}" aria-label="{{ 'Manage' if item.can_manage else 'View' }} {{ item.sub.title }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 5 5-12 12H4v-5L16 3Z"/></svg></a></article>{% endfor %}
+</div>
 <div id="podcast-table-container" class="hidden mb-6 overflow-x-auto rounded-xl border border-ink/[0.08] bg-surface-elevated">
     <table class="w-full min-w-[920px] text-sm">
         <thead class="bg-surface-base text-left text-xs uppercase tracking-wide text-text-muted">

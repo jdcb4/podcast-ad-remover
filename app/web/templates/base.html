@@ -15,115 +15,23 @@
         rel="stylesheet">
 
     <link href="/static/css/output.css?v={{ static_asset_version('css/output.css') }}" rel="stylesheet">
+<link href="/static/css/v2.css?v={{ static_asset_version('css/v2.css') }}" rel="stylesheet">
+<script src="/static/js/v2.js?v={{ static_asset_version('js/v2.js') }}" defer></script>
 </head>
 
 <body class="bg-surface-base text-text-primary min-h-screen font-sans antialiased">
-    <!-- Background Glow Effect -->
-    <div class="fixed inset-0 bg-mesh-gradient pointer-events-none"></div>
-
-    <!-- Glass Header -->
-    <header class="header-glass" aria-label="Main Navigation">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav class="flex justify-between items-center h-16">
-                <!-- Logo -->
-                <a href="/" class="flex items-center gap-2 group">
-                    <span class="text-2xl">🎙️</span>
-                    <span class="font-display text-base sm:text-xl font-bold">
-                        Podcast<span class="text-gradient">Ad Remover</span>
-                    </span>
-                </a>
-
-                <button type="button" data-theme-toggle hidden aria-label="Light mode" aria-pressed="false"
-                    class="theme-toggle ml-auto mr-2 shrink-0" title="Switch to light mode">
-                    <svg aria-hidden="true" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="4"></circle>
-                        <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"></path>
-                    </svg>
-                    <span data-theme-label class="hidden sm:inline">Dark</span>
-                </button>
-
-                <!-- Mobile Menu Button -->
-                <button id="mobile-menu-btn"
-                    class="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-text-secondary hover:text-text-primary hover:bg-ink/5 transition-colors"
-                    aria-label="Toggle menu" aria-expanded="false">
-                    <svg id="menu-icon-open" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 12h16M4 18h16"></path>
-                    </svg>
-                    <svg id="menu-icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
-                </button>
-
-                <!-- Desktop Navigation -->
-                <div class="hidden md:flex items-center gap-3">
-                    {% if user and user.is_admin %}
-                    <a href="/admin/queue" class="btn-ghost">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                            </path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                        Admin
-                    </a>
-                    {% endif %}
-
-                    {% if user %}
-                    <span class="text-sm text-text-secondary px-3">{{ user.username }}</span>
-                    <a href="/logout" class="btn-secondary py-2">Logout</a>
-                    {% else %}
-                    <a href="/login" class="btn-primary py-2">Login</a>
-                    {% endif %}
-                </div>
-            </nav>
-        </div>
-
-        <!-- Mobile Navigation Menu -->
-        <div id="mobile-menu" class="md:hidden hidden border-t border-ink/[0.06]">
-            <div class="max-w-7xl mx-auto px-4 py-4 space-y-2">
-                {% if user and user.is_admin %}
-                <a href="/admin/queue" class="nav-link">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                        </path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
-                    Admin
-                </a>
-                {% endif %}
-
-                {% if user %}
-                <div class="flex items-center justify-between px-4 py-2">
-                    <span class="text-sm text-text-secondary">Signed in as {{ user.username }}</span>
-                </div>
-                <a href="/logout" class="nav-link text-danger hover:text-danger hover:bg-red-500/10">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
-                        </path>
-                    </svg>
-                    Logout
-                </a>
-                {% else %}
-                <a href="/login" class="nav-link">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1">
-                        </path>
-                    </svg>
-                    Login
-                </a>
-                {% endif %}
-            </div>
-        </div>
-    </header>
-
+    <div class="mobile-appbar"><button type="button" data-toggle-sidebar aria-label="Open navigation" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="/">Podcast Ad Remover</a></div>
+    <aside class="app-sidebar" aria-label="Main navigation">
+      <a class="brand" href="/">Podcast Ad Remover</a>
+      {% if user %}<a href="/#add" class="btn-primary" data-add-podcast>Add podcast</a>{% endif %}
+      <nav><a href="/?view=mine">My Podcasts</a><a href="/?view=library">Library</a>
+      {% if user and user.is_admin %}<a href="/admin/queue">Tasks</a><a href="/admin/ai/text-analysis">Settings</a>
+      {% if request.url.path.startswith('/admin') %}{% include 'admin/_navigation.html' %}{% endif %}{% endif %}</nav>
+      {% if user %}<div><button type="button" data-copy-feed>Copy feed URL</button><button type="button" data-feed-apps>Podcast apps</button><span data-feed-status role="status"></span></div>{% endif %}
+      <div class="account"><button type="button" data-theme-toggle hidden aria-label="Light mode" aria-pressed="false"><span data-theme-label>Theme</span></button>
+      {% if user %}<a href="/change-password">{{ user.username }}</a><a href="/logout">Log out</a>{% else %}<a href="/login">Log in</a>{% endif %}</div>
+    </aside>
+    {% if user %}<nav class="mobile-bottom" aria-label="Mobile navigation"><a href="/?view=mine">My Podcasts</a><a href="/?view=library">Library</a><a href="/#add" data-add-podcast>Add</a><button type="button" data-copy-feed>Feed</button>{% if user.is_admin %}<a href="/admin/ai/text-analysis">Settings</a>{% endif %}</nav>{% endif %}
     <script nonce="{{ csp_nonce }}">
         // Mobile menu toggle
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
@@ -313,7 +221,7 @@
 
     <script src="/static/js/subscription-help.js?v={{ static_asset_version('js/subscription-help.js') }}" defer></script>
     <script src="/static/js/local-time.js?v={{ static_asset_version('js/local-time.js') }}" defer></script>
-    <main class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+    <main class="app-main">
         {% block content %}{% endblock %}
     </main>
 </body>

@@ -35,7 +35,7 @@ class Subscription(SubscriptionBase):
     remove_intros: bool = False
     remove_outros: bool = False
     custom_instructions: Optional[str] = None
-    processing_workflow: Literal["legacy", "complete_timeline"] = "legacy"
+    processing_workflow: Literal["complete_timeline"] = "complete_timeline"
     inherit_processing_workflow: bool = False
     remove_editorial_non_speech: bool = False
     remove_non_editorial_non_speech: bool = True

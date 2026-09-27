@@ -187,23 +187,6 @@
     <form id="settings-form" action="/subscriptions/{{ subscription.id }}/settings" method="POST" class="hidden">
         <input type="hidden" name="timeline_settings_present" value="true">
         {% set stored = subscription.setting_overrides %}
-        <section class="space-y-3 mb-7" data-inheritance-group>
-            <div class="flex items-center justify-between gap-4">
-                <label class="font-semibold" for="processing_workflow">Processing workflow</label>
-                <label class="flex items-center gap-2 text-xs text-text-secondary">
-                    <input type="checkbox" name="inherit_processing_workflow" value="true" data-inheritance-toggle {% if subscription.inherit_processing_workflow %}checked{% endif %}>
-                    Use global settings
-                </label>
-            </div>
-            <select name="processing_workflow" id="processing_workflow" class="select" data-inherited-control
-                data-effective-value="{{ settings.default_processing_workflow }}" data-override-value="{{ stored.get('processing_workflow') or 'legacy' }}"
-                {% if subscription.inherit_processing_workflow %}disabled{% endif %}>
-                <option value="legacy" {% if subscription.processing_workflow == 'legacy' %}selected{% endif %}>Legacy (existing behaviour)</option>
-                <option value="complete_timeline" {% if subscription.processing_workflow == 'complete_timeline' %}selected{% endif %}>Complete Timeline (opt-in)</option>
-            </select>
-            <p class="text-xs text-text-muted">Complete Timeline classifies all speech and gaps, then applies the choices below. Substantive openings and conclusions remain Content.
-                Review any custom instructions when opting in. Changes affect newly queued jobs; published episodes and existing jobs are not automatically reprocessed.</p>
-        </section>
         {% set displayed_retention_limit = subscription.retention_limit if subscription.inherit_retention else (stored.get('retention_limit') if stored.get('retention_limit') is not none else 1) %}
         {% set displayed_manual_retention_days = subscription.manual_retention_days if subscription.inherit_retention else (stored.get('manual_retention_days') if stored.get('manual_retention_days') is not none else 14) %}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
@@ -259,7 +242,7 @@
                 </label>
                 <div class="space-y-3 pt-3 border-t border-ink/[0.08]">
                     <h5 class="text-sm font-semibold">Complete Timeline only</h5>
-                    {% for field, title in [('remove_non_editorial_non_speech', 'Remove non-editorial non-speech (ad jingles)'), ('remove_editorial_non_speech', 'Remove editorial non-speech (music examples)')] %}
+                    {% for field, title in [('remove_non_editorial_non_speech', 'Remove non-editorial non-speech (ad jingles)')] %}
                     <label class="flex items-center gap-3 text-sm">
                         <input type="checkbox" name="{{ field }}" value="true" data-inherited-control
                             data-effective-checked="{{ 'true' if settings['default_' ~ field] else 'false' }}"
@@ -392,27 +375,10 @@
                 </label>
                 </section>
 
-                <section class="mt-4 space-y-3" data-inheritance-group>
-                    <div class="flex items-center justify-between gap-4">
-                        <label class="block text-sm font-medium text-text-secondary">Custom Ad Detection Instructions</label>
-                        <label class="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
-                            <input type="checkbox" name="inherit_custom_instructions" value="true"
-                                data-inheritance-toggle {% if subscription.inherit_custom_instructions %}checked{% endif %}
-                                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                            Use global instructions
-                        </label>
-                    </div>
-                    {% if subscription.inherit_custom_instructions %}
-                    <p class="text-xs text-link-hover">
-                        Global instructions: {{ subscription.custom_instructions or "No custom instructions configured globally." }}
-                    </p>
-                    {% endif %}
-                    <textarea name="custom_instructions" rows="3" class="input font-mono text-sm"
-                        data-effective-value="{{ settings.default_custom_instructions or '' }}"
-                        data-override-value="{{ stored.get('custom_instructions') or '' }}"
-                        data-inherited-control {% if subscription.inherit_custom_instructions %}disabled{% endif %}
-                        placeholder="E.g., 'Remove segments discussing XYZ', 'Keep promos for host's other shows'">{{ subscription.custom_instructions if subscription.inherit_custom_instructions else (stored.get('custom_instructions') or '') }}</textarea>
-                </section>
+                <details><summary>Advanced classification guidance</summary>
+                <label for="show-guidance">Podcast-specific instructions</label>
+                <textarea id="show-guidance" name="custom_instructions" rows="3" class="input">{{ stored.get('custom_instructions') or '' }}</textarea></details>
+
             </div>
         </div>
 
@@ -432,15 +398,6 @@
         </div>
         <dl class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-sm text-text-secondary">
             <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
-                <dt>Processing workflow</dt>
-                <dd>{{ 'Complete Timeline' if subscription.processing_workflow == 'complete_timeline' else 'Legacy' }}</dd>
-            </div>
-            {% if subscription.processing_workflow == 'complete_timeline' %}
-            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
-                <dt>Remove editorial non-speech</dt>
-                <dd>{{ 'On' if subscription.remove_editorial_non_speech else 'Off' }}</dd>
-            </div>
-            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Remove non-editorial non-speech</dt>
                 <dd>{{ 'On' if subscription.remove_non_editorial_non_speech else 'Off' }}</dd>
             </div>
@@ -448,7 +405,6 @@
                 <dt>Short-island threshold</dt>
                 <dd>{{ subscription.minimum_retained_seconds }}s</dd>
             </div>
-            {% endif %}
             <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Remove ads</dt>
                 <dd>{{ "On" if subscription.remove_ads else "Off" }}</dd>

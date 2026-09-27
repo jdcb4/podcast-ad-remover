@@ -1,0 +1,77 @@
+<script nonce="{{ csp_nonce }}">
+    const authEnabledCheckbox = document.getElementById('auth_enabled');
+    const authSettingsIP = document.getElementById('auth_settings');
+    if (authEnabledCheckbox && authSettingsIP) {
+        authEnabledCheckbox.addEventListener('change', function () {
+            authSettingsIP.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+
+    async function editUsername(id, currentName) {
+        const newName = await appPrompt("Enter new username:", {
+            title: 'Change username',
+            defaultValue: currentName,
+            confirmText: 'Save'
+        });
+        if (newName && newName !== currentName) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/admin/users/${id}/username`;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'username';
+            input.value = newName;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    async function changeUserPassword(userId, username) {
+        const newPassword = await appPrompt(`Enter new password for ${username}:`, {
+            title: 'Change password',
+            inputType: 'password',
+            confirmText: 'Continue'
+        });
+        if (!newPassword) return;
+        if (!await appConfirm(`Change password for ${username}?`, { danger: true })) return;
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/users/${userId}/password`;
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'password';
+        input.value = newPassword;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    const loginFilter = document.getElementById('login-filter');
+    if (loginFilter) {
+        loginFilter.addEventListener('input', function (e) {
+            const filter = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('.login-row');
+            let count = 0;
+            rows.forEach(row => {
+                const match = row.textContent.toLowerCase().includes(filter);
+                row.style.display = match ? '' : 'none';
+                if (match) count++;
+            });
+            const loginCount = document.getElementById('login-count');
+            if (loginCount) loginCount.textContent = `Showing ${count} entries`;
+        });
+    }
+
+    let sortDirection = {};
+    function sortTable(colIndex) {
+        const tbody = document.getElementById('login-tbody');
+        if (!tbody) return;
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        sortDirection[colIndex] = !sortDirection[colIndex];
+        const dir = sortDirection[colIndex] ? 1 : -1;
+        rows.sort((a, b) => a.cells[colIndex].textContent.trim().localeCompare(b.cells[colIndex].textContent.trim()) * dir);
+        rows.forEach(row => tbody.appendChild(row));
+    }
+</script>

@@ -96,7 +96,7 @@ def resolve_subscription_row(
 
     data["processing_workflow"] = "complete_timeline"
     data["remove_editorial_non_speech"] = False
-    if data.get("inherit_custom_instructions"):
-        data["custom_instructions"] = None
+    data["custom_instructions"] = overrides.get("custom_instructions")
+    data["inherit_custom_instructions"] = False
     data["setting_overrides"] = overrides
     return data

@@ -86,13 +86,18 @@ def resolve_unified_feed_settings(
     title = _INVALID_XML_CHARACTERS.sub("", str(
         global_settings.get("unified_feed_title") or DEFAULT_UNIFIED_FEED_TITLE
     )).strip()
-    description = _INVALID_XML_CHARACTERS.sub("", str(
-        global_settings.get("unified_feed_description")
-        or DEFAULT_UNIFIED_FEED_DESCRIPTION
-    )).strip()
+    description = DEFAULT_UNIFIED_FEED_DESCRIPTION
     custom_artwork_url = _INVALID_XML_CHARACTERS.sub("", str(
         global_settings.get("unified_feed_artwork_url") or ""
     )).strip()
+
+    source = global_settings.get("unified_feed_artwork_source") or ("url" if custom_artwork_url else "default")
+    upload = str(global_settings.get("unified_feed_artwork_upload") or "")
+    artwork = f"{base_url.rstrip('/')}{DEFAULT_UNIFIED_FEED_ARTWORK_PATH}"
+    if source == "upload" and re.fullmatch(r"[a-f0-9]{64}\.jpg", upload):
+        artwork = f"{base_url.rstrip('/')}/artwork/unified/{upload}"
+    elif source == "url" and custom_artwork_url:
+        artwork = custom_artwork_url
 
     return {
         "title": title or DEFAULT_UNIFIED_FEED_TITLE,
@@ -102,8 +107,9 @@ def resolve_unified_feed_settings(
             DEFAULT_UNIFIED_FEED_INCLUDE_PODCAST_NAME,
         ),
         "custom_artwork_url": custom_artwork_url or None,
-        "artwork_url": custom_artwork_url
-        or f"{base_url.rstrip('/')}{DEFAULT_UNIFIED_FEED_ARTWORK_PATH}",
+        "artwork_url": artwork,
+        "artwork_source": source,
+        "has_upload": bool(upload),
     }
 
 
