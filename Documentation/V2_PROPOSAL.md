@@ -518,6 +518,14 @@ historical docs as history rather than rewriting their former behavior as though
 
 ## Limits of this proposal
 
+### Deferred transcription investigation
+
+After the other planned changes are complete, investigate whisper.cpp as a possible alternative
+to faster-whisper (Joe's request, 2026-09-27). Keep faster-whisper for the current implementation.
+Compare transcription accuracy and timestamp suitability for cuts, speed, memory use, CPU/GPU
+support and container integration using representative podcast audio. Record findings before
+deciding whether to replace or add an engine. This investigation is not a v2 completion gate.
+
 The handoff HTML and current templates were inspected as source; this is not a rendered visual
 prototype or browser-QA result. Provider capabilities were checked against documentation, not
 paid live inference. Ownership changes are deferred; queue transition details remain proposed. The

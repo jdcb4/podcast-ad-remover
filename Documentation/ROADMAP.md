@@ -14,6 +14,7 @@ This roadmap lists improvement candidates. It is not a release commitment.
 
 ## Resource Usage
 
+- After the planned v2 changes are complete, investigate whisper.cpp against the current faster-whisper engine (requested by Joe, 2026-09-27). Compare transcription and timestamp quality, processing speed, CPU/GPU compatibility, memory use and Docker integration on representative podcast episodes. This is an evaluation, not an approved engine replacement; keep faster-whisper during the v2 work.
 - Add documented concurrency and CPU guidance for small homelab machines.
 - Make Whisper model choice, worker limits, cleanup policy, and retry settings easier to reason about from the UI.
 
