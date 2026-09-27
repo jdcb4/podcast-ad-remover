@@ -149,9 +149,16 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("Background processor is disabled by PROCESSOR_ENABLED=false")
     
+    from app.core.media_storage import worker as storage_worker
+    storage_task = asyncio.create_task(storage_worker())
     try:
         yield
     finally:
+        storage_task.cancel()
+        try:
+            await storage_task
+        except asyncio.CancelledError:
+            pass
         # Clear lifespan-owned state so a later startup cannot inherit a dead child.
         supervisor = getattr(app.state, 'processor_supervisor', None)
         if supervisor is not None:

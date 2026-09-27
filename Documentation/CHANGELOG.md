@@ -4,6 +4,8 @@
 
 V2 intentionally makes breaking changes to remove legacy features with limited long-term value, reduce configuration/maintenance complexity and reflect the changed tradeoff as remote inference becomes more affordable. We hope disruption is minimal, but affected installations need to review [V2_UPGRADE.md](V2_UPGRADE.md). Local transcription remains; former Piper installs are not silently moved to paid speech. [Draft release notes](V2_RELEASE_NOTES.md) await Joe’s expanded reasoning before publication. The package version is still 1.16.0; these notes do not declare 2.0 published.
 
+- Add optional separate processed-audio storage, identity-checked mounts, stable playback URLs and a resumable admin migration with verified-copy cleanup and recovery CLI.
+
 - Rewrite the GitHub README and reconcile active configuration, architecture, deployment, recovery and verification guides with V2; label superseded records as historical evidence.
 
 - Import Pocket Casts/other OPML exports or newline-delimited feed lists with duplicate previews, selective import, per-feed retry and an API dry-run mode.

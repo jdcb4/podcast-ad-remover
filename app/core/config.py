@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     
     # Paths
     DATA_DIR: str = "/data"
+    MEDIA_DIR: str | None = Field(None, description="Optional processed-audio volume; enable in System > Storage")
 
     
     # Web

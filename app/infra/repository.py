@@ -1302,6 +1302,9 @@ class JobRepository:
         worker_id = worker_id or f"{socket.gethostname()}:{uuid4().hex}"
         with get_db_connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            from app.core.media_storage import processing_blocked
+            if processing_blocked(conn):
+                return []
             if max_running is not None:
                 running = conn.execute("SELECT COUNT(*) FROM jobs WHERE status='running'").fetchone()[0]
                 limit = min(limit, max(0, max_running - running))

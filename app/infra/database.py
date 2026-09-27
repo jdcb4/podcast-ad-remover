@@ -430,6 +430,14 @@ FORMAL_MIGRATIONS.append((V2_MIGRATION, [
 ]))
 
 
+FORMAL_MIGRATIONS.append(("20260928_0024_media_storage", [
+    "CREATE TABLE media_storage (id INTEGER PRIMARY KEY CHECK(id=1), volume_id TEXT, status TEXT NOT NULL DEFAULT 'idle', operation TEXT, error TEXT, backup_path TEXT)",
+    "INSERT INTO media_storage(id) VALUES(1)",
+    "CREATE TABLE media_files (path TEXT PRIMARY KEY, size INTEGER NOT NULL, sha256 TEXT NOT NULL, original_retained INTEGER NOT NULL DEFAULT 1)",
+    "CREATE TABLE media_migration_items (path TEXT PRIMARY KEY, size INTEGER NOT NULL, done INTEGER NOT NULL DEFAULT 0)",
+]))
+
+
 def _backup_database_if_needed(migration_ids: list[str]):
     """Create a timestamped DB backup before applying formal migrations."""
     if not migration_ids or not os.path.exists(settings.DB_PATH):

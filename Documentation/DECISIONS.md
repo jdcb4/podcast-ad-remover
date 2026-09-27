@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-09-28: optional processed-audio volume
+
+Keep SQLite, transcript/report metadata and processing local; allow an optional
+MEDIA_DIR for finished audio. Preserve single-volume installs and playback URLs.
+Use a durable UI/CLI copy–verify–switch migration, retain originals until explicit
+verified cleanup, and fail closed on missing/wrong media volume identity. No live
+installation is moved by this code change. See [STORAGE.md](STORAGE.md).
+
+
 This is a lightweight decision log. Keep entries short, dated, and focused on choices that future maintainers may otherwise revisit.
 
 ## Current V2 decisions — 2026-09-27

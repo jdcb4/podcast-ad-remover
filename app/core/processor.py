@@ -50,7 +50,7 @@ class Processor:
         self.ad_detector = AdDetector()
         self.rss_gen = RSSGenerator()
 
-    def _remove_episode_directory(self, episode_dir: str, action: str) -> bool:
+    def _remove_episode_directory(self, episode_dir: str, action: str, conn=None) -> bool:
         """Remove an episode directory only if it is contained by PODCASTS_DIR."""
         requested = Path(episode_dir).absolute()
         target = requested.resolve()
@@ -66,6 +66,15 @@ class Processor:
             logger.error("Refusing to %s an aliased or non-episode path: %s", action, requested)
             return False
 
+        from app.core.media_storage import delete_media
+        if conn is None:
+            from app.infra.database import get_db_connection
+            with get_db_connection() as db:
+                db.execute('BEGIN IMMEDIATE')
+                delete_media(relative.as_posix(), db)
+                db.commit()
+        else:
+            delete_media(relative.as_posix(), conn)
         if not target.exists():
             return True
         if not target.is_dir():
@@ -88,6 +97,12 @@ class Processor:
         if len(relative.parts) != 1 or (podcasts_root / subscription_slug).absolute() != target:
             logger.error(f"Refusing to delete podcast storage root: {target}")
             return False
+        from app.core.media_storage import delete_media
+        from app.infra.database import get_db_connection
+        with get_db_connection() as db:
+            db.execute('BEGIN IMMEDIATE')
+            delete_media(relative.as_posix(), db)
+            db.commit()
         if not target.exists():
             return True
         if not target.is_dir():
@@ -305,14 +320,14 @@ class Processor:
             running = conn.execute("SELECT 1 FROM jobs WHERE episode_id=? AND status='running'", (episode_id,)).fetchone()
             if not row or running or row['processing_step'] == 'skipped/non-episode':
                 return
-            self._remove_episode_directory(str(episode_directory(row['slug'], episode_id)), 'delete')
+            self._remove_episode_directory(str(episode_directory(row['slug'], episode_id)), 'delete', conn)
             legacy = legacy_directory(row['slug'], row['guid'])
             # Legacy GUID sanitization was lossy. Never delete a directory another
             # episode could be using, even when this episode was explicitly deleted.
             if legacy:
                 others = conn.execute('SELECT guid FROM episodes WHERE subscription_id=? AND id!=?', (row['subscription_id'], episode_id)).fetchall()
                 if not any(legacy_directory(row['slug'], other['guid']) == legacy for other in others):
-                    self._remove_episode_directory(str(legacy), 'delete')
+                    self._remove_episode_directory(str(legacy), 'delete', conn)
             conn.execute("UPDATE episodes SET processing_step='deleted', file_size=0, publication_pending=1 WHERE id=?", (episode_id,))
             conn.commit()
 
@@ -939,9 +954,20 @@ class Processor:
                 self.ep_repo.pending_metadata['published_guid'] = f'{ep.guid}#revision-{uuid4().hex}'
             file_size = os.path.getsize(output_path)
             (self._attempt_dir / 'published.json').write_text(json.dumps({'episode_id': ep.id}), encoding='utf-8')
+            from app.core.media_storage import stage_publication, remove_original, key_for, lock as media_lock
+            separate_media = await asyncio.to_thread(stage_publication, output_path)
             self.ep_repo.update_status(ep.id, 'completed', filename=output_path, file_size=file_size)
             self._attempt_dir = None  # Published files are never cancellation cleanup.
             self._remove_file_if_exists(input_path, 'source audio')
+            if separate_media:
+                # A cleanup error must not turn an already committed episode into a failed job.
+                try:
+                    def cleanup_local_output():
+                        with media_lock():
+                            remove_original(key_for(output_path))
+                    await asyncio.to_thread(cleanup_local_output)
+                except Exception as exc:
+                    logger.warning('Published audio retained locally pending storage cleanup: %s', exc)
             # Feed publication has its own durable retry flag; failure keeps audio.
             await self.publish_pending_feeds()
 
@@ -1144,6 +1170,9 @@ class Processor:
         try:
             ids_to_delete = []
             with get_db_connection() as conn:
+                from app.core.media_storage import processing_blocked
+                if processing_blocked(conn):
+                    return
                 # 1. Manual Downloads (Time Based)
                 # processed_at < now - manual_retention_days
                 cursor = conn.execute("""

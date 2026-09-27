@@ -43,6 +43,8 @@ def test_remove_episode_directory_removes_directory_inside_podcast_root(monkeypa
 
     monkeypatch.setattr(settings, "DATA_DIR", str(tmp_path))
 
+    Path(settings.DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+    init_db()
     processor = object.__new__(Processor)
 
     assert processor._remove_episode_directory(str(episode_dir), "delete") is True

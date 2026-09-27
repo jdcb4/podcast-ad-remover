@@ -68,13 +68,13 @@ def _is_first_byte_request(request: Request) -> bool:
 
 def _resolve_audio_file_path(path: str) -> Path:
     """Resolve an audio request path and require it to stay inside PODCASTS_DIR."""
-    podcasts_root = Path(settings.PODCASTS_DIR).resolve()
-    file_path = (podcasts_root / path).resolve(strict=False)
-
+    from app.core.media_storage import resolve, StorageUnavailable
     try:
-        file_path.relative_to(podcasts_root)
+        file_path = resolve(path)
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
+    except (OSError, StorageUnavailable):
+        raise HTTPException(status_code=503, detail="Media storage unavailable; check the configured mount")
 
     if not file_path.exists():
         logger.warning(f"Audio file not found: {file_path}")
@@ -113,7 +113,7 @@ async def serve_audio(path: str, request: Request):
                 sub = sub_repo.get_by_slug(subscription_slug)
                 if sub:
                     # Find episode by filename
-                    episode = ep_repo.get_by_subscription_and_filename(sub.id, str(file_path))
+                    episode = ep_repo.get_by_subscription_and_filename(sub.id, str(Path(settings.PODCASTS_DIR) / path))
                     if episode:
                         client_ip = get_client_ip(request)
                         # Deduplicated listen count
