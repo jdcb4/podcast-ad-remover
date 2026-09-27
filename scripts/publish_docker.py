@@ -96,6 +96,9 @@ def main() -> int:
     command.append(".")
 
     run(command, "Docker publish" if args.push else "Docker build")
+    if args.push and args.repository == DEFAULT_REPOSITORY:
+        from publish_configurator import dispatch
+        dispatch('stable', git_output('rev-parse', 'HEAD'), version_tag)
     print(f"\nBuilt tags: {version_tag}, {latest_tag}")
     return 0
 

@@ -87,6 +87,9 @@ def main() -> int:
     command.append(".")
 
     run(command, "Docker dev publish" if args.push else "Docker dev build")
+    if args.push and args.repository == DEFAULT_REPOSITORY:
+        from publish_configurator import dispatch
+        dispatch('dev', git_output('rev-parse', 'HEAD'), tags[1])
     print("\nBuilt tags: " + ", ".join(tags))
     return 0
 

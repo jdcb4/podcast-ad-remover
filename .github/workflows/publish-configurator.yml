@@ -1,0 +1,84 @@
+name: Publish install configurator
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        type: choice
+        options: [dev, stable]
+        required: true
+      revision:
+        description: Exact published commit SHA
+        required: true
+      image:
+        description: Immutable published Docker image tag
+        required: true
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: configurator-pages
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.revision }}
+          fetch-depth: 0
+      - name: Validate published revision and image
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          REVISION: ${{ inputs.revision }}
+          IMAGE: ${{ inputs.image }}
+        run: |
+          python - <<'PY'
+          import os, re, subprocess
+          channel, rev, image = [os.environ[k] for k in ('CHANNEL','REVISION','IMAGE')]
+          assert channel in ('dev','stable')
+          assert re.fullmatch(r'[a-f0-9]{40}', rev)
+          branch = 'dev' if channel == 'dev' else 'main'
+          subprocess.run(['git','merge-base','--is-ancestor',rev,'origin/'+branch],check=True)
+          pattern = r'dev-[a-f0-9]{7,40}' if channel == 'dev' else r'\d+\.\d+\.\d+'
+          assert re.fullmatch('jdcb4/podcast-ad-remover:'+pattern,image)
+          subprocess.run(['docker','manifest','inspect',image],check=True,stdout=subprocess.DEVNULL)
+          PY
+      - name: Preserve other channel and build static site
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          REVISION: ${{ inputs.revision }}
+          IMAGE: ${{ inputs.image }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib, shutil, subprocess
+          site = pathlib.Path('_site')
+          exists = subprocess.run(['git','show-ref','--verify','--quiet','refs/remotes/origin/gh-pages']).returncode == 0
+          if exists:
+              subprocess.run(['git','worktree','add','--detach',str(site),'origin/gh-pages'],check=True)
+          else:
+              site.mkdir()
+              subprocess.run(['git','init',str(site)],check=True)
+          channel = os.environ['CHANNEL']
+          target = site / channel
+          if target.exists(): shutil.rmtree(target)
+          shutil.copytree('configurator',target)
+          meta = dict(channel=channel,revision=os.environ['REVISION'],image=os.environ['IMAGE'])
+          (target/'release.js').write_text('window.INSTALL_RELEASE = Object.freeze('+json.dumps(meta)+');\n')
+          (site/'.nojekyll').touch()
+          links = ''.join(f'<li><a href="{c}/">{c.title()} install configurator</a></li>' for c in ('stable','dev') if (site/c/'index.html').exists())
+          (site/'index.html').write_text('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Podcast Ad Remover installation</title><h1>Install Podcast Ad Remover</h1><ul>'+links+'</ul></html>')
+          for args in [('config','user.name','github-actions[bot]'),('config','user.email','41898282+github-actions[bot]@users.noreply.github.com'),('add','.'),('commit','--allow-empty','-m',f'Publish {channel} configurator for {meta["revision"]}')]:
+              subprocess.run(['git','-C',str(site),*args],check=True)
+          subprocess.run(['git','-C',str(site),'push',str(pathlib.Path.cwd()),'HEAD:refs/heads/configurator-pages-build'],check=True)
+          subprocess.run(['git','push','origin','configurator-pages-build:gh-pages'],check=True)
+          PY
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment

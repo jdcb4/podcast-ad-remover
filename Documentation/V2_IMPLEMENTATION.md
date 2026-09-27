@@ -39,3 +39,11 @@ tests are being revised with the interface milestone. This is not yet a full ver
 Desktop sidebar and mobile navigation replace the header; mobile podcasts use artwork/title/manage rows. Shared settings rows cover AI, defaults, system, notifications and feed appearance. Users now owns access requests, feed tokens and API credentials. Scoped settings saves preserve other sections. Added bounded raster artwork upload and an optional, resumable setup wizard. Ownership policy remains unchanged.
 
 Focused verification: 39 migration/provider/pipeline/interface tests passed on Python 3.11. Full-suite compatibility updates and browser qualification remain in progress.
+
+## Milestone 4 — browser-only install configurator
+
+`configurator/` generates Compose or POSIX Docker run instructions, with local cryptographic session-secret generation, shell/YAML escaping, named volumes or Linux bind mounts, optional environment credentials and NVIDIA GPU access. No inputs are persisted or transmitted; CSP denies network requests. Later-configurable options are explained without exposing every runtime setting.
+
+Successful authorized Docker publish scripts dispatch `publish-configurator.yml` with the published revision and immutable tag. The workflow preserves stable/dev pages separately and verifies the image exists before Pages publication. GitHub Pages must be configured for Actions and the publisher must have authenticated `gh` workflow access. Dispatch failure is visible and independently retryable; it does not undo an already published image. No image or Pages publication was performed during implementation.
+
+Verification: 17 configurator and publisher tests passed, including quote/dollar escaping, random-secret generation, GPU output and clearing secrets.

@@ -25,13 +25,13 @@ def test_validate_experimental_tags_rejects_semver_release_tag():
         validate_tags(["1.3.1"])
 
 
-def test_package_exposes_arm64_experimental_no_tts_build():
+def test_package_exposes_arm64_experimental_api_speech_build():
     package_json = json.loads(Path("package.json").read_text(encoding="utf-8"))
 
     script = package_json["scripts"]["docker:experimental:arm64"]
 
     assert "--platform linux/arm64" in script
-    assert "--no-tts" in script
+    assert "--no-tts" not in script
     assert "--tag experimental-arm64" in script
 
 
