@@ -2,9 +2,12 @@
 
 ## Unreleased
 
+## 1.16.0 - 2026-09-27
+
 - Add capability-validated CPU transcription precision settings while preserving CPU/float32 defaults and existing saved settings.
 - Add a pinned, checksum-verified optional CUDA runtime installer under persistent storage; ordinary CPU images contain no CUDA libraries.
 - Add experimental GPU setup through `CUDA_SETUP=true` or Transcription settings, isolated GPU inference, capability validation and visible CPU fallback. Real NVIDIA qualification on Linux and Windows Docker Desktop/WSL2 is required before production support.
+- Record Linux RTX A4000 and L4 qualification. CUDA remains opt-in and experimental; Windows/WSL2 and Unraid coverage is incomplete. The documented chunk-boundary omissions/repetitions affect the existing shared CPU/GPU merger and are not fixed by this release. Existing installs remain CPU/float32.
 
 ## 1.15.0 - 2026-09-24
 
