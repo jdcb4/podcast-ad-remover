@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Import Pocket Casts/other OPML exports or newline-delimited feed lists with duplicate previews, selective import, per-feed retry and an API dry-run mode.
+- Audit the API guide for V2, expose enforced scopes in OpenAPI, and package a portable PAR agent skill with each configurator deployment.
+
 - Refine V2 settings explanations, section headings, GPU status, navigation icons and the mobile settings drawer. Move Unified Feed beside podcast search.
 - Add speech model/voice dropdowns and metadata refresh, with documented/manual fallbacks where providers do not expose voice discovery.
 - Fresh installs enable artwork badging and cut tones; other enhancements start off. Disable spoken additions until Voice is configured, preserving requested preferences.

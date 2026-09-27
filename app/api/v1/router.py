@@ -14,6 +14,8 @@ from app.api.v1.schemas import (
     ApiStatus,
     CapabilityResponse,
     PaginatedEpisodes,
+    PodcastImportRequest,
+    PodcastImportResponse,
     QueueResponse,
     ReportResponse,
     SearchRequest,
@@ -129,12 +131,40 @@ async def api_capabilities(api_settings: dict = Depends(ensure_ai_api_enabled)):
 async def api_openapi(_api_settings: dict = Depends(ensure_ai_api_enabled)):
     schema_app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
     schema_app.include_router(router, prefix="/api/v1")
-    return get_openapi(
+    schema = get_openapi(
         title="Podcast Ad Remover AI API",
         version="v1",
         description="Opt-in REST API for AI agents and automation clients.",
         routes=schema_app.routes,
     )
+    # HTTP bearer scopes are application permissions, not OAuth scopes. Expose the
+    # same dependency metadata the runtime enforces, rather than a second route map.
+    for route in router.routes:
+        if not hasattr(route, 'dependant'):
+            continue
+        scopes = sorted({scope for dep in route.dependant.dependencies
+                         for scope in getattr(dep.call, 'required_scopes', [])})
+        for method in route.methods:
+            operation = schema['paths']['/api/v1' + route.path][method.lower()]
+            operation['x-required-scopes'] = scopes
+            if scopes:
+                operation['description'] = (operation.get('description', '') +
+                    '\n\nRequired bearer-token scopes: ' + ', '.join(scopes) +
+                    '. Changing existing podcast settings or processing episodes also requires podcast ownership or an admin-linked token (legacy unlinked tokens retain global access). '
+                    'Scopes are independent; admin does not imply read, write or process.').strip()
+                for code, description in {
+                    '400': 'Invalid input or unavailable source.',
+                    '401': 'Missing, invalid or revoked bearer token.',
+                    '403': 'Insufficient scope, ownership or admin access.',
+                    '404': 'API disabled or resource/artifact not found.',
+                    '429': 'Rate limit exceeded; wait for Retry-After seconds.',
+                }.items():
+                    operation['responses'].setdefault(code, {'description': description})
+                operation['responses']['429']['headers'] = {'Retry-After': {
+                    'description': 'Seconds until another attempt is allowed.',
+                    'schema': {'type': 'integer'},
+                }}
+    return schema
 
 
 @router.get("/system/status")
@@ -151,6 +181,24 @@ async def queue_status(_principal: ApiPrincipal = Depends(require_scopes(["read"
 @router.get("/subscriptions", response_model=list[Subscription])
 async def list_subscriptions(_principal: ApiPrincipal = Depends(require_scopes(["read"]))):
     return sub_repo.get_all()
+
+
+@router.post("/subscriptions/import", response_model=PodcastImportResponse)
+async def import_subscriptions(payload: PodcastImportRequest, principal: ApiPrincipal = Depends(require_scopes(["write"]))):
+    """Preview or import OPML/feed lists. Reuses library entries; never overwrites their settings or owners."""
+    from app.core.podcast_import import preview_import, import_feed
+    try:
+        items = await asyncio.to_thread(preview_import, payload.content, principal.user_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if not payload.dry_run:
+        for index, item in enumerate(items):
+            if item['status'] in {'ready', 'join'}:
+                try:
+                    items[index] = await asyncio.to_thread(import_feed, item['url'], principal.user_id)
+                except (ValueError, UnicodeError) as exc:
+                    items[index] = {**item, 'status': 'error', 'detail': str(exc)}
+    return {'dry_run': payload.dry_run, 'items': items}
 
 
 @router.get("/subscriptions/{subscription_id}", response_model=Subscription)

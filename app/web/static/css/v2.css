@@ -1,4 +1,17 @@
 :root { accent-color:#7c3aed; }
+.settings-page.import-page { max-width:800px; }
+.import-page [hidden] { display:none!important; }
+.import-label { display:block; font-weight:600; margin:20px 0 8px; }
+.import-actions { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0; }
+.import-items { list-style:none; padding:0; }
+.import-items li { border-bottom:1px solid #80808030; }
+.import-items label { display:flex; gap:12px; padding:14px 0; align-items:flex-start; }
+.import-items input { margin-top:5px; flex-shrink:0; width:18px; height:18px; }
+.import-items label>span { min-width:0; }
+.import-items strong,.import-items span span { display:block; overflow-wrap:anywhere; }
+.import-items span span { font-size:14px; color:var(--text-secondary); }
+.import-items .import-status { margin-top:4px; }
+.import-page #import-progress { overflow-wrap:anywhere; }
 body { background-image:none; }
 .app-sidebar { position:fixed; inset:0 auto 0 0; width:240px; padding:24px 16px; display:flex; flex-direction:column; gap:22px; background:rgb(var(--surface-elevated)); border-right:1px solid #80808030; z-index:40; overflow:auto; }
 .app-sidebar nav { display:grid; gap:4px; }

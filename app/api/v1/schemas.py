@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class ApiPrincipal(BaseModel):
@@ -36,6 +36,25 @@ class SearchRequest(BaseModel):
 class SubscriptionCreateRequest(BaseModel):
     feed_url: str = Field(..., min_length=1)
     initial_count: int = Field(default=5, ge=0, le=50)
+
+
+class PodcastImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    content: str = Field(min_length=1, max_length=1048576, description="UTF-8 OPML text or one HTTP(S) feed URL per line; at most 100 entries and 1 MiB.")
+    dry_run: bool = Field(default=True, description="Preview without network requests or changes. Set false to import; normal scheduled processing applies.")
+
+
+class PodcastImportItem(BaseModel):
+    url: str
+    title: str = ""
+    status: Literal["ready", "join", "duplicate", "existing", "invalid", "added", "joined", "error"]
+    detail: str = ""
+    subscription_id: int | None = None
+
+
+class PodcastImportResponse(BaseModel):
+    dry_run: bool
+    items: list[PodcastImportItem]
 
 
 class SubscriptionSettingsUpdate(BaseModel):

@@ -112,11 +112,14 @@ def test_ai_api_requires_valid_token_and_scope(isolated_data_dir):
     assert denied.status_code == 403
 
 
-def test_ai_api_rate_limits_authenticated_tokens(isolated_data_dir):
+def test_ai_api_rate_limits_authenticated_tokens(isolated_data_dir, monkeypatch):
     init_db()
     enable_ai_api(per_minute=1, per_day=100)
     token = ApiTokenRepository().create("Limited", scopes=["read"])
     client = make_client()
+
+    # Both calls must be in one fixed window even when the real clock crosses a minute.
+    monkeypatch.setattr("app.infra.repository.time.time", lambda: 1000.0)
 
     first = client.get("/api/v1/subscriptions", headers=auth_header(token))
     second = client.get("/api/v1/subscriptions", headers=auth_header(token))

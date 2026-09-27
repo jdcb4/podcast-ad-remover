@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="settings-page import-page">
+  <h1>Import podcasts</h1>
+  <p class="settings-intro">Bring your subscriptions from Pocket Casts or another podcast app using its OPML export, or paste feed URLs below. Review duplicates before adding.</p>
+  <form id="import-form">
+    <label class="import-label" for="import-file">OPML or text file</label>
+    <input id="import-file" name="file" type="file" accept=".opml,.xml,.txt,text/plain,text/xml,application/xml" class="input" aria-describedby="import-limits">
+    <label class="import-label" for="import-text">Or paste feed URLs, one per line</label>
+    <textarea id="import-text" name="text" class="input" rows="5" placeholder="https://example.com/podcast/feed.xml" aria-describedby="import-limits"></textarea>
+    <p id="import-limits" class="settings-help">Up to 100 feeds, 1 MiB, UTF-8. Existing podcasts keep their settings and owner. New podcasts use your instance’s defaults and will be processed on the normal feed-check schedule.</p>
+    <div class="import-actions"><button class="btn-primary" type="submit" id="preview-import">Review import</button><a class="btn-secondary" href="/?view=mine">My Podcasts</a></div>
+  </form>
+  <p id="import-error" class="alert-error" role="alert" hidden></p>
+  <section id="import-review" aria-labelledby="import-review-title" hidden>
+    <h2 class="settings-section-title" id="import-review-title" tabindex="-1">Review import</h2>
+    <p id="import-progress" class="settings-help" role="status" aria-live="polite"></p>
+    <ul id="import-items" class="import-items"></ul>
+    <div class="import-actions"><button type="button" id="start-import" class="btn-primary">Import selected</button><button type="button" id="stop-import" class="btn-secondary" hidden>Stop after this feed</button></div>
+  </section>
+</div>
+<script src="/static/js/podcast-import.js?v={{ static_asset_version('js/podcast-import.js') }}" defer></script>
+{% endblock %}

@@ -104,4 +104,5 @@ def require_scopes(required_scopes: Iterable[str]):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient API token scope")
         return principal
 
+    dependency.required_scopes = sorted(required)
     return dependency

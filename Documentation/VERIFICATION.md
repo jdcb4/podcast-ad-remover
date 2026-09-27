@@ -19,6 +19,8 @@ pip install -r requirements-dev.txt
 
 ## Standard Check
 
+`tests/test_podcast_import.py` covers nested OPML, URL normalization, duplicates, invalid/oversized inputs, entity rejection, membership/ownership preservation, API permissions, partial failures, retries and upload origin checks. `tests/test_api_contract_docs.py` checks the documented endpoint inventory and PATCH fields against the live schema, scope metadata and the distributable skill archive. Import tests use synthetic feeds and isolated databases.
+
 Theme behavior is covered by `tests/test_theme.py`, using the rendered shared header and actual
 JavaScript in jsdom: dark default, light/dark toggling, reload persistence, invalid preferences,
 cross-tab storage changes and disabled storage. For visual changes, check both themes in a real

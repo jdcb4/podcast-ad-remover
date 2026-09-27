@@ -1,0 +1,4 @@
+interface:
+  display_name: "Podcast Ad Remover"
+  short_description: "Manage PAR podcasts and processing through its API"
+  default_prompt: "Use $podcast-ad-remover to work with my PAR instance."

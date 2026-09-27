@@ -55,6 +55,8 @@ router = APIRouter()
 router.include_router(timeline_rules_router)
 from app.web.setup import router as setup_router
 router.include_router(setup_router)
+from app.web.podcast_import import router as podcast_import_router
+router.include_router(podcast_import_router)
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 from app.core.speech import speech_ready

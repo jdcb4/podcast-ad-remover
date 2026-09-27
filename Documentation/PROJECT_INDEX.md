@@ -76,6 +76,8 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 - `Documentation/Architecture.md`: current application structure and data layout.
 - `Documentation/COMPLETE_TIMELINE.md`: opt-in processing, categories, summaries, provider output handling and migration.
 - `Documentation/API.md`: optional AI-facing REST API, auth, scopes, and rate limits.
+- `app/core/podcast_import.py`, `app/web/podcast_import.py`: bounded OPML/text import, duplicate preview and shared-library reuse.
+- `skills/podcast-ad-remover/`, `Documentation/Agent_Skill.md`: portable agent instructions; `scripts/package_agent_skill.py` bundles them with the API guide for Pages.
 - `Documentation/Deployment.md`: Docker and Docker Compose deployment.
 - `Documentation/Environment_Variables.md`: environment configuration.
 - `Documentation/VERSIONING.md`: version bump and Docker tag rules.

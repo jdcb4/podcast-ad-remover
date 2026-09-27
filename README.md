@@ -272,3 +272,9 @@ that edge. Sounds are bundled WAVs and do not require TTS. See [sound behavior](
 The [browser-only configurator](configurator/index.html) builds Docker/Compose instructions locally. Successful authorized image publication updates matching stable/dev GitHub Pages configurators. On first install, use or dismiss the short setup wizard; run it again from System settings. Configure accounts and tokens together under Users & access.
 
 Before upgrading, stop new work and drain running jobs. The database migration creates an integrity-checked backup and an upgrade report under System. Existing publications, media and ownership are preserved. Read [V2 implementation and rollback](Documentation/V2_IMPLEMENTATION.md). Production promotion and a 2.0 version tag remain separate release steps.
+
+### Import and agent access
+
+Use **Add podcast → Import podcasts from OPML or a feed list** to review and import Pocket Casts exports or text lists. Duplicate feeds are skipped; existing library shows keep their settings. New shows use global defaults and the normal processing schedule.
+
+The [API guide](Documentation/API.md) covers the optional agent API. A [portable PAR agent skill](Documentation/Agent_Skill.md) is bundled with each release channel’s install configurator.
