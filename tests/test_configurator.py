@@ -70,4 +70,4 @@ def test_offline_archive_contains_only_static_assets(tmp_path):
         shutil.copyfile(Path('configurator')/name,tmp_path/name)
     build(tmp_path)
     with ZipFile(tmp_path/'offline.zip') as archive:
-        assert set(archive.namelist()) == {'index.html','style.css','configurator.js','release.js'}
+        assert set(archive.namelist()) == {'index.html','style.css','configurator.js','release.js','podcast-ad-remover-skill.zip'}
