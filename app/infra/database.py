@@ -415,6 +415,21 @@ FORMAL_MIGRATIONS.append((CUDA_SETTINGS_MIGRATION, [
 ]))
 
 
+V2_MIGRATION = '20260927_0023_v2'
+FORMAL_MIGRATIONS.append((V2_MIGRATION, [
+    "ALTER TABLE app_settings ADD COLUMN tts_model TEXT",
+    "ALTER TABLE app_settings ADD COLUMN tts_voice TEXT",
+    "ALTER TABLE app_settings ADD COLUMN tts_api_key TEXT",
+    "ALTER TABLE app_settings ADD COLUMN tts_base_url TEXT",
+    "ALTER TABLE app_settings ADD COLUMN cut_tone_enabled INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE app_settings ADD COLUMN onboarding_status TEXT NOT NULL DEFAULT 'dismissed'",
+    "ALTER TABLE app_settings ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE app_settings ADD COLUMN unified_feed_artwork_upload TEXT",
+    "ALTER TABLE app_settings ADD COLUMN unified_feed_artwork_source TEXT NOT NULL DEFAULT 'default'",
+    "ALTER TABLE app_settings ADD COLUMN v2_migration_report TEXT",
+]))
+
+
 def _backup_database_if_needed(migration_ids: list[str]):
     """Create a timestamped DB backup before applying formal migrations."""
     if not migration_ids or not os.path.exists(settings.DB_PATH):
@@ -452,6 +467,9 @@ def _apply_formal_migrations(conn: sqlite3.Connection):
             statements = []
         for sql in statements:
             cursor.execute(sql)
+        if version == V2_MIGRATION:
+            from app.infra.v2_migration import migrate
+            migrate(conn)
         cursor.execute("INSERT INTO schema_migrations (version) VALUES (?)", (version,))
 
 
@@ -740,6 +758,8 @@ def init_db():
     """, (DEFAULT_OPENROUTER_MODEL_CASCADE,))
 
     _apply_formal_migrations(conn)
+    if not db_existed and any(version == V2_MIGRATION for version, _ in FORMAL_MIGRATIONS):
+        cursor.execute("UPDATE app_settings SET onboarding_status='not_started' WHERE id=1")
 
     cursor.execute("""
         UPDATE app_settings
