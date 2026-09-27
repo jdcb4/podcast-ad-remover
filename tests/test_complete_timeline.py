@@ -129,11 +129,9 @@ def provider_error(status, message):
 
 @pytest.fixture
 def provider(monkeypatch):
-    OpenAIProvider._schema_support.clear()
     instance = OpenAIProvider('synthetic-key', ['first', 'second'], base_url='https://openrouter.ai/api/v1', rate_limit_provider='openrouter')
     yield instance
     instance.client.close()
-    OpenAIProvider._schema_support.clear()
 
 
 def test_schema_routing_requires_compatible_endpoint_without_tuning_defaults(provider, monkeypatch):
@@ -145,33 +143,31 @@ def test_schema_routing_requires_compatible_endpoint_without_tuning_defaults(pro
     assert not {'temperature', 'reasoning_effort', 'top_p', 'max_tokens'}.intersection(calls[0])
 
 
-def test_auto_compatibility_is_only_for_explicit_unsupported_schema_and_is_cached(provider, monkeypatch):
-    calls = []
+def test_unsupported_schema_fails_without_downgrade_or_cache(provider, monkeypatch):
+    calls=[]
     def create(**kwargs):
         calls.append(kwargs)
-        if 'response_format' in kwargs:
-            raise provider_error(400, 'response_format json_schema is not supported by this model')
-        return fake_completion()
+        raise provider_error(400, 'response_format json_schema is not supported')
     monkeypatch.setattr(provider.client.chat.completions, 'create', create)
     for _ in range(2):
-        provider.generate_structured([{'role': 'user', 'content': 'Source'}], timeline.SCHEMA)
-    assert len(calls) == 3
-    assert all(c['model'] == 'first' for c in calls)
-    assert provider.last_output_mode == 'validated_json'
+        with pytest.raises(openai.APIStatusError):
+            provider.generate_structured([{'role':'user','content':'Source'}],timeline.SCHEMA)
+    assert len(calls)==2 and all('response_format' in c and c['model']=='first' for c in calls)
 
 
-@pytest.mark.parametrize('status,message', [(503, 'Temporarily unavailable'), (429, 'Rate limit'), (400, 'Invalid JSON schema')])
-def test_outages_and_bad_schemas_use_same_provider_cascade_without_downgrade(provider, monkeypatch, status, message):
-    calls = []
+
+@pytest.mark.parametrize('status,message', [(503,'Unavailable'),(429,'Rate limit'),(400,'Invalid schema')])
+def test_outages_and_bad_schemas_do_not_try_another_model(provider, monkeypatch, status, message):
+    from app.core.ai_services import RateLimitError
+    calls=[]
     def create(**kwargs):
         calls.append(kwargs)
-        if kwargs['model'] == 'first':
-            raise provider_error(status, message)
-        return fake_completion()
-    monkeypatch.setattr(provider.client.chat.completions, 'create', create)
-    provider.generate_structured([{'role': 'user', 'content': 'Source'}], timeline.SCHEMA)
-    assert [c['model'] for c in calls] == ['first', 'second']
-    assert all('response_format' in c for c in calls)
+        raise provider_error(status,message)
+    monkeypatch.setattr(provider.client.chat.completions,'create',create)
+    with pytest.raises((openai.APIStatusError,RateLimitError)):
+        provider.generate_structured([{'role':'user','content':'Source'}],timeline.SCHEMA)
+    assert len(calls)==1 and calls[0]['model']=='first' and 'response_format' in calls[0]
+
 
 
 def test_strict_mode_never_downgrades_even_after_auto_detected_unsupported(provider, monkeypatch):
@@ -180,10 +176,9 @@ def test_strict_mode_never_downgrades_even_after_auto_detected_unsupported(provi
         calls.append(kwargs)
         raise provider_error(400, 'response_format json_schema is not supported')
     monkeypatch.setattr(provider.client.chat.completions, 'create', create)
-    OpenAIProvider._schema_support[(provider.base_url, provider.rate_limit_provider, 'first')] = (False, float('inf'))
     with pytest.raises(Exception, match='not supported'):
         provider.generate_structured([{'role': 'user', 'content': 'Source'}], timeline.SCHEMA, 'strict')
-    assert len(calls) == 2 and all('response_format' in c for c in calls)
+    assert len(calls) == 1 and all('response_format' in c for c in calls)
 
 
 @pytest.mark.parametrize('finish,refusal', [('length', None), ('content_filter', None), ('stop', 'Cannot comply')])
@@ -192,38 +187,36 @@ def test_truncated_or_refused_output_cannot_become_empty_success(provider, monke
     monkeypatch.setattr(provider.client.chat.completions, 'create', lambda **kwargs: calls.append(kwargs) or fake_completion('{}', finish, refusal))
     with pytest.raises(Exception, match='truncated or refused'):
         provider.generate_structured([{'role': 'user', 'content': 'Source'}], timeline.SCHEMA)
-    assert len(calls) == 2 and all('response_format' in c for c in calls)
+    assert len(calls) == 1 and all('response_format' in c for c in calls)
 
 
-def test_openrouter_missing_schema_capable_endpoints_allows_only_auto_compatibility(provider, monkeypatch):
-    calls = []
+def test_openrouter_missing_schema_endpoint_is_actionable_failure(provider, monkeypatch):
+    calls=[]
     def create(**kwargs):
         calls.append(kwargs)
-        if 'response_format' in kwargs:
-            raise provider_error(404, 'No endpoints found that support the requested parameters.')
-        return fake_completion()
-    monkeypatch.setattr(provider.client.chat.completions, 'create', create)
-    provider.generate_structured([{'role': 'user', 'content': 'Source'}], timeline.SCHEMA)
-    assert len(calls) == 2 and calls[0]['model'] == calls[1]['model']
+        raise provider_error(404,'No endpoints support the requested parameters')
+    monkeypatch.setattr(provider.client.chat.completions,'create',create)
+    with pytest.raises(openai.APIStatusError):
+        provider.generate_structured([{'role':'user','content':'Source'}],timeline.SCHEMA)
+    assert len(calls)==1 and calls[0]['extra_body']['provider']['require_parameters']
 
 
-def test_anthropic_uses_native_format_then_explicit_compatibility_without_tuning(monkeypatch):
+
+def test_anthropic_uses_native_format_without_tuning(monkeypatch):
     from app.core.ai_services import AnthropicProvider
     instance = AnthropicProvider('test-key', ['fixture'])
     calls = []
     def create(**kwargs):
         calls.append(kwargs)
-        if 'extra_body' in kwargs:
-            raise provider_error(400, 'output_config structured output is not supported')
         return SimpleNamespace(content=[SimpleNamespace(type='text', text='{}')], stop_reason='end_turn', usage=None)
     monkeypatch.setattr(instance.client.messages, 'create', create)
     try:
         instance.generate_structured([{'role': 'system', 'content': 'Rules'}, {'role': 'user', 'content': 'Source'}], timeline.SCHEMA)
-        assert len(calls) == 2
+        assert len(calls) == 1
         assert calls[0]['extra_body']['output_config']['format'] == {'type': 'json_schema', 'schema': timeline.SCHEMA}
         assert calls[0]['system'] == 'Rules' and calls[0]['messages'] == [{'role': 'user', 'content': 'Source'}]
         assert not {'temperature', 'thinking', 'top_p'}.intersection(calls[0])
-        assert instance.last_output_mode == 'validated_json'
+        assert instance.last_output_mode == 'json_schema'
     finally:
         instance.client.close()
 

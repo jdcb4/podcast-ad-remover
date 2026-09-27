@@ -22,7 +22,7 @@ def test_model_defaults_upgrade_preserves_custom_settings(isolated_data_dir):
     with get_db_connection() as conn:
         row = conn.execute('SELECT * FROM app_settings').fetchone()
         for provider, column in columns.items():
-            assert json.loads(row[column]) == MODEL_DEFAULTS[provider]
+            assert row[column] == MODEL_DEFAULTS[provider][0]
         assert all(row[f'warning_tone_{part}'] == 0 for part in ('start', 'middle', 'end'))
         assert all(row[f'warning_tone_{part}_style'] == 'wooden' for part in ('start', 'middle', 'end'))
         conn.execute("DELETE FROM schema_migrations WHERE version = '20260913_0017_model_defaults'")
@@ -40,29 +40,19 @@ def test_model_defaults_upgrade_preserves_custom_settings(isolated_data_dir):
         assert conn.execute('SELECT openai_model FROM app_settings').fetchone()[0] == 'gpt-4o'
 
 
-def test_tone_settings_save_fixed_sound_and_old_form_compatibility(client):
-    url = '/admin/global-subscription-settings/update'
-    assert client.post(url, data={'warning_tones_present': 'true', 'warning_tone_start': 'true',
-                                 'warning_tone_end': 'true', 'warning_tone_start_style': 'warm'},
-                       follow_redirects=False).status_code == 303
-    page = client.get('/admin/global-subscription-settings')
-    assert page.status_code == 200
-    assert '<audio controls' not in page.text
-    for position in ('start', 'middle', 'end'):
-        assert f'name="warning_tone_{position}"' in page.text
-        assert f'warning_tone_{position}_style' not in page.text
-    assert client.post(url, data={}, follow_redirects=False).status_code == 303
+def test_single_tone_switch_round_trip(client):
+    url='/admin/global-subscription-settings/update'
+    assert client.post(url,data={'cut_tone_enabled':'true'},follow_redirects=False).status_code==303
+    page=client.get('/admin/global-subscription-settings')
+    assert 'name="cut_tone_enabled"' in page.text
+    for position in ('start','middle','end'):
+        assert f'name="warning_tone_{position}"' not in page.text
     with get_db_connection() as conn:
-        row = conn.execute('SELECT * FROM app_settings').fetchone()
-        assert (row['warning_tone_start'], row['warning_tone_middle'], row['warning_tone_end']) == (1, 0, 1)
-        assert row['warning_tone_start_style'] == 'wooden'
-    assert client.post(url, data={'warning_tones_present': 'true', 'warning_tone_start_style': '../bad'},
-                       follow_redirects=False).status_code == 303
-    assert client.post(url, data={'warning_tones_present': 'true', 'warning_tone_start_style': 'clear'},
-                       follow_redirects=False).status_code == 303
+        assert conn.execute('SELECT cut_tone_enabled FROM app_settings').fetchone()[0]==1
+    client.post(url,data={})
     with get_db_connection() as conn:
-        row = conn.execute('SELECT * FROM app_settings').fetchone()
-        assert all(row[f'warning_tone_{part}'] == 0 for part in ('start', 'middle', 'end'))
+        assert conn.execute('SELECT cut_tone_enabled FROM app_settings').fetchone()[0]==0
+
 
 
 @pytest.mark.skipif(not shutil.which('ffmpeg'), reason='FFmpeg required')

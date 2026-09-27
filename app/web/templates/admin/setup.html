@@ -3,28 +3,33 @@
 {% block title %}Set up Podcast Ad Remover{% endblock %}
 {% block admin_content %}
 <h1>Set up Podcast Ad Remover</h1>
-<p class="text-sm text-text-muted mb-6">{{ step }} of 4 · You can change these settings later.</p>
-<form method="post" action="/admin/setup">
+<p class="text-sm text-text-muted mb-6">{{ step }} of 5 · Changes apply only when you finish.</p>
+{% if error %}<p role="alert" class="mb-4">{{ error }}</p>{% endif %}
+<form method="post" action="/admin/setup" autocomplete="off">
 <input type="hidden" name="step" value="{{ step }}">
 {% if step == 1 %}
-<h2>Your installation</h2>
-{{ text('app_external_url','Public application URL',settings.app_external_url,'url') }}
-<p class="text-sm text-text-muted mt-3">Use an address reachable by your podcast apps. Local network addresses work too.</p>
-<p class="mt-4">Dashboard login is {{ 'enabled' if settings.auth_enabled else 'off' }}. <a href="/admin/users#authentication" class="text-link">Manage access</a></p>
+{{ text('app_external_url','Application URL',entered.get('app_external_url',settings.app_external_url),'url') }}
+<p class="text-sm text-text-muted mt-3">Use an address reachable by your podcast apps.</p>
+<p class="mt-4">Dashboard login is {{ 'enabled' if settings.auth_enabled else 'off' }}. <a href="/admin/users#authentication" class="text-link">Set up administrator and login</a>. Access changes save separately and are not undone by cancelling this wizard.</p>
 {% elif step == 2 %}
-<h2>Text analysis</h2>
-<label class="setting-row"><span>Provider</span><select class="select" name="provider">{% for provider in ['gemini','openai','anthropic','openrouter','custom'] %}<option value="{{ provider }}" {% if settings.active_ai_provider == provider %}selected{% endif %}>{{ provider }}</option>{% endfor %}</select></label>
-{{ text('model','Model ID',settings.get({'gemini':'ai_model_cascade','openai':'openai_model','anthropic':'anthropic_model','openrouter':'openrouter_model','custom':'custom_llm_model'}.get(settings.active_ai_provider,'ai_model_cascade')),required=true) }}
-{{ text('api_key','API key',type='password') }}<p class="text-sm text-text-muted">Leave blank to use an environment or saved key. API use may be billed by your provider.</p>
-{{ text('base_url','Custom endpoint URL',settings.custom_llm_base_url,'url') }}
+{% set provider = entered.get('provider',settings.active_ai_provider) %}
+<label class="setting-row"><span>Provider</span><select class="select" name="provider" id="setup-provider">{% for item in ['gemini','openai','anthropic','openrouter','custom'] %}<option value="{{ item }}" {% if provider == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+{{ text('model','Model ID',entered.get('model',settings.get({'gemini':'ai_model_cascade','openai':'openai_model','anthropic':'anthropic_model','openrouter':'openrouter_model','custom':'custom_llm_model'}.get(provider,'ai_model_cascade'))),required=true) }}
+{{ text('api_key','API key',entered.get('api_key',''),type='password') }}
+<p class="text-sm text-text-muted">{{ 'A credential is configured.' if credential_configured else 'A credential is needed for hosted providers.' }} Leave blank to retain a saved or environment key; environment keys take precedence. API use may be billed. No test call is made here.</p>
+<div id="setup-custom">{{ text('base_url','Custom endpoint URL',entered.get('base_url',settings.custom_llm_base_url),'url') }}</div>
 {% elif step == 3 %}
-<h2>Remove by default</h2>
-{% for field,label in [('ads','Ads'),('promos','Promos'),('intros','Intros'),('outros','Outros'),('non_editorial_non_speech','Non-editorial non-speech')] %}{{ toggle('remove_'~field,label,settings['default_remove_'~field]) }}{% endfor %}
+<label class="setting-row"><span>Transcription model</span><select name="whisper_model" class="select">{% for item in ['tiny','base','small','medium','large'] %}<option {% if entered.get('whisper_model',settings.whisper_model)==item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+<label class="setting-row"><span>Device</span><select name="whisper_device" class="select"><option value="cpu" {% if entered.get('whisper_device',settings.whisper_device)!='cuda' %}selected{% endif %}>CPU</option><option value="cuda" {% if entered.get('whisper_device',settings.whisper_device)=='cuda' %}selected{% endif %}>NVIDIA GPU</option></select></label>
+<p class="text-sm mt-3">GPU requires host access and CUDA setup. <a class="text-link" href="/admin/ai/transcription">Set up or test GPU acceleration</a>; this is a separate action. Transcription uses faster-whisper.</p>
+{% elif step == 4 %}
+{% for field,label in [('ads','Ads'),('promos','Promos'),('intros','Intros'),('outros','Outros'),('non_editorial_non_speech','Non-editorial non-speech')] %}{{ toggle('remove_'~field,'Remove '~label, entered.get('remove_'~field)=='true' if entered else settings['default_remove_'~field]) }}{% endfor %}
+<label class="setting-row"><span>Retention</span><select name="retention" class="select"><option value="unchanged">Keep current: {{ settings.default_retention_limit }} episodes, {{ settings.default_retention_days }} days; manual {{ settings.default_manual_retention_days }} days</option><option value="standard" {% if entered.get('retention')=='standard' %}selected{% endif %}>Standard: 1 episode, 30 days; manual 14 days</option></select></label>
 {% else %}
-<h2>Ready to add a podcast</h2>
-<p class="my-4">Transcription runs locally using faster-whisper. Optional speech needs an API provider in <a href="/admin/ai/voice" class="text-link">Voice settings</a>.</p>
-<p class="my-4">You can rerun this wizard from System settings.</p>
+<h2>Review changes</h2>
+{% for name,value in changes.items() %}<div class="setting-row"><span>{{ name }}</span><span>{{ value if value is not none else 'Unset' }}</span></div>{% else %}<p class="my-4">No configuration changes.</p>{% endfor %}
+<p class="my-4">Optional speech can be configured in <a href="/admin/ai/voice" class="text-link">Voice settings</a>. Rerun setup from System settings.</p>
 {% endif %}
-<div class="flex gap-3 mt-6">{% if step > 1 %}<a class="btn-secondary" href="/admin/setup?step={{ step - 1 }}">Back</a>{% endif %}<button class="btn-primary" name="action" value="{{ 'finish' if step == 4 else 'next' }}">{{ 'Finish & add podcast' if step == 4 else 'Next' }}</button><button class="btn-secondary" name="action" value="dismiss" formnovalidate>Set up later</button></div>
+<div class="flex flex-wrap gap-3 mt-6">{% if step > 1 %}<a class="btn-secondary" href="/admin/setup?step={{ step - 1 }}">Back</a>{% endif %}<button class="btn-primary" name="action" value="{{ 'finish' if step == 5 else 'next' }}">{{ 'Apply & add podcast' if step == 5 else 'Next' }}</button>{% if step == 2 %}<button class="btn-secondary" name="action" value="skip" formnovalidate>Set up AI later</button>{% endif %}<button class="btn-secondary" name="action" value="dismiss" formnovalidate>Cancel / set up later</button></div>
 </form>
 {% endblock %}

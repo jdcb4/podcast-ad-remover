@@ -4,9 +4,9 @@ import pytest
 
 # (template path relative to app/web/templates, expected count of `| local_time` uses)
 ADMIN_LOCAL_TIME_SITES = [
-    ("admin/users.html", 5),
-    ("admin/feed_access.html", 2),
-    ("admin/system.html", 1),
+    ("admin/users.html", 2),
+    ("admin/_login_history.html", 1),
+    ("admin/_api_tokens.html", 1),
     ("admin/access_requests.html", 2),
 ]
 

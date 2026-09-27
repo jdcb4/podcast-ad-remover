@@ -2,12 +2,12 @@
 
 ## 1. Subscription & Polling
 1.  **User** searches for a podcast or pastes a direct RSS, YouTube channel, or explicit YouTube playlist URL.
-2.  **System** saves one global podcast row to `subscriptions`, or reuses the existing global row if the feed is already known. New rows inherit the current global processing-workflow, content-removal, retention, default-feature, and custom-instruction groups. Pre-migration podcasts stay explicitly on Legacy until opted in.
+2.  **System** saves one global podcast row to `subscriptions`, or reuses the existing global row if the feed is already known. New rows inherit the current global content-removal, retention and default-feature groups. Podcast-specific instructions are always used when nonempty.
 3.  **System** adds the podcast to the user's `user_subscriptions` list. New podcasts record the first adding user as `subscriptions.owner_user_id`.
 4.  **Scheduler** wakes up (e.g., every hour) and iterates active subscriptions.
 5.  **Source adapter** fetches RSS entries or performs bounded YouTube discovery (50 recent channel entries or 500 flat playlist members).
 6.  **System** compares remote episodes with `episodes` table (by GUID).
-7.  **System** queues new episodes for processing. New Complete Timeline jobs freeze their prompt, schema, model cascade and removal choices without credentials. Existing jobs keep their workflow; NULL snapshots mean Legacy.
+7.  **System** queues new episodes for processing. New Complete Timeline jobs freeze their prompt, schema, selected model and removal choices without credentials. V2 migration upgrades queued/retryable legacy snapshots before processing.
 
 ## 2. Episode Processing Pipeline
 For each queued episode:
@@ -21,23 +21,18 @@ For each queued episode:
     - Process audio file -> generate text segments with timestamps.
 
 3.  **Classification (configured LLM)**:
-    - Legacy: send the transcript with the effective prompts/removal settings and validate a JSON array of finite, ordered, known-label intervals. A valid empty array means no cuts. Existing whitelist behaviour is preserved.
-    - Complete Timeline: add explicit gaps through the measured episode duration, send numbered items separately from the rules, and request complete ID ranges plus a summary. Validate exact coverage and known labels, then map IDs to source boundaries. Schema constraints are requested according to the selected output mode.
-    - Both use durable request budgets. Invalid/refused/truncated classifications fail analysis. Cascades stay within the selected provider.
+    - Complete Timeline: add explicit gaps through the measured episode duration, send numbered items separately from the rules, and request complete ID ranges plus a summary. Validate exact coverage and known labels, then map IDs to source boundaries. Native schema constraints are required.
+    - Durable request budgets apply. Invalid/refused/truncated classifications fail analysis; no provider or model fallback is attempted.
 
-4.  **Optional SponsorBlock Evidence**:
-    - Only for YouTube episodes and only when `SPONSORBLOCK_ENABLED=true`, query read-only crowdsourced timestamps for categories enabled by the podcast's existing removal settings.
-    - Fail open and combine valid timestamps with selected LLM intervals on the original media timeline, retaining separate evidence.
-
-5.  **Ad Removal (FFmpeg)**:
-    - Complete Timeline first selects categories according to frozen removal preferences. Then it bridges only retained islands strictly shorter than the configured threshold between two selected cuts. Zero disables bridging. Reports preserve model classifications and extra island cuts separately. Legacy keeps its existing merge policy.
+4.  **Ad Removal (FFmpeg)**:
+    - Complete Timeline first selects categories according to frozen removal preferences. Then it bridges only retained islands strictly shorter than the configured threshold between two selected cuts. Zero disables bridging. Reports preserve model classifications and extra island cuts separately.
     - Calculate "keep" segments (total duration minus ad segments).
     - Use FFmpeg to cut and concatenate "keep" segments.
-    - If global warning tones are enabled, splice bundled beginning/ending cues only at removed edges and one low cue at each interior removal seam. No runtime synthesis is used.
+    - If cut tones are enabled, splice bundled beginning/ending cues only at removed edges and one low cue at each interior removal seam. No runtime synthesis is used.
     - Save processed audio in the episode artifact directory.
 
-6.  **Finalize**:
-    - Complete Timeline reuses its combined summary for enabled description/TTS features; Legacy retains separate summary generation. A summary-only format failure can be repaired without rerunning valid classification.
+5.  **Finalize**:
+    - The combined summary supplies enabled description and API-only speech features. A summary-only format failure can be repaired without rerunning valid classification.
     - Validate output MP3 duration (non-MP3 no-cut sources are encoded to MP3).
     - Switch published artifact pointers and stats in one claim-guarded SQLite transaction.
     - Serialize and atomically replace podcast/unified RSS; clear the matching publication-pending flag only after success.

@@ -128,8 +128,8 @@ async def test_pipeline_preserves_publication_on_feed_failure_and_failed_reproce
     claim = jobs.claim_due(1)[0]
     processor = Processor()
     processor.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
-    processor.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 4, 'text': 'hello'}]})
-    processor.ad_detector = SimpleNamespace(detect_ads=lambda *a, **k: [{'start': 1, 'end': 3, 'label': 'Ad'}])
+    processor.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 1, 'text': 'hello'},{'start':1,'end':3,'text':'Ad'},{'start':3,'end':4,'text':'Closing'}]})
+    monkeypatch.setattr(processor.ad_detector, 'classify_timeline', lambda units,*a: fixture_analysis(units,2))
     def fail_feed(*args):
         raise OSError('injected feed write failure')
     monkeypatch.setattr(processor.rss_gen, 'generate_feed', fail_feed)
@@ -146,6 +146,8 @@ async def test_pipeline_preserves_publication_on_feed_failure_and_failed_reproce
     assert not repo.get_by_id(first.id).publication_pending
     assert '2</itunes:duration>' in (Path(settings.FEEDS_DIR) / 'show.xml').read_text()
     await Processor().version_episode(first.id)
+    # Changed source forces fresh analysis rather than the valid classification cache.
+    subprocess.run(['ffmpeg','-y','-v','error','-f','lavfi','-i','sine=frequency=880:duration=4',str(source)],check=True,timeout=30)
     repo.reset_status(first.id)
     repo.update_status(first.id, 'pending')
     assert repo.get_by_id(first.id).local_filename == old_audio
@@ -157,7 +159,7 @@ async def test_pipeline_preserves_publication_on_feed_failure_and_failed_reproce
     worker.transcriber = processor.transcriber
     def fail_analysis(*args, **kwargs):
         raise RuntimeError('injected provider failure')
-    worker.ad_detector = SimpleNamespace(detect_ads=fail_analysis)
+    monkeypatch.setattr(worker.ad_detector,'classify_timeline',fail_analysis)
     monkeypatch.setattr('app.core.processor.get_source_adapter', lambda _: SimpleNamespace(download=download))
     monkeypatch.setattr('app.core.processor.send_notification_async', notify)
     await worker._process_episode_inner(repo.get_by_id(first.id), sub, replacement)
@@ -184,9 +186,9 @@ async def test_retry_reuses_verified_transcription_and_analysis(episodes, tmp_pa
     def transcribe(*args, **kwargs):
         calls['transcribe'] += 1
         return {'segments': [{'start': 0, 'end': 4, 'text': 'hello'}]}
-    def detect(*args, **kwargs):
+    def detect(units, *args, **kwargs):
         calls['detect'] += 1
-        return []
+        return fixture_analysis(units)
     async def notify(*args, **kwargs): pass
     monkeypatch.setattr('app.core.processor.get_source_adapter', lambda _: SimpleNamespace(download=download))
     monkeypatch.setattr('app.core.processor.send_notification_async', notify)
@@ -199,7 +201,7 @@ async def test_retry_reuses_verified_transcription_and_analysis(episodes, tmp_pa
         worker = Processor()
         worker.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
         worker.transcriber = SimpleNamespace(transcribe=transcribe)
-        worker.ad_detector = SimpleNamespace(detect_ads=detect)
+        monkeypatch.setattr(worker.ad_detector,'classify_timeline',detect)
         await worker._process_episode_inner(repo.get_by_id(claim['id']), sub, claim)
     assert repo.get_by_id(first['id']).status == 'failed'
     repo.update_status(first['id'], 'pending')
@@ -209,3 +211,11 @@ async def test_retry_reuses_verified_transcription_and_analysis(episodes, tmp_pa
     await worker._process_episode_inner(repo.get_by_id(second['id']), sub, second)
     assert repo.get_by_id(second['id']).status == 'completed'
     assert calls == {'transcribe': 1, 'detect': 1, 'download': 1}
+
+
+def fixture_analysis(units, ad_id=None):
+    from app.core import timeline
+    import json
+    response={'segments':[{'first_id':u['id'],'last_id':u['id'],'label':'Ad' if u['id']==ad_id else 'Content','reason':'Fixture'} for u in units], 'summary':'This episode includes discussion. It examines a topic.'}
+    rows,summary=timeline.parse_response(json.dumps(response),units)
+    return {'segments':rows,'summary':summary,'response':response,'provider':'fixture','model':'fixture'}

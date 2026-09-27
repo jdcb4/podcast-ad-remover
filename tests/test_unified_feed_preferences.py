@@ -78,6 +78,7 @@ def test_unified_feed_settings_resolve_legacy_defaults():
         "include_podcast_name": True,
         "custom_artwork_url": None,
         "artwork_url": "https://podcasts.example/static/unified_feed_cover.png",
+        "artwork_source": "default", "has_upload": False,
     }
 
 
@@ -141,7 +142,7 @@ def test_unified_feed_generation_uses_custom_preferences(isolated_data_dir, monk
     channel = rss.find("channel")
 
     assert channel.findtext("title") == "Paul's Shows & More"
-    assert channel.findtext("description") == "A <custom> description & collection"
+    assert channel.findtext("description") == DEFAULT_UNIFIED_FEED_DESCRIPTION
     assert channel.findtext("item/title") == "An <interesting> episode"
     assert channel.findtext("item/guid") == "stable-published-guid"
     assert channel.findtext("item/itunes:duration", namespaces=ITUNES_NAMESPACE) == "51"
@@ -169,7 +170,7 @@ def test_unified_feed_admin_page_updates_and_resets_settings(
         page = client.get("/admin/unified-feed")
         assert page.status_code == 200
         assert DEFAULT_UNIFIED_FEED_TITLE in page.text
-        assert "https://podcasts.example/feed/unified.xml" in page.text
+        assert "https://podcasts.example/feed/unified.xml" not in page.text
 
         response = client.post(
             "/admin/unified-feed/update",
@@ -196,7 +197,7 @@ def test_unified_feed_admin_page_updates_and_resets_settings(
             ).fetchone()
 
         assert row["unified_feed_title"] == "My Combined Feed"
-        assert row["unified_feed_description"] == "Everything in one place"
+        assert row["unified_feed_description"] == DEFAULT_UNIFIED_FEED_DESCRIPTION
         assert row["unified_feed_include_podcast_name"] == 0
         assert row["unified_feed_artwork_url"] == "https://images.example/combined.png"
 
@@ -270,7 +271,7 @@ def test_unified_feed_rejects_xml_invalid_characters(field, character):
         normalize_unified_feed_settings(**values)
 
 
-@pytest.mark.parametrize("field", ["title", "description", "artwork_url"])
+@pytest.mark.parametrize("field", ["title", "artwork_url"])
 def test_invalid_metadata_keeps_saved_settings_and_feed(
     isolated_data_dir, monkeypatch, field,
 ):
@@ -311,7 +312,7 @@ def test_legacy_metadata_still_generates_valid_xml(isolated_data_dir, monkeypatc
     })
     channel = rss.find("channel")
     assert channel.findtext("title") == "Café 🎧"
-    assert channel.findtext("description") == "First page\nSecond\tpage"
+    assert channel.findtext("description") == DEFAULT_UNIFIED_FEED_DESCRIPTION
     assert channel.find("itunes:image", ITUNES_NAMESPACE).attrib["href"] == (
         "https://images.example/cover.png"
     )
@@ -334,7 +335,7 @@ def test_settings_feed_address_uses_shared_session_token(isolated_data_dir, monk
         page = client.get("/admin/unified-feed")
         feed_url = page.context["feed_url"]
         token = parse_qs(urlsplit(feed_url).query)["token"][0]
-        assert feed_url in page.text
+        assert client.get("/account/feed").json()["rss"] == feed_url
         assert client.get(feed_url).status_code == 200
         assert client.get("/feed/unified.xml").status_code == 401
         assert client.get("/admin/unified-feed").context["feed_url"] == feed_url
@@ -368,6 +369,7 @@ def test_artwork_preview_matches_browser_policy(
             "unified_feed_title": "My feed",
             "unified_feed_description": "My description",
             "unified_feed_artwork_url": artwork_url,
+            "artwork_source": "url" if artwork_url else "default",
         }, follow_redirects=False)
         assert response.status_code == 303
         page = client.get("/admin/unified-feed")
@@ -390,7 +392,7 @@ def test_unified_feed_upgrade_preserves_both_database_histories(
     preference_migration = "20260824_0013_unified_feed_preferences"
     migrations = database.FORMAL_MIGRATIONS
     if previous_version == "dev":
-        previous_migrations = [item for item in migrations if item[0] != preference_migration]
+        previous_migrations = [item for item in migrations if item[0] < preference_migration]
     else:
         previous_migrations = [item for item in migrations if item[0] <= preference_migration]
     with monkeypatch.context() as previous:

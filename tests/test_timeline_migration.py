@@ -34,15 +34,15 @@ def test_upgrade_keeps_legacy_workflows_jobs_prompts_and_publications(isolated_d
         assert backup.execute('SELECT ad_prompt_base FROM app_settings').fetchone()[0] == 'Saved base'
     with get_db_connection() as conn:
         before = dict(conn.execute('SELECT * FROM app_settings').fetchone())
-        assert before['default_processing_workflow'] == 'legacy'
+        assert before['default_processing_workflow'] == 'complete_timeline'
         assert before['ad_prompt_base'] == 'Saved base' and before['ad_target_sponsor'] == 'Saved ads'
-        assert before['summary_prompt_template'] == 'Saved summary' and before['whitelist_mode'] == 1
-        assert conn.execute('SELECT processing_snapshot FROM jobs').fetchone()[0] is None
+        assert before['summary_prompt_template'] == 'Saved summary' and before['whitelist_mode'] == 0
+        assert json.loads(conn.execute('SELECT processing_snapshot FROM jobs').fetchone()[0])['workflow'] == 'complete_timeline'
         conn.execute("UPDATE app_settings SET default_processing_workflow='complete_timeline', openrouter_api_key='never-snapshot-this-key'")
         conn.commit()
     repo = SubscriptionRepository()
     old = repo.get_by_id(1)
-    assert old.processing_workflow == 'legacy' and not old.inherit_processing_workflow
+    assert old.processing_workflow == 'complete_timeline' and not old.inherit_processing_workflow
     assert old.custom_instructions == 'Keep these instructions'
     new = repo.create(SubscriptionCreate(feed_url='https://example.com/new'), 'New', 'new')
     assert new.processing_workflow == 'complete_timeline' and new.inherit_processing_workflow
@@ -55,7 +55,7 @@ def test_upgrade_keeps_legacy_workflows_jobs_prompts_and_publications(isolated_d
         snapshot = conn.execute('SELECT processing_snapshot FROM jobs WHERE episode_id=3').fetchone()[0]
         assert 'never-snapshot-this-key' not in snapshot
         assert json.loads(snapshot)['workflow'] == 'complete_timeline'
-        assert conn.execute('SELECT processing_snapshot FROM jobs WHERE episode_id=2').fetchone()[0] is None
+        assert json.loads(conn.execute('SELECT processing_snapshot FROM jobs WHERE episode_id=2').fetchone()[0])['workflow'] == 'complete_timeline'
         conn.execute("UPDATE app_settings SET timeline_summary_instructions='New future summary rule', default_minimum_retained_seconds=0")
         conn.commit()
     JobRepository().enqueue(3)

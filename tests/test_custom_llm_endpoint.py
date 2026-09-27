@@ -245,7 +245,7 @@ def test_text_settings_store_arbitrary_custom_endpoint_and_model(
     assert row["active_ai_provider"] == "custom"
     assert row["custom_llm_base_url"] == "http://ollama:11434/v1"
     assert row["custom_llm_api_key"] == "saved-custom-key"
-    assert json.loads(row["custom_llm_model"]) == ["company/nonstandard:model-tag"]
+    assert row["custom_llm_model"] == "company/nonstandard:model-tag"
 
 
 def test_text_settings_reject_unsafe_custom_endpoint(isolated_data_dir):

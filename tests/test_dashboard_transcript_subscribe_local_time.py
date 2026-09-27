@@ -229,7 +229,7 @@ async def test_dashboard_data_recent_attribute_is_z_suffixed_utc(isolated_data_d
     assert response.status_code == 200
     body = response.text
 
-    assert body.count('data-recent="2026-01-15T09:30:00Z"') == 2, body.count(
+    assert body.count('data-recent="2026-01-15T09:30:00Z"') == 3, body.count(
         'data-recent="2026-01-15T09:30:00Z"'
     )
     # Neither the bare naive-local string nor a T-but-no-Z variant survives.
@@ -277,7 +277,7 @@ async def test_dashboard_data_recent_attribute_empty_for_zero_episode_subscripti
 
     assert 'data-recent="None"' not in body
     # Both the table row and the grid card render the empty attribute.
-    assert body.count('data-recent=""') == 2, body.count('data-recent=""')
+    assert body.count('data-recent=""') == 3, body.count('data-recent=""')
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not available")

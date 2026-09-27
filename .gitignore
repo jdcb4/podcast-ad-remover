@@ -33,3 +33,8 @@ Thumbs.db
 # Node
 node_modules/
 debugfiles/
+
+# Local visual review evidence
+.impeccable/review/
+
+configurator/offline.zip

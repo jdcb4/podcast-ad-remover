@@ -150,8 +150,6 @@ def test_sensitive_admin_routes_have_route_level_admin_dependency():
         "update_ai_settings",
         "test_ai_connection",
         "refresh_models",
-        "save_prompts",
-        "reset_prompts",
         "cancel_episode",
         "retry_episode",
         "revoke_feed_token",
@@ -224,8 +222,8 @@ def test_user_management_has_admin_create_user_form():
     assert "async def create_user(" in router_source
     assert "Depends(require_admin)" in router_source
     assert 'action="/admin/users"' in users_template
-    assert 'name="confirm_password"' in users_template
-    assert 'name="is_admin"' in users_template
+    assert "text('confirm_password'" in users_template
+    assert "toggle('is_admin'" in users_template
 
 
 def test_login_page_offers_public_subscribe_link_when_enabled():
@@ -241,7 +239,7 @@ def test_login_page_offers_public_subscribe_link_when_enabled():
 
 def test_protected_feed_links_warn_that_tokens_are_bearer_secrets():
     feed_access_template = Path("app/web/templates/admin/feed_access.html").read_text(encoding="utf-8")
-    index_template = Path("app/web/templates/index.html").read_text(encoding="utf-8")
+    index_template = Path("app/web/templates/admin/users.html").read_text(encoding="utf-8")
     episodes_template = Path("app/web/templates/episodes.html").read_text(encoding="utf-8")
     router_source = Path("app/web/router.py").read_text(encoding="utf-8")
 

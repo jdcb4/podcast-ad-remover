@@ -22,6 +22,7 @@
 <body class="bg-surface-base text-text-primary min-h-screen font-sans antialiased">
     <div class="mobile-appbar"><button type="button" data-toggle-sidebar aria-label="Open navigation" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="/">Podcast Ad Remover</a></div>
     <aside class="app-sidebar" aria-label="Main navigation">
+      <button class="sidebar-close" type="button" data-close-sidebar aria-label="Close navigation">Close navigation</button>
       <a class="brand" href="/">Podcast Ad Remover</a>
       {% if user %}<a href="/#add" class="btn-primary" data-add-podcast>Add podcast</a>{% endif %}
       <nav><a href="/?view=mine">My Podcasts</a><a href="/?view=library">Library</a>

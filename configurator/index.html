@@ -1,26 +1,53 @@
 <!doctype html>
+
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>Install · Podcast Ad Remover</title><link rel="stylesheet" href="style.css"><script src="release.js" defer></script><script src="configurator.js" defer></script></head>
-<body><main><header><p>Podcast Ad Remover</p><h1>Your install, ready to run.</h1><p>Build a Docker configuration in your browser. Your inputs stay here: no uploads, analytics or saved credentials.</p><p id="release"></p></header>
+
+<body><main><header><h1>Install Podcast Ad Remover</h1><p>Build a Docker configuration in your browser. Your inputs stay here: no uploads, analytics or saved credentials.</p><p id="release"></p></header>
+
 <form id="config" autocomplete="off">
+
 <fieldset><legend>1 · Where will it run?</legend>
-<label>Format<select name="format"><option value="compose">Docker Compose</option><option value="docker">Docker run (POSIX shell)</option></select></label>
+
+<label>Format<select name="format"><option value="compose">Docker Compose</option><option value="docker">Docker run</option></select></label>
+
+<label>Command shell<select name="shell"><option value="posix">POSIX (Linux / macOS)</option><option value="powershell">PowerShell (Windows)</option></select></label>
+
 <label>Host port<input name="port" type="number" value="8000" min="1" max="65535" required></label>
+
 <label>Data storage<select name="storage"><option value="volume">Named Docker volume (recommended)</option><option value="bind">Existing host directory</option></select></label>
+
 <label>Directory on Docker host<input name="path" placeholder="/srv/podcast-ad-remover" disabled></label><p class="hint">Keep this storage across upgrades. An existing installation must reuse its current data directory.</p>
+
 <label>Application URL<input name="url" type="url" value="http://localhost:8000" required></label><p class="hint">Use your server's LAN address or HTTPS domain for podcast apps. This can be changed later.</p>
-<label class="check"><input name="https" type="checkbox">Behind an HTTPS reverse proxy</label>
+
+<label class="check"><input name="https" type="checkbox">Behind an HTTPS reverse proxy</label><p class="hint">Enables secure cookies and trusts forwarded headers. Use only when the container is reachable exclusively through your trusted proxy.</p>
+
 </fieldset>
-<fieldset><legend>2 · Analysis credentials (optional)</legend>
+
+<details><summary>Analysis credentials (optional)</summary>
+
 <label>Provider<select name="provider"><option value="">Configure in the app later</option><option value="GEMINI_API_KEY">Gemini</option><option value="OPENAI_API_KEY">OpenAI</option><option value="ANTHROPIC_API_KEY">Anthropic</option><option value="OPENROUTER_API_KEY">OpenRouter</option></select></label>
+
 <label>API key<input name="key" type="password" disabled autocomplete="new-password"></label><p class="hint">Choose your provider and model in the app after installation. Environment credentials take precedence over saved keys. Custom endpoints are configured in the app.</p>
-</fieldset>
-<details><summary>Advanced installation options</summary>
-<label>Transcription model<select name="model"><option>base</option><option>tiny</option><option>small</option><option>medium</option><option>large</option></select></label>
-<label class="check"><input name="gpu" type="checkbox">NVIDIA GPU (Linux host with Container Toolkit)</label>
-<p class="hint">The CPU configuration works without GPU setup. CUDA libraries can be installed from Transcription settings; the container still needs GPU access.</p>
-<label>Log level<select name="log"><option>INFO</option><option>WARNING</option><option>ERROR</option><option>DEBUG</option></select></label>
+
 </details>
+
+<details><summary>Advanced installation options</summary>
+
+
+
+<label class="check"><input name="gpu" type="checkbox">NVIDIA GPU (Linux host with Container Toolkit)</label>
+
+<p class="hint">The CPU configuration works without GPU setup. CUDA libraries can be installed from Transcription settings; the container still needs GPU access.</p>
+
+
+
+</details>
+
 <div class="actions"><button type="submit">Build configuration</button><button type="button" id="clear">Clear credentials & output</button></div>
+
 </form>
-<section id="result" hidden><h2>Ready to install</h2><p>A random session secret is included. Keep this file private and preserve that secret on upgrades. The optional setup wizard opens from the app.</p><p id="status" role="status"></p><pre><code id="output"></code></pre><div class="actions"><button id="copy">Copy</button><button id="download">Download</button></div><p id="command"></p></section>
-<footer>Content removal, retention, accounts, feeds, speech, prompts and notifications can all be configured after installation. No paid speech provider is enabled automatically.</footer></main></body></html>
+
+<section id="result" hidden><h2>Ready to install</h2><p>A random session secret is kept for this configuration. Keep the env file private and preserve that secret on upgrades. The optional setup wizard opens from the app.</p><p id="status" role="status"></p><pre><code id="output"></code></pre><div class="actions"><button id="copy">Copy</button><button id="download">Download install file</button><button id="download-env">Download env file</button><button id="regenerate">Regenerate session secret</button></div><p id="command"></p></section>
+
+<footer><p><a href="offline.zip" download>Download offline configurator</a> · Unzip and open index.html; no server is needed.</p>Content removal, retention, accounts, feeds, speech, prompts and notifications can all be configured after installation. No paid speech provider is enabled automatically.</footer></main></body></html>

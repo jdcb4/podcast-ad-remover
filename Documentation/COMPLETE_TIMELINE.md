@@ -1,34 +1,10 @@
-# Complete Timeline processing
+# Complete Timeline processing (v2)
 
-Complete Timeline is an opt-in alternative to Legacy ad detection. It classifies the whole
-episode once, then applies the podcast's removal choices in code. Existing installations,
-podcasts, custom Legacy prompts and queued jobs keep their previous behaviour on upgrade.
-
-## Enable it for a podcast
-
-1. Open the podcast's **Processing Settings**.
-2. Leave **Use global settings** off for Processing workflow and choose **Complete Timeline**.
-3. Choose the categories to remove under Content Removal. Disable that group's inheritance
-   if this podcast needs different choices from the global defaults.
-4. Set the short-island threshold: **10 seconds** by default, **0** to disable it.
-5. Review custom instructions, then save. Changes apply to newly queued jobs. Published audio
-   and jobs already in the queue are not automatically reprocessed or converted.
-
-Owners and admins can change a podcast's settings. The podcast, audio and replacement feed are
-shared by everyone subscribed to that podcast; these are not individual listener preferences.
-Use the existing reprocess action when you want to replace an already completed episode.
-
-Admins can choose Complete Timeline as the default in **Global Subscription Settings**. New
-podcasts inherit that default. Podcasts that existed before migration remain explicitly on
-Legacy until an owner/admin changes their workflow or enables workflow inheritance. Changing
-the default does not opt those existing podcasts in.
+V2 classifies the complete episode once, then applies removal choices in code. There is no Legacy workflow or whitelist mode. Configure defaults under Podcast defaults; owners/admins can override the content-removal group per podcast. Published media is not automatically reprocessed.
 
 ## Categories and definitions
 
-**AI Prompt Rules → Complete Timeline** shows the fixed global prompt template as read only.
-Admins edit the seven definitions in full-width fields stacked below it. Blank values or
-**Use default definition** select the built-in definition when saved. Category identifiers and
-the coverage contract are fixed; definitions refine what belongs in each category.
+**Prompt rules** offers collapsible category definitions with per-rule defaults and a preview of the assembled prompt. Optional podcast-specific guidance is under advanced podcast settings and is always applied when nonempty.
 
 | Category | Default meaning | Initial removal choice |
 | --- | --- | --- |
@@ -73,8 +49,7 @@ Leading and trailing retained material is not an island. This rule deliberately 
 Content or editorial classifications for qualifying islands; the report identifies those extra
 cuts separately. It does not modify the original model labels.
 
-Legacy whitelist mode remains available for Legacy jobs. Complete Timeline uses category choices
-and explicit gaps, so the global whitelist switch has no effect on this workflow.
+Editorial non-speech is never directly selected for removal. The advanced short-island policy remains independent.
 
 ## Summary and reports
 
@@ -102,11 +77,7 @@ instructions, JSON schema and resolved model selections, including unsaved defin
 It can include a podcast's effective custom instructions. Preview does not call a model or expose
 API keys. The numbered transcript is supplied as a separate source-data message at processing time.
 
-| Mode | Behaviour |
-| --- | --- |
-| Auto (default) | Request native JSON Schema. Only an explicit unsupported-format response permits a retry as JSON text, which is still strictly validated. OpenAI-compatible capability results are cached per endpoint/provider/model for one hour. |
-| Require schema | Keep schema enforcement throughout the selected provider's cascade. Fail if none of its configured models can provide it. |
-| JSON compatibility | Send the schema as instructions, without requiring native schema support. Still validate every label, range and complete coverage. |
+Native JSON schema output is required. A complete valid JSON object can be unwrapped from prose or a code fence; malformed syntax, duplicate keys, nonfinite values and incomplete coverage are rejected.
 
 Native requests use OpenAI-compatible `response_format.json_schema` for OpenAI, Gemini,
 OpenRouter and custom endpoints. OpenRouter requests require endpoints that accept the schema
@@ -116,29 +87,11 @@ parameter. Anthropic uses `output_config.format`. See the official
 [OpenRouter](https://openrouter.ai/docs/guides/features/structured-outputs), and
 [Anthropic](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) contracts.
 
-Capability is determined by actual requests, not guesses from model names or extra paid probes.
-Outages, authentication errors, invalid schemas, truncation and refusals do not trigger a format
-downgrade. Failures use only the configured cascade within the selected provider; Gemini does
-not fall back to OpenRouter in production. Temperature and reasoning parameters remain omitted
-so provider defaults apply. Existing timeouts, request budgets and the Anthropic output-token
-limit still apply. An incomplete classification gets at most one application-level repair;
-all model/key/format attempts share the durable job request budget. Invalid analysis cannot
-be treated as a successful no-cut result.
+One selected model and credential are used. Unsupported schemas, outages, authentication errors, truncation and refusals never trigger model/key/format fallback. Temperature and reasoning parameters remain omitted. Request budgets and timeouts apply to classification and summary repair. Invalid classification is never treated as a clean episode.
 
 ## Migration, cached results and rollback
 
-Migration `20260910_0016_complete_timeline_opt_in` is additive. It adds workflow, non-speech,
-threshold and prompt settings plus `jobs.processing_snapshot`. Existing podcasts get
-`processing_workflow=legacy`, `inherit_processing_workflow=0`. Existing jobs retain a NULL
-snapshot, explicitly interpreted as Legacy even if the global default later changes.
-Legacy prompt overrides and the whitelist flag are not rewritten.
-
-New Complete Timeline jobs freeze the effective prompt, resolved model cascade, output mode,
-schema version and removal policy when queued. Credentials are loaded at execution time and
-are never stored in the snapshot. Automatic retries and re-enqueuing an active job retain its
-snapshot. Description/TTS/retention and other existing features continue resolving as before;
-they are not part of this new classification snapshot. Unsupported snapshot/schema versions
-fail with an actionable error rather than silently using different rules.
+V2 migration `20260927_0023_v2` creates timeline snapshots for queued/retryable legacy jobs and normalizes existing timeline snapshots. Running jobs must be drained first. Credentials are loaded only at execution, never written to snapshots. The upgrade report identifies conversions. New jobs freeze the prompt, schema, selected model and removal policy; retries retain that snapshot.
 
 Classification caches require matching source SHA-256, transcript, measured duration, prompt,
 schema and provider configuration. Changing only removal choices or the island threshold can
@@ -146,9 +99,4 @@ reuse matching classification on reprocess. A changed download, including dynami
 ads, invalidates reuse. Previous published audio stays available until its replacement completes.
 Changing workflow does not move or rewrite existing reports, feed URLs, GUIDs or audio.
 
-To opt out, select Legacy for newly queued jobs. Keep the upgraded application: switching modes
-does not require a database downgrade. To roll back the application itself, use the previous
-immutable image with the pre-upgrade database snapshot and matching media backup, following
-[RECOVERY.md](RECOVERY.md). Do not point an older binary at the upgraded database: it cannot
-honour Complete Timeline job snapshots. Startup creates a WAL-safe, integrity-checked snapshot
-before migration, and the migration dry-run command can rehearse the upgrade first.
+Rollback requires the previous immutable image, matching pre-upgrade database and media recovery point. Follow [RECOVERY.md](RECOVERY.md) and [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md); do not perform a binary-only downgrade after v2 writes.

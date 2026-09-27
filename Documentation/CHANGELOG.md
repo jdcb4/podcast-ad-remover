@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- V2: timeline-only analysis with mandatory schema output, minimal JSON unwrapping, one model and one credential per provider; environment credentials win.
+- Remove local Piper speech and exclusive dependencies, legacy classification/whitelist, model cascades and SponsorBlock integration. YouTube sources remain supported.
+- Add OpenAI, OpenRouter and custom API speech alongside Gemini. Former local-speech installs continue core processing and show configuration guidance.
+- Compact desktop/sidebar and mobile podcast rows, consistent settings controls, consolidated Users & access, one cut tone switch, and uploaded unified-feed artwork.
+- Add an optional rerunnable setup wizard and browser-only Docker/Compose configurator with stable/dev Pages publication hooks after successful authorized Docker pushes.
+- Backed-up v2 migration preserves published media, ownership, tokens and requested speech features; reports queued-job and configuration conversions. Ownership changes and whisper.cpp are deferred. Production version remains unchanged until release promotion.
+
 ## 1.16.0 - 2026-09-27
 
 - Add capability-validated CPU transcription precision settings while preserving CPU/float32 defaults and existing saved settings.

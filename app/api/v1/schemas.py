@@ -39,12 +39,13 @@ class SubscriptionCreateRequest(BaseModel):
 
 
 class SubscriptionSettingsUpdate(BaseModel):
+    model_config = {"extra": "forbid"}
     remove_ads: bool | None = None
     remove_promos: bool | None = None
     remove_intros: bool | None = None
     remove_outros: bool | None = None
     custom_instructions: str | None = None
-    append_summary: bool | None = None
+    append_summary: Literal[False] | None = None
     append_title_intro: bool | None = None
     ai_rewrite_description: bool | None = None
     ai_audio_summary: bool | None = None

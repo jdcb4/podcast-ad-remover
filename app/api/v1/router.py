@@ -308,15 +308,7 @@ async def update_subscription_settings(
         "inherit_default_features",
         False if feature_fields.intersection(updates) else sub.inherit_default_features,
     )
-    inherit_custom_instructions = updates.get(
-        "inherit_custom_instructions",
-        sub.inherit_custom_instructions,
-    )
-    if "custom_instructions" in updates:
-        if updates["custom_instructions"] is None or not updates["custom_instructions"].strip():
-            inherit_custom_instructions = True
-        elif "inherit_custom_instructions" not in updates:
-            inherit_custom_instructions = False
+    inherit_custom_instructions = False
 
     sub_repo.update_settings(
         subscription_id,

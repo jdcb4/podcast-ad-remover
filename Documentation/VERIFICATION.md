@@ -296,9 +296,10 @@ Before deployment, rehearse `migration_dry_run.py` on an online snapshot of the 
 record the immutable image and media backup, and check the disabled-processing clone before
 re-enabling work. A build alone does not validate production data or paid provider behavior.
 
-## Model defaults and warning tones
+## V2 qualification
 
-`test_warning_tones.py` checks fresh defaults, a one-time upgrade preserving custom model choices,
-settings persistence, absence of sound selectors/previews, and older form compatibility. Real FFmpeg fixtures exercise all
-combinations of the three tone switches, overlapping cuts, audible cue placement, retained silence,
-edge-free cuts and no-cut output. Processing always uses Wooden notes, including when legacy style values are supplied.
+Run `npm run verify` with Python 3.11, and `npm run verify:docker` for the image. Timeline tests cover complete coverage, mandatory provider schemas, refusal/truncation failure and valid JSON wrapper cleanup. Migration tests cover backups, repeat startup, queued snapshots, unconfigured former Piper installs and unchanged ownership/media. Real FFmpeg fixtures cover cuts, publication/recovery and the one-switch tone behavior at all cut positions.
+
+`test_v2_interface.py` exercises compact page rendering, grouped saves, artwork uploads, consolidated account links, staged wizard review/cancel/conflicts and provider-preview failures. `test_configurator.py` exercises stable/regenerated secrets, separate env files, POSIX/PowerShell generation, private state clearing and offline bundle contents. The install output also needs an actual `docker compose config` and env-file round-trip check, plus PowerShell parsing on Windows; use synthetic credentials only.
+
+Before deployment, rehearse migration against a backup of the actual installation, retain the prior immutable image/media recovery point, and explicitly qualify the chosen live provider and any GPU host. Local unit tests do not prove paid endpoint support, production data compatibility or Pages account permissions. Pages publication itself occurs only after authorized Docker publication.

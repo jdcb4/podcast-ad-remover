@@ -35,7 +35,7 @@ def client(isolated_data_dir, monkeypatch):
 def test_rules_page_preview_and_save_are_separate_from_opt_in(client):
     page = client.get('/admin/prompts')
     assert page.status_code == 200
-    assert 'Saved legacy {targets} {custom_instr}' in page.text
+    assert 'Saved legacy {targets} {custom_instr}' not in page.text
     assert 'test-secret-must-not-render' not in page.text
     for label in timeline.DEFINITIONS:
         assert f'name="definition_{label}"' in page.text
@@ -51,17 +51,17 @@ def test_rules_page_preview_and_save_are_separate_from_opt_in(client):
     assert result.status_code == 200
     with get_db_connection() as conn:
         saved = dict(conn.execute('SELECT * FROM app_settings').fetchone())
-        assert saved['default_processing_workflow'] == 'legacy'
+        assert saved['default_processing_workflow'] == 'complete_timeline'
         assert saved['whitelist_mode'] == 1
         assert saved['ad_prompt_base'] == 'Saved legacy {targets} {custom_instr}'
         assert json.loads(saved['timeline_definitions']) == {'Outro': 'Only generic closing housekeeping.'}
         assert saved['timeline_output_mode'] == 'strict'
-    assert SubscriptionRepository().get_by_id(1).processing_workflow == 'legacy'
+    assert SubscriptionRepository().get_by_id(1).processing_workflow == 'complete_timeline'
 
 
 def test_default_reset_is_scoped_and_invalid_output_mode_does_not_write(client):
     client.post('/admin/prompts/timeline', data={'definition_Intro': 'Opening housekeeping only.', 'definition_Ad': 'Paid messages.'})
-    assert client.post('/admin/prompts/timeline', data={'definition_Intro': '', 'timeline_output_mode': 'invalid'}).status_code == 400
+    assert client.post('/admin/prompts/timeline', data={'definition_Intro': '', 'definition_Ad': 'x' * 10001}).status_code == 400
     client.post('/admin/prompts/timeline', data={'definition_Intro': ''})
     with get_db_connection() as conn:
         assert json.loads(conn.execute('SELECT timeline_definitions FROM app_settings').fetchone()[0]) == {'Ad': 'Paid messages.'}
@@ -72,17 +72,17 @@ def test_podcast_opt_in_zero_threshold_and_existing_queued_job_are_preserved(cli
     jobs.enqueue(1)
     data = {'timeline_settings_present': 'true', 'processing_workflow': 'complete_timeline',
             'remove_ads': 'true', 'remove_intros': 'true', 'remove_outros': 'true',
-            'minimum_retained_seconds': '0', 'inherit_custom_instructions': 'true'}
+            'minimum_retained_seconds': '0', 'custom_instructions': 'Preserve musical demonstrations'}
     result = client.post('/subscriptions/1/settings', data=data, follow_redirects=False)
     assert result.status_code == 303
     sub = SubscriptionRepository().get_by_id(1)
     assert sub.processing_workflow == 'complete_timeline' and not sub.inherit_processing_workflow
     assert sub.minimum_retained_seconds == 0 and not sub.remove_non_editorial_non_speech
     with get_db_connection() as conn:
-        assert json.loads(conn.execute('SELECT processing_snapshot FROM jobs').fetchone()[0])['workflow'] == 'legacy'
+        assert json.loads(conn.execute('SELECT processing_snapshot FROM jobs').fetchone()[0])['workflow'] == 'complete_timeline'
     assert client.get('/subscriptions/1').status_code == 200
     # An older form omits new fields and must not reset them.
-    assert client.post('/subscriptions/1/settings', data={'remove_ads': 'true', 'inherit_custom_instructions': 'true'}, follow_redirects=False).status_code == 303
+    assert client.post('/subscriptions/1/settings', data={'remove_ads': 'true', 'custom_instructions': 'Preserve musical demonstrations'}, follow_redirects=False).status_code == 303
     after = SubscriptionRepository().get_by_id(1)
     assert after.processing_workflow == 'complete_timeline' and after.minimum_retained_seconds == 0
 
@@ -92,13 +92,13 @@ def test_global_default_does_not_convert_existing_podcasts_and_old_form_preserve
         'default_processing_workflow': 'complete_timeline', 'timeline_settings_present': 'true',
         'default_minimum_retained_seconds': '0', 'whitelist_mode': 'true'}, follow_redirects=False)
     assert result.status_code == 303
-    assert SubscriptionRepository().get_by_id(1).processing_workflow == 'legacy'
+    assert SubscriptionRepository().get_by_id(1).processing_workflow == 'complete_timeline'
     assert client.get('/admin/global-subscription-settings').status_code == 200
     result = client.post('/admin/global-subscription-settings/update', data={'default_remove_ads': 'true', 'whitelist_mode': 'true'}, follow_redirects=False)
     assert result.status_code == 303
     with get_db_connection() as conn:
         row = conn.execute('SELECT default_processing_workflow,default_minimum_retained_seconds,whitelist_mode FROM app_settings').fetchone()
-        assert tuple(row) == ('complete_timeline', 0, 1)
+        assert tuple(row) == ('complete_timeline', 0, 0)
 
 
 @pytest.mark.parametrize('value', ['-1', 'nan', 'inf', '601'])

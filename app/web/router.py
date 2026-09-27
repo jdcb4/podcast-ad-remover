@@ -526,7 +526,7 @@ async def update_system_settings(
     ai_api_default_requests_per_minute: int = Form(60),
     ai_api_default_requests_per_day: int = Form(1000),
     ai_api_unauth_requests_per_minute: int = Form(10),
-    app_external_url: str = Form(None),
+    app_external_url: Annotated[str | None, Form()] = None,
     auth_enabled: bool = Form(False),
     ip_allowlist: str = Form(None),
     enable_feed_auth: bool = Form(False),
@@ -765,6 +765,7 @@ def _render_admin_ai(request: Request, ai_section: str):
             "cuda_status": cuda_state() if ai_section == "ai_transcription" else {},
             "cpu_compute_types": supported_compute_types() if ai_section == "ai_transcription" else [],
             "model_defaults": MODEL_DEFAULTS,
+            "speech_voices": __import__("app.core.speech", fromlist=["VOICES"]).VOICES,
             "env_keys": env_keys
         }
     )
@@ -813,7 +814,6 @@ async def update_ai_settings(
     whisper_device: str = Form(None),
     whisper_cuda_compute_type: str = Form(None),
     ai_model_cascade: str = Form(None),
-    piper_model: str = Form(None),
     speech_credential: str = Form(None),
     tts_model: str = Form(None),
     tts_voice: str = Form(None),
@@ -821,7 +821,6 @@ async def update_ai_settings(
     tts_base_url: str = Form(None),
     tts_provider: str = Form(None),
     gemini_tts_voice: str = Form(None),
-    gemini_tts_model_cascade: str = Form(None),
     active_ai_provider: str = Form(None),
     openai_api_key: str = Form(None),
     anthropic_api_key: str = Form(None),
@@ -1039,6 +1038,9 @@ async def preview_voice(request: Request, admin=Depends(require_admin)):
             return Response(data, media_type='audio/wav' if data.startswith(b'RIFF') else 'audio/mpeg')
     except (ValueError, RuntimeError) as error:
         raise HTTPException(400, str(error)) from error
+    except Exception as error:
+        logger.warning('Speech preview request failed (%s)', type(error).__name__)
+        raise HTTPException(502, 'Speech provider request failed. Check the endpoint and credential, then try again.') from error
 
 
 @router.post("/admin/ai/test")
@@ -1109,10 +1111,8 @@ async def refresh_models_from_form(
 # --- Admin: Prompts ---
 @router.get("/admin/prompts", response_class=HTMLResponse)
 async def admin_prompts(request: Request):
-    from app.core.prompt_defaults import LEGACY_DEFAULTS
     from app.core import timeline
     current = get_global_settings()
-    default_prompts = LEGACY_DEFAULTS
 
     user = get_current_user(request)
 
@@ -1129,73 +1129,10 @@ async def admin_prompts(request: Request):
             "timeline_prompt_template": timeline.PROMPT,
             "timeline_summary_default": timeline.SUMMARY_DEFAULT,
             "preview_subscriptions": sub_repo.get_all(),
-            "default_prompts": default_prompts,
             "pending_requests_count": get_pending_requests_count(),
             "active_tab": "prompts"
         }
     )
-
-@router.post("/admin/prompts")
-async def save_prompts(request: Request, admin_user = Depends(require_admin)):
-    form = await request.form()
-    
-    # Required variables for validation
-    required_vars = {
-        'ad_prompt_base': ['{targets}', '{custom_instr}'],
-        'summary_prompt_template': ['{transcript_context}']
-    }
-    
-    # Validate required variables
-    for field, vars_needed in required_vars.items():
-        value = form.get(field, '')
-        for var in vars_needed:
-            if var not in value:
-                raise HTTPException(status_code=400, detail=f"{field} must include {var}")
-    
-    # Save to database
-    from app.infra.database import get_db_connection
-    with get_db_connection() as conn:
-        conn.execute("""
-            UPDATE app_settings SET
-                ad_prompt_base = ?,
-                ad_target_sponsor = ?,
-                ad_target_promo = ?,
-                summary_prompt_template = ?,
-                ad_target_intro = COALESCE(?, ad_target_intro),
-                ad_target_outro = COALESCE(?, ad_target_outro)
-            WHERE id = 1
-        """, (
-            form.get('ad_prompt_base'),
-            form.get('ad_target_sponsor'),
-            form.get('ad_target_promo'),
-            form.get('summary_prompt_template'),
-            form.get('ad_target_intro'),
-            form.get('ad_target_outro')
-        ))
-        conn.commit()
-    
-    return {"status": "success"}
-
-@router.post("/admin/prompts/reset")
-async def reset_prompts(request: Request, admin_user = Depends(require_admin)):
-    from app.core.prompt_defaults import LEGACY_DEFAULTS
-    defaults = LEGACY_DEFAULTS
-
-    from app.infra.database import get_db_connection
-    with get_db_connection() as conn:
-        conn.execute("""
-            UPDATE app_settings SET
-                summary_prompt_template = ?,
-                ad_prompt_base = ?,
-                ad_target_sponsor = ?,
-                ad_target_promo = ?,
-                ad_target_intro = ?,
-                ad_target_outro = ?
-            WHERE id = 1
-        """, (defaults['summary'], defaults['ad_base'], defaults['sponsor'], defaults['promo'], defaults['intro'], defaults['outro']))
-        conn.commit()
-    
-    return {"status": "success"}
 
 # --- Admin: Queue ---
 @router.get("/admin/queue", response_class=HTMLResponse)
@@ -1988,7 +1925,7 @@ async def admin_unified_feed(
             "settings": feed_settings,
             "feed_url": links["direct"],
             "artwork_preview_url": resolve_unified_feed_artwork_preview(
-                feed_settings["artwork_url"], get_request_base_origin(request),
+                feed_settings["artwork_url"] if feed_settings["artwork_source"] != "default" else None, get_request_base_origin(request),
             ),
             "default_title": DEFAULT_UNIFIED_FEED_TITLE,
             "default_description": DEFAULT_UNIFIED_FEED_DESCRIPTION,
@@ -2131,18 +2068,12 @@ async def update_global_subscription_settings(
     default_retention_limit: int = Form(1),
     default_retention_days: int = Form(30),
     default_manual_retention_days: int = Form(14),
-    default_custom_instructions: str = Form(None),
-    whitelist_mode: bool = Form(False),
     default_processing_workflow: str | None = Form(None),
     default_remove_editorial_non_speech: bool | None = Form(None),
     default_remove_non_editorial_non_speech: bool | None = Form(None),
     default_minimum_retained_seconds: float | None = Form(None),
     timeline_settings_present: bool = Form(False),
     cut_tone_enabled: bool = Form(False),
-    warning_tones_present: bool = Form(False),
-    warning_tone_start: bool = Form(False),
-    warning_tone_middle: bool = Form(False),
-    warning_tone_end: bool = Form(False),
     admin_user = Depends(require_admin)
 ):
     from app.core.timeline import WORKFLOWS, threshold
@@ -2182,7 +2113,7 @@ async def update_global_subscription_settings(
             default_ai_rewrite_description, default_ai_audio_summary, default_append_title_intro,
             default_watermark_artwork,
             default_retention_limit, default_retention_days, default_manual_retention_days,
-            default_custom_instructions, 1 if whitelist_mode else 0,
+            None, 0,
             default_processing_workflow, default_remove_editorial_non_speech,
             default_remove_non_editorial_non_speech, default_minimum_retained_seconds
         ))
@@ -2416,8 +2347,8 @@ async def bulk_update_subscription_settings(
     valid_group_modes = {"unchanged", "inherit", "override"}
     if any(
         mode not in valid_group_modes
-        for mode in (content_mode, retention_mode, features_mode, instructions_mode)
-    ):
+        for mode in (content_mode, retention_mode, features_mode)
+    ) or instructions_mode not in {"unchanged", "inherit", "override", "clear"}:
         raise HTTPException(status_code=400, detail="Invalid bulk settings mode")
     if owner_mode not in {"unchanged", "set", "clear"}:
         raise HTTPException(status_code=400, detail="Invalid owner update mode")
@@ -2443,11 +2374,6 @@ async def bulk_update_subscription_settings(
             raise HTTPException(status_code=400, detail="Select a valid owner")
 
     custom_instructions = custom_instructions.strip()
-    if instructions_mode == "override" and not custom_instructions:
-        raise HTTPException(
-            status_code=400,
-            detail="Enter custom instructions or select global instructions",
-        )
     if retention_mode == "override" and (
         retention_limit < 0 or retention_days < 1 or manual_retention_days < 1
     ):
@@ -2493,7 +2419,10 @@ async def bulk_update_subscription_settings(
             set_value(column, int(value))
 
     if instructions_mode == "inherit":
-        set_value("inherit_custom_instructions", 1)
+        raise HTTPException(422, "Global classification guidance was retired in v2")
+    elif instructions_mode == "clear":
+        set_value("inherit_custom_instructions", 0)
+        set_value("custom_instructions", None)
     elif instructions_mode == "override":
         set_value("inherit_custom_instructions", 0)
         set_value("custom_instructions", custom_instructions)
@@ -2730,7 +2659,7 @@ async def update_settings(
     if not _can_manage_subscription(user, sub):
         raise HTTPException(status_code=403, detail="Only admins and the podcast owner can change podcast settings")
 
-    if remove_editorial_non_speech or inherit_custom_instructions:
+    if remove_editorial_non_speech or inherit_custom_instructions or append_summary:
         raise HTTPException(422, "Editorial removal and global classification guidance were retired in v2")
     remove_editorial_non_speech = False
 
@@ -2779,15 +2708,7 @@ async def update_settings(
         ai_rewrite_description = bool(stored.get("ai_rewrite_description"))
         ai_audio_summary = bool(stored.get("ai_audio_summary"))
         watermark_artwork = bool(stored.get("watermark_artwork"))
-    if inherit_custom_instructions:
-        custom_instructions = stored.get("custom_instructions")
-    else:
-        custom_instructions = (custom_instructions or "").strip()
-        if not custom_instructions:
-            return RedirectResponse(
-                url=f"/subscriptions/{id}?error={quote('Enter custom instructions or use the global instructions')}",
-                status_code=303,
-            )
+    custom_instructions = (custom_instructions or "").strip() or None
 
     sub_repo.update_settings(
         id, 

@@ -55,11 +55,11 @@ qualification is required before supported release.
 - LLM-based ad, promo, intro, and outro detection.
 - Opt-in [Complete Timeline processing](Documentation/COMPLETE_TIMELINE.md): classify speech and
   editorial/non-editorial gaps, choose removal categories, and apply a configurable short-island
-  rule. Existing podcasts and queued jobs stay on Legacy until explicitly changed.
+  rule. V2 uses Complete Timeline for every podcast and migrates queued jobs during upgrade.
 - FFmpeg-based audio cutting and rewritten RSS feed generation.
 - Per-podcast feeds plus a unified feed with configurable name, description, episode-title prefix,
   and optional external artwork.
-- Optional AI episode summaries and spoken title intros using either local Piper TTS or Gemini TTS.
+- Optional AI episode summaries and spoken title intros using Gemini, OpenAI, OpenRouter or a custom speech API.
 - Durable SQLite-backed processing jobs with retry and rate-limit states.
 - A bounded, independently refreshed current-processing panel that does not disturb dashboard state.
 - Admin queue/operations dashboard.
@@ -82,11 +82,7 @@ YouTube extraction is intended for self-hosted, opt-in use with public content. 
 responsible for ensuring they have permission to download and process the content and that their use
 complies with applicable law and platform terms.
 
-SponsorBlock timestamp lookup is implemented but disabled by default. It makes no API request unless
-`SPONSORBLOCK_ENABLED=true` is explicitly set. SponsorBlock API/database data is licensed
-[CC BY-NC-SA 4.0](https://github.com/ajayyy/SponsorBlock/wiki/Database-and-API-License); enabling it
-means the operator has determined that their use complies with that licence. SponsorBlock is
-attributed to the [SponsorBlock project](https://github.com/ajayyy/SponsorBlock).
+SponsorBlock integration has been removed. YouTube sources remain supported through yt-dlp and Deno.
 
 ## Quick Start
 
@@ -131,20 +127,7 @@ A dedicated Unraid template is included at `Documentation/unraid/podcast-ad-remo
 
 Gemini is the application default; choose models and billing limits appropriate to your episode volume. Gemini direct access uses Google's OpenAI-compatible endpoint through the OpenAI Python SDK.
 
-The default Gemini cascade is:
-
-1. `gemini-3.5-flash`
-2. `gemini-3-flash`
-3. `gemini-3.1-flash-lite`
-4. `gemini-2.5-flash`
-5. `gemini-2.5-flash-lite`
-
-The app tries each configured model in order and falls back when a model is unavailable, fails, or hits a rate limit. OpenRouter uses the same order with `google/` model IDs.
-
-Admins can also select **Custom OpenAI-compatible / Local** and provide an explicit API base URL plus
-arbitrary model slug for Ollama, LocalAI, vLLM, or another compatible service. This is opt-in: Gemini
-and the existing cloud cascades remain the defaults, and saved OpenAI cloud credentials are never
-forwarded to a custom endpoint.
+Select one model for the chosen provider. There is no model cascade or credential rotation. Environment credentials take precedence. Custom OpenAI-compatible endpoints accept an explicit base URL and model ID; they never receive another provider's key. Models must support native structured outputs.
 
 Quotas depend on model, project and billing tier. Check your active project limits in
 [Google AI Studio via the rate-limit guide](https://ai.google.dev/gemini-api/docs/rate-limits).
@@ -162,14 +145,8 @@ local servers.
 
 ## Text-To-Speech
 
-Piper remains the default TTS provider because it is local and does not consume API quota. Admins can optionally switch spoken title intros and audio summaries to Gemini TTS from **Admin > AI Settings > Voice and TTS**.
+Speech is API-only and optional. In **Settings > Voice**, select Gemini, OpenAI, OpenRouter or a custom OpenAI-compatible endpoint, then one model and voice. API charges may apply. Former Piper installations are marked as needing configuration; core processing continues without optional speech and preserves requested features.
 
-Gemini TTS uses the saved Gemini API keys and this default fallback order:
-
-1. `gemini-3.1-flash-tts-preview`
-2. `gemini-2.5-flash-preview-tts`
-
-Available Gemini voices are `Orus` (default), `Enceladus`, and `Laomedeia`. Current free-tier limits recorded for each Gemini TTS model are 3 RPM, 10K TPM, and 10 RPD.
 
 ## Authentication And Feed Access
 
@@ -247,13 +224,13 @@ Experimental branch images can be published without touching `latest`:
 npm run docker:experimental -- --push --tag experimental
 ```
 
-Experimental Apple Silicon / ARM64 images can be built without Piper TTS:
+Experimental Apple Silicon / ARM64 images can be built with API-only speech:
 
 ```bash
 npm run docker:experimental:arm64 -- --push
 ```
 
-`linux/amd64` remains the primary release target. The ARM64 experimental image skips Piper because its phonemizer dependency is not currently available as a simple Linux arm64 wheel. Podcast download, local transcription, ad detection, cutting, feeds, and the web UI remain the target feature set. Spoken summaries and title intros can still be tested on no-Piper images by selecting Gemini TTS and configuring a Gemini API key.
+`linux/amd64` remains the primary release target. ARM64 is experimental. Both images use API-only speech.
 
 Production promotion from `dev` to `main` requires explicit approval. Release publishing then runs from a clean `main` checkout and tags both the version and `latest`:
 
@@ -289,3 +266,9 @@ MIT License
 Global Subscription Settings includes separate beginning, middle and ending removal tones, off by
 default, using the fixed Wooden notes sounds. Beginning/end cues play only when content was removed at
 that edge. Sounds are bundled WAVs and do not require TTS. See [sound behavior](Documentation/WARNING_TONES.md).
+
+## V2 installation and upgrade
+
+The [browser-only configurator](configurator/index.html) builds Docker/Compose instructions locally. Successful authorized image publication updates matching stable/dev GitHub Pages configurators. On first install, use or dismiss the short setup wizard; run it again from System settings. Configure accounts and tokens together under Users & access.
+
+Before upgrading, stop new work and drain running jobs. The database migration creates an integrity-checked backup and an upgrade report under System. Existing publications, media and ownership are preserved. Read [V2 implementation and rollback](Documentation/V2_IMPLEMENTATION.md). Production promotion and a 2.0 version tag remain separate release steps.

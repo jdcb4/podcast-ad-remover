@@ -84,8 +84,7 @@ def test_setup_status_warns_when_session_secret_is_default(isolated_data_dir, mo
     ]
 
 
-def test_system_template_renders_setup_security_warnings():
-    template_source = open("app/web/templates/admin/system.html", encoding="utf-8").read()
-
-    assert "setup_status.security_warnings" in template_source
-    assert "Security setting needs attention" in template_source
+def test_system_links_to_optional_setup_wizard():
+    source=open('app/web/templates/admin/system.html',encoding='utf-8').read()
+    assert 'href="/admin/setup"' in source
+    assert 'Setup Checklist' not in source

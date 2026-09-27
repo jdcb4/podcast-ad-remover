@@ -8,7 +8,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - FFmpeg for audio cutting and concatenation.
 - Whisper/faster-whisper for local transcription.
 - Gemini, OpenAI, Anthropic, OpenRouter or a custom OpenAI-compatible endpoint for segment detection.
-- Piper or Gemini TTS for optional spoken title intros and audio summaries.
+- Gemini, OpenAI, OpenRouter or custom API speech for optional spoken title intros and audio summaries.
 - Apprise for optional admin notifications.
 - Pinned yt-dlp/yt-dlp-ejs and Deno for public YouTube source extraction.
 - Tailwind CSS compiled with npm.
@@ -20,9 +20,13 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/core/`: podcast, audio, AI, RSS, search, and processing logic.
 - `app/core/subscription_settings.py`: resolves effective values for the five subscription inheritance groups.
 - `app/core/timeline.py`: versioned classification, transcript/gap boundaries and deterministic cut preferences.
-- `app/core/prompt_defaults.py`, `app/web/timeline_rules.py`: shared Legacy defaults and Complete Timeline rule editing/preview.
+- `app/core/prompt_defaults.py`, `app/web/timeline_rules.py`: historical prompt constants and Complete Timeline rule editing/preview.
 - `app/core/unified_feed.py`: validates and resolves backward-compatible unified-feed presentation settings.
 - `app/core/artifacts.py`, `publication.py`, `reports.py`: artifact identity, atomic RSS writes and escaped reports.
+- `app/core/speech.py`, `provider_settings.py`: bounded API speech and single credential/model resolution.
+- `app/web/setup.py`: staged optional setup with review/apply and conflict detection.
+- `configurator/`, `scripts/build_configurator.py`: private static installer and offline bundle.
+- `app/infra/v2_migration.py`: v2 conversion and actionable upgrade report.
 - `app/core/provider_budget.py`, `worker_health.py`: durable request limits and processing readiness.
 - `app/core/gemini_quota.py`: opt-in shared Gemini quotas, token reservations, Pacific resets and provider cooldowns.
 - `app/core/permissions.py`, `http_downloads.py`: shared ownership policy and redirect validation.
@@ -61,7 +65,7 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 
 ## Documentation Map
 
-- `Documentation/V2_PROPOSAL.md`: proposed v2 UX, feature removals and migration contract for review; not current application behavior.
+- `Documentation/V2_PROPOSAL.md`: approved v2 UX, feature removals and migration contract; see V2_IMPLEMENTATION.md for progress.
 
 - `Documentation/CUDA.md`: experimental optional runtime setup, precision settings and GPU qualification.
 - `Documentation/CUDA_RUNPOD_2026-09-24.md`: real RTX A4000 inference, failure recovery and qualification limits.

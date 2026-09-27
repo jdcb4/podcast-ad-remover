@@ -851,8 +851,8 @@ class Processor:
                         logger.error(f"Failed to generate Title Intro: {e}")
 
                 # B. AI Summary Features
-                do_text = sub.ai_rewrite_description or sub.append_summary
-                do_audio = sub.ai_audio_summary or sub.append_summary
+                do_text = sub.ai_rewrite_description
+                do_audio = sub.ai_audio_summary
                 
                 if complete_timeline:
                     # Keep the combined summary in the report; ai_summary controls RSS

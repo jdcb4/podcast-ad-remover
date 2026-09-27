@@ -1,19 +1,8 @@
-# Removal warning tones
+# Cut tones
 
-Use **Podcast Preferences > Global Subscription Settings > Removal Warning Tones** to enable
-start, middle, or end cues independently. All switches start off.
-Wooden notes is the fixed sound set; the app has no sound selectors or previews.
+Enable one **Insert tone at removed content** switch in Podcast defaults. Wooden notes is fixed. The switch inserts cues at every applicable beginning, interior and ending cut; it adds nothing when no content is removed. Spoken intros/summaries precede the retained-audio cue. Entirely removed episodes are skipped.
 
-- A beginning cue plays only when source content was removed before the first retained audio.
-- An ending cue plays only when source content was removed after the last retained audio.
-- One low cue plays at each interior removal seam. Overlapping or adjacent cuts create one seam.
-- No cuts means no cues. An entirely removed episode still fails instead of publishing only tones.
-- Optional spoken titles/summaries precede the beginning cue; the cue marks the start of retained podcast audio.
-
-These settings are global for all podcasts and are read when processing begins. They apply to both
-Legacy and Complete Timeline, including SponsorBlock cuts. Source timestamps and removal statistics
-remain on the original timeline; the published duration includes inserted cues. Existing episodes
-need reprocessing to receive changed enable switches.
+V2 enables this switch if any old position switch was enabled. Mixed settings therefore enable cues at every applicable position; the System upgrade report discloses this. Old columns remain only for recovery, and published audio changes only on reprocessing.
 
 ## Fixed sound
 
@@ -36,16 +25,4 @@ same WAVs, with no autoplay and no JavaScript dependency.
 
 ## Migration and rollback
 
-Migration `20260913_0018_warning_tones` adds six settings columns, preserving all existing media and
-podcast settings. The normal migration runner creates a database backup under `/data/backups/`
-before formal migrations. Older code ignores the added columns, so rolling back code leaves the
-database readable. To restore exact previous settings, use the pre-migration backup following
-[Recovery](RECOVERY.md); do not delete or reset `/data`. Model-default migration
-`20260913_0017_model_defaults` changes only known prior defaults, once; customized model lists and
-already frozen Complete Timeline job snapshots remain unchanged.
-
-Migration `20260913_0019_wooden_tone_default` changes the former Soft chime defaults to Wooden notes once, preserving other selected styles and all enable switches. The same pre-migration backup/rollback procedure applies.
-
-Sound style columns from the earlier migrations are retained for rollback compatibility,
-but processing and settings updates now ignore them and always use Wooden notes.
-No schema migration is required for this simplification.
+See [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md). Restore the matching pre-upgrade database and image for rollback; preserve `/data` and original media.

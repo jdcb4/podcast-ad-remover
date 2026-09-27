@@ -128,8 +128,7 @@ docker build -t podcast-ad-remover:local .
 
 The image pins yt-dlp plus its matching EJS scripts and copies Deno from a pinned multi-architecture
 image stage. YouTube extraction does not self-update or download remote components at runtime.
-`SPONSORBLOCK_ENABLED` remains `false` unless the operator deliberately enables it after reviewing
-the SponsorBlock API/data licence.
+SponsorBlock support has been removed.
 
 ## Development Image Channel
 
@@ -152,13 +151,8 @@ npm run docker:dev:publish
 
 These commands do not update production SemVer tags or `latest`. Persistent Dev deployment configuration is intentionally handled separately from the image publishing workflow.
 
-The default image includes Piper TTS and is intended primarily for `linux/amd64`. Experimental Apple Silicon / ARM64 builds can skip Piper TTS:
+The default image contains no local speech engine. Gemini, OpenAI, OpenRouter and custom OpenAI-compatible speech APIs are available. `npm run docker:experimental:arm64` builds the experimental ARM64 variant; there is no `INSTALL_TTS` switch.
 
-```bash
-npm run docker:experimental:arm64 -- --push
-```
-
-This path targets `linux/arm64`, tags the image as `jdcb4/podcast-ad-remover:experimental-arm64`, and sets `INSTALL_TTS=0`. Piper is unavailable in that image, but spoken summaries and title intros can still be tested by selecting Gemini TTS and configuring a Gemini API key. Podcast download, transcription, ad detection, cutting, feed generation, and the web UI remain the intended test surface.
 
 ## Release Publishing
 
@@ -205,3 +199,19 @@ With `PROCESSOR_ENABLED=false`, scheduled discovery is disabled. Explicit manual
 use a shared, bounded in-process runner. The queue page states that automatic processing
 is disabled. Memory figures prefer cgroup limits and label host fallback; storage figures
 are cached for 30 seconds. Feed-check deadlines are recorded by the actual scheduler.
+
+## Install configurator publication
+
+`configurator/` is standalone static HTML/CSS/JS. It generates Compose or POSIX shell instructions without network calls or browser storage. Serve it locally to use it offline.
+
+After a successful authorized Docker push, the publisher dispatches `.github/workflows/publish-configurator.yml` with the immutable image tag and exact commit. Configure repository Pages to use GitHub Actions and authenticate GitHub CLI with workflow access on the publishing host. The workflow verifies the image exists and preserves `/stable/` and `/dev/` independently on `gh-pages`. A failed dispatch reports an error; rerun the workflow for that same image/revision without republishing Docker. It does not publish Docker images itself.
+
+Follow [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md) before upgrading an existing installation. The optional setup wizard changes only its selected fields and can be dismissed/resumed/rerun. It does not move podcast ownership or enable paid speech automatically.
+
+## V2 install configurator
+
+The static configurator runs entirely in the browser, including from an unpacked offline download. Choose Compose or Docker run, POSIX or PowerShell, port, persistent storage and reachable URL. Optional credentials are collapsed and are written only into the separately downloaded `install.env`. Download both files into the same folder. Compose output requires version 2.30 or later for raw env-file values; Docker run uses its standard env-file parser. Preserve the generated session secret when upgrading. Changing form choices does not rotate it; regeneration is explicit.
+
+The source offline bundle is built with `python scripts/build_configurator.py`; Pages builds it with release-specific metadata after an authorized successful Docker publish. No user inputs or generated configurations enter that bundle. Environment credentials override keys saved later in the application. Only enable proxy trust when direct access to the container is restricted to the trusted proxy.
+
+The first-install wizard is optional and rerunnable from System. Its draft is kept in server memory for 30 minutes and is lost on app restart. Settings apply only after review; cancellation discards the draft and conflicts with concurrent edits require restarting setup. Login/bootstrap and GPU setup links are separate actions.

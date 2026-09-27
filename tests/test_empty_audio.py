@@ -33,7 +33,7 @@ def test_failed_source_probe_is_not_a_non_episode(monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('workflow', ['legacy', 'complete_timeline'])
+@pytest.mark.parametrize('workflow', ['complete_timeline'])
 @pytest.mark.parametrize('previous_publication', [False, True])
 async def test_empty_removal_is_terminal_and_excluded_from_both_feeds(isolated_data_dir, monkeypatch, workflow, previous_publication):
     init_db()
@@ -60,7 +60,6 @@ async def test_empty_removal_is_terminal_and_excluded_from_both_feeds(isolated_d
     monkeypatch.setattr(AudioProcessor, '_run_ffmpeg', lambda *a, **k: pytest.fail('FFmpeg invoked for empty audio'))
     worker = Processor()
     worker.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 10, 'text': 'Advertising only.'}]})
-    monkeypatch.setattr(worker.ad_detector, 'detect_ads', lambda *a, **k: [{'start': 0, 'end': 10, 'label': 'Ad', 'reason': 'Promotion'}])
     monkeypatch.setattr(worker.ad_detector, '_get_provider', lambda: SimpleNamespace(generate_structured=lambda *a: json.dumps({
         'segments': [{'first_id': 1, 'last_id': 1, 'label': 'Ad', 'reason': 'Promotion'}],
         'summary': 'This episode includes a promotion. It contains no editorial audio.'})))
@@ -107,7 +106,8 @@ async def test_exhausted_cascade_schedules_job_without_permanent_failure(episode
     monkeypatch.setattr('app.core.processor.get_source_adapter', lambda _: SimpleNamespace(download=download))
     worker = Processor()
     worker.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [{'start': 0, 'end': 4, 'text': 'Text'}]})
-    monkeypatch.setattr(worker.ad_detector, 'detect_ads', lambda *a, **k: instance.generate('test'))
+    monkeypatch.setattr(worker.ad_detector, 'classify_timeline', lambda *a, **k: instance.generate('test'))
+    monkeypatch.setattr(AudioProcessor,'get_duration',lambda _:4)
     worker.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
     await worker._process_episode_inner(repo.get_by_id(claim['id']), SubscriptionRepository().get_by_id(90), claim)
     result = repo.get_by_id(claim['id'])

@@ -132,22 +132,18 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
     assert row["whisper_cpu_threads"] == 0
     assert row["ffmpeg_threads"] == 0
     assert row["unload_whisper_after_job"] == 0
-    assert "gemini-3.5-flash" in row["ai_model_cascade"]
-    assert "gemini-3-flash" in row["ai_model_cascade"]
-    assert "gemini-3.1-flash-lite" in row["ai_model_cascade"]
-    assert "google/gemini-3.5-flash" in row["openrouter_model"]
+    assert row["ai_model_cascade"] == "gemini-3.8-flash"
     assert "openai/gpt-5.6-terra" in row["openrouter_model"]
-    assert "deepseek/deepseek-v4-pro" in row["openrouter_model"]
     assert row["notifications_enabled"] == 0
     assert row["notification_urls"] is None
     assert row["notify_access_requests"] == 1
     assert row["notify_new_podcasts"] == 1
     assert row["notify_episode_downloads"] == 1
     assert row["notify_breaking_errors"] == 1
-    assert row["tts_provider"] == "piper"
+    assert row["tts_provider"] == "unconfigured"
     assert row["gemini_tts_voice"] == "Orus"
     assert "gemini-3.1-flash-tts-preview" in row["gemini_tts_model_cascade"]
-    assert "gemini-2.5-flash-preview-tts" in row["gemini_tts_model_cascade"]
+    assert row["gemini_tts_model_cascade"] == "gemini-3.1-flash-tts-preview"
     assert row["ai_api_enabled"] == 0
     assert row["ai_api_default_requests_per_minute"] == 60
     assert row["ai_api_default_requests_per_day"] == 1000

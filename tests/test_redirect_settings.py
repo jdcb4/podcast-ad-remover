@@ -68,7 +68,7 @@ def test_settings_zero_round_trip_validation_and_omission():
             assert response.status_code == 303
             page = client.get('/admin/system')
             assert page.status_code == 200
-            assert f'value="{value}"' in page.text.split('id="download-max-redirects"')[1].split('>')[0]
+            assert f'value="{value}"' in page.text.split('id="download_max_redirects"')[1].split('>')[0]
         for value in [-1, 51, 'invalid', '1.5']:
             assert client.post('/admin/system/update', data={'download_max_redirects': value}).status_code == 422
         assert client.post('/admin/system/update', data={}, follow_redirects=False).status_code == 303

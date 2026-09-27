@@ -409,7 +409,7 @@ class LLMProvider:
     def generate(self, prompt: str) -> str:
         raise NotImplementedError
 
-    def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "auto") -> str:
+    def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "strict") -> str:
         raise NotImplementedError
 
     def list_models(self) -> List[str]:
@@ -425,7 +425,6 @@ class LLMProvider:
 
 class OpenAIProvider(LLMProvider):
     # Successful real requests also serve as capability checks. No extra paid probe.
-    _schema_support = {}
     RATE_LIMIT_PATTERNS = (
         'resource_exhausted',
         'quota exceeded',
@@ -471,7 +470,7 @@ class OpenAIProvider(LLMProvider):
     def generate(self, prompt: str) -> str:
         return self._generate([{"role": "user", "content": prompt}])
 
-    def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "auto") -> str:
+    def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "strict") -> str:
         return self._generate(messages, schema, output_mode)
 
     def _generate(self, messages, schema=None, output_mode="strict") -> str:
@@ -538,7 +537,7 @@ class AnthropicProvider(LLMProvider):
     def generate(self, prompt: str) -> str:
         return self._generate([{'role': 'user', 'content': prompt}])
 
-    def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "auto") -> str:
+    def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "strict") -> str:
         return self._generate(messages, schema, output_mode)
 
     def _generate(self, messages, schema=None, output_mode="strict") -> str:
@@ -613,7 +612,12 @@ class AdDetector:
         from app.core.provider_settings import MODEL_FIELDS, credential, first_value
         if provider_type not in MODEL_FIELDS:
             raise ValueError('Choose a supported provider')
-        key = credential(provider_type, self.settings) or api_key
+        values = dict(self.settings)
+        if api_key:
+            values['custom_llm_api_key' if provider_type == 'custom' else provider_type + '_api_key'] = api_key
+            if provider_type == 'gemini':
+                values['gemini_api_keys'] = None
+        key = credential(provider_type, values)
         if not key and provider_type != 'custom':
             raise ValueError(f'Configure an API key for {provider_type}')
         selected = first_value(model or self.settings.get(MODEL_FIELDS[provider_type]),
@@ -685,7 +689,7 @@ class AdDetector:
              + " The summary must start exactly with 'This episode includes' and contain 2–3 sentences."},
             {"role": "user", "content": source},
         ], timeline.SUMMARY_SCHEMA, mode)
-        payload = json.loads(repair)
+        payload = timeline.decode_json(repair)
         if not isinstance(payload, dict) or set(payload) != {"summary"} or not timeline.valid_summary(payload["summary"]):
             raise AnalysisError("Summary must start with 'This episode includes' and contain 2–3 sentences")
         return payload["summary"]

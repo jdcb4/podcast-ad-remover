@@ -1,17 +1,14 @@
 import pytest
-from app.core.ai_services import AdDetector, AnalysisError
+from app.core import timeline
 
+UNITS=[{'id':1,'start':0,'end':5,'kind':'TRANSCRIBED','text':'Discussion'}]
+VALID='{"segments":[{"first_id":1,"last_id":1,"label":"Content","reason":"Discussion"}],"summary":null}'
 
-def test_valid_empty_and_wrapped_segments():
-    detector = AdDetector()
-    assert detector._parse_ad_response('[]') == []
-    assert detector._parse_ad_response('```json\n{"segments":[{"start":"1.5","end":4,"label":"ad"}]}\n```') == [
-        {"start":1.5,"end":4.0,"label":"Ad","reason":""}]
+def test_complete_json_can_be_fenced_or_surrounded_by_prose():
+    for text in [VALID,'```json\n'+VALID+'\n```','Here is the result:\n'+VALID+'\nDone.']:
+        rows,_=timeline.parse_response(text,UNITS)
+        assert rows[0]['start']==0 and rows[0]['end']==5
 
-
-@pytest.mark.parametrize('text', ['No ads found.', '{"refusal":"no"}', '[', '[null]',
-    '[{"start":5,"end":3}]', '[{"start":0,"end":NaN}]', '[{"start":0,"end":Infinity}]',
-    '[{"start":0,"end":3,"label":"unknown"}]', '[{"start":-1,"end":3}]'])
+@pytest.mark.parametrize('text',['No ads found.','{"refusal":"no"}','[','[null]','{"segments":[]}',VALID[:-1],VALID.replace('"Content"','"unknown"'),VALID.replace('"first_id":1','"first_id":-1'),VALID.replace('"last_id":1','"last_id":NaN'),VALID.replace('"last_id":1','"last_id":Infinity'),VALID+VALID])
 def test_invalid_analysis_is_not_a_clean_episode(text):
-    with pytest.raises(AnalysisError):
-        AdDetector()._parse_ad_response(text)
+    with pytest.raises(timeline.TimelineError): timeline.parse_response(text,UNITS)

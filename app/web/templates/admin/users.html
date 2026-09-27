@@ -37,7 +37,7 @@
 {{ number('ai_api_unauth_requests_per_minute','Unauthenticated requests per minute',settings.ai_api_unauth_requests_per_minute,min=1,max=1000) }}
 <button class="btn-primary">Save API limits</button></form>
 {% include 'admin/_api_tokens.html' %}</details>
-<details id="feed-tokens"><summary>Feed tokens</summary><p class="text-sm text-text-muted">A token link is a bearer secret: anyone with it can access the feed until revoked.</p>
+<details id="feed-tokens"><summary>Feed tokens</summary><p class="text-sm text-text-muted">A token link is a bearer secret: anyone with it can access the feed until the token is revoked.</p>
 {% for token in active_feed_tokens %}<div class="setting-row"><span>{{ token.name }} · {{ token.username or 'Shared' }}</span><form method="post" action="/admin/feed-token/{{ token.id }}/revoke" onsubmit="return appConfirmSubmit(this, 'Revoke this feed token? Podcast apps using it will need updated feed URLs.', { danger: true });"><button class="btn-secondary">Revoke</button></form></div>{% else %}<p>No active feed tokens.</p>{% endfor %}
 {% if settings.enable_feed_auth %}<form method="post" action="/admin/feed-token/regenerate" onsubmit="return appConfirmSubmit(this, 'Replace your feed token? Your podcast apps will need updated feed URLs.', { danger: true });"><button class="btn-secondary mt-4">Replace my feed token</button></form>{% endif %}</details>
 <details><summary>Login history</summary>{% include 'admin/_login_history.html' %}</details>

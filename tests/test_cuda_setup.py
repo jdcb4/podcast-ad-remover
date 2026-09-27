@@ -93,7 +93,7 @@ def test_admin_settings_validation_and_other_page_preservation(configured):
         assert all(before[key] == after[key] for key in ('whisper_device', 'whisper_compute_type', 'whisper_cuda_compute_type'))
         response = client.get('/admin/ai/transcription')
         assert response.status_code == 200
-        assert 'Set up / retest GPU acceleration' in response.text
+        assert 'Set up / test GPU' in response.text
         assert 'cuda-setup.js' in response.text
         with get_db_connection() as conn:
             conn.execute('UPDATE app_settings SET auth_enabled=1'); conn.commit()

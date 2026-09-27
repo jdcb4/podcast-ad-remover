@@ -1,0 +1,345 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-27T11:18:33.617Z",
+  "title": "Design System: Podcast Ad Remover",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "primary",
+        "canonical": "#7c3aed",
+        "tonalRamp": [
+          "#2e1065",
+          "#4c1d95",
+          "#6d28d9",
+          "#7c3aed",
+          "#8b5cf6",
+          "#a78bfa",
+          "#d8b4fe",
+          "#f3e8ff"
+        ],
+        "rampSource": "Existing Tailwind primary scale, sampled dark to light."
+      },
+      "primary-deep": {
+        "role": "primary",
+        "displayName": "primary deep",
+        "canonical": "#6d28d9",
+        "tonalRamp": [
+          "#2e1065",
+          "#4c1d95",
+          "#6d28d9",
+          "#7c3aed",
+          "#8b5cf6",
+          "#a78bfa",
+          "#d8b4fe",
+          "#f3e8ff"
+        ],
+        "rampSource": "Existing Tailwind primary scale, sampled dark to light."
+      },
+      "link-dark": {
+        "role": "primary",
+        "displayName": "link dark",
+        "canonical": "#a78bfa",
+        "tonalRamp": [
+          "#2e1065",
+          "#4c1d95",
+          "#6d28d9",
+          "#7c3aed",
+          "#8b5cf6",
+          "#a78bfa",
+          "#d8b4fe",
+          "#f3e8ff"
+        ],
+        "rampSource": "Existing Tailwind primary scale, sampled dark to light."
+      },
+      "link-light": {
+        "role": "primary",
+        "displayName": "link light",
+        "canonical": "#6d28d9",
+        "tonalRamp": [
+          "#2e1065",
+          "#4c1d95",
+          "#6d28d9",
+          "#7c3aed",
+          "#8b5cf6",
+          "#a78bfa",
+          "#d8b4fe",
+          "#f3e8ff"
+        ],
+        "rampSource": "Existing Tailwind primary scale, sampled dark to light."
+      },
+      "surface-base-dark": {
+        "role": "neutral",
+        "displayName": "surface base dark",
+        "canonical": "rgb(10 10 15)",
+        "tonalRamp": [
+          "oklch(15% 0.01 280)",
+          "oklch(27% 0.01 280)",
+          "oklch(38% 0.01 280)",
+          "oklch(50% 0.01 280)",
+          "oklch(61% 0.01 280)",
+          "oklch(73% 0.01 280)",
+          "oklch(84% 0.01 280)",
+          "oklch(95% 0.01 280)"
+        ],
+        "rampSource": "Synthesized panel-only tonal preview; not application tokens."
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "surface dark",
+        "canonical": "rgb(18 18 26)",
+        "tonalRamp": [
+          "oklch(15% 0.01 280)",
+          "oklch(27% 0.01 280)",
+          "oklch(38% 0.01 280)",
+          "oklch(50% 0.01 280)",
+          "oklch(61% 0.01 280)",
+          "oklch(73% 0.01 280)",
+          "oklch(84% 0.01 280)",
+          "oklch(95% 0.01 280)"
+        ],
+        "rampSource": "Synthesized panel-only tonal preview; not application tokens."
+      },
+      "surface-elevated-dark": {
+        "role": "neutral",
+        "displayName": "surface elevated dark",
+        "canonical": "rgb(26 26 37)",
+        "tonalRamp": [
+          "oklch(15% 0.01 280)",
+          "oklch(27% 0.01 280)",
+          "oklch(38% 0.01 280)",
+          "oklch(50% 0.01 280)",
+          "oklch(61% 0.01 280)",
+          "oklch(73% 0.01 280)",
+          "oklch(84% 0.01 280)",
+          "oklch(95% 0.01 280)"
+        ],
+        "rampSource": "Synthesized panel-only tonal preview; not application tokens."
+      },
+      "foreground-dark": {
+        "role": "neutral",
+        "displayName": "foreground dark",
+        "canonical": "rgb(237 237 239)",
+        "tonalRamp": [
+          "oklch(15% 0.01 280)",
+          "oklch(27% 0.01 280)",
+          "oklch(38% 0.01 280)",
+          "oklch(50% 0.01 280)",
+          "oklch(61% 0.01 280)",
+          "oklch(73% 0.01 280)",
+          "oklch(84% 0.01 280)",
+          "oklch(95% 0.01 280)"
+        ],
+        "rampSource": "Synthesized panel-only tonal preview; not application tokens."
+      },
+      "surface-base-light": {
+        "role": "neutral",
+        "displayName": "surface base light",
+        "canonical": "rgb(246 247 251)",
+        "tonalRamp": [
+          "oklch(15% 0.01 280)",
+          "oklch(27% 0.01 280)",
+          "oklch(38% 0.01 280)",
+          "oklch(50% 0.01 280)",
+          "oklch(61% 0.01 280)",
+          "oklch(73% 0.01 280)",
+          "oklch(84% 0.01 280)",
+          "oklch(95% 0.01 280)"
+        ],
+        "rampSource": "Synthesized panel-only tonal preview; not application tokens."
+      },
+      "surface-light": {
+        "role": "neutral",
+        "displayName": "surface light",
+        "canonical": "rgb(255 255 255)",
+        "tonalRamp": [
+          "oklch(15% 0.01 280)",
+          "oklch(27% 0.01 280)",
+          "oklch(38% 0.01 280)",
+          "oklch(50% 0.01 280)",
+          "oklch(61% 0.01 280)",
+          "oklch(73% 0.01 280)",
+          "oklch(84% 0.01 280)",
+          "oklch(95% 0.01 280)"
+        ],
+        "rampSource": "Synthesized panel-only tonal preview; not application tokens."
+      },
+      "surface-elevated-light": {
+        "role": "neutral",
+        "displayName": "surface elevated light",
+        "canonical": "rgb(237 240 247)",
+        "tonalRamp": [
+          "oklch(15% 0.01 280)",
+          "oklch(27% 0.01 280)",
+          "oklch(38% 0.01 280)",
+          "oklch(50% 0.01 280)",
+          "oklch(61% 0.01 280)",
+          "oklch(73% 0.01 280)",
+          "oklch(84% 0.01 280)",
+          "oklch(95% 0.01 280)"
+        ],
+        "rampSource": "Synthesized panel-only tonal preview; not application tokens."
+      },
+      "foreground-light": {
+        "role": "neutral",
+        "displayName": "foreground light",
+        "canonical": "rgb(24 32 49)",
+        "tonalRamp": [
+          "oklch(15% 0.01 280)",
+          "oklch(27% 0.01 280)",
+          "oklch(38% 0.01 280)",
+          "oklch(50% 0.01 280)",
+          "oklch(61% 0.01 280)",
+          "oklch(73% 0.01 280)",
+          "oklch(84% 0.01 280)",
+          "oklch(95% 0.01 280)"
+        ],
+        "rampSource": "Synthesized panel-only tonal preview; not application tokens."
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Settings title",
+        "purpose": "Compact settings page heading."
+      }
+    },
+    "shadows": [
+      {
+        "name": "primary-glow",
+        "value": "0 0 20px rgba(139, 92, 246, 0.3)",
+        "purpose": "Existing primary actions."
+      },
+      {
+        "name": "confirmation",
+        "value": "0 24px 80px rgba(0, 0, 0, 0.45)",
+        "purpose": "Nested confirmation panel."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control",
+        "value": "200ms",
+        "purpose": "Buttons and input transitions."
+      },
+      {
+        "name": "switch-thumb",
+        "value": "150ms",
+        "purpose": "Switch thumb transform."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "app-mobile",
+        "value": "900px"
+      },
+      {
+        "name": "stacked-setting",
+        "value": "480px"
+      },
+      {
+        "name": "configurator-stack",
+        "value": "520px"
+      }
+    ],
+    "sources": [
+      "app/web/static/css/input.css",
+      "app/web/static/css/v2.css",
+      "tailwind.config.js",
+      "app/web/templates/base.html",
+      "app/web/templates/_settings.html",
+      "app/web/templates/admin/global_subscription_settings.html",
+      "configurator/style.css"
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary button extracted from the application styles.",
+      "html": "<button class=\"ds-primary\">Save</button>",
+      "css": ".ds-primary{font:500 14px Inter,system-ui,sans-serif;min-height:44px;padding:10px 20px;border:0;border-radius:12px;color:white;background:linear-gradient(135deg,#7c3aed,#6d28d9);box-shadow:0 0 20px rgba(139,92,246,.3);transition:all .2s}.ds-primary:hover{filter:brightness(1.1);box-shadow:0 0 30px rgba(139,92,246,.4)}.ds-primary:active{transform:scale(.98)}.ds-primary:focus-visible{outline:2px solid #9b72f7;outline-offset:3px}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary button extracted from the application styles.",
+      "html": "<button class=\"ds-secondary\">Cancel</button>",
+      "css": ".ds-secondary{font:500 14px Inter,system-ui,sans-serif;min-height:44px;padding:10px 20px;border-radius:12px;background:var(--bg-surface-elevated,#1a1a25);color:var(--text-primary,#ededef);border:1px solid rgb(var(--ink,255 255 255)/.1);transition:all .2s}.ds-secondary:hover{background:var(--bg-hover,#22222f);border-color:rgba(139,92,246,.3)}.ds-secondary:focus-visible{outline:2px solid #9b72f7;outline-offset:3px}.ds-secondary:active{transform:scale(.98)}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Labeled field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labeled field extracted from the application styles.",
+      "html": "<label class=\"ds-field\">Model<input class=\"ds-input\" value=\"Selected model\"></label>",
+      "css": ".ds-field{display:grid;gap:8px;font:14px Inter,system-ui,sans-serif;color:var(--text-primary,#ededef)}.ds-input{font:inherit;padding:12px 16px;min-height:44px;border-radius:12px;background:var(--bg-base,#0a0a0f);color:inherit;border:2px solid var(--control-border,rgba(255,255,255,.16));transition:all .2s}.ds-input:focus{outline:none;border-color:#8b5cf6;box-shadow:0 0 0 4px rgba(139,92,246,.2)}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Navigation extracted from the application styles.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#library\">Library</a><a href=\"#settings\" aria-current=\"page\">Settings</a></nav>",
+      "css": ".ds-nav{display:grid;gap:4px;font:16px Inter,system-ui,sans-serif;background:rgb(var(--surface-elevated,26 26 37));padding:16px}.ds-nav a{color:var(--text-primary,#ededef);text-decoration:none;padding:10px 12px;border-radius:8px}.ds-nav a:hover{background:#80808018}.ds-nav a[aria-current=page]{background:#7c3aed18;font-weight:650}.ds-nav a:focus-visible{outline:2px solid #9b72f7;outline-offset:3px}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Setting switch",
+      "kind": "custom",
+      "refersTo": "setting-switch",
+      "description": "Setting switch extracted from the application styles.",
+      "html": "<label class=\"ds-row\">Remove ads<input class=\"ds-switch\" type=\"checkbox\" checked></label>",
+      "css": ".ds-row{display:flex;justify-content:space-between;align-items:center;gap:24px;min-height:58px;padding:12px 0;border-bottom:1px solid #80808022;font:14px Inter,system-ui,sans-serif;color:var(--text-primary,#ededef)}.ds-switch{appearance:none;width:40px;height:24px;border-radius:20px;background:#737380;position:relative;cursor:pointer;border:0;flex-shrink:0}.ds-switch::after{content:'';position:absolute;width:18px;height:18px;top:3px;left:3px;border-radius:50%;background:white;transition:transform .15s}.ds-switch:checked{background:#7c3aed}.ds-switch:checked::after{transform:translateX(16px)}.ds-switch:focus-visible{outline:2px solid #9b72f7;outline-offset:3px}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Status chip",
+      "kind": "chip",
+      "description": "Status chip extracted from the application styles.",
+      "html": "<span class=\"ds-chip\">Ready</span>",
+      "css": ".ds-chip{display:inline-flex;padding:4px 10px;border-radius:9999px;font:500 12px Inter,system-ui,sans-serif;background:rgba(52,211,153,.15);color:var(--positive,#34d399);border:1px solid rgba(52,211,153,.2)}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"
+    },
+    {
+      "name": "Content card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Content card extracted from the application styles.",
+      "html": "<article class=\"ds-card\">Episode content</article>",
+      "css": ".ds-card{font:16px Inter,system-ui,sans-serif;color:var(--text-primary,#ededef);padding:24px;border-radius:12px;background:linear-gradient(145deg,var(--bg-surface,#12121a),var(--bg-elevated,#1a1a25));border:1px solid rgb(var(--ink,255 255 255)/.06);box-shadow:0 4px 20px -5px rgba(0,0,0,.2);transition:all .3s}.ds-card:hover{transform:translateY(-4px);box-shadow:0 20px 25px -5px rgba(0,0,0,.3),0 10px 10px -5px rgba(0,0,0,.2);border-color:rgb(var(--ink,255 255 255)/.1)}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Operate",
+    "overview": "A compact workspace for finding podcasts and changing their processing settings. Content and actions lead; labels are concise, help appears when useful, and advanced controls sit behind disclosures. Violet identifies actions within quiet dark or light surfaces.\n\nThis is a code-led record of the current system, not a generated visual comp. The authoritative sources are `app/web/static/css/input.css`, its Tailwind configuration and compiled utilities, then `app/web/static/css/v2.css` loaded afterward by `base.html`. Settings patterns come from `_settings.html` and the admin templates. `PRODUCT.md` and `Documentation/V2_PROPOSAL.md` supply the accepted product direction; implemented styles supply the values.",
+    "keyCharacteristics": [
+      "Compact labeled controls and restrained helper text.",
+      "One desktop sidebar and phone bottom navigation.",
+      "Artwork, wrapping title and manage action on phone podcast rows.",
+      "Violet actions and theme-aware neutral surfaces."
+    ],
+    "rules": [
+      {
+        "name": "The Theme Rule",
+        "body": "Use semantic surface, text and status variables for new application content; verify both themes.",
+        "section": "colors"
+      },
+      {
+        "name": "The Compact Control Rule",
+        "body": "Keep each setting visibly labeled, align repeated controls, and disclose advanced options instead of filling the page with helper prose.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do keep labels visible and advanced settings in disclosures.",
+      "Do use semantic theme variables and check light and dark surfaces.",
+      "Do preserve wrapping phone titles and usable action targets.",
+      "Do use native dialogs for new focused workflows."
+    ],
+    "donts": [
+      "Don't add a second permanent administration rail.",
+      "Don't introduce invented status metrics or decorative live badges.",
+      "Don't turn the standalone configurator palette into the app theme.",
+      "Don't treat legacy display utilities or overlay wrappers as new shared patterns."
+    ]
+  }
+}

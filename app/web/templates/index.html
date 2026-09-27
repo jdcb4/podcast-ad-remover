@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% if user.is_admin and settings.tts_provider == 'unconfigured' and (settings.default_ai_audio_summary or settings.default_append_title_intro) %}<p class="alert-warning mb-4">Optional speech is not configured. Processing continues without speech. <a class="text-link" href="/admin/ai/voice">Configure Voice</a></p>{% endif %}
 {% if user.is_admin and settings.onboarding_status in ['not_started','in_progress'] %}<div class="alert-info mb-4"><a href="/admin/setup" class="btn-primary">Continue setup</a><form method="post" action="/admin/setup"><button class="btn-secondary" name="action" value="dismiss">Dismiss</button></form></div>{% endif %}
 
 <!-- Config Warning -->
@@ -312,7 +313,7 @@
             <legend class="px-1 text-sm font-semibold">Instructions and Owner</legend>
             <select name="instructions_mode" class="select text-sm" data-bulk-mode>
                 <option value="unchanged">Instructions unchanged</option>
-                <option value="inherit">Use global instructions</option>
+                <option value="clear">Clear podcast instructions</option>
                 <option value="override">Set podcast instructions</option>
             </select>
             <div data-bulk-controls>
@@ -340,7 +341,7 @@
 
 <div id="dashboard-podcast-results" data-library-view="{{ library_view }}">
 <div class="mobile-podcasts">
-{% for item in subscriptions %}<article class="mobile-podcast" data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}" data-processing="{{ item.processing_count|default(0) }}">
+{% for item in subscriptions %}<article class="mobile-podcast" data-subscription-id="{{ item.sub.id }}" data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}" data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}" data-recent="{{ item.latest_episode_date|default('') }}">
 {% if item.artwork_url %}<img src="{{ item.artwork_url }}" alt="" loading="lazy">{% endif %}
 <a class="podcast-title" href="/subscriptions/{{ item.sub.id }}">{{ item.sub.title }}</a>
 <a class="manage" href="/subscriptions/{{ item.sub.id }}{% if item.can_manage %}#processing-settings{% endif %}" aria-label="{{ 'Manage' if item.can_manage else 'View' }} {{ item.sub.title }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 5 5-12 12H4v-5L16 3Z"/></svg></a></article>{% endfor %}
@@ -398,7 +399,7 @@
                     <div class="flex flex-wrap gap-1">
                         <span class="badge-neutral">{{ "Global content" if item.sub.inherit_content_removal else "Custom content" }}</span>
                         <span class="badge-neutral">{{ "Global features" if item.sub.inherit_default_features else "Custom features" }}</span>
-                        <span class="badge-neutral">{{ "Global instructions" if item.sub.inherit_custom_instructions else "Custom instructions" }}</span>
+                        {% if item.sub.custom_instructions %}<span class="badge-neutral">Podcast guidance</span>{% endif %}
                     </div>
                 </td>
                 <td class="p-3">
@@ -559,7 +560,7 @@
         <p class="text-text-muted">Switch to the Library and star podcasts to add them here.</p>
         {% else %}
         <h3 class="font-display text-2xl font-bold text-text-secondary mb-2">No subscriptions yet</h3>
-        <p class="text-text-muted">Search for a podcast above to get started</p>
+        <p class="text-text-muted">Add a podcast to get started</p>
         {% endif %}
     </div>
     {% endfor %}
@@ -695,7 +696,7 @@
         }
 
         // Init view
-        const savedView = localStorage.getItem('dashboard-view-mode') || 'grid';
+        const savedView = localStorage.getItem('dashboard-view-mode') || 'list';
         setView(savedView);
 
         // Attach listeners
@@ -706,7 +707,7 @@
             }
         });
         document.addEventListener('dashboard-library-results-changed', () => {
-            setView(localStorage.getItem('dashboard-view-mode') || 'grid');
+            setView(localStorage.getItem('dashboard-view-mode') || 'list');
         });
     });
 

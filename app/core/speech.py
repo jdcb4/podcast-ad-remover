@@ -61,8 +61,6 @@ async def generate_speech(text, output_path, values):
                               input_tokens=estimate_input_tokens(payload) if quota else 0):
             async with httpx.AsyncClient(timeout=settings.PROVIDER_TIMEOUT_SECONDS, follow_redirects=False) as client:
                 async with client.stream('POST', url, headers=headers, json=payload) as response:
-                    if response.status_code >= 400:
-                        raise httpx.HTTPStatusError(f'Speech HTTP {response.status_code}', request=response.request, response=response)
                     chunks, size = [], 0
                     async for chunk in response.aiter_bytes():
                         size += len(chunk)
@@ -70,6 +68,9 @@ async def generate_speech(text, output_path, values):
                             raise ValueError('Speech response exceeds 32 MiB')
                         chunks.append(chunk)
                     data = b''.join(chunks)
+                    if response.status_code >= 400:
+                        bounded = httpx.Response(response.status_code, headers=response.headers, content=data, request=response.request)
+                        raise httpx.HTTPStatusError(f'Speech HTTP {response.status_code}', request=response.request, response=bounded)
         if provider == 'gemini':
             import json
             result = json.loads(data)

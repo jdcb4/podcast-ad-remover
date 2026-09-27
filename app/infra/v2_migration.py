@@ -11,12 +11,17 @@ def migrate(conn):
     if conn.execute("SELECT 1 FROM jobs WHERE status='running' LIMIT 1").fetchone():
         raise RuntimeError('Stop processing and drain running jobs before upgrading to v2')
     current = dict(conn.execute('SELECT * FROM app_settings WHERE id=1').fetchone())
-    changes = {'models': [], 'speech_setup_required': current.get('tts_provider') != 'gemini'}
+    changes = {'models': [], 'speech_setup_required': current.get('tts_provider') != 'gemini',
+        'credential_policy': 'First configured credential retained; environment takes precedence. Extra credentials are not used.',
+        'cut_tones': 'Enabled at all applicable cuts' if any(current.get('warning_tone_'+p) for p in ('start','middle','end')) else 'Off',
+        'retired': ['Legacy classification', 'Global free-form detection instructions', 'Editorial non-speech removal', 'SponsorBlock', 'Custom unified-feed description'],
+        'ownership': 'Unchanged', 'speech_action': 'Configure provider, model and voice in Settings > Voice; optional speech preferences are retained.'}
+
     for field in [*MODEL_FIELDS.values(), 'gemini_tts_model_cascade']:
         value = first_value(current.get(field))
         conn.execute(f'UPDATE app_settings SET {field}=? WHERE id=1', (value,))
         if value != current.get(field):
-            changes['models'].append(field)
+            changes['models'].append({'setting':field,'selected':value,'previous':current.get(field)})
     key = first_value(current.get('gemini_api_keys')) or first_value(current.get('gemini_api_key'))
     conn.execute("UPDATE app_settings SET gemini_api_key=?, gemini_api_keys=NULL WHERE id=1", (key or None,))
     conn.execute('''UPDATE app_settings SET

@@ -25,7 +25,7 @@ The application is intentionally simple: one web app, one SQLite database, local
 - FFmpeg for audio processing.
 - Whisper/faster-whisper for local transcription.
 - Gemini, OpenAI, Anthropic, OpenRouter, or an explicitly configured OpenAI-compatible endpoint for LLM-backed segment detection and summaries.
-- Piper or Gemini TTS for optional spoken title intros and audio summaries.
+- Gemini, OpenAI, OpenRouter or custom API speech for optional spoken title intros and audio summaries.
 - Tailwind CSS for styling.
 - Docker for deployment.
 
@@ -33,7 +33,7 @@ The application is intentionally simple: one web app, one SQLite database, local
 
 ### Web App
 
-The shared header offers a light/dark toggle. `static/js/theme.js` applies the browser's saved
+The sidebar offers a light/dark toggle. `static/js/theme.js` applies the browser's saved
 `podcast-ad-remover-theme` localStorage value before the stylesheet loads; missing or invalid
 values use dark. There is no system-theme mode or account setting. Disabled storage still allows
 switching for the current page, and storage events synchronize other tabs on the same origin.
@@ -54,7 +54,7 @@ Key areas:
 1. Discover episodes from subscribed feeds.
 2. Download source audio.
 3. Transcribe locally.
-4. Use Legacy ad detection or opt-in Complete Timeline classification and deterministic removal choices.
+4. Use Complete Timeline classification and deterministic removal choices.
 5. Cut and concatenate audio with FFmpeg.
 6. Update SQLite state and regenerate RSS feeds.
 
@@ -62,37 +62,29 @@ Supporting modules include:
 - `app/core/audio.py`: FFmpeg helpers.
 - `app/core/ai_services.py`: provider integrations, transcription, summaries, and TTS.
 - `app/core/timeline.py`: complete speech/gap timelines, fixed output schema, versioned job settings and category/short-island cuts.
-- `app/core/prompt_defaults.py`: shared Legacy execution, display and reset defaults.
+- `app/core/prompt_defaults.py`: historical prompt defaults (not live v2 configuration).
 - `app/web/timeline_rules.py`: administrator category/summary rules and effective request preview.
 - `app/core/artwork.py`: safe source-image retrieval and cached ad-free artwork generation.
 - `app/core/rss_gen.py`: generated feed output.
 - `app/core/feed.py`: feed parsing.
 - `app/core/sources.py`: formal RSS/YouTube adapter boundary for source resolution, discovery, and media download.
 - `app/core/youtube.py`: strict public YouTube URL handling, bounded discovery, and audio-only yt-dlp downloads.
-- `app/core/sponsorblock.py`: read-only, fail-open SponsorBlock timestamp lookup.
 - `app/core/subscription_settings.py`: effective per-podcast setting resolution.
 
 ### Text Analysis Providers
 
 Gemini remains the default provider. The custom provider is a separate, opt-in OpenAI-compatible
-configuration with its own base URL, model cascade, and optional credential. It never inherits the
+configuration with its own base URL, selected model, and optional credential. It never inherits the
 OpenAI provider credential. Keyless endpoints receive an internal non-secret SDK placeholder because
 the OpenAI client requires a non-empty key value.
 
-[Complete Timeline](COMPLETE_TIMELINE.md) uses schema-constrained output where supported, with
-application validation in every mode. Format compatibility and model cascades stay within the
-selected provider. New Complete Timeline jobs freeze classification settings without credentials;
-existing NULL-snapshot jobs stay Legacy. Classification caches exclude cut choices so matching
-source/transcript analysis can be reused when only the editing policy changes.
+[Complete Timeline](COMPLETE_TIMELINE.md) requires native schema-constrained output and validates full coverage. One model and one credential are selected per provider. A small JSON wrapper cleaner accepts otherwise valid objects; it does not repair malformed output. New jobs freeze classification settings without credentials; migration upgrades queued legacy snapshots. Classification caches exclude cut choices so matching analysis can be reused when only editing policy changes.
 
 ### Text-To-Speech
 
-TTS is only used for optional spoken title intros and audio summaries. `app_settings.tts_provider` selects the engine:
+Optional spoken titles and summaries use `app/core/speech.py`: Gemini, OpenAI, OpenRouter, or a custom OpenAI-compatible endpoint. Each configuration selects one provider, model, and voice. Environment credentials take precedence. Speech requests are bounded and generated audio is validated before publication.
 
-- `piper`: default local/offline provider. It uses the configured `piper_model` and stores downloaded voice models under `/data/models/piper`.
-- `gemini`: optional API-backed provider. It reuses saved Gemini API keys, sends speech requests through Google's REST `generateContent` endpoint, tries `gemini_tts_model_cascade` in order, and writes returned 24 kHz mono PCM as a WAV file for FFmpeg.
-
-The currently exposed Gemini voices are `Orus`, `Enceladus`, and `Laomedeia`.
+Former Piper installations migrate to unconfigured speech, retain requested speech preferences, and continue core processing with an actionable setup warning. Local speech engines and model cascades are removed.
 
 ### Infrastructure
 

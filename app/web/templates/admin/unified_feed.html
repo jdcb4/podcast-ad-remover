@@ -10,7 +10,7 @@
 {{ text('unified_feed_artwork_url','External artwork URL',settings.custom_artwork_url,'url') }}
 <label class="setting-row"><span>Upload image <small>(PNG, JPEG or WebP; 5 MB)</small></span><input type="file" class="input" name="artwork_upload" accept="image/png,image/jpeg,image/webp"></label>
 {% if settings.has_upload %}<p class="text-sm text-text-muted">An uploaded image is saved. Choose Uploaded image to use it.</p>{% endif %}
-{% if artwork_preview_url %}<img src="{{ artwork_preview_url }}" alt="Current unified feed artwork" class="w-24 h-24 rounded-lg my-4" referrerpolicy="no-referrer">{% endif %}
+{% if artwork_preview_url %}<img src="{{ artwork_preview_url }}" alt="Current unified feed artwork" class="w-24 h-24 rounded-lg my-4" referrerpolicy="no-referrer">{% else %}<p class="text-sm text-text-muted">Use an HTTPS artwork URL to preview it here.</p>{% endif %}
 <button class="btn-primary">Save</button>
 </form>
 {% endblock %}

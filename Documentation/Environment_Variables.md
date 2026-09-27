@@ -1,150 +1,19 @@
-# Environment Variables
+# Environment and runtime configuration (v2)
 
-## Optional CUDA setup (experimental)
+## Installation variables
 
-`CUDA_SETUP` defaults to `false`. Set it to `true` to request first-start background GPU setup.
-A later manually saved CPU choice wins over the flag. A saved GPU choice is revalidated on restart.
-The host NVIDIA driver and Docker GPU access must already work. See [CUDA.md](CUDA.md).
+The image listens on port 8000 and stores its database and media under `/data`. Preserve the volume and session secret across upgrades. `configurator/` provides a browser-only Docker/Compose builder; it sends no inputs to a server. The optional in-app setup wizard covers the application URL, text analysis, transcription and default removal/retention choices, and can be dismissed or rerun from System.
 
-Database-backed `whisper_device` defaults to `cpu`, `whisper_compute_type` to `float32`, and
-`whisper_cuda_compute_type` to `float16` (first activation selects a supported GPU default).
-The Transcription page validates precision and tests GPU changes before activation. These fields
-are preserved when saving other AI settings pages. They have no environment overrides.
+Provider keys are optional at startup. Configure analysis before processing. Environment credentials take precedence over a saved key. Exactly one credential and model are used per provider; no key rotation or model fallback occurs. Custom endpoints never inherit cloud credentials.
 
-## Download redirect limit
+| Environment variable | Purpose |
+| --- | --- |
+| `GEMINI_API_KEY` | Gemini text analysis and speech |
+| `OPENAI_API_KEY` | OpenAI text analysis and speech |
+| `ANTHROPIC_API_KEY` | Anthropic text analysis |
+| `OPENROUTER_API_KEY` | OpenRouter text analysis and speech |
 
-**Admin > System Settings > Download Redirect Limit** controls the shared HTTP redirect cap
-for RSS feeds, episode audio and artwork. It accepts 0–50, defaults to 8, and zero disallows
-redirects while still allowing direct responses. Each download snapshots the current value;
-changes apply to the next download without a restart. Loops and disallowed network targets
-remain rejected at every hop. YouTube extraction uses its separate downloader.
-
-This is a database-backed setting, with no environment override. Migration
-`20260921_0021_download_redirect_limit` adds it with the standard pre-migration backup;
-existing PR #29 values are preserved. Older forms that omit the field preserve its value.
-The change is additive and older application versions ignore the column; a rollback restores
-the older version's fixed redirect cap. Follow `RECOVERY.md` if restoring a database backup.
-
-Environment variables provide startup defaults; many runtime settings are stored in SQLite and configured in the Admin UI.
-
-## AI Provider Keys (Optional)
-Configure the selected provider before processing. Cloud providers need their own API key; a custom local OpenAI-compatible endpoint can be keyless. The dashboard and library do not require an AI key to start. Keys can come from environment variables or the Admin UI.
-
-**Note:** Settings in the **Admin UI** take priority over Environment Variables.
-Gemini direct access uses Google's OpenAI-compatible endpoint through the OpenAI Python SDK.
-
-| Variable | Description |
-|----------|-------------|
-| `GEMINI_API_KEY` | Google Gemini API Key |
-| `OPENAI_API_KEY` | OpenAI API Key |
-| `ANTHROPIC_API_KEY` | Anthropic API Key |
-| `OPENROUTER_API_KEY` | OpenRouter API Key |
-
-Custom OpenAI-compatible endpoint settings are database-backed and configured under **Admin > AI
-Settings > Text Analysis**. They are intentionally not aliases for `OPENAI_API_KEY`, so a saved OpenAI
-cloud credential is never forwarded to a custom endpoint.
-
-## Configured Gemini defaults and provider quotas
-
-The default text-analysis provider is Gemini. Each provider tries the following models in order:
-
-### Gemini
-
-1. `gemini-3.8-flash`
-2. `gemini-3.7-flash`
-3. `gemini-3.6-flash`
-4. `gemini-3.5-flash`
-5. `gemini-3-flash-preview`
-6. `gemini-3.5-flash-lite`
-7. `gemini-3.1-flash-lite`
-
-### OpenAI
-
-1. `gpt-6-astra`
-2. `gpt-5.6-sol`
-3. `gpt-5.6-terra`
-4. `gpt-5.6-luna`
-
-### Anthropic
-
-1. `claude-fable-5-1`
-2. `claude-opus-5`
-3. `claude-sonnet-5`
-4. `claude-haiku-4-5-20251001`
-
-### OpenRouter
-
-1. `openai/gpt-5.6-terra`
-2. `openai/gpt-5.6-luna`
-3. `anthropic/claude-sonnet-5`
-4. `anthropic/claude-haiku-4.5`
-5. `google/gemini-3.8-flash`
-6. `google/gemini-3.5-flash-lite`
-7. `tencent/hy4-preview`
-8. `tencent/hy3`
-9. `z-ai/glm-5.3-flash`
-10. `z-ai/glm-5.3`
-11. `deepseek/deepseek-v4.1-flash`
-12. `deepseek/deepseek-v4-pro`
-
-Custom endpoints have no default model. These are configured application defaults, not a guarantee of provider availability. Saved custom lists take precedence. Migration `20260913_0017_model_defaults` updates only recognized older shipped defaults, including equivalent compact JSON lists. Gemini TTS retains its existing cascade.
-
-Quotas depend on model, project and billing tier. Check your active project limits in
-[Google AI Studio via the rate-limit guide](https://ai.google.dev/gemini-api/docs/rate-limits).
-By default the app does not assume a fixed free-tier allowance. Under **AI Settings > Text Analysis**,
-the checkbox **enable gemini free tier rate limit handling** opts into the explicit limits below.
-It defaults off and affects direct Gemini requests only, not OpenRouter-hosted Gemini or other providers.
-
-| Model | Requests/minute | Input tokens/minute | Requests/day |
-|---|---:|---:|---:|
-| `gemini-3.5-flash` | 5 | 250,000 | 20 |
-| `gemini-3.5-flash-lite` | 15 | 250,000 | 500 |
-| `gemini-3.6-flash` | 5 | 250,000 | 20 |
-| `gemini-3.8-flash` | 5 | 250,000 | 20 |
-| `gemini-2.5-flash` | 5 | 250,000 | 20 |
-| `gemini-3.1-flash-lite` | 15 | 250,000 | 500 |
-| `gemini-3.7-flash` | 5 | 250,000 | 20 |
-
-SQLite reservations serialize workers and share counters across jobs, summaries and keys. Because API
-keys do not reveal their Google project, **all configured keys conservatively share one pool per
-model**, even if some actually belong to different projects. Key rotation cannot grant extra quota.
-Usage shown in the settings table is local to this installation, not a query of Google project usage.
-Provider quota errors account for usage by other applications. Unlisted models (including speech
-models) have provider-defined limits: requests are recorded and provider cooldowns respected without
-inventing a fixed allowance. Model IDs and saved cascade order remain unchanged.
-
-Request counts include attempted calls, including failures. Input-token reservations use UTF-8 payload
-bytes plus overhead as a conservative estimate, replaced by reported input tokens when available.
-Unknown usage retains its reservation; output tokens do not count against the input TPM allowance.
-Requests exceeding a model's entire token allowance cannot fit and fall through to another model.
-Minute windows roll over after 60 seconds; daily counts reset at midnight America/Los_Angeles,
-including daylight-saving transitions. Counters and cooldowns survive process restarts.
-
-Provider `QuotaFailure` identifiers distinguish minute/daily limits. `RetryInfo` and numeric/date
-`Retry-After` values can extend the wait; a short retry hint cannot override a daily suspension.
-Temporary overload uses a separate short cooldown, not a daily quota suspension. Eligible models
-continue immediately; an exhausted cascade raises a scheduled retry for the earliest eligible model,
-including mixed quota/overload/model-not-found responses. This also defers enabled Gemini summary
-and speech requests; valid Complete Timeline classifications remain cached during summary waits. Authentication
-and billing failures still require settings correction. Turning the checkbox off restores existing
-provider behaviour without deleting recorded usage or modifying saved model choices.
-
-Migration `20260916_0020_gemini_free_tier` adds one default-off setting and two independent accounting
-tables. Startup makes the normal integrity-checked database backup first. Existing episode/media
-data is not transformed. For rollback, disable the checkbox before running the older application;
-the additive tables can remain. A full restore uses the pre-migration backup as described in
-[Recovery](RECOVERY.md), at the cost of changes made after that backup. Do not delete quota tables
-or reset counters to work around provider limits.
-
-Gemini TTS is optional and uses the same saved Gemini API keys. The default TTS cascade is:
-
-1. `gemini-3.1-flash-tts-preview`
-2. `gemini-2.5-flash-preview-tts`
-
-Available Gemini TTS voices are `Orus` (default), `Enceladus`, and `Laomedeia`.
-
-Speech generation shares the configured provider request budget. Check active speech quotas
-in the same provider console before enabling it.
+If an old Gemini environment variable contains comma-separated keys, only its first nonempty key is used. Remove the unused keys from the installation configuration.
 
 ## Optional / Defaults
 
@@ -154,7 +23,6 @@ in the same provider console before enabling it.
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `SESSION_SECRET_KEY` | Session signing key. Set a unique value before enabling dashboard or feed authentication. | `super-secret-session-key-change-me` |
 | `PROCESSOR_ENABLED` | Start the background feed polling and episode-processing process. Set `false` for an isolated web-only clone that must still run startup and database migrations. | `true` |
-| `SPONSORBLOCK_ENABLED` | Read SponsorBlock timestamps for YouTube episodes and merge them with LLM detections. Disabled by default; review the SponsorBlock CC BY-NC-SA 4.0 API/data licence before enabling. | `false` |
 | `CHECK_INTERVAL_MINUTES` | How often to check for new episodes | `60` |
 | `WHISPER_MODEL` | First-startup Whisper model seed; existing database settings take precedence | `base` |
 | `HOST` | Legacy startup setting; Docker binding is controlled by its Uvicorn command | `0.0.0.0` |
@@ -167,64 +35,31 @@ in the same provider console before enabling it.
 | `MIN_FREE_SPACE_BYTES` | Minimum free disk space to preserve before/during downloads. | `1073741824` |
 | `FFMPEG_TIMEOUT_SECONDS` | Maximum time allowed for one FFmpeg or FFprobe operation before the episode fails/retries instead of holding the queue indefinitely. | `7200` |
 | `ALLOW_PRIVATE_FEEDS` | Allow feeds/enclosures resolving to private or loopback IP ranges. Keep `true` for LAN/self-hosted feeds; set `false` for hardened public deployments. | `true` |
+| `CUDA_SETUP` | Request first-start optional NVIDIA runtime setup. Host drivers and container GPU access must already work. | `false` |
+| `MAX_PROVIDER_CALLS_PER_JOB` | Shared analysis/speech request budget per processing attempt | `12` |
+| `PROVIDER_TIMEOUT_SECONDS` | Per-provider request timeout, seconds | `120` |
+| `LOG_MAX_BYTES` | Rotating log size | `10485760` |
+| `LOG_BACKUP_COUNT` | Rotating log backups | `5` |
+| `ENVIRONMENT` | Runtime environment label | `production` |
+
 
 In Docker, set `BASE_URL` or the System Settings public application URL to a host/LAN URL that podcast clients can reach. Fresh Docker installs no longer auto-save the container's internal IP address.
 
-## Runtime Settings Stored In The Database
 
-These are configured from the Admin UI rather than environment variables:
+## Configure later in Settings
 
-Podcast defaults for processing workflow, content removal, retention, default features, and custom instructions are also
-stored in `app_settings`. They are resolved at read time for subscriptions whose corresponding
-inheritance toggle is enabled. `default_watermark_artwork` is off by default.
+- **Transcription:** faster-whisper model, CPU/GPU device and supported precision; GPU setup/test. CPU/float32 remains the default. See [CUDA.md](CUDA.md).
+- **Text analysis:** provider, one model, credential and optional custom base URL. Model suggestions are choices, never a cascade. Structured schema requests are mandatory. A complete JSON object may be unwrapped from prose or a code fence, but invalid JSON is not repaired.
+- **Voice:** Gemini, OpenAI, OpenRouter or a custom OpenAI-compatible speech endpoint; one model and voice. Cloud providers share their saved/environment credential with text analysis. Custom speech has its own endpoint/key. Speech is optional and may incur API charges. Piper installations need explicit reconfiguration; core processing continues without optional speech.
+- **Podcast defaults:** ads, promos, intros, outros, non-editorial non-speech, optional summaries/title intros/artwork badge, one cut tone switch, retention, advanced short-island threshold (10 seconds; zero disables).
+- **Unified feed:** name, podcast-name prefix, and bundled/external/uploaded artwork. Description is fixed. Raster uploads support PNG/JPEG/WebP up to 5 MB and 4096 pixels, re-encoded as JPEG.
+- **Prompt rules:** category definitions and summary instructions; defaults can be restored per rule. Podcast-specific guidance is always applied when nonempty under advanced podcast settings.
+- **System:** concurrent downloads, check interval, retention, thread limits and download redirect limit (0–50; zero disallows redirects).
+- **Users & access:** dashboard/feed authentication, IP allowlist, users, access requests, feed tokens and API tokens/limits. Existing ownership behavior is unchanged.
+- **Notifications:** Apprise destinations and event toggles. **Logs:** existing viewer.
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `gemini_free_tier_enabled` | Opt into the Gemini quota accounting and provider cooldown handling described above. | `0` |
-| `default_processing_workflow` | Workflow for inheriting/new podcasts: `legacy` or `complete_timeline`. Existing podcasts remain pinned to Legacy on migration. | `legacy` |
-| `default_remove_editorial_non_speech` | Complete Timeline: remove contextual music examples/illustrative audio. | `0` |
-| `default_remove_non_editorial_non_speech` | Complete Timeline: remove contextual ad jingles/non-editorial gaps. | `1` |
-| `default_minimum_retained_seconds` | Complete Timeline: bridge retained islands strictly shorter than this between two selected cuts; `0` disables. Range 0–600. | `10` |
-| `timeline_definitions` | JSON object containing category definition overrides; blank/omitted categories use defaults. Edit in AI Prompt Rules. | empty |
-| `timeline_summary_instructions` | Combined summary instructions, separate from the saved Legacy template. | built-in 2–3 sentence rules |
-| `timeline_output_mode` | `auto`, `strict` (require schema), or `json` (validated compatibility). Provider cascade stays within the selected provider. | `auto` |
-| `whisper_cpu_threads` | Faster-Whisper CPU thread cap. `0` uses the library default. | `0` |
-| `ffmpeg_threads` | FFmpeg thread cap. `0` lets FFmpeg choose automatically. | `0` |
-| `unload_whisper_after_job` | Unload the local Whisper model after the queue empties to reduce idle RAM. | `0` |
-| `ai_api_enabled` | Enable the token-protected AI-facing REST API under `/api/v1`. | `0` |
-| `ai_api_default_requests_per_minute` | Default per-token minute limit for authenticated AI API requests. | `60` |
-| `ai_api_default_requests_per_day` | Default per-token daily limit for authenticated AI API requests. | `1000` |
-| `ai_api_unauth_requests_per_minute` | Per-IP minute limit for missing or invalid AI API token attempts. | `10` |
-| `tts_provider` | TTS engine for spoken title intros and audio summaries: `piper` or `gemini`. | `piper` |
-| `gemini_tts_voice` | Gemini TTS voice when `tts_provider=gemini`. | `Orus` |
-| `gemini_tts_model_cascade` | JSON array of Gemini TTS models to try in order. | `["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]` |
-| `custom_llm_base_url` | Explicit HTTP(S) base URL for an opt-in OpenAI-compatible endpoint. | empty |
-| `custom_llm_api_key` | Optional credential used only for the custom endpoint. Keyless endpoints are supported. | empty |
-| `custom_llm_model` | JSON array of arbitrary model slugs for the custom endpoint. | `[]` |
-| `notifications_enabled` | Enable Apprise-backed admin notifications. | `0` |
-| `notification_urls` | Newline-separated Apprise URLs. Treat values as secrets because they can contain tokens or webhooks. | empty |
-| `notify_access_requests` | Send notification when a user requests dashboard access. | `1` |
-| `notify_new_podcasts` | Send notification when a new global podcast is added. | `1` |
-| `notify_episode_downloads` | Send notification when an episode finishes processing and is available in feeds. | `1` |
-| `notify_breaking_errors` | Send notification for max-retry processing failures and top-level worker errors. | `1` |
+These runtime settings are database-backed. Except provider credentials, environment values generally seed startup defaults rather than overriding an existing installation. The retired `SPONSORBLOCK_ENABLED`, Piper settings and `INSTALL_TTS` build argument are unsupported. YouTube RSS extraction still uses yt-dlp and Deno.
 
-Compose interpolates session/provider values from `.env` or the shell. A persistent random
-`SESSION_SECRET_KEY` is required by Compose; known example placeholders cannot enable authentication.
-Generate it once with `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+## Migration
 
-`WHISPER_MODEL` seeds the database on first startup. Existing database settings override
-the environment; change the model in Settings for an existing installation.
-
-`MAX_PROVIDER_CALLS_PER_JOB` defaults to 12 (1–100), shared across automatic retries,
-analysis, schema repair, summaries and remote speech. SDK automatic retries are disabled.
-`PROVIDER_TIMEOUT_SECONDS` defaults to 120 (5–600). An operator-triggered new job gets a
-new budget. Authentication/billing failures and exhausted budgets require intervention.
-
-## Removal warning tones
-
-Global Subscription Settings provides independent on/off switches for start, middle and end
-removals. All switches default off and always use the bundled Wooden notes sounds.
-`warning_tone_start`, `warning_tone_middle`, and `warning_tone_end` control insertion.
-Legacy `warning_tone_*_style` columns remain for rollback compatibility but are ignored.
-These global audio settings apply to all podcasts when processing begins, including reprocessing.
-They do not alter existing published files automatically. See [Warning tones](WARNING_TONES.md).
+[The implementation and rollback guide](V2_IMPLEMENTATION.md) describes the pre-upgrade backup, queued-job conversion and per-install migration report. Do not downgrade the executable alone after v2 writes. Restore a matching pre-upgrade database and previous immutable image; preserve the media recovery point.

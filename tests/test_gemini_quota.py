@@ -192,24 +192,20 @@ def provider(monkeypatch, outcomes, models=None, enabled=True, name='gemini'):
                           rate_limit_provider=name, gemini_free_tier=enabled), calls
 
 
-def test_fallback_excludes_shared_quota_without_editing_cascade(clock, monkeypatch):
-    instance, calls = provider(monkeypatch, [error(message='daily quota exceeded'), 'ok', 'ok'])
-    assert instance.generate('test') == 'ok'
-    assert instance.generate('test again') == 'ok'
-    assert calls == [MODEL, LITE, LITE]
-    assert instance.models == [MODEL, LITE]
-    assert instance.current_key_idx == 0
-    assert quota.usage([LITE])[0]['minute_tokens'] == 14
+def test_single_model_cooldown_prevents_further_requests(clock, monkeypatch):
+    instance,calls=provider(monkeypatch,[error(message='daily quota exceeded')])
+    for _ in range(2):
+        with pytest.raises(RateLimitError): instance.generate('test')
+    assert calls==[MODEL] and instance.models==[MODEL] and instance.current_key_idx==0
 
 
-def test_mixed_errors_schedule_earliest_eligible_model(clock, monkeypatch):
-    instance, calls = provider(monkeypatch, [error(message='daily quota exceeded'), error(503, 'overloaded'), error(404, 'not found')],
-                               models=[MODEL, LITE, 'unknown'])
-    with pytest.raises(RateLimitError) as caught:
-        instance.generate('test')
-    assert caught.value.get_next_retry_time() == datetime.fromtimestamp(clock[0] + 30, timezone.utc).replace(tzinfo=None)
-    assert calls == [MODEL, LITE, 'unknown']
-    assert instance.current_key_idx == 0
+
+def test_single_model_schedules_its_daily_reset(clock, monkeypatch):
+    instance,calls=provider(monkeypatch,[error(message='daily quota exceeded')],models=[MODEL,LITE])
+    with pytest.raises(RateLimitError) as caught: instance.generate('test')
+    assert caught.value.get_next_retry_time()==datetime.fromtimestamp(quota.day_window(clock[0])[1],timezone.utc).replace(tzinfo=None)
+    assert calls==[MODEL]
+
 
 
 def test_all_excluded_make_no_requests_or_job_budget_charges(episodes, monkeypatch):
@@ -240,12 +236,13 @@ def test_job_budget_rejection_rolls_back_quota_reservation(episodes, monkeypatch
     assert quota.usage([MODEL])[0]['day_requests'] == 0
 
 
-@pytest.mark.parametrize('enabled,name', [(False, 'gemini'), (True, 'openai'), (True, 'openrouter'), (True, 'custom')])
-def test_opt_out_and_other_providers_keep_existing_key_rotation(clock, monkeypatch, enabled, name):
-    instance, calls = provider(monkeypatch, [error(message='429 rate limit'), 'ok'], models=[MODEL], enabled=enabled, name=name)
-    assert instance.generate('test') == 'ok'
-    assert len(calls) == 2 and instance.current_key_idx == 1
-    assert quota.usage([MODEL])[0]['day_requests'] == 0
+@pytest.mark.parametrize('enabled,name',[(False,'gemini'),(True,'openai'),(True,'openrouter'),(True,'custom')])
+def test_other_providers_never_rotate_credentials(clock,monkeypatch,enabled,name):
+    instance,calls=provider(monkeypatch,[error(message='429 rate limit')],models=[MODEL],enabled=enabled,name=name)
+    with pytest.raises(RateLimitError): instance.generate('test')
+    assert len(calls)==1 and instance.current_key_idx==0
+    assert quota.usage([MODEL])[0]['day_requests']==0
+
 
 
 def test_authentication_stays_actionable(clock, monkeypatch):
@@ -257,7 +254,7 @@ def test_authentication_stays_actionable(clock, monkeypatch):
 def test_checkbox_save_reload_scoping_and_usage(client):
     page = client.get('/admin/ai/text-analysis')
     assert page.status_code == 200
-    assert 'enable gemini free tier rate limit handling' in page.text
+    assert 'Gemini free-tier limits' in page.text
     def checkbox(html):
         return re.search(r'<input\b[^>]*name="gemini_free_tier_enabled"[^>]*>', html).group()
     assert 'checked' not in checkbox(page.text)
@@ -279,7 +276,7 @@ def test_checkbox_save_reload_scoping_and_usage(client):
     detector = AdDetector()
     detector.settings = saved
     assert detector.create_provider('gemini', api_key='test').gemini_free_tier
-    assert 'gemini-3-flash' not in json.loads(saved['ai_model_cascade'])
+    assert 'gemini-3-flash' not in saved['ai_model_cascade']
     assert 'gemini-3-flash' not in MODEL_DEFAULTS['gemini']
     client.post('/admin/ai/update', data={'section': 'ai_text', 'gemini_free_tier_present': 'true'})
     with get_db_connection() as conn:
@@ -316,22 +313,21 @@ def test_upgrade_is_additive_backed_up_and_idempotent(isolated_data_dir, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_speech_quota_does_not_rotate_keys(clock, monkeypatch, tmp_path):
-    from test_ai_provider_architecture import FakeAsyncClient, FakeGeminiTtsResponse
-    detector = AdDetector()
-    detector.settings = {'gemini_free_tier_enabled': 1, 'gemini_api_keys': '["one", "two"]',
-                         'gemini_tts_model_cascade': '["speech-model"]'}
-    FakeAsyncClient.calls = []
-    FakeAsyncClient.responses = [FakeGeminiTtsResponse(status_code=429, payload={
-        'error': {'message': 'daily quota exceeded', 'details': [{'retryDelay': '2s'}]}})]
-    monkeypatch.setattr('app.core.ai_services.httpx.AsyncClient', FakeAsyncClient)
-    with pytest.raises(RateLimitError) as caught:
-        await detector._generate_gemini_tts('speech', str(tmp_path / 'audio.wav'))
-    assert caught.value.get_next_retry_time() == datetime.fromtimestamp(quota.day_window(clock[0])[1], timezone.utc).replace(tzinfo=None)
-    with pytest.raises(RateLimitError):
-        await detector._generate_gemini_tts('speech', str(tmp_path / 'audio.wav'))
-    assert len(FakeAsyncClient.calls) == 1
-    assert quota.usage(['speech-model'])[0]['day_requests'] == 1
+async def test_speech_quota_does_not_rotate_keys(clock,monkeypatch,tmp_path):
+    import httpx
+    from app.core.speech import generate_speech
+    calls=[]
+    original=httpx.AsyncClient
+    async def handle(request):
+        calls.append(request)
+        return httpx.Response(429,json={'error':{'message':'daily quota exceeded'}},request=request)
+    monkeypatch.setattr('app.core.speech.httpx.AsyncClient',lambda **kw:original(transport=httpx.MockTransport(handle),**kw))
+    values={'tts_provider':'gemini','tts_model':'speech-model','tts_voice':'Orus','gemini_free_tier_enabled':1,'gemini_api_key':'one'}
+    for _ in range(2):
+        with pytest.raises(RateLimitError): await generate_speech('speech',tmp_path/'audio.wav',values)
+    assert len(calls)==1
+    assert quota.usage(['speech-model'])[0]['day_requests']==1
+
 
 
 @pytest.mark.parametrize('model,rpm,rpd', [
@@ -354,14 +350,15 @@ def test_requested_model_limits(clock, model, rpm, rpd):
         call(model)
 
 
-def test_legacy_summary_propagates_enabled_quota_only(clock, monkeypatch):
-    detector = AdDetector()
-    retry = datetime.fromtimestamp(clock[0] + 60, timezone.utc).replace(tzinfo=None)
-    def fail(prompt):
-        raise RateLimitError('wait', retry_at=retry)
-    monkeypatch.setattr(detector, '_get_provider', lambda: SimpleNamespace(generate=fail))
+def test_combined_analysis_propagates_quota(clock,monkeypatch):
+    from app.core import timeline
+    detector=AdDetector()
+    def fail(*args,**kwargs): raise RateLimitError('wait')
+    monkeypatch.setattr(detector,'_get_provider',lambda:SimpleNamespace(generate_structured=fail))
+    units,_=timeline.prepare_timeline({'segments':[{'start':0,'end':5,'text':'Text'}]},5)
     with pytest.raises(RateLimitError):
-        detector.generate_summary({'segments': [{'text': 'text'}]}, 'Show', 'Title', 'today')
+        detector.classify_timeline(units,5,{'podcast_name':'Show'},timeline.make_snapshot({},{}))
+
 
 
 @pytest.mark.asyncio

@@ -41,12 +41,12 @@ def test_podcast_search_template_escapes_dynamic_result_fields():
 
 
 def test_admin_ai_template_escapes_dynamic_model_names():
-    template_source = Path("app/web/templates/admin/ai.html").read_text(encoding="utf-8")
+    from app.web.router import templates
+    template=templates.env.from_string('{% for model in models %}<option value="{{ model }}">{% endfor %}')
+    result=template.render(models=['"><script>alert(1)</script>'])
+    assert '<script>' not in result and '&lt;script&gt;' in result
+    assert 'shuttleManager' not in Path('app/web/templates/admin/ai.html').read_text(encoding='utf-8')
 
-    assert "function escapeHtml(value)" in template_source
-    assert "<span>${escapeHtml(m)}</span>" in template_source
-    assert "onclick=\"shuttleManager.remove('${provider}', '${m}')\"" not in template_source
-    assert "div.querySelector('button').onclick = () => this.remove(provider, m)" in template_source
 
 
 def test_admin_logs_template_escapes_lines_before_highlighting():
@@ -59,10 +59,10 @@ def test_admin_logs_template_escapes_lines_before_highlighting():
 
 
 def test_admin_prompts_alerts_use_text_content():
-    template_source = Path("app/web/templates/admin/prompts.html").read_text(encoding="utf-8")
+    source=Path('app/web/static/js/v2.js').read_text(encoding='utf-8')
+    assert 'status.textContent = error.message' in source
+    assert 'innerHTML' not in source
 
-    assert "appToast(message, { type })" in template_source
-    assert "alertContainer.innerHTML = `<div" not in template_source
 
 
 def test_templates_use_app_notifications_instead_of_browser_popups():

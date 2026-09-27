@@ -52,7 +52,7 @@ def test_resolver_uses_four_group_flags_without_overwriting_stored_values():
     assert resolved["ai_audio_summary"] is False
     assert resolved["append_title_intro"] is True
     assert resolved["append_summary"] is False
-    assert resolved["custom_instructions"] == "Use the global instructions"
+    assert resolved["custom_instructions"] == "Stored override"
     assert resolved["setting_overrides"]["remove_ads"] == 0
     assert resolved["setting_overrides"]["retention_limit"] == 1
     assert resolved["setting_overrides"]["custom_instructions"] == "Stored override"
@@ -84,10 +84,10 @@ def test_new_subscription_inherits_all_groups_and_restores_stored_overrides(isol
     assert sub.inherit_content_removal is True
     assert sub.inherit_retention is True
     assert sub.inherit_default_features is True
-    assert sub.inherit_custom_instructions is True
+    assert sub.inherit_custom_instructions is False
     assert sub.remove_ads is False
     assert sub.retention_limit == 10
-    assert sub.custom_instructions == "Global rule"
+    assert sub.custom_instructions is None
     assert sub.setting_overrides["retention_limit"] == 3
 
     repo.update_settings(
