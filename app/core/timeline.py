@@ -7,9 +7,9 @@ import math
 import re
 
 
-WORKFLOWS = {"legacy", "complete_timeline"}
-OUTPUT_MODES = {"auto", "strict", "json"}
-PROMPT_VERSION = "complete-timeline-1"
+WORKFLOWS = {"complete_timeline"}
+OUTPUT_MODES = {"strict"}
+PROMPT_VERSION = "complete-timeline-2"
 SCHEMA_VERSION = 1
 
 DEFINITIONS = {
@@ -77,7 +77,7 @@ MODEL_SETTINGS = (
 )
 CUT_FIELDS = {
     "Ad": "remove_ads", "Promo": "remove_promos", "Intro": "remove_intros", "Outro": "remove_outros",
-    "EditorialNonSpeech": "remove_editorial_non_speech", "NonEditorialNonSpeech": "remove_non_editorial_non_speech",
+    "NonEditorialNonSpeech": "remove_non_editorial_non_speech",
 }
 
 
@@ -106,12 +106,8 @@ def build_prompt(settings: dict, custom_instructions: str | None = None) -> str:
 
 
 def make_snapshot(subscription: dict, settings: dict) -> dict:
-    """Persist no credentials. Legacy jobs keep legacy settings resolution."""
-    workflow = subscription.get("processing_workflow") or "legacy"
-    if workflow not in WORKFLOWS:
-        raise ValueError("Unknown processing workflow")
-    if workflow == "legacy":
-        return {"version": 1, "workflow": "legacy"}
+    """Freeze the single supported classification workflow without credentials."""
+    workflow = "complete_timeline"
     options = {field: bool(subscription.get(field, label in {"Ad", "Promo", "NonEditorialNonSpeech"}))
                for label, field in CUT_FIELDS.items()}
     options["minimum_retained_seconds"] = threshold(subscription.get("minimum_retained_seconds", 10))
@@ -135,7 +131,7 @@ def model_settings(settings: dict) -> dict:
     }[provider]
     result["active_ai_provider"] = provider
     result[field] = json.dumps(AdDetector._parse_model_setting(result.get(field), default))
-    result["timeline_output_mode"] = result.get("timeline_output_mode") or "auto"
+    result["timeline_output_mode"] = "strict"
     return result
 
 
@@ -194,9 +190,36 @@ def source_message(units: list[dict], duration: float, metadata: dict) -> str:
                       ensure_ascii=False, separators=(",", ":"))
 
 
+def decode_json(text):
+    """Unwrap one valid object, without repairing JSON syntax or guessing fields."""
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            if key in result:
+                raise ValueError('Duplicate JSON key')
+            result[key] = value
+        return result
+    def invalid_constant(value):
+        raise ValueError('Non-finite JSON number')
+    decoder = json.JSONDecoder(object_pairs_hook=pairs, parse_constant=invalid_constant)
+    value = text.strip().lstrip('\ufeff').strip()
+    if value.startswith('```'):
+        value = re.sub(r'^```(?:json)?\s*', '', value)
+        value = re.sub(r'\s*```$', '', value)
+    start = value.find('{')
+    if start < 0:
+        raise ValueError('Expected JSON object')
+    payload, end = decoder.raw_decode(value, start)
+    if '{' in value[end:] or '}' in value[end:]:
+        raise ValueError('Ambiguous JSON objects')
+    if not isinstance(payload, dict):
+        raise ValueError('Expected JSON object')
+    return payload
+
+
 def parse_response(text: str, units: list[dict]) -> tuple[list[dict], str | None]:
     try:
-        payload = json.loads(text)
+        payload = decode_json(text)
     except (ValueError, TypeError) as error:
         raise TimelineError("Classification did not contain a complete JSON object") from error
     if not isinstance(payload, dict) or set(payload) - {"segments", "summary"} or not isinstance(payload.get("segments"), list):

@@ -237,7 +237,6 @@ onnxruntime==1.29.0
     # via
     #   -c constraints.txt
     #   faster-whisper
-    #   piper-tts
 openai==3.8.0
     # via
     #   -c constraints.txt
@@ -275,11 +274,8 @@ pip-requirements-parser==32.0.1
     # via
     #   -c constraints.txt
     #   pip-audit
-piper-phonemize==1.1.0
     # via
     #   -c constraints.txt
-    #   piper-tts
-piper-tts==1.2.0
     # via
     #   -c constraints.txt
     #   -r requirements-tts.txt

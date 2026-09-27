@@ -21,12 +21,6 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
-def piper_tts_available() -> bool:
-    if os.getenv("TTS_ENABLED", "1").lower() in {"0", "false", "no", "off"}:
-        return False
-    return importlib.util.find_spec("piper") is not None
-
-
 class AnalysisError(ValueError):
     """The provider did not return a complete, usable segmentation result."""
 
@@ -105,17 +99,6 @@ def record_usage(metrics, response):
             if isinstance(value, int):
                 metrics[key] = value
                 break
-
-
-def structured_output_unsupported(error: Exception) -> bool:
-    """Downgrade only an explicit unsupported-format response, never an outage/refusal."""
-    status = getattr(error, 'status_code', None) or getattr(getattr(error, 'response', None), 'status_code', None)
-    message = str(error).lower()
-    if status == 404 and 'no endpoints found that support the requested parameters' in message:
-        return True  # OpenRouter with require_parameters and only a schema constraint.
-    return status in (400, 404, 422) and any(
-        field in message for field in ('response_format', 'json_schema', 'structured output', 'output_config')
-    ) and any(phrase in message for phrase in ('not supported', 'unsupported', 'unknown parameter', 'unrecognized', 'not available'))
 
 
 def normalize_openai_base_url(value: str) -> str:
@@ -464,9 +447,9 @@ class OpenAIProvider(LLMProvider):
     ):
         import openai
         self.openai = openai
-        self.api_keys = api_key if isinstance(api_key, list) else [api_key]
+        self.api_keys = (api_key if isinstance(api_key, list) else [api_key])[:1]
         self.current_key_idx = 0
-        self.models = models
+        self.models = models[:1]
         self.base_url = base_url
         self.provider_name = provider_name
         self.model_prefixes = model_prefixes
@@ -481,14 +464,6 @@ class OpenAIProvider(LLMProvider):
         logger.info(f"{self.provider_name}: Initializing client with credential #{self.current_key_idx + 1}")
         self.client = self.openai.OpenAI(api_key=key, base_url=self.base_url, max_retries=0, timeout=settings.PROVIDER_TIMEOUT_SECONDS)
 
-    def _rotate_key(self) -> bool:
-        if self.current_key_idx + 1 < len(self.api_keys):
-            self.current_key_idx += 1
-            logger.warning(f"{self.provider_name}: Rate limit hit. Rotating to key #{self.current_key_idx + 1}...")
-            self._init_client()
-            return True
-        return False
-
     def _is_rate_limit(self, error: Exception) -> bool:
         error_str = str(error).lower()
         return any(pattern in error_str for pattern in self.RATE_LIMIT_PATTERNS)
@@ -499,85 +474,41 @@ class OpenAIProvider(LLMProvider):
     def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "auto") -> str:
         return self._generate(messages, schema, output_mode)
 
-    def _generate(self, messages, schema=None, output_mode="auto") -> str:
+    def _generate(self, messages, schema=None, output_mode="strict") -> str:
         if not self.models:
-            raise ValueError(f"No models configured for {self.provider_name}.")
-
-        last_error = None
-        call_count = 0
-        deferred = []
-
-        while True:
-            all_rate_limited = True
-
-            for model in self.models:
-                try:
-                    logger.info(f"{self.provider_name}: Using model {model} with key #{self.current_key_idx + 1}...")
-                    capability_key = (self.base_url, self.rate_limit_provider, model)
-                    supported, expires = self._schema_support.get(capability_key, (True, 0))
-                    use_schema = schema is not None and output_mode != "json"
-                    if output_mode == "auto" and not supported and expires > time.monotonic():
-                        use_schema = False
-                    formats = [use_schema, False] if use_schema and output_mode == "auto" else [use_schema]
-                    for native_schema in formats:
-                        if call_count >= settings.MAX_PROVIDER_CALLS_PER_JOB:
-                            raise ProviderBudgetExceeded('Model/key fallback request limit reached')
-                        kwargs = {"model": model, "messages": messages}
-                        if native_schema:
-                            kwargs["response_format"] = {"type": "json_schema", "json_schema": {
-                                "name": "podcast_classification", "strict": True, "schema": schema}}
-                            if self.is_openrouter:
-                                kwargs["extra_body"] = {"provider": {"require_parameters": True}}
-                        elif schema is not None:
-                            kwargs["messages"] = [{"role": "system", "content": "Return only JSON matching this schema: " + json.dumps(schema)}, *messages]
-                        try:
-                            from app.core.gemini_quota import estimate_input_tokens
-                            with provider_request(self.rate_limit_provider, model,
-                                                  gemini_free_tier=self.gemini_free_tier,
-                                                  input_tokens=estimate_input_tokens(kwargs) if self.gemini_free_tier else 0) as metrics:
-                                call_count += 1
-                                response = self.client.chat.completions.create(**kwargs)
-                                record_usage(metrics, response)
-                                choice = response.choices[0]
-                                if getattr(choice, 'finish_reason', 'stop') in ('length', 'content_filter') or getattr(choice.message, 'refusal', None):
-                                    raise AnalysisError('Provider returned truncated or refused output')
-                                self.last_model = model
-                                self.last_output_mode = "json_schema" if native_schema else "validated_json" if schema else "text"
-                                if native_schema:
-                                    self._schema_support[capability_key] = (True, time.monotonic() + 3600)
-                                return choice.message.content or ""
-                        except Exception as error:
-                            if native_schema and output_mode == "auto" and structured_output_unsupported(error):
-                                self._schema_support[capability_key] = (False, time.monotonic() + 3600)
-                                logger.info("%s model %s requires validated JSON compatibility mode", self.provider_name, model)
-                                continue
-                            raise
-                except Exception as e:
-                    raise_permanent_provider_error(e)
-                    if self.gemini_free_tier:
-                        from app.core.gemini_quota import GeminiCooldown, record_error
-                        cooldown = e if isinstance(e, GeminiCooldown) else record_error(model, e)
-                        if cooldown:
-                            deferred.append(cooldown)
-                            continue
-                    logger.warning(f"{self.provider_name} model {model} failed: {e}")
-                    last_error = e
-                    if not self._is_rate_limit(e):
-                        all_rate_limited = False
-
-            if self.gemini_free_tier and deferred:
-                from datetime import datetime, timezone
-                earliest = min(deferred, key=lambda error: error.until)
-                raise RateLimitError('; '.join(str(error) for error in deferred), provider='gemini',
-                                     retry_at=datetime.fromtimestamp(earliest.until, timezone.utc).replace(tzinfo=None))
-
-            if all_rate_limited and not self.gemini_free_tier and self._rotate_key():
-                continue
-
-            if all_rate_limited:
-                raise rate_limit_error(last_error, self.rate_limit_provider)
-
-            raise Exception(f"All {self.provider_name} models failed. Last error: {last_error}")
+            raise PermanentProviderError(f"Choose a model for {self.provider_name}")
+        model = self.models[0]
+        kwargs = {"model": model, "messages": messages}
+        if schema is not None:
+            kwargs["response_format"] = {"type": "json_schema", "json_schema": {
+                "name": "podcast_classification", "strict": True, "schema": schema}}
+            if self.is_openrouter:
+                kwargs["extra_body"] = {"provider": {"require_parameters": True}}
+        try:
+            from app.core.gemini_quota import estimate_input_tokens
+            with provider_request(self.rate_limit_provider, model,
+                                  gemini_free_tier=self.gemini_free_tier,
+                                  input_tokens=estimate_input_tokens(kwargs) if self.gemini_free_tier else 0) as metrics:
+                response = self.client.chat.completions.create(**kwargs)
+                record_usage(metrics, response)
+                choice = response.choices[0]
+                if getattr(choice, 'finish_reason', 'stop') in ('length', 'content_filter') or getattr(choice.message, 'refusal', None):
+                    raise AnalysisError('Provider returned truncated or refused output')
+                self.last_model = model
+                self.last_output_mode = "json_schema" if schema else "text"
+                return choice.message.content or ""
+        except Exception as error:
+            raise_permanent_provider_error(error)
+            if self.gemini_free_tier:
+                from app.core.gemini_quota import GeminiCooldown, record_error
+                cooldown = error if isinstance(error, GeminiCooldown) else record_error(model, error)
+                if cooldown:
+                    from datetime import datetime, timezone
+                    raise RateLimitError(str(cooldown), provider='gemini',
+                        retry_at=datetime.fromtimestamp(cooldown.until, timezone.utc).replace(tzinfo=None)) from error
+            if self._is_rate_limit(error):
+                raise rate_limit_error(error, self.rate_limit_provider) from error
+            raise
 
     def list_models(self) -> List[str]:
         try:
@@ -602,7 +533,7 @@ class AnthropicProvider(LLMProvider):
     def __init__(self, api_key: str, models: List[str]):
         import anthropic
         self.client = anthropic.Anthropic(api_key=api_key, max_retries=0, timeout=settings.PROVIDER_TIMEOUT_SECONDS)
-        self.models = models
+        self.models = models[:1]
 
     def generate(self, prompt: str) -> str:
         return self._generate([{'role': 'user', 'content': prompt}])
@@ -610,44 +541,31 @@ class AnthropicProvider(LLMProvider):
     def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "auto") -> str:
         return self._generate(messages, schema, output_mode)
 
-    def _generate(self, messages, schema=None, output_mode="auto") -> str:
-        last_error = None
-        call_count = 0
-        for model in self.models[:settings.MAX_PROVIDER_CALLS_PER_JOB]:
-            try:
-                native = schema is not None and output_mode != "json"
-                for use_schema in ([native, False] if native and output_mode == "auto" else [native]):
-                    call_count += 1
-                    if call_count > settings.MAX_PROVIDER_CALLS_PER_JOB:
-                        raise ProviderBudgetExceeded('Model fallback request limit reached')
-                    kwargs = {"model": model, "max_tokens": 4096,
-                              "messages": [m for m in messages if m['role'] != 'system']}
-                    system = "\n\n".join(m['content'] for m in messages if m['role'] == 'system')
-                    if schema and not use_schema:
-                        system += "\nReturn only JSON matching this schema: " + json.dumps(schema)
-                    if system:
-                        kwargs['system'] = system
-                    if use_schema:
-                        kwargs['extra_body'] = {"output_config": {"format": {"type": "json_schema", "schema": schema}}}
-                    try:
-                        with provider_request('anthropic', model) as metrics:
-                            response = self.client.messages.create(**kwargs)
-                            record_usage(metrics, response)
-                            if getattr(response, 'stop_reason', None) in ('max_tokens', 'refusal'):
-                                raise AnalysisError('Provider returned truncated or refused output')
-                            self.last_model = model
-                            self.last_output_mode = "json_schema" if use_schema else "validated_json" if schema else "text"
-                            return ''.join(block.text for block in response.content if getattr(block, 'type', 'text') == 'text')
-                    except Exception as error:
-                        if use_schema and output_mode == "auto" and structured_output_unsupported(error):
-                            continue
-                        raise
-            except Exception as error:
-                raise_permanent_provider_error(error)
-                last_error = error
-        if getattr(last_error, 'status_code', None) == 429:
-            raise rate_limit_error(last_error, 'anthropic')
-        raise RuntimeError(f'All Anthropic models failed: {last_error}')
+    def _generate(self, messages, schema=None, output_mode="strict") -> str:
+        if not self.models:
+            raise PermanentProviderError('Choose an Anthropic model')
+        model = self.models[0]
+        kwargs = {"model": model, "max_tokens": 8192,
+                  "messages": [m for m in messages if m['role'] != 'system']}
+        system = "\n\n".join(m['content'] for m in messages if m['role'] == 'system')
+        if system:
+            kwargs['system'] = system
+        if schema:
+            kwargs['extra_body'] = {"output_config": {"format": {"type": "json_schema", "schema": schema}}}
+        try:
+            with provider_request('anthropic', model) as metrics:
+                response = self.client.messages.create(**kwargs)
+                record_usage(metrics, response)
+                if getattr(response, 'stop_reason', None) in ('max_tokens', 'refusal'):
+                    raise AnalysisError('Provider returned truncated or refused output')
+                self.last_model = model
+                self.last_output_mode = 'json_schema' if schema else 'text'
+                return ''.join(block.text for block in response.content if getattr(block, 'type', 'text') == 'text')
+        except Exception as error:
+            raise_permanent_provider_error(error)
+            if getattr(error, 'status_code', None) == 429:
+                raise rate_limit_error(error, 'anthropic') from error
+            raise
 
     def list_models(self) -> List[str]:
         return [
@@ -681,247 +599,40 @@ class AdDetector:
         return {}
 
     @staticmethod
-    def _parse_model_setting(value: str, default: List[str]) -> List[str]:
-        """Helper to parse DB setting which might be a JSON list or a single string"""
-        if not value: return default
-        try:
-            # Try parsing as JSON list
-            parsed = json.loads(value)
-            if isinstance(parsed, list): return parsed
-            return [str(parsed)] # Single JSON value?
-        except json.JSONDecodeError:
-            # Fallback: Treat as simple string (legacy)
-            return [value]
+    def _parse_model_setting(value, default):
+        from app.core.provider_settings import first_value
+        model = first_value(value, first_value(default))
+        return [model] if model else []
 
-    def _get_gemini_api_keys(self) -> List[str]:
-        api_keys = []
+    def _get_gemini_api_keys(self):
+        from app.core.provider_settings import credential
+        key = credential('gemini', self.settings)
+        return [key] if key else []
 
-        db_keys_json = self.settings.get('gemini_api_keys')
-        if db_keys_json:
-            try:
-                parsed = json.loads(db_keys_json)
-                if isinstance(parsed, list):
-                    api_keys.extend([k.strip() for k in parsed if isinstance(k, str) and k.strip()])
-            except Exception:
-                pass
-
-        legacy_key = self.settings.get('gemini_api_key')
-        if legacy_key and legacy_key not in api_keys:
-            api_keys.append(legacy_key)
-
-        if settings.GEMINI_API_KEY:
-            env_keys = [k.strip() for k in settings.GEMINI_API_KEY.split(',') if k.strip()]
-            for key in env_keys:
-                if key not in api_keys:
-                    api_keys.append(key)
-
-        return api_keys
-
-    def create_provider(
-        self,
-        provider_type: str,
-        api_key: str = None,
-        model: str = None,
-        openrouter_key: str = None,
-        base_url: str = None,
-    ) -> LLMProvider:
-        """Factory to create a provider instance."""
-        allowed_providers = {"gemini", "openai", "anthropic", "openrouter", "custom"}
-        if provider_type not in allowed_providers:
-            raise ValueError(f"Unsupported AI provider: {provider_type}")
-
-        explicit_api_key = api_key
-
-        # Resolve keys (DB Overrides Env)
-        if not api_key:
-            db_key = None
-            if provider_type == 'gemini':
-                # For Gemini, try the new gemini_api_keys (JSON array) first
-                db_keys_json = self.settings.get('gemini_api_keys')
-                if db_keys_json:
-                    try:
-                        parsed = json.loads(db_keys_json)
-                        if isinstance(parsed, list) and len(parsed) > 0:
-                            # Return first key for compatibility, but full list used below
-                            db_key = parsed[0]
-                    except:
-                        pass
-                # Fallback to legacy single key field
-                if not db_key:
-                    db_key = self.settings.get('gemini_api_key')
-            elif provider_type == 'openai': db_key = self.settings.get('openai_api_key')
-            elif provider_type == 'anthropic': db_key = self.settings.get('anthropic_api_key')
-            elif provider_type == 'openrouter': db_key = self.settings.get('openrouter_api_key')
-            elif provider_type == 'custom': db_key = self.settings.get('custom_llm_api_key')
-
-            # 2. Try Env second
-            env_key = None
-            if provider_type == 'gemini': env_key = settings.GEMINI_API_KEY
-            elif provider_type == 'openai': env_key = settings.OPENAI_API_KEY
-            elif provider_type == 'anthropic': env_key = settings.ANTHROPIC_API_KEY
-            elif provider_type == 'openrouter': env_key = settings.OPENROUTER_API_KEY
-
-            # Priority: DB > Env
-            api_key = db_key if db_key else env_key
-
-        if not api_key and provider_type == "custom":
-            # The OpenAI SDK requires a non-empty value even when a local server ignores auth.
-            api_key = "keyless-local-endpoint"
-        elif not api_key:
-             raise ValueError(f"No API key found for {provider_type} (Check Admin Settings or Environment Variables)")
-
-        # Resolve models (handle passed 'model' arg or DB settings)
-        # If explicit 'model' arg is passed (e.g. from test tool), wrap it in list
-        if model:
-            # Check if it looks like a JSON list
-            try:
-                parsed = json.loads(model)
-                if isinstance(parsed, list): models_list = parsed
-                else: models_list = [model]
-            except:
-                models_list = [model]
-        else:
-            # Load from DB
-            if provider_type == 'openai':
-                models_list = self._parse_model_setting(self.settings.get('openai_model'), MODEL_DEFAULTS['openai'])
-            elif provider_type == 'anthropic':
-                models_list = self._parse_model_setting(self.settings.get('anthropic_model'), MODEL_DEFAULTS['anthropic'])
-            elif provider_type == 'openrouter':
-                models_list = self._parse_model_setting(self.settings.get('openrouter_model'), self.DEFAULT_OPENROUTER_MODELS)
-            elif provider_type == 'custom':
-                models_list = self._parse_model_setting(self.settings.get('custom_llm_model'), [])
-            else: # Gemini
-                models_list = self._parse_model_setting(self.settings.get('ai_model_cascade'), self.DEFAULT_GEMINI_MODELS)
-
-        if provider_type == 'openai':
-            return OpenAIProvider(api_key, models_list, provider_name="OpenAI", rate_limit_provider="openai")
-
-        elif provider_type == 'anthropic':
-            return AnthropicProvider(api_key, models_list)
-
-        elif provider_type == 'openrouter':
-            return OpenAIProvider(
-                api_key,
-                models_list,
-                base_url="https://openrouter.ai/api/v1",
-                provider_name="OpenRouter",
-                model_prefixes=None,
-                rate_limit_provider="openrouter",
-            )
-
-        elif provider_type == "custom":
-            resolved_base_url = normalize_openai_base_url(
-                base_url or self.settings.get("custom_llm_base_url")
-            )
-            return OpenAIProvider(
-                api_key,
-                models_list,
-                base_url=resolved_base_url,
-                provider_name="Custom OpenAI-compatible",
-                model_prefixes=None,
-                rate_limit_provider="custom",
-            )
-
-        else: # Gemini
-            # For Gemini, build the full keys list from all sources
-            api_keys = []
-
-            if explicit_api_key:
-                api_keys.extend([k.strip() for k in explicit_api_key.split(',') if k.strip()])
-
-            # 1. DB keys (gemini_api_keys JSON array)
-            if not explicit_api_key:
-                db_keys_json = self.settings.get('gemini_api_keys')
-                if db_keys_json:
-                    try:
-                        parsed = json.loads(db_keys_json)
-                        if isinstance(parsed, list):
-                            api_keys.extend([k for k in parsed if k and k.strip()])
-                    except:
-                        pass
-
-                # 2. Legacy single key from DB
-                legacy_key = self.settings.get('gemini_api_key')
-                if legacy_key and legacy_key not in api_keys:
-                    api_keys.append(legacy_key)
-
-                # 3. Environment variable (can be comma-separated)
-                if settings.GEMINI_API_KEY:
-                    env_keys = [k.strip() for k in settings.GEMINI_API_KEY.split(',') if k.strip()]
-                    for k in env_keys:
-                        if k not in api_keys:
-                            api_keys.append(k)
-
-            # If still no keys, use the api_key that was resolved above
-            if not api_keys:
-                api_keys = [api_key]
-
-            return OpenAIProvider(
-                api_keys,
-                models_list,
-                base_url=self.GEMINI_OPENAI_BASE_URL,
-                provider_name="Gemini",
-                model_prefixes=("gemini-",),
-                rate_limit_provider="gemini",
-                gemini_free_tier=bool(self.settings.get('gemini_free_tier_enabled', 0)),
-            )
+    def create_provider(self, provider_type, api_key=None, model=None, openrouter_key=None, base_url=None):
+        from app.core.provider_settings import MODEL_FIELDS, credential, first_value
+        if provider_type not in MODEL_FIELDS:
+            raise ValueError('Choose a supported provider')
+        key = credential(provider_type, self.settings) or api_key
+        if not key and provider_type != 'custom':
+            raise ValueError(f'Configure an API key for {provider_type}')
+        selected = first_value(model or self.settings.get(MODEL_FIELDS[provider_type]),
+                               first_value(MODEL_DEFAULTS.get(provider_type, [])))
+        models = [selected] if selected else []
+        if provider_type == 'anthropic':
+            return AnthropicProvider(key, models)
+        urls = {'gemini': self.GEMINI_OPENAI_BASE_URL, 'openai': None,
+                'openrouter': 'https://openrouter.ai/api/v1'}
+        url = normalize_openai_base_url(base_url or self.settings.get('custom_llm_base_url')) if provider_type == 'custom' else urls[provider_type]
+        return OpenAIProvider(key or 'keyless-local-endpoint', models, base_url=url,
+            provider_name='Custom OpenAI-compatible' if provider_type == 'custom' else {'gemini': 'Gemini', 'openai': 'OpenAI', 'openrouter': 'OpenRouter'}[provider_type],
+            model_prefixes=None, rate_limit_provider=provider_type,
+            gemini_free_tier=bool(self.settings.get('gemini_free_tier_enabled')))
 
     def _get_provider(self) -> LLMProvider:
         # Use current settings
         provider_type = self.settings.get('active_ai_provider', 'gemini')
         return self.create_provider(provider_type)
-
-    def detect_ads(self, transcript: Dict, options: Dict = None, whitelist_mode: bool = False) -> List[Dict[str, float]]:
-        self.settings = self._load_settings()
-        if not options:
-            options = {
-                "remove_ads": True, "remove_promos": True, "remove_intros": False, "remove_outros": False, "custom_instructions": None
-            }
-
-        # Prepare transcript text
-        text_data = ""
-        for seg in transcript['segments']:
-            text_data += f"[{seg['start']:.2f}-{seg['end']:.2f}] {seg['text']}\n"
-
-        # Build Prompt
-        prompt = self._build_ad_prompt(options, text_data, whitelist_mode=whitelist_mode)
-
-        # Execute
-        try:
-            provider = self._get_provider()
-            response_text = provider.generate(prompt)
-            try:
-                raw_segments = self._parse_ad_response(response_text)
-            except AnalysisError:
-                # One schema repair attempt shares the same durable provider budget.
-                response_text = provider.generate(prompt + '\nReturn only a complete JSON array. Use [] only if there are no matching segments. Timestamps must be finite and ordered.')
-                raw_segments = self._parse_ad_response(response_text)
-
-            # Whitelist mode: return ALL segments (including Content) for processor to invert
-            if whitelist_mode:
-                logger.info(f"Whitelist mode: returning all {len(raw_segments)} segments (including Content)")
-                return raw_segments
-
-            # Blacklist mode (default): Filter to only include requested types and exclude 'Content'
-            removable_labels = []
-            if options.get("remove_ads"): removable_labels.append("Ad")
-            if options.get("remove_promos"):
-                removable_labels.extend(["Promo", "Cross-promotion"])
-            if options.get("remove_intros"): removable_labels.append("Intro")
-            if options.get("remove_outros"): removable_labels.append("Outro")
-
-            filtered = []
-            for s in raw_segments:
-                label = s.get('label', 'Ad')
-                if label in removable_labels:
-                    filtered.append(s)
-                else:
-                    logger.info(f"Skipping segment labeled '{label}' (Reason: {s.get('reason')})")
-
-            return filtered
-        except Exception as e:
-            logger.error(f"Ad detection failed: {e}")
-            raise e
 
     def classify_timeline(self, units: list[dict], duration: float, metadata: dict, snapshot: dict) -> dict:
         from app.core import timeline
@@ -929,7 +640,7 @@ class AdDetector:
         # Each concurrent job gets a private settings snapshot and provider instance.
         detector = copy.copy(self)
         detector.settings = {**self._load_settings(), **snapshot["settings"]}
-        mode = detector.settings.get("timeline_output_mode", "auto")
+        mode = "strict"
         if mode not in timeline.OUTPUT_MODES:
             raise PermanentProviderError("Unknown complete-timeline output mode")
         provider = detector._get_provider()
@@ -996,482 +707,19 @@ class AdDetector:
             logger.warning("Cached classification retained after summary repair failed: %s", error)
             return None, str(error)
 
-    def generate_summary(self, transcript: Dict, podcast_name: str, episode_title: str, pub_date: str, subscription_settings: Dict = None) -> str:
-        self.settings = self._load_settings()
-        text_data = ""
-        for seg in transcript['segments']:
-            text_data += f"{seg['text']} "
-
-        # Build targets list from subscription settings
-        targets = []
-        if subscription_settings:
-            if subscription_settings.get('remove_ads'):
-                targets.append(self.settings.get('ad_target_sponsor') or 'Sponsor messages, Ad reads')
-            if subscription_settings.get('remove_promos'):
-                targets.append(self.settings.get('ad_target_promo') or 'Cross-promotions, plugs for other shows')
-            if subscription_settings.get('remove_intros'):
-                targets.append(self.settings.get('ad_target_intro') or 'Intro music, opening segments')
-            if subscription_settings.get('remove_outros'):
-                targets.append(self.settings.get('ad_target_outro') or 'Outro music, closing segments')
-
-        targets_text = "\n".join(targets) if targets else "None"
-
-        # Build Prompt (use default if None or empty in database)
-        db_template = self.settings.get('summary_prompt_template')
-        template = db_template or LEGACY_DEFAULTS['summary']
-
-        # Ensure template is a string (defensive)
-        if template is None:
-            template = "Summarize this: {transcript_context}"
-
-
-        try:
-             prompt = template.format(transcript_context=text_data[:100000], targets=targets_text)
-        except KeyError:
-             prompt = template # Fallback
-
-        try:
-            provider = self._get_provider()
-            return provider.generate(prompt).strip()
-        except Exception as e:
-            if isinstance(e, RateLimitError) and e.retry_at is not None:
-                raise
-            logger.error(f"Summary generation failed: {e}")
-            return f"Welcome to {podcast_name}. Today's episode is {episode_title}."
-
-    # --- Helpers ---
-    def _build_ad_prompt(self, options, transcript_text, whitelist_mode: bool = False):
-        # Fetch targets with safety defaults
-        targets = []
-        if options.get("remove_ads"):
-            targets.append(self.settings.get('ad_target_sponsor') or LEGACY_DEFAULTS['sponsor'])
-        if options.get("remove_promos"):
-            targets.append(self.settings.get('ad_target_promo') or LEGACY_DEFAULTS['promo'])
-        if options.get("remove_intros"):
-            targets.append(self.settings.get('ad_target_intro') or LEGACY_DEFAULTS['intro'])
-        if options.get("remove_outros"):
-            targets.append(self.settings.get('ad_target_outro') or LEGACY_DEFAULTS['outro'])
-
-        base = self.settings.get('ad_prompt_base') or LEGACY_DEFAULTS['ad_base']
-
-        custom = f"Custom: {options.get('custom_instructions')}" if options.get('custom_instructions') else ""
-
-        # Whitelist mode: append instructions to also label Content segments
-        whitelist_addendum = ""
-        if whitelist_mode:
-            whitelist_addendum = """
-IMPORTANT: You MUST also label ALL substantive speech/content segments with label "Content".
-Every segment of the transcript must be classified. Use "Content" for any segment containing substantive speech, interviews, reporting, or discussion that is NOT an ad, promo, intro, or outro.
-Non-speech segments (music, jingles, silence) should NOT be labeled as Content.
-Example: [{"start": 10.0, "end": 300.0, "label": "Content", "reason": "Main discussion segment"}]
-"""
-
-        # Use manual replacement instead of .format() to avoid breaking on JSON examples
-        try:
-            prompt = base.replace("{targets}", "\n".join(targets)).replace("{custom_instr}", custom)
-            return prompt + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
-        except Exception as e:
-             logger.warning(f"Prompt formatting failed: {e}")
-             return base + whitelist_addendum + "\n\nTranscript:\n" + transcript_text
-
-    def _parse_ad_response(self, text: str):
-        import re
-        cleaned = (text or "").strip()
-        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned).strip()
-        try:
-            payload = json.loads(cleaned)
-        except json.JSONDecodeError as exc:
-            # Tolerate surrounding prose but never interpret a refusal as no ads.
-            match = re.search(r"(\[.*\]|\{.*\})", cleaned, re.DOTALL)
-            if not match:
-                raise AnalysisError("Ad analysis did not contain JSON") from exc
-            try:
-                payload = json.loads(match.group(0))
-            except json.JSONDecodeError as invalid:
-                raise AnalysisError("Ad analysis JSON was incomplete or invalid") from invalid
-        return self._normalize_ad_segments(payload)
-
-    def _normalize_ad_segments(self, payload) -> List[Dict[str, float]]:
-        if isinstance(payload, dict) and isinstance(payload.get("segments"), list):
-            payload = payload["segments"]
-        if not isinstance(payload, list):
-            raise AnalysisError("Ad analysis must be an array of segments")
-        normalized = []
-        labels = {label.lower(): label for label in ("Ad", "Promo", "Intro", "Outro", "Content")}
-        for item in payload:
-            if not isinstance(item, dict):
-                raise AnalysisError("Each ad segment must be an object")
-            try:
-                start, end = float(item["start"]), float(item["end"])
-            except (KeyError, TypeError, ValueError) as exc:
-                raise AnalysisError("Ad segment has invalid timestamps") from exc
-            if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start:
-                raise AnalysisError("Ad timestamps must be finite and ordered")
-            label = labels.get(str(item.get("label", "Ad")).lower())
-            if label is None:
-                raise AnalysisError("Ad segment has an unknown label")
-            normalized.append({"start": start, "end": end, "label": label, "reason": str(item.get("reason") or "")})
-        return normalized
-
-    # Static method to list Gemini models
     @staticmethod
     def list_gemini_models():
-        # Priority: DB (gemini_api_keys) > DB (gemini_api_key) > Env
-        api_key = None
-        try:
-            from app.infra.database import get_db_connection
-            with get_db_connection() as conn:
-                row = conn.execute("SELECT gemini_api_keys, gemini_api_key FROM app_settings WHERE id = 1").fetchone()
-                if row:
-                    # Try new multi-key field first
-                    if row['gemini_api_keys']:
-                        try:
-                            parsed = json.loads(row['gemini_api_keys'])
-                            if isinstance(parsed, list) and len(parsed) > 0:
-                                api_key = parsed[0]
-                        except:
-                            pass
-                    # Fallback to legacy single key
-                    if not api_key and row['gemini_api_key']:
-                        api_key = row['gemini_api_key']
-        except: pass
+        return AdDetector().create_provider('gemini').list_models()
 
-        # Fallback to env
-        if not api_key:
-            api_key = settings.GEMINI_API_KEY
-
-        if not api_key:
-            return []
-
-        # Handle env variable with multiple comma-separated keys (use first one)
-        if ',' in api_key:
-            api_key = api_key.split(',')[0].strip()
-
-        try:
-            return OpenAIProvider(
-                api_key,
-                [],
-                base_url=AdDetector.GEMINI_OPENAI_BASE_URL,
-                provider_name="Gemini",
-                model_prefixes=("gemini-",),
-                rate_limit_provider="gemini",
-            ).list_models()
-        except Exception as e:
-            logger.error(f"Failed to list Gemini models: {e}")
-            return []
-
-    def has_valid_config(self) -> bool:
-        """Check if any API provider is configured via DB or Env."""
-        # Check Gemini - both new multi-key and legacy single-key fields
-        gemini_keys_json = self.settings.get('gemini_api_keys')
-        if gemini_keys_json:
-            try:
-                parsed = json.loads(gemini_keys_json)
-                if isinstance(parsed, list) and len(parsed) > 0:
-                    return True
-            except:
-                pass
-        if self.settings.get('gemini_api_key') or settings.GEMINI_API_KEY:
-            return True
-
-        # Check others
-        s = self.settings
-        if s.get('openai_api_key') or settings.OPENAI_API_KEY: return True
-        if s.get('anthropic_api_key') or settings.ANTHROPIC_API_KEY: return True
-        if s.get('openrouter_api_key') or settings.OPENROUTER_API_KEY: return True
-
-        return False
-
-    def _clean_tts_text(self, text: str) -> str:
-        text = text or ""
-        chars_to_remove = ['"', '*', '_', '#', '\u201c', '\u201d', '\u2018', '\u2019']
-        for char in chars_to_remove:
-            text = text.replace(char, '')
-        return text.strip()
-
-    def _extract_gemini_tts_audio(self, payload: Dict) -> bytes:
-        candidates = payload.get("candidates") or []
-        for candidate in candidates:
-            content = candidate.get("content") or {}
-            for part in content.get("parts") or []:
-                inline_data = part.get("inlineData") or part.get("inline_data") or {}
-                data = inline_data.get("data")
-                if data:
-                    if isinstance(data, bytes):
-                        return data
-                    return base64.b64decode(data)
-        raise RuntimeError("Gemini TTS response did not contain audio data.")
-
-    def _write_pcm_wav(self, output_path: str, pcm_audio: bytes):
-        output_dir = os.path.dirname(output_path)
-        if output_dir:
-            os.makedirs(output_dir, exist_ok=True)
-
-        with wave.open(output_path, "wb") as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)
-            wav_file.setframerate(24000)
-            wav_file.writeframes(pcm_audio)
-
-    async def _generate_gemini_tts(self, text: str, output_path: str):
-        api_keys = self._get_gemini_api_keys()
-        if not api_keys:
-            raise RuntimeError("Gemini TTS selected but no Gemini API key is configured.")
-
-        models = self._parse_model_setting(
-            self.settings.get("gemini_tts_model_cascade"),
-            self.DEFAULT_GEMINI_TTS_MODELS,
-        )
-        models = [model for model in models if model]
-        if not models:
-            models = self.DEFAULT_GEMINI_TTS_MODELS
-
-        voice = self.settings.get("gemini_tts_voice") or "Orus"
-        if voice not in self.GEMINI_TTS_VOICES:
-            logger.warning(f"Unknown Gemini TTS voice '{voice}', falling back to Orus.")
-            voice = "Orus"
-
-        payload = {
-            "contents": [{"parts": [{"text": text}]}],
-            "generationConfig": {
-                "responseModalities": ["AUDIO"],
-                "speechConfig": {
-                    "voiceConfig": {
-                        "prebuiltVoiceConfig": {"voiceName": voice}
-                    }
-                },
-            },
-        }
-
-        last_error = None
-        call_count = 0
-        async with httpx.AsyncClient(timeout=settings.PROVIDER_TIMEOUT_SECONDS) as client:
-            quota_enabled = bool(self.settings.get('gemini_free_tier_enabled', 0))
-            deferred = []
-            for model in models:
-                url = f"{self.GEMINI_REST_BASE_URL}/models/{model}:generateContent"
-                for key_idx, api_key in enumerate(api_keys):
-                    if call_count >= settings.MAX_PROVIDER_CALLS_PER_JOB:
-                        raise ProviderBudgetExceeded('Speech request budget exhausted; review provider settings')
-                    try:
-                        logger.info(f"Generating TTS with Gemini model {model}, key #{key_idx + 1}.")
-                        from app.core.gemini_quota import estimate_input_tokens
-                        with provider_request('gemini_tts', model, gemini_free_tier=quota_enabled,
-                                              input_tokens=estimate_input_tokens(payload) if quota_enabled else 0) as metrics:
-                            call_count += 1
-                            response = await client.post(
-                                url,
-                                headers={
-                                    "x-goog-api-key": api_key,
-                                    "Content-Type": "application/json",
-                                },
-                                json=payload,
-                            )
-                            if response.status_code >= 400:
-                                raise httpx.HTTPStatusError(f'HTTP {response.status_code}', request=httpx.Request('POST', url), response=response)
-                            metrics['input_tokens'] = response.json().get('usageMetadata', {}).get('promptTokenCount')
-
-                        audio = self._extract_gemini_tts_audio(response.json())
-                        self._write_pcm_wav(output_path, audio)
-                        logger.info("Gemini TTS generation completed.")
-                        return
-                    except Exception as e:
-                        raise_permanent_provider_error(e)
-                        if quota_enabled:
-                            from app.core.gemini_quota import GeminiCooldown, record_error
-                            cooldown = e if isinstance(e, GeminiCooldown) else record_error(model, e)
-                            if cooldown:
-                                deferred.append(cooldown)
-                                break
-                        last_error = e
-                        logger.warning(f"Gemini TTS model {model} failed with key #{key_idx + 1}: {e}")
-
-        if deferred:
-            from datetime import datetime, timezone
-            earliest = min(deferred, key=lambda error: error.until)
-            raise RateLimitError('; '.join(str(error) for error in deferred), provider='gemini',
-                                 retry_at=datetime.fromtimestamp(earliest.until, timezone.utc).replace(tzinfo=None))
-        raise RuntimeError(f"All Gemini TTS models failed. Last error: {last_error}")
+    def has_valid_config(self):
+        from app.core.provider_readiness import provider_configuration_error
+        return provider_configuration_error(self.settings) is None
 
     async def validate_tts(self):
-        """
-        Check if TTS service is available and model is ready.
-        """
-        self.settings = self._load_settings()
-        tts_provider = self.settings.get("tts_provider") or "piper"
-        if tts_provider == "gemini":
-            if not self._get_gemini_api_keys():
-                raise RuntimeError("Gemini TTS is selected but no Gemini API key is configured.")
-            models = self._parse_model_setting(
-                self.settings.get("gemini_tts_model_cascade"),
-                self.DEFAULT_GEMINI_TTS_MODELS,
-            )
-            if not models:
-                raise RuntimeError("Gemini TTS is selected but no TTS models are configured.")
-            logger.info("Gemini TTS validation skipped live API call to avoid consuming speech quota.")
-            return True
+        from app.core.speech import speech_configuration
+        speech_configuration(self._load_settings())
+        return True
 
-        if not piper_tts_available():
-            raise RuntimeError("Piper TTS is not installed or is disabled in this image.")
-
-        try:
-             # Fetch configured voice model
-            piper_model_file = "en_GB-cori-high.onnx"
-            try:
-                from app.infra.database import get_db_connection
-                with get_db_connection() as conn:
-                    row = conn.execute("SELECT piper_model FROM app_settings WHERE id = 1").fetchone()
-                    if row and row['piper_model']:
-                        piper_model_file = row['piper_model']
-            except: pass
-
-            # Ensure model exists
-            await self._ensure_piper_model(piper_model_file)
-
-            script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "tts_worker.py"))
-
-            proc = await asyncio.create_subprocess_exec(
-                sys.executable, script_path, "--check",
-                "--model", piper_model_file,
-                "--models-dir", settings.MODELS_DIR,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-
-            stdout, stderr = await proc.communicate()
-
-            if proc.returncode != 0:
-                error_msg = stderr.decode().strip()
-                logger.error(f"TTS Validation Failed: {error_msg}")
-                raise Exception(f"TTS Health Check Failed: {error_msg}")
-
-            logger.info("TTS Validation Passed.")
-            return True
-
-        except Exception as e:
-            logger.error(f"TTS Validation Error: {e}")
-            raise e
-
-    async def generate_audio(self, text: str, output_path: str):
-        """
-        Generate TTS audio using the configured TTS provider.
-        """
-        self.settings = self._load_settings()
-        text = self._clean_tts_text(text)
-        if not text:
-            raise RuntimeError("Cannot generate TTS for empty text.")
-
-        tts_provider = self.settings.get("tts_provider") or "piper"
-        if tts_provider == "gemini":
-            logger.info("Generating TTS (Gemini)...")
-            await self._generate_gemini_tts(text, output_path)
-            return
-
-        if not piper_tts_available():
-            raise RuntimeError("Piper TTS is not installed or is disabled in this image.")
-
-        try:
-            logger.info("Generating TTS (Piper in subprocess)...")
-
-            # Clean text for TTS (remove markdown artifacts and quotes)
-            # TTS engines often struggle or speak "asterisk" or "quote" aloud
-            chars_to_remove = ['"', '*', '“', '”', '‘', '’', '_', '#']
-            for char in chars_to_remove:
-                text = text.replace(char, '')
-
-            # Fetch configured voice model
-            piper_model_file = "en_GB-cori-high.onnx"
-            try:
-                from app.infra.database import get_db_connection
-                with get_db_connection() as conn:
-                    row = conn.execute("SELECT piper_model FROM app_settings WHERE id = 1").fetchone()
-                    if row and row['piper_model']:
-                        piper_model_file = row['piper_model']
-            except Exception as e:
-                logger.warning(f"Failed to fetch piper setting, using default: {e}")
-
-            # Ensure model exists
-            await self._ensure_piper_model(piper_model_file)
-
-            # Resolve absolute path to the worker script
-            script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "tts_worker.py"))
-
-            # Run the worker script
-            proc = await asyncio.create_subprocess_exec(
-                sys.executable, script_path, output_path,
-                "--model", piper_model_file,
-                "--models-dir", settings.MODELS_DIR,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-
-            stdout, stderr = await proc.communicate(input=text.encode())
-
-            if proc.returncode != 0:
-                logger.error(f"TTS worker failed: {stderr.decode()}")
-                raise Exception(f"TTS worker failed with exit code {proc.returncode}")
-
-            logger.info("TTS generation completed.")
-
-        except Exception as e:
-            logger.error(f"TTS failed: {e}")
-            raise e
-
-    async def _ensure_piper_model(self, model_filename: str):
-        """Ensures the piper model and its config exist locally."""
-        model_dir = os.path.join(settings.MODELS_DIR, "piper")
-        os.makedirs(model_dir, exist_ok=True)
-
-        model_path = os.path.join(model_dir, model_filename)
-        config_path = model_path + ".json"
-
-        if os.path.exists(model_path) and os.path.exists(config_path):
-            return model_path
-
-        logger.info(f"Piper model {model_filename} not found locally. Attempting download from HuggingFace...")
-
-        # Base URLs for Piper models on HuggingFace
-        # We try to infer the path: lang/lang_REGION/voice/quality/filename
-        # Example: en/en_US/amy/medium/en_US-amy-medium.onnx
-
-        parts = model_filename.replace('.onnx', '').split('-')
-        if len(parts) >= 3:
-            lang_region = parts[0]
-            lang = lang_region.split('_')[0]
-            voice = parts[1]
-            quality = parts[2]
-
-            remote_base = f"https://huggingface.co/rhasspy/piper-voices/resolve/main/{lang}/{lang_region}/{voice}/{quality}/{model_filename}"
-        else:
-            # Fallback for non-standard names?
-            # Most common ones are like en_GB-cori-high
-            logger.warning(f"Could not infer path for {model_filename}, trying direct link fallback")
-            # We don't really have a direct link without voices.json, but let's try a common ones
-            # For now, let's just fail if we can't infer it, or better, download voices.json
-            raise Exception(f"Piper model {model_filename} not found and cannot infer download URL. Please download it manually to {model_dir}")
-
-        async with httpx.AsyncClient(follow_redirects=True) as client:
-            # Download ONNX
-            logger.info(f"Downloading {model_filename} from {remote_base}...")
-            async with client.stream("GET", remote_base) as response:
-                if response.status_code != 200:
-                    raise Exception(f"Failed to download Piper model: HTTP {response.status_code}")
-                with open(model_path, "wb") as f:
-                    async for chunk in response.aiter_bytes():
-                        f.write(chunk)
-
-            # Download JSON
-            logger.info(f"Downloading {model_filename}.json...")
-            async with client.stream("GET", remote_base + ".json") as response:
-                if response.status_code != 200:
-                    # Clean up partial ONNX if config fails?
-                    if os.path.exists(model_path): os.remove(model_path)
-                    raise Exception(f"Failed to download Piper config: HTTP {response.status_code}")
-                with open(config_path, "wb") as f:
-                    async for chunk in response.aiter_bytes():
-                        f.write(chunk)
-
-        logger.info(f"Piper model {model_filename} downloaded successfully.")
-        return model_path
-
+    async def generate_audio(self, text, output_path):
+        from app.core.speech import generate_speech
+        await generate_speech(text, output_path, self._load_settings())

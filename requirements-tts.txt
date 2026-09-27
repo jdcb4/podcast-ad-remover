@@ -1,2 +1,0 @@
--c constraints.txt
-piper-tts==1.2.0

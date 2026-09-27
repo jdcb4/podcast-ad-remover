@@ -56,7 +56,7 @@ FALLBACKS = {
     "remove_promos": True,
     "remove_intros": False,
     "remove_outros": False,
-    "processing_workflow": "legacy",
+    "processing_workflow": "complete_timeline",
     "remove_editorial_non_speech": False,
     "remove_non_editorial_non_speech": True,
     "minimum_retained_seconds": 10,
@@ -94,5 +94,9 @@ def resolve_subscription_row(
     if bool(data.get("inherit_default_features", 0)):
         data["append_summary"] = False
 
+    data["processing_workflow"] = "complete_timeline"
+    data["remove_editorial_non_speech"] = False
+    if data.get("inherit_custom_instructions"):
+        data["custom_instructions"] = None
     data["setting_overrides"] = overrides
     return data

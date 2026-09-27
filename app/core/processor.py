@@ -30,7 +30,6 @@ from app.core.notifications import (
     EVENT_EPISODE_DOWNLOAD,
     send_notification_async,
 )
-from app.core.sponsorblock import SponsorBlockClient, categories_for_subscription
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,6 @@ class Processor:
         self.transcriber = Transcriber()
         self.ad_detector = AdDetector()
         self.rss_gen = RSSGenerator()
-        self.sponsorblock = SponsorBlockClient()
 
     def _remove_episode_directory(self, episode_dir: str, action: str) -> bool:
         """Remove an episode directory only if it is contained by PODCASTS_DIR."""
@@ -382,124 +380,6 @@ class Processor:
                 text.append(seg['text'])
         return " ".join(text).strip()
 
-    @staticmethod
-    def _normalize_segment(segment: dict, total_duration: float | None = None) -> dict | None:
-        try:
-            start = float(segment["start"])
-            end = float(segment["end"])
-        except (KeyError, TypeError, ValueError):
-            logger.warning(f"Skipping malformed segment: {segment}")
-            return None
-
-        if total_duration is not None:
-            start = max(0.0, min(total_duration, start))
-            end = max(0.0, min(total_duration, end))
-
-        if end <= start:
-            logger.warning(f"Skipping empty segment: {segment}")
-            return None
-
-        normalized = segment.copy()
-        normalized["start"] = start
-        normalized["end"] = end
-        if normalized.get("evidence"):
-            normalized["sources"] = sorted({
-                str(item.get("source") or "unknown")
-                for item in normalized["evidence"]
-                if isinstance(item, dict)
-            })
-        return normalized
-
-    @staticmethod
-    def _merge_remove_segments(segments: list[dict], merge_gap: float = 10.0) -> list[dict]:
-        normalized_segments = [
-            normalized
-            for segment in segments
-            if (normalized := Processor._normalize_segment(segment)) is not None
-        ]
-
-        merged_segments = []
-        for segment in sorted(normalized_segments, key=lambda item: item["start"]):
-            if merged_segments and segment["start"] - merged_segments[-1]["end"] < merge_gap:
-                old_end = merged_segments[-1]["end"]
-                merged_segments[-1]["end"] = max(merged_segments[-1]["end"], segment["end"])
-                if merged_segments[-1].get("evidence") or segment.get("evidence"):
-                    existing_evidence = merged_segments[-1].setdefault("evidence", [])
-                    for evidence in segment.get("evidence", []):
-                        if evidence not in existing_evidence:
-                            existing_evidence.append(evidence)
-                    merged_segments[-1]["sources"] = sorted({
-                        str(item.get("source") or "unknown")
-                        for item in existing_evidence
-                        if isinstance(item, dict)
-                    })
-                logger.info(
-                    f"Merged segment {segment['start']}-{segment['end']} into "
-                    f"{merged_segments[-1]['start']}-{merged_segments[-1]['end']}"
-                )
-                if merged_segments[-1]["end"] == old_end:
-                    logger.info("Contained segment did not extend the merged remove window")
-            else:
-                merged_segments.append(segment.copy())
-
-        return merged_segments
-
-    @staticmethod
-    def _invert_content_segments(content_segments: list[dict], total_duration: float) -> list[dict]:
-        normalized_content = [
-            normalized
-            for segment in content_segments
-            if (normalized := Processor._normalize_segment(segment, total_duration=total_duration)) is not None
-        ]
-        inverted_remove = []
-        current_time = 0.0
-
-        for content in sorted(normalized_content, key=lambda item: item["start"]):
-            if content["start"] > current_time:
-                inverted_remove.append({
-                    "start": current_time,
-                    "end": content["start"],
-                    "label": "Non-Content",
-                    "reason": "Not labeled as content (whitelist mode)",
-                })
-            current_time = max(current_time, content["end"])
-
-        if current_time < total_duration:
-            inverted_remove.append({
-                "start": current_time,
-                "end": total_duration,
-                "label": "Non-Content",
-                "reason": "Trailing non-content (whitelist mode)",
-            })
-
-        return inverted_remove
-
-    @staticmethod
-    def _prepare_remove_segments(
-        ad_segments: list[dict],
-        whitelist_mode: bool,
-        total_duration: float | None = None,
-    ) -> list[dict]:
-        if whitelist_mode:
-            content_segments = [s for s in ad_segments if s.get("label") == "Content"]
-            non_content_segments = [s for s in ad_segments if s.get("label") != "Content"]
-
-            if not content_segments:
-                logger.warning("Whitelist mode: No Content segments found! Falling back to blacklist mode.")
-                ad_segments = non_content_segments
-            elif total_duration and total_duration > 0:
-                logger.info(
-                    f"Whitelist mode: {len(content_segments)} Content segments, "
-                    f"{len(non_content_segments)} non-content segments"
-                )
-                ad_segments = Processor._invert_content_segments(content_segments, total_duration)
-                logger.info(f"Whitelist mode: inverted to {len(ad_segments)} remove segments")
-            else:
-                logger.warning("Whitelist mode: Could not determine duration; keeping episode uncut.")
-                ad_segments = []
-
-        return Processor._merge_remove_segments(ad_segments)
-    
     async def regenerate_all_feeds(self):
         """Regenerate all RSS feeds to ensure they use current base URL."""
         logger.info("Regenerating all RSS feeds...")
@@ -630,21 +510,6 @@ class Processor:
             await asyncio.to_thread(self.job_repo.heartbeat, claim['job_id'], claim['claim_token'])
             await asyncio.sleep(20)
 
-    async def _fetch_sponsorblock_segments(self, sub, ep: Episode) -> list[dict]:
-        if not settings.SPONSORBLOCK_ENABLED:
-            return []
-        if sub.source_type not in {"youtube_channel", "youtube_playlist"}:
-            return []
-        categories = categories_for_subscription(sub)
-        video_id = video_id_from_url(ep.original_url)
-        if not categories or not video_id:
-            return []
-        return await asyncio.to_thread(
-            self.sponsorblock.fetch_segments,
-            video_id,
-            categories,
-        )
-
     async def _classify_complete_timeline(self, ep, sub, transcript, input_path, fingerprint, snapshot, episode_root):
         from app.core import timeline
         duration = await asyncio.to_thread(AudioProcessor.get_duration, input_path)
@@ -702,7 +567,7 @@ class Processor:
         
         try:
             from app.core import timeline
-            snapshot = json.loads(ep_dict['processing_snapshot']) if ep_dict.get('processing_snapshot') else {'version': 1, 'workflow': 'legacy'}
+            snapshot = json.loads(ep_dict['processing_snapshot']) if ep_dict.get('processing_snapshot') else timeline.make_snapshot(sub.model_dump(), global_settings)
             if not isinstance(snapshot, dict) or snapshot.get('version') != 1 or snapshot.get('workflow') not in timeline.WORKFLOWS:
                 raise PermanentProviderError('Unknown queued processing workflow; requeue with supported settings')
             complete_timeline = snapshot['workflow'] == 'complete_timeline'
@@ -899,79 +764,13 @@ class Processor:
             
             if not self._check_cancellation(ep): return
 
-            # 3. Classification is independent of cut preferences in the opt-in workflow.
-            if complete_timeline:
-                analysis = await self._classify_complete_timeline(
-                    ep, sub, transcript, input_path, fingerprint, snapshot, episode_root
-                )
-                if not self._check_cancellation(ep): return
-                sponsor_segments = await self._fetch_sponsorblock_segments(sub, ep)
-                sponsor_segments = [normalized for s in sponsor_segments
-                                    if (normalized := self._normalize_segment(s, analysis['duration'])) is not None]
-                edit_policy = timeline.apply_preferences(analysis['segments'], snapshot['options'], sponsor_segments)
-                ad_segments = edit_policy['segments']
-            else:
-                # 3. Detect Ads
-                logger.info("Detecting ads...")
-            
-                detect_options = {
-                    "remove_ads": sub.remove_ads,
-                    "remove_promos": sub.remove_promos,
-                    "remove_intros": sub.remove_intros,
-                    "remove_outros": sub.remove_outros,
-                    "custom_instructions": sub.custom_instructions
-                }
-            
-                # Check whitelist mode from global settings
-                whitelist_mode = bool(global_settings.get('whitelist_mode', 0))
-            
-                if whitelist_mode:
-                    logger.info("Whitelist mode is ENABLED - will keep only Content segments")
-            
-                import hashlib
-                policy = {key: value for key, value in global_settings.items() if key.startswith(('ad_', 'custom_llm_model', 'custom_llm_base_url')) or key in ('active_ai_provider', 'ai_model_cascade', 'openai_model', 'anthropic_model', 'openrouter_model')}
-                cache_key = hashlib.sha256(json.dumps([fingerprint, transcript, detect_options, whitelist_mode, policy], sort_keys=True).encode()).hexdigest()
-                analysis_cache_path = self._attempt_dir / 'analysis-cache.json'
-                ad_segments = None
-                try:
-                    cached = json.loads(analysis_cache_path.read_text(encoding='utf-8'))
-                    if cached['key'] == cache_key:
-                        ad_segments = cached['segments']
-                except (OSError, ValueError, KeyError):
-                    pass
-                if ad_segments is None:
-                    ad_segments = await asyncio.to_thread(
-                        self.ad_detector.detect_ads, transcript, detect_options, whitelist_mode=whitelist_mode
-                    )
-                    analysis_cache_path.write_text(json.dumps({'key': cache_key, 'segments': ad_segments}), encoding='utf-8')
+            # Classify the complete timeline, then deterministically choose cuts.
+            analysis = await self._classify_complete_timeline(
+                ep, sub, transcript, input_path, fingerprint, snapshot, episode_root)
+            if not self._check_cancellation(ep): return
+            edit_policy = timeline.apply_preferences(analysis['segments'], snapshot['options'])
+            ad_segments = edit_policy['segments']
 
-                if not self._check_cancellation(ep): return
-
-                logger.info(f"Found {len(ad_segments)} segments: {ad_segments}")
-
-                total_duration = AudioProcessor.get_duration(input_path) if whitelist_mode else None
-                ad_segments = self._prepare_remove_segments(ad_segments, whitelist_mode, total_duration=total_duration)
-                for segment in ad_segments:
-                    segment.setdefault("source", "llm")
-                    segment.setdefault("evidence", [{
-                        "source": "llm",
-                        "label": segment.get("label"),
-                        "reason": segment.get("reason"),
-                    }])
-                    segment.setdefault("sources", ["llm"])
-                sponsor_segments = await self._fetch_sponsorblock_segments(sub, ep)
-                if sponsor_segments:
-                    if total_duration is None:
-                        total_duration = AudioProcessor.get_duration(input_path)
-                    sponsor_segments = [
-                        normalized
-                        for segment in sponsor_segments
-                        if (normalized := self._normalize_segment(segment, total_duration)) is not None
-                    ]
-                    ad_segments = self._merge_remove_segments(ad_segments + sponsor_segments)
-                    logger.info("Added %s SponsorBlock segments", len(sponsor_segments))
-                logger.info(f"After merging: {len(ad_segments)} ad segments")
-            
             # Enrich with Text
             for s in ad_segments:
                 s['text'] = self._extract_text(s['start'], s['end'], transcript['segments'])
@@ -1006,7 +805,7 @@ class Processor:
             
             await asyncio.to_thread(require_scratch, ep.duration, os.path.getsize(input_path))
             logger.info("Removing ads with FFmpeg...")
-            tone_options = {position: bool(global_settings.get(f'warning_tone_{position}'))
+            tone_options = {position: bool(global_settings.get('cut_tone_enabled'))
                             for position in ('start', 'middle', 'end')}
             audio_options = {'warning_tones': tone_options} if any(
                 tone_options[position] for position in ('start', 'middle', 'end')) else {}
@@ -1070,16 +869,7 @@ class Processor:
                             'remove_intros': sub.remove_intros,
                             'remove_outros': sub.remove_outros
                         }
-                        if not complete_timeline:
-                            summary_text = await asyncio.to_thread(
-                                self.ad_detector.generate_summary,
-                                transcript,
-                                sub.title or "Podcast",
-                                ep.title,
-                                str(ep.pub_date) if ep.pub_date else "recently",
-                                sub_settings
-                            )
-                        elif not summary_text:
+                        if not summary_text:
                             raise AnalysisError(analysis.get('summary_error') or 'Combined summary unavailable')
                         # Save to DB and file immediately
                         if not complete_timeline or do_text:
@@ -1091,8 +881,6 @@ class Processor:
                         if isinstance(e, RateLimitError) and e.retry_at is not None:
                             raise
                         logger.error(f"Failed to generate/save text summary: {e}")
-                        if not summary_text and not complete_timeline:
-                            summary_text = f"Welcome to {sub.title}. Today's episode is {ep.title}."
 
                     # Audio Summary (TTS)
                     if do_audio and summary_text:

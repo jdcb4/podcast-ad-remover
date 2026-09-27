@@ -1,221 +1,78 @@
-import base64
-import wave
-
+from unittest.mock import Mock
 import pytest
-
-from app.core.ai_services import AdDetector, OpenAIProvider, piper_tts_available
-from app.infra.database import get_db_connection, init_db
-
-
-@pytest.fixture(autouse=True)
-def isolate_provider_environment(monkeypatch):
-    """Keep configured workstation credentials out of deterministic provider tests."""
-    for setting_name in (
-        "GEMINI_API_KEY",
-        "OPENAI_API_KEY",
-        "ANTHROPIC_API_KEY",
-        "OPENROUTER_API_KEY",
-    ):
-        monkeypatch.setattr(f"app.core.ai_services.settings.{setting_name}", None)
+from app.core.ai_services import AdDetector, OpenAIProvider
+from app.core.config import settings
+from app.core.speech import speech_configuration
+from app.core import timeline
 
 
-def test_gemini_uses_openai_compatible_provider_with_multiple_keys():
+def test_environment_credential_and_one_model(monkeypatch):
+    monkeypatch.setattr(settings, 'GEMINI_API_KEY', 'env-first,env-second')
     detector = AdDetector()
-    detector.settings = {"gemini_api_keys": '["key-one", "key-two"]'}
-
-    provider = detector.create_provider("gemini", model='["gemini-2.5-flash"]')
-
-    assert isinstance(provider, OpenAIProvider)
-    assert provider.base_url == AdDetector.GEMINI_OPENAI_BASE_URL
-    assert provider.provider_name == "Gemini"
-    assert provider.api_keys == ["key-one", "key-two"]
-    assert provider.models == ["gemini-2.5-flash"]
-    assert provider.model_prefixes == ("gemini-",)
+    detector.settings = {'gemini_api_keys': '["saved"]'}
+    provider = detector.create_provider('gemini', model='["first", "second"]')
+    assert provider.api_keys == ['env-first']
+    assert provider.models == ['first']
 
 
-def test_gemini_explicit_key_overrides_saved_keys():
-    detector = AdDetector()
-    detector.settings = {"gemini_api_keys": '["saved-key"]'}
-
-    provider = detector.create_provider("gemini", api_key="explicit-one,explicit-two", model="gemini-2.5-flash")
-
-    assert provider.api_keys == ["explicit-one", "explicit-two"]
-
-
-def test_openrouter_keeps_openai_compatible_provider_without_model_filter():
-    detector = AdDetector()
-    detector.settings = {"openrouter_api_key": "openrouter-key"}
-
-    provider = detector.create_provider("openrouter", model="google/gemini-3.1-flash-lite")
-
-    assert isinstance(provider, OpenAIProvider)
-    assert provider.provider_name == "OpenRouter"
-    assert provider.base_url == "https://openrouter.ai/api/v1"
-    assert provider.model_prefixes is None
+def test_schema_failure_never_downgrades_or_changes_model(monkeypatch):
+    provider = OpenAIProvider('fixture', ['one', 'two'])
+    create = Mock(side_effect=ValueError('json_schema unsupported'))
+    monkeypatch.setattr(provider.client.chat.completions, 'create', create)
+    with pytest.raises(ValueError, match='unsupported'):
+        provider.generate_structured([], timeline.SCHEMA)
+    assert create.call_count == 1
+    assert create.call_args.kwargs['response_format']['type'] == 'json_schema'
 
 
-def test_tts_can_be_disabled_by_image_environment(monkeypatch):
-    monkeypatch.setenv("TTS_ENABLED", "0")
-
-    assert piper_tts_available() is False
-
-
-class FakeGeminiTtsResponse:
-    def __init__(self, status_code=200, payload=None, text=""):
-        self.status_code = status_code
-        self._payload = payload or {}
-        self.text = text
-
-    def json(self):
-        return self._payload
+@pytest.mark.parametrize('text', ['{"a":1}', '```json\n{"a":1}\n```', 'Here: {"a":1} done.'])
+def test_minimal_json_unwrapping(text):
+    assert timeline.decode_json(text) == {'a': 1}
 
 
-class FakeAsyncClient:
-    calls = []
-    responses = []
+@pytest.mark.parametrize('text', ['{"a":1,"a":2}', '{"a":NaN}', '{"a":1} {"b":2}', '{"a":', "{'a':1}"])
+def test_invalid_json_is_not_repaired(text):
+    with pytest.raises(ValueError):
+        timeline.decode_json(text)
 
-    def __init__(self, *args, **kwargs):
-        pass
 
-    async def __aenter__(self):
-        return self
+def test_piper_requires_explicit_speech_setup():
+    with pytest.raises(ValueError, match='needs configuration'):
+        speech_configuration({'tts_provider': 'piper'})
 
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
 
-    async def post(self, url, headers=None, json=None):
-        self.calls.append({"url": url, "headers": headers, "json": json})
-        return self.responses.pop(0)
+def test_custom_speech_never_uses_cloud_key(monkeypatch):
+    monkeypatch.setattr(settings, 'OPENAI_API_KEY', 'private-cloud-key')
+    result = speech_configuration({'tts_provider': 'custom', 'tts_model': 'one',
+        'tts_voice': 'voice', 'tts_base_url': 'http://localhost:9000/v1'})
+    assert result[3] is None
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('http_status,expected_calls', [(401, 1), (500, 2)])
-async def test_standalone_speech_requests_stop_on_auth_or_budget(http_status, expected_calls, monkeypatch, isolated_data_dir, tmp_path):
-    from app.core.config import settings
-    from app.core.ai_services import PermanentProviderError
-    from app.core.provider_budget import ProviderBudgetExceeded
-    init_db()
-    with get_db_connection() as conn:
-        conn.execute("UPDATE app_settings SET tts_provider='gemini',gemini_api_keys=?,gemini_tts_model_cascade=?",
-                     ('["fixture-one","fixture-two"]', '["fixture-model-one","fixture-model-two"]'))
-        conn.commit()
-    monkeypatch.setattr(settings, 'MAX_PROVIDER_CALLS_PER_JOB', 2)
-    monkeypatch.setattr(settings, 'PROVIDER_TIMEOUT_SECONDS', 7)
-    class Client(FakeAsyncClient):
-        def __init__(self, **kwargs):
-            assert kwargs['timeout'] == 7
-    FakeAsyncClient.calls = []
-    FakeAsyncClient.responses = [FakeGeminiTtsResponse(http_status)] * 4
-    monkeypatch.setattr('app.core.ai_services.httpx.AsyncClient', Client)
-    expected_error = PermanentProviderError if http_status == 401 else ProviderBudgetExceeded
-    with pytest.raises(expected_error):
-        await AdDetector().generate_audio('fixture speech', str(tmp_path / 'speech.wav'))
-    assert len(FakeAsyncClient.calls) == expected_calls
-
-
-@pytest.mark.asyncio
-async def test_gemini_tts_generates_wav_with_selected_voice(monkeypatch, isolated_data_dir, tmp_path):
-    init_db()
-    with get_db_connection() as conn:
-        conn.execute(
-            """
-            UPDATE app_settings
-            SET tts_provider = 'gemini',
-                gemini_api_keys = ?,
-                gemini_tts_voice = 'Enceladus',
-                gemini_tts_model_cascade = ?
-            WHERE id = 1
-            """,
-            ('["test-key"]', '["gemini-3.1-flash-tts-preview"]'),
-        )
-        conn.commit()
-
-    pcm_audio = b"\x00\x00" * 240
-    FakeAsyncClient.calls = []
-    FakeAsyncClient.responses = [
-        FakeGeminiTtsResponse(
-            payload={
-                "candidates": [
-                    {
-                        "content": {
-                            "parts": [
-                                {
-                                    "inlineData": {
-                                        "data": base64.b64encode(pcm_audio).decode("ascii")
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        )
-    ]
-    monkeypatch.setattr("app.core.ai_services.httpx.AsyncClient", FakeAsyncClient)
-
-    output_path = tmp_path / "tts.mp3"
-    detector = AdDetector()
-    await detector.generate_audio('"Hello" **world**', str(output_path))
-
-    assert len(FakeAsyncClient.calls) == 1
-    call = FakeAsyncClient.calls[0]
-    assert call["url"].endswith("/models/gemini-3.1-flash-tts-preview:generateContent")
-    assert call["headers"]["x-goog-api-key"] == "test-key"
-    assert call["json"]["contents"][0]["parts"][0]["text"] == "Hello world"
-    voice = call["json"]["generationConfig"]["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"]
-    assert voice["voiceName"] == "Enceladus"
-
-    with wave.open(str(output_path), "rb") as wav_file:
-        assert wav_file.getnchannels() == 1
-        assert wav_file.getsampwidth() == 2
-        assert wav_file.getframerate() == 24000
-
-
-@pytest.mark.asyncio
-async def test_gemini_tts_falls_back_to_next_model(monkeypatch, isolated_data_dir, tmp_path):
-    init_db()
-    with get_db_connection() as conn:
-        conn.execute(
-            """
-            UPDATE app_settings
-            SET tts_provider = 'gemini',
-                gemini_api_keys = ?,
-                gemini_tts_model_cascade = ?
-            WHERE id = 1
-            """,
-            ('["test-key"]', '["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]'),
-        )
-        conn.commit()
-
-    FakeAsyncClient.calls = []
-    FakeAsyncClient.responses = [
-        FakeGeminiTtsResponse(status_code=429, text="quota"),
-        FakeGeminiTtsResponse(
-            payload={
-                "candidates": [
-                    {
-                        "content": {
-                            "parts": [
-                                {
-                                    "inlineData": {
-                                        "data": base64.b64encode(b"\x00\x00" * 120).decode("ascii")
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        ),
-    ]
-    monkeypatch.setattr("app.core.ai_services.httpx.AsyncClient", FakeAsyncClient)
-
-    output_path = tmp_path / "tts.mp3"
-    detector = AdDetector()
-    await detector.generate_audio("fallback test", str(output_path))
-
-    assert [call["url"].split("/models/")[1].split(":")[0] for call in FakeAsyncClient.calls] == [
-        "gemini-3.1-flash-tts-preview",
-        "gemini-2.5-flash-preview-tts",
-    ]
-    assert output_path.exists()
+@pytest.mark.parametrize('provider', ['gemini', 'openai', 'openrouter', 'custom'])
+async def test_speech_adapter_uses_one_request_and_preserves_failure_output(tmp_path, monkeypatch, provider):
+    import base64
+    import httpx
+    from app.core.speech import generate_speech
+    monkeypatch.setattr(settings, 'GEMINI_API_KEY', 'fixture')
+    monkeypatch.setattr(settings, 'OPENAI_API_KEY', 'fixture')
+    monkeypatch.setattr(settings, 'OPENROUTER_API_KEY', 'fixture')
+    monkeypatch.setattr('app.core.audio.AudioProcessor.get_duration', lambda _: 1)
+    requests = []
+    def respond(request):
+        requests.append(request)
+        if provider == 'gemini':
+            return httpx.Response(200, json={'candidates': [{'content': {'parts': [{'inlineData': {
+                'mimeType': 'audio/L16;rate=24000', 'data': base64.b64encode(b'\0' * 48).decode()}}]}}]})
+        return httpx.Response(200, content=b'fixture-audio', headers={'content-type': 'audio/mpeg'})
+    client = httpx.AsyncClient
+    monkeypatch.setattr('app.core.speech.httpx.AsyncClient', lambda **kwargs: client(transport=httpx.MockTransport(respond), **kwargs))
+    output = tmp_path / 'speech.mp3'
+    values = {'tts_provider': provider, 'tts_model': 'model', 'tts_voice': 'voice', 'tts_base_url': 'http://localhost:9000/v1'}
+    await generate_speech('Hello', str(output), values)
+    assert len(requests) == 1 and output.stat().st_size > 0
+    original = output.read_bytes()
+    monkeypatch.setattr('app.core.audio.AudioProcessor.get_duration', lambda _: 0)
+    with pytest.raises(ValueError, match='invalid audio'):
+        await generate_speech('Hello', str(output), values)
+    assert output.read_bytes() == original

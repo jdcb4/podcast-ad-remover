@@ -2,12 +2,9 @@ FROM denoland/deno:2.9.5@sha256:b429777c3dcff34a6488f365a1537db1640b2d48379b60f5
 
 FROM python:3.11-slim@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
 
-ARG INSTALL_TTS=1
-
 # Keep Python quiet and avoid writing .pyc files into the container layer.
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    TTS_ENABLED=${INSTALL_TTS}
+    PYTHONUNBUFFERED=1
 
 # Install runtime system dependencies. FFmpeg is required for audio processing.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -22,16 +19,15 @@ COPY --from=deno /usr/bin/deno /usr/local/bin/deno
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements.txt requirements-tts.txt requirements-build.txt constraints.txt ./
+COPY requirements.txt requirements-build.txt constraints.txt ./
 RUN python -m pip install --no-cache-dir --upgrade -r requirements-build.txt \
-    && pip install --no-cache-dir -r requirements.txt \
-    && if [ "$INSTALL_TTS" = "1" ]; then pip install --no-cache-dir -r requirements-tts.txt; fi
+    && pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
 # Create data directories
-RUN mkdir -p /data/db /data/podcasts /data/feeds /data/models/piper
+RUN mkdir -p /data/db /data/podcasts /data/feeds /data/models
 
 # Expose port
 EXPOSE 8000

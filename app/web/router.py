@@ -788,6 +788,10 @@ async def update_ai_settings(
     whisper_cuda_compute_type: str = Form(None),
     ai_model_cascade: str = Form(None),
     piper_model: str = Form(None),
+    tts_model: str = Form(None),
+    tts_voice: str = Form(None),
+    tts_api_key: str = Form(None),
+    tts_base_url: str = Form(None),
     tts_provider: str = Form(None),
     gemini_tts_voice: str = Form(None),
     gemini_tts_model_cascade: str = Form(None),
@@ -816,19 +820,17 @@ async def update_ai_settings(
     from app.core.ai_services import AdDetector, normalize_openai_base_url
     import json
 
-    def normalized_models(value: str | None, current: str, default: list[str]) -> str:
+    def normalized_models(value, current, default):
+        from app.core.provider_settings import first_value
         if value is None:
-            return current or json.dumps(default)
+            return first_value(current, first_value(default))
         try:
             parsed = json.loads(value)
-            if not isinstance(parsed, list):
-                parsed = [str(parsed)]
-        except json.JSONDecodeError:
-            parsed = [value]
-        parsed = [str(item).strip() for item in parsed if str(item).strip()]
-        if len(parsed) > 10:
-            raise HTTPException(status_code=400, detail="A model cascade can contain at most 10 models.")
-        return json.dumps(parsed)
+        except ValueError:
+            parsed = value
+        if isinstance(parsed, list) and len(parsed) > 1:
+            raise HTTPException(400, 'Choose one model; cascades are no longer supported.')
+        return first_value(parsed)
 
     def updated_secret(submitted: str | None, clear: bool, current: str | None) -> str | None:
         if clear:
@@ -870,34 +872,21 @@ async def update_ai_settings(
                 (selected_whisper, precision),
             )
         elif section == "ai_voice":
-            selected_tts_provider = tts_provider if tts_provider in {"piper", "gemini"} else "piper"
-            selected_voice = (
-                gemini_tts_voice
-                if gemini_tts_voice in AdDetector.GEMINI_TTS_VOICES
-                else "Orus"
-            )
-            selected_tts_models = normalized_models(
-                gemini_tts_model_cascade,
-                current.get("gemini_tts_model_cascade"),
-                AdDetector.DEFAULT_GEMINI_TTS_MODELS,
-            )
-            conn.execute(
-                """
-                UPDATE app_settings
-                SET piper_model = ?,
-                    tts_provider = ?,
-                    gemini_tts_voice = ?,
-                    gemini_tts_model_cascade = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = 1
-                """,
-                (
-                    piper_model or current.get("piper_model") or "en_GB-cori-high.onnx",
-                    selected_tts_provider,
-                    selected_voice,
-                    selected_tts_models,
-                ),
-            )
+            from app.core.speech import speech_configuration, PROVIDERS
+            if tts_provider not in (*PROVIDERS, 'unconfigured'):
+                raise HTTPException(400, 'Choose an API speech provider.')
+            proposed = {**current, 'tts_provider': tts_provider,
+                'tts_model': tts_model or current.get('tts_model'),
+                'tts_voice': tts_voice or current.get('tts_voice'),
+                'tts_base_url': tts_base_url or current.get('tts_base_url'),
+                'tts_api_key': updated_secret(tts_api_key, False, current.get('tts_api_key'))}
+            if tts_provider != 'unconfigured':
+                try:
+                    speech_configuration(proposed)
+                except ValueError as error:
+                    raise HTTPException(400, str(error)) from error
+            conn.execute('UPDATE app_settings SET tts_provider=?,tts_model=?,tts_voice=?,tts_base_url=?,tts_api_key=? WHERE id=1',
+                tuple(proposed[k] for k in ('tts_provider','tts_model','tts_voice','tts_base_url','tts_api_key')))
         elif section == "ai_text":
             selected_provider = active_ai_provider or current.get("active_ai_provider") or "gemini"
             if selected_provider not in {"gemini", "openai", "anthropic", "openrouter", "custom"}:
@@ -925,18 +914,22 @@ async def update_ai_settings(
                 custom_llm_model, current.get("custom_llm_model"), []
             )
 
-            selected_gemini_keys = current.get("gemini_api_keys") or "[]"
+            selected_gemini_keys = current.get("gemini_api_keys") or json.dumps([current["gemini_api_key"]] if current.get("gemini_api_key") else [])
+            if clear_gemini_api_keys or gemini_api_keys:
+                conn.execute("UPDATE app_settings SET gemini_api_key=NULL WHERE id=1")
             if clear_gemini_api_keys:
                 selected_gemini_keys = "[]"
             elif gemini_api_keys:
                 try:
                     parsed_keys = json.loads(gemini_api_keys)
-                except json.JSONDecodeError as exc:
-                    raise HTTPException(status_code=400, detail="Gemini API keys must be a JSON array.") from exc
+                except json.JSONDecodeError:
+                    parsed_keys = [gemini_api_keys]
                 parsed_keys = [
                     str(key).strip() for key in parsed_keys
                     if isinstance(key, str) and key.strip()
                 ]
+                if len(parsed_keys) > 1:
+                    raise HTTPException(400, "Configure one Gemini credential.")
                 if parsed_keys:
                     selected_gemini_keys = json.dumps(parsed_keys)
 
@@ -951,7 +944,7 @@ async def update_ai_settings(
             if selected_provider == "custom":
                 if not selected_base_url:
                     raise HTTPException(status_code=400, detail="Custom API base URL is required.")
-                if not json.loads(selected_custom_models):
+                if not selected_custom_models:
                     raise HTTPException(status_code=400, detail="At least one custom model slug is required.")
 
             conn.execute(
@@ -2075,6 +2068,7 @@ async def update_global_subscription_settings(
     default_remove_non_editorial_non_speech: bool | None = Form(None),
     default_minimum_retained_seconds: float | None = Form(None),
     timeline_settings_present: bool = Form(False),
+    cut_tone_enabled: bool = Form(False),
     warning_tones_present: bool = Form(False),
     warning_tone_start: bool = Form(False),
     warning_tone_middle: bool = Form(False),
@@ -2122,10 +2116,7 @@ async def update_global_subscription_settings(
             default_processing_workflow, default_remove_editorial_non_speech,
             default_remove_non_editorial_non_speech, default_minimum_retained_seconds
         ))
-        if warning_tones_present:
-            conn.execute("""UPDATE app_settings SET warning_tone_start = ?, warning_tone_middle = ?,
-                         warning_tone_end = ? WHERE id = 1""",
-                         (warning_tone_start, warning_tone_middle, warning_tone_end))
+        conn.execute("UPDATE app_settings SET cut_tone_enabled=?, default_processing_workflow='complete_timeline', default_remove_editorial_non_speech=0, whitelist_mode=0, default_custom_instructions=NULL WHERE id=1", (cut_tone_enabled,))
         conn.commit()
 
     background_tasks.add_task(_reconcile_artwork_and_feeds)

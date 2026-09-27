@@ -82,8 +82,8 @@ async def test_complete_pipeline_preserves_editorial_audio_and_summary_preferenc
     monkeypatch.setattr(AdDetector, 'generate_audio', speech)
     def unexpected_legacy_call(*args, **kwargs):
         raise AssertionError('Complete Timeline must not invoke legacy classification or summary generation')
-    monkeypatch.setattr(AdDetector, 'detect_ads', unexpected_legacy_call)
-    monkeypatch.setattr(AdDetector, 'generate_summary', unexpected_legacy_call)
+    monkeypatch.setattr(AdDetector, 'detect_ads', unexpected_legacy_call, raising=False)
+    monkeypatch.setattr(AdDetector, 'generate_summary', unexpected_legacy_call, raising=False)
     jobs, repo = JobRepository(), EpisodeRepository()
     jobs.enqueue(1)
     claim = jobs.claim_due(1)[0]

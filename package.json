@@ -15,7 +15,7 @@
     "docker:dev": "python scripts/publish_dev_docker.py",
     "docker:dev:publish": "python scripts/publish_dev_docker.py --push",
     "docker:experimental": "python scripts/publish_experimental_docker.py",
-    "docker:experimental:arm64": "python scripts/publish_experimental_docker.py --platform linux/arm64 --no-tts --tag experimental-arm64"
+    "docker:experimental:arm64": "python scripts/publish_experimental_docker.py --platform linux/arm64 --tag experimental-arm64"
   },
   "repository": {
     "type": "git",

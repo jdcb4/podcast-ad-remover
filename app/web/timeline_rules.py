@@ -26,9 +26,7 @@ def prompt_updates(form, current):
     summary = str(form.get('timeline_summary_instructions', current.get('timeline_summary_instructions') or timeline.SUMMARY_DEFAULT)).strip()
     if len(summary) > 10000:
         raise HTTPException(400, 'Summary instructions must be at most 10000 characters')
-    mode = form.get('timeline_output_mode', current.get('timeline_output_mode', 'auto'))
-    if mode not in timeline.OUTPUT_MODES:
-        raise HTTPException(400, 'Choose Auto, Require schema or JSON compatibility')
+    mode = "strict"
     return {'timeline_definitions': json.dumps(overrides) if overrides else None,
             'timeline_summary_instructions': summary if summary and summary != timeline.SUMMARY_DEFAULT else None,
             'timeline_output_mode': mode}
@@ -42,7 +40,7 @@ async def save_timeline_prompts(request: Request, admin=Depends(require_admin)):
                         timeline_output_mode=? WHERE id=1''',
                      (updates['timeline_definitions'], updates['timeline_summary_instructions'], updates['timeline_output_mode']))
         conn.commit()
-    return {'status': 'success', 'detail': 'Saved for newly queued Complete Timeline jobs. Legacy and queued jobs are unchanged.'}
+    return {'status': 'success', 'detail': 'Saved for newly queued jobs.'}
 
 
 @router.post('/admin/prompts/timeline/preview')
@@ -50,7 +48,7 @@ async def preview_timeline_prompt(request: Request, admin=Depends(require_admin)
     form = await request.form()
     current = get_global_settings()
     proposed = {**current, **prompt_updates(form, current)}
-    custom = current.get('default_custom_instructions')
+    custom = None
     if form.get('preview_subscription_id'):
         try:
             sub = SubscriptionRepository().get_by_id(int(form['preview_subscription_id']))
@@ -64,4 +62,4 @@ async def preview_timeline_prompt(request: Request, admin=Depends(require_admin)
             'provider_settings': timeline.model_settings(proposed),
             'transcript_input': 'At processing time, the user message contains the complete numbered timeline, explicit gaps, measured duration and episode metadata. It is treated as source data.',
             'temperature': 'Provider default (omitted)', 'reasoning': 'Provider default (omitted)',
-            'fallback': 'Configured model cascade within the selected provider only'}
+            'fallback': 'One model; structured output required'}

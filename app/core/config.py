@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     
     # Processing
     PROCESSOR_ENABLED: bool = True
-    SPONSORBLOCK_ENABLED: bool = False
     CHECK_INTERVAL_MINUTES: int = 60
     WHISPER_MODEL: str = "base"
     CUDA_SETUP: bool = False
