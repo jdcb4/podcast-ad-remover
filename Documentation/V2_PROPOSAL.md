@@ -16,6 +16,8 @@ users and valid tokens should survive. A major version permits feature changes; 
 justify resetting user data. Version numbering and production promotion remain separate decisions.
 
 Joe requested a proposal first. No application behavior changes are included with this document.
+Updated 2026-09-27 with confirmed decisions, deferred ownership changes, SponsorBlock removal,
+the static installation configurator and the in-app setup wizard.
 
 ## Authority and reference interpretation
 
@@ -42,20 +44,24 @@ hostnames or unsupported features as product truth.
 | Green Live feed badge | Only show status derived from real feed state; omit decorative status claims. |
 | Minimum 1400px artwork upload | Proposal: recommend podcast-sized square artwork, validate actual image content and resource limits; do not impose that prototype constraint without a product reason. |
 
-## Decisions to review
+## Confirmed decisions
 
-These recommendations resolve behavior that the request leaves open. They are not implemented.
+Joe confirmed the following on 2026-09-27. These are accepted requirements for the planned
+implementation, not evidence that the features have been implemented. Ownership changes are deferred.
 
-| Decision | Recommendation | Consequence |
+| Decision | Accepted direction | Consequence |
 | --- | --- | --- |
 | Initial speech providers | Gemini, OpenAI, OpenRouter, Custom OpenAI-compatible | Broad choice without separate integrations for every vendor. Direct ElevenLabs can follow if its account voices are needed. |
 | Former Piper installations | Mark speech as needing configuration; never silently select a paid service | Continue core processing without optional speech, expose an actionable warning and retain the requested speech preferences. |
-| Ownership after removal from My Podcasts | Keep the existing owner | Membership and responsibility become independent. Transfer ownership explicitly; deleting the owner transfers to the fallback admin. |
+| Ownership changes | Deferred | Preserve current ownership and membership behavior; no mandatory-owner migration in this scope. |
 | Single cut tone migration | Enable if any previous position switch was enabled | Mixed settings become enabled at all applicable cut positions; disclose this in the upgrade report. |
 | Podcast-specific classification guidance | Keep an optional field in advanced podcast settings; always apply it when nonempty | Remove the global inclusion toggle, not useful show-specific guidance. Global legacy free-form instructions are retired. |
 | Model credentials | One active credential per configured provider, with environment precedence; no automatic key rotation | Simplifies endpoint configuration. Existing multi-key installations keep their first configured key and receive a migration notice. |
 
-The credential recommendation goes beyond removing model cascades and should be reviewed explicitly.
+Environment precedence and removal of automatic credential rotation are explicitly accepted.
+For each provider, use the first nonempty environment credential when present, otherwise the first
+saved credential. Retain a saved credential as inactive while an environment value overrides it;
+never display or log either value in migration reports. Explain the precedence change on upgrade.
 Bounded retries of the **same** endpoint/model for transient failures remain useful and are not a cascade.
 
 ## Navigation and browsing
@@ -173,7 +179,7 @@ intervals on System from podcast retention policy rather than duplicating a sett
 **Prompt rules:** retain all seven classification definitions, including editorial non-speech.
 Removing its cut toggle does not remove its category. Add one Preview prompt action showing the
 assembled instructions and schema, clearly identified as a global preview rather than an actual
-episode request. Podcast-specific guidance stays in advanced podcast settings under the proposed
+episode request. Podcast-specific guidance stays in advanced podcast settings under the confirmed
 decision above. No hidden compatibility switch or automatic prompt rewrite.
 
 **Artwork:** use an explicit source selector: Default, URL, Upload. Display the effective artwork
@@ -185,7 +191,8 @@ The fixed feed description uses the existing default, "All your ad-free podcasts
 Existing custom names remain unchanged.
 
 **Users and tokens:** user rows show identity, role and Edit, with a compact token count/status
-where useful. Edit contains password, role, ownership transfer and account deletion controls.
+where useful. Edit contains password, role and account deletion controls. Preserve existing
+ownership actions without adding the deferred transfer-on-deletion policy.
 Access requests are a short actionable section only when pending. API tokens are application
 access credentials, distinct from provider API keys and RSS feed tokens. Keep their scopes,
 expiry, revocation and user association explicit in the editor. Show secrets only at creation
@@ -275,35 +282,141 @@ Keep FFmpeg. Stop creating Piper directories in new images, but do not delete ex
 or speech audio from `/data`. Normalize provider output through the existing audio pipeline;
 do not assume raw PCM always has Gemini's sample rate or channel layout.
 
-## Ownership invariant
+## SponsorBlock removal
 
-Every podcast must reference a real persisted user. Current auth-disabled requests use a synthetic
-admin with ID 0; that cannot satisfy the new ownership invariant. Current membership removal
+Accepted additional scope: remove the SponsorBlock option and integration entirely. Remove
+`SPONSORBLOCK_ENABLED` from supported configuration, Compose/templates, current installation docs,
+the client module and processor calls. Remove external-cut merging where it exists solely for
+SponsorBlock; retain generic interval logic used by timeline editing. YouTube downloading,
+yt-dlp, its JavaScript support and Deno remain in scope as supported features.
+
+The current client imports standard-library modules and shared `httpx`; no standalone SponsorBlock
+package appears in `requirements.txt`. Remove only dependencies proven exclusive to removed code,
+including the separate Piper audit. Keep historical attribution/provenance where existing reports
+or retained data require it, without advertising SponsorBlock as a current feature.
+
+New and reprocessed episodes must not reuse cached SponsorBlock cuts. Update cache/snapshot
+versioning accordingly. Leave already published audio and historical reports unchanged. Remove
+the environment option from generated installs; an old supplied variable must not reactivate it.
+
+## Browser-only installation configurator
+
+Accepted additional scope: a static page deployed automatically to GitHub Pages with application
+deployments. It generates Docker run commands or Docker Compose files through a short guided
+form. It does not install anything itself or communicate with a running Podcast Ad Remover server.
+
+### Minimal flow
+
+| Step | Inputs | Result or guidance |
+| --- | --- | --- |
+| Install format | Compose (recommended) or Docker run; shell for commands (POSIX or PowerShell) | Correct output syntax for the selected shell; Compose YAML remains portable. |
+| Storage and address | Persistent host directory or named volume, host port, reachable application URL | Mount at `/data`, map the selected host port to internal 8000; explain that clients must reach the URL. |
+| Access and hardware | Direct HTTP or existing HTTPS proxy; CPU default, optional NVIDIA GPU | Set secure cookies consistently; only offer proxy-header trust with the trusted-proxy explanation. GPU requires existing host support; do not install drivers. |
+| Review and download | Selected image version, generated secret, optional provider credential fields | Preview/copy/download `compose.yaml` and `.env`, or a run command with an env file. Show next steps: start container, open app, run setup wizard. |
+
+Generate a persistent session secret using browser cryptographic randomness, once per configuration;
+editing the host port must not regenerate it. Allow explicit regeneration. Keep credentials out of
+the displayed command line by using a downloaded env file. API keys are optional and collapsed by
+default: say "Configure later in the app". Do not require a text or speech provider to produce a
+valid install. If supplied here, explain that environment credentials override app-saved credentials
+and changing them requires updating/recreating the container.
+
+Every field is marked where relevant as Required for install, Optional, or Configure later.
+Leave models, voices, content removal, retention, notifications, users/tokens and feed artwork to
+the app. Speech is optional. CPU works without CUDA setup. Advanced timeouts and resource caps
+are not part of the short wizard; link to the matching version's reference instead of reproducing
+every environment variable. Do not emit retired SponsorBlock/Piper/cascade variables.
+
+### Local-only contract
+
+- All form state, validation, secret generation and file generation run in the browser. No form
+  submissions, analytics, telemetry, remote fonts/scripts, provider requests or update checks.
+- GitHub serves the static assets and receives normal page requests; entered configuration is
+  never sent to GitHub or any other service. State this accurately rather than claiming the
+  initial page download has no network activity.
+- Bundle assets and version-specific metadata with the page. Provide a downloadable offline
+  bundle that works without network access, including when opened locally without a server.
+- Keep secrets and input values in memory only by default: no localStorage, cookies, URL query
+  strings/fragments or logs. Clear/reset removes them. Files are saved only on explicit action.
+- No server reachability tests or API-key tests. Model discovery belongs to the installed app.
+  External documentation links are user-initiated navigation and contain no configuration data.
+- Generate valid YAML, dotenv values and shell-specific commands from structured values; test
+  spaces, quotes, dollar signs, backticks, newlines and Windows paths. Reject unsafe/unrepresentable
+  values rather than injecting them into commands. Render previews as text, not HTML.
+- Output uses the published image, a persistent `/data` mount and a restart policy. Do not copy
+  the development Compose file's source bind mount or local image build into production installs.
+
+### Publication and version alignment
+
+Current repository automation has a verification workflow; image publishing is performed by
+release scripts. Add Pages publication as an explicit automatic follow-on to a successful image
+publication, using the exact published commit/image reference. A push to `dev` or `main` alone
+does not prove that its image exists and must not advertise a newly deployed version.
+
+Recommended layout: stable configurator at the site root, a clearly labelled `/dev/` configurator,
+and versioned stable snapshots. Each page identifies its target version and emits an exact version
+or immutable dev revision by default. Dev publication updates its own page without changing the
+stable default. Build the full site artifact from published-version records so updating one channel
+does not erase the other; serialize publication and reject stale jobs that would roll a channel back.
+
+Use a GitHub Actions Pages workflow with the Pages artifact/deploy actions and narrowly scoped
+permissions. Configure the repository's Pages source and deployment environment during implementation.
+If image publishing stays local, the publishing helper dispatches this workflow only after successful
+publication with a verified commit and image identity. This is automation of an already authorized
+publication, not permission for the configurator workflow to promote or publish Docker images.
+Pages failures are visible and retryable for that same release; they do not imply the image failed
+or require rebuilding it. No credentials or generated user configurations enter the site artifact.
+[GitHub custom Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+## In-app first-install setup wizard
+
+Accepted additional scope: a short optional general-configuration wizard shown for a fresh install,
+with Dismiss/Set up later and a permanent "Run setup wizard" action in Settings. This replaces the
+static setup checklist; it does not reintroduce it on System. Use the shared compact controls and
+mobile layout. The installed app may contact its configured providers when the user explicitly
+requests a test; the browser-only restriction above applies to the external configurator.
+
+| Step | Minimum choices | Deferred detail |
+| --- | --- | --- |
+| General | Reachable public URL; require login and administrator setup through existing bootstrap rules | Proxy/network tuning, extra users, tokens and feed customization |
+| Text analysis | One provider, credential if missing, one model; custom URL only for Custom | Quotas, budgets and prompt definitions |
+| Transcription | Local model and CPU/GPU choice, CPU selected initially | Precision tuning; link to existing GPU setup/test flow when selected |
+| Podcast defaults | Ads/promos/intros/outros/non-editorial audio switches; a simple retention preset with explicit values | Advanced timing, detailed retention overrides, notifications and artwork |
+| Review | Summary of changes, Apply and finish, optional Add first podcast | Optional speech is a clearly labelled Settings link, not a required provider setup step |
+
+Use existing default retention values in presets; never imply a preset changes unrelated settings.
+Keep all optional speech features off on fresh installs unless deliberately enabled later. Recognize
+environment credentials without displaying them and explain where to change them. Allow skipping
+AI setup: browsing remains available, while processing readiness clearly identifies what is missing.
+Do not make paid test calls automatically on Next, dropdown changes or Finish.
+
+Persist wizard status in the database: not started, dismissed or completed, plus a wizard version.
+Fresh databases start not started; existing installations migrate to not auto-showing the wizard,
+while retaining the manual entry point. Upgrades must not mistake an empty library for a fresh
+installation. Dismissal persists across restarts and does not reset settings or enable features.
+
+Re-running loads current effective values. Apply only explicitly changed fields through the same
+validation/settings services used by normal pages; do not reset hidden settings or save stale
+defaults over newer edits. Review before saving, preserve form values on error, and make Cancel
+discard unapplied edits. Separate side effects such as GPU setup or provider tests into labelled
+explicit actions; cancelling cannot pretend those already-completed actions were undone.
+
+Keep the wizard administrator-only after bootstrap, with existing origin/CSRF protections and
+secure first-account creation. Dismissing optional onboarding does not bypass required account
+bootstrap when authentication is enabled. Do not create the deferred fallback-owner identity.
+
+## Ownership changes deferred
+
+Joe deferred ownership changes on 2026-09-27. This supersedes the original request to assign all
+unowned podcasts to an administrator for this implementation scope. Preserve existing behavior,
+including nullable owners and the relationship between ownership and My Podcasts membership.
+Do not introduce a fallback administrator, change the auth-disabled identity, migrate owners,
+or add automatic ownership transfer on user deletion as part of v2.
+
+The initial review found that auth-disabled requests use synthetic admin ID 0, membership removal
 clears ownership, explicit reassignment permits NULL, and user deletion does not transfer podcasts.
-All of those paths must change together.
-
-Recommended policy:
-
-- Choose a persisted fallback administrator: preserve a previously selected valid fallback;
-  otherwise choose the existing `admin` administrator, then the oldest administrator by ID.
-- If none exists, create a persisted local administrator identity with password login disabled,
-  not a known default password. Auth-disabled requests resolve to that identity. Enabling login
-  requires completing the existing secure administrator setup for it.
-- Migrate NULL, zero and dangling owner references to that administrator, recording counts.
-  Preserve valid owners and add inherited podcasts to the recipient's My Podcasts membership.
-- New subscriptions always resolve a real owner, including API, directory and auth-disabled paths.
-  Reject invalid explicitly supplied owners rather than quietly assigning someone else.
-- Removing membership leaves ownership intact. The owner can still find and manage the podcast
-  in Library. Reassignment adds membership for the recipient.
-- Deleting a user transfers owned podcasts transactionally before deletion and handles their
-  tokens/sessions under existing revocation rules. Block deletion/demotion of the last usable
-  administrator; replacing the fallback is required before deleting that account.
-- Enforce at the database boundary as well as forms/API handlers, using a tested migration to a
-  non-null foreign key or equivalent insert/update/delete guards compatible with existing SQLite
-  connection behavior. Direct/bulk paths must not bypass it.
-
-Do not use owner migration to make feeds public, grant administrative privileges to ordinary
-owners or remove unrelated user memberships.
+These findings remain context for a future ownership task, not instructions to change them now.
+The new setup wizard must use existing account/bootstrap rules rather than depend on that deferred work.
 
 ## Upgrade and rollback contract
 
@@ -319,10 +432,11 @@ deploying. This proposal does not authorize touching any live database or deploy
 | Editorial non-speech removal enabled | Set effective behavior to retain this category. Report the change. |
 | Old global custom detection prompt/instructions | Archive in backup/export for reference; do not inject into the new classification contract. |
 | Deprecated `append_summary` umbrella | Resolve current effective text/audio features and map to explicit modern flags, preserving inheritance behavior. |
-| Three tone switches | Proposed OR migration to one enabled flag; keep fixed tone assets. |
+| Three tone switches | Accepted OR migration to one enabled flag; keep fixed tone assets. |
 | Custom unified description | Use the fixed description for future feed publication; old value remains recoverable from backup. |
 | Existing feed tokens and URLs | Preserve their values and authorization behavior. UI relocation requires no rotation. |
-| NULL/invalid owner | Assign persisted fallback administrator transactionally. |
+| Ownership and membership | Unchanged; mandatory ownership migration deferred. |
+| SponsorBlock enabled or cached segments present | Disable further integration; exclude cached external cuts from new/reprocessed jobs. Preserve historical reports and already published audio. |
 | Retention, overrides and published episodes | Preserve. Do not mass-reprocess or delete media on upgrade. |
 
 Queue transition is explicit: quiesce processing before upgrade and do not rewrite actively
@@ -334,8 +448,8 @@ Timeline queued jobs also need a controlled snapshot upgrade where model lists, 
 or prompt settings differ; do not silently reinterpret a frozen snapshot. Failed historical jobs
 remain failed until retried. New cache keys must separate changed prompt/schema/settings versions.
 
-Migrations should be idempotent and produce an actionable report without credentials: ownership
-assignments, model selection, speech setup needed, retired prompts, tone changes and queued-job
+Migrations should be idempotent and produce an actionable report without credentials: model
+selection, speech setup needed, retired prompts, tone changes and queued-job
 conversions. Retain obsolete database columns temporarily if that avoids risky table rebuilds;
 v2 must not continue reading them as live configuration. Return actionable validation errors for
 removed API fields rather than silently honoring deprecated behavior. Document these API breaks.
@@ -350,23 +464,26 @@ succeed. The release checklist must explain which post-upgrade changes a restore
 Each phase is a coherent verified commit or small set of commits on a branch based on `dev`.
 No production version bump, SemVer tag, image publication or promotion is implied.
 
-1. **Migration foundations:** owner invariant, fallback identity, v2 settings and snapshot upgrade;
-   migration rehearsal and rollback notes. Resolve the decision table before coding dependent paths.
+1. **Migration foundations:** v2 settings, credential precedence and snapshot upgrade;
+   migration rehearsal and rollback notes. Preserve existing ownership behavior.
 2. **Processing cleanup:** timeline-only execution, single model, structured output contract,
-   speech adapters, Piper/dependency removal and single cut tone. Align API models and readiness checks.
+   speech adapters, Piper/SponsorBlock removal, dependency cleanup and single cut tone.
+   Align API models and readiness checks.
 3. **Shared shell and browsing:** sidebar, mobile list/bottom bar, Add dialog, feed actions and reusable
    settings controls. Preserve routes, membership behavior, desktop bulk actions and themes.
 4. **Settings and access:** convert each page, add artwork upload, consolidate users/tokens/requests,
    keep permissions and remove retired controls from podcast forms as well as admin forms.
-5. **Qualification and documentation:** end-to-end upgrade, provider/audio tests, desktop/mobile
+5. **Installation and onboarding:** browser-only configurator, versioned install metadata,
+   release-linked Pages publication and dismissible/re-runnable in-app setup wizard.
+6. **Qualification and documentation:** end-to-end upgrade, provider/audio tests, desktop/mobile
    review and Docker verification; publish a v2 upgrade guide before any approved release.
 
 Required acceptance evidence:
 
 - Real SQLite upgrade fixtures: fresh install, auth disabled/no users, multiple admins, orphaned
   ownership, old schema, mixed inheritance and queued jobs; backup integrity and repeat migration.
-- Ownership tests across creation, membership removal, reassignment, bulk edits, deletion and API
-  requests; invalid owners cannot persist and ordinary users cannot gain unauthorized control.
+- Ownership and authorization regression tests: preserve existing behavior during UI consolidation;
+  ordinary users cannot gain unauthorized control. No new mandatory-owner assertions.
 - Provider tests: one chosen model, mandatory schema parameters, no compatibility downgrade,
   minimal JSON acceptance/rejection, refusals, truncation, incomplete coverage and request limits.
 - Speech contract tests for every shipped adapter, model/voice validation, credential isolation,
@@ -380,6 +497,17 @@ Required acceptance evidence:
   field preservation, consolidated redirects, upload validation and filter/navigation persistence.
 - RSS checks: stable GUIDs, enclosure addresses, authorized feeds, description/title choices,
   upload/URL/default artwork and failure preservation.
+- Configurator tests: generated Compose parses and validates with `docker compose config`;
+  shell output safely handles supported platforms and hostile special characters; no retired
+  variables, source mounts or accidental credential transmission. Network interception confirms
+  no requests on input/generation; offline bundle works and sensitive state is not persisted.
+- Publication tests: stable/dev isolation, exact release alignment, complete site preservation,
+  stale-job prevention and retry after Pages failure. No automatic production promotion.
+- Setup wizard tests: fresh versus existing database, dismissal across restarts, re-run with current
+  values, environment precedence, admin/bootstrap authorization, partial configuration, cancellation
+  and preservation of unrelated settings. Include mobile/keyboard access and failed validations.
+- SponsorBlock removal tests: no outbound lookup even with an old environment flag or cached
+  segments; reprocessing uses only the current timeline policy, while old publications remain intact.
 - `npm run verify`, then `npm run verify:docker` and isolated container smoke for implementation.
   Confirm the image excludes Piper and its exclusive dependencies; measure rather than promise
   an image-size improvement. No live-data mounts for these checks.
@@ -392,7 +520,7 @@ historical docs as history rather than rewriting their former behavior as though
 
 The handoff HTML and current templates were inspected as source; this is not a rendered visual
 prototype or browser-QA result. Provider capabilities were checked against documentation, not
-paid live inference. Ownership and queue policies above are proposed product decisions. The
+paid live inference. Ownership changes are deferred; queue transition details remain proposed. The
 current application remains unchanged while these decisions are reviewed.
 
 ### Proposal verification
