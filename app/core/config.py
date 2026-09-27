@@ -10,12 +10,12 @@ class Settings(BaseSettings):
 
     # Core
     ENVIRONMENT: str = Field("production", description="Environment: development or production")
-    GEMINI_API_KEY: str | None = Field(None, description="Google Gemini API Key (comma-separated for multiple keys)")
+    GEMINI_API_KEY: str | None = Field(None, description="Google Gemini API key; first nonempty value only, with environment precedence")
     OPENAI_API_KEY: str | None = Field(None, description="OpenAI API Key")
     ANTHROPIC_API_KEY: str | None = Field(None, description="Anthropic API Key")
     OPENROUTER_API_KEY: str | None = Field(None, description="OpenRouter API Key")
     LOG_LEVEL: str = "INFO"
-    SESSION_SECRET_KEY: str = Field(DEFAULT_SESSION_SECRET_KEY, description="Secret key for session encryption")
+    SESSION_SECRET_KEY: str = Field(DEFAULT_SESSION_SECRET_KEY, description="Secret key for session signing")
     
     # Paths
     DATA_DIR: str = "/data"

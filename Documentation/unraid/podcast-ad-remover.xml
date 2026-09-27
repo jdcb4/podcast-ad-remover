@@ -9,10 +9,11 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/jdcb4/podcast-ad-remover/issues</Support>
   <Project>https://github.com/jdcb4/podcast-ad-remover</Project>
-  <Overview>Podcast Ad Remover 1.4.1 - self-hosted podcast processing for downloading episodes, removing ads or promos with local transcription and LLM analysis, and publishing replacement RSS feeds for podcast clients.&#xD;
+  <Overview>Podcast Ad Remover - self-hosted podcast processing for downloading episodes, removing ads or promos with local transcription and LLM analysis, and publishing replacement RSS feeds for podcast clients.&#xD;
 &#xD;
+The latest tag follows published production; V2 features require an explicitly published V2 candidate or release.&#xD;
 Features:&#xD;
-- Local Whisper/faster-whisper transcription and FFmpeg audio cutting.&#xD;
+- Local faster-whisper transcription and FFmpeg audio cutting.&#xD;
 - Gemini, OpenAI, Anthropic, and OpenRouter provider support.&#xD;
 - Per-podcast and unified RSS feeds.&#xD;
 - Optional management login, feed tokens, public subscribe page, and admin notifications.&#xD;
@@ -95,8 +96,8 @@ Features:&#xD;
   <Config Name="Base URL" Target="BASE_URL" Default="http://[IP]:[PORT:8000]" Mode="" Description="Public URL that podcast clients can reach. Use your LAN URL for local installs or an HTTPS reverse-proxy URL for remote access." Type="Variable" Display="always" Required="false" Mask="false">http://[IP]:[PORT:8000]</Config>
   <Config Name="Secure Cookies" Target="COOKIE_SECURE" Default="false" Mode="" Description="Set to true only when users access the app through HTTPS." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
   <Config Name="Trust Proxy Headers" Target="TRUST_PROXY_HEADERS" Default="false" Mode="" Description="Set to true only behind a trusted reverse proxy that strips client-supplied forwarding headers." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
-  <Config Name="Gemini API Key" Target="GEMINI_API_KEY" Default="" Mode="" Description="Google Gemini API key. Optional if configured later in Admin &gt; AI Settings &gt; Text Analysis. Multiple keys can be comma-separated." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
-  <Config Name="OpenAI API Key" Target="OPENAI_API_KEY" Default="" Mode="" Description="OpenAI API key. Optional if configured later in Admin &gt; AI Settings &gt; Text Analysis." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
-  <Config Name="Anthropic API Key" Target="ANTHROPIC_API_KEY" Default="" Mode="" Description="Anthropic API key. Optional if configured later in Admin &gt; AI Settings &gt; Text Analysis." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
-  <Config Name="OpenRouter API Key" Target="OPENROUTER_API_KEY" Default="" Mode="" Description="OpenRouter API key. Optional if configured later in Admin &gt; AI Settings &gt; Text Analysis." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Gemini API Key" Target="GEMINI_API_KEY" Default="" Mode="" Description="Google Gemini API key. Optional if configured later in Settings &gt; Text analysis. Use one key; environment credentials override saved keys." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="OpenAI API Key" Target="OPENAI_API_KEY" Default="" Mode="" Description="OpenAI API key. Optional if configured later in Settings &gt; Text analysis." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Anthropic API Key" Target="ANTHROPIC_API_KEY" Default="" Mode="" Description="Anthropic API key. Optional if configured later in Settings &gt; Text analysis." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="OpenRouter API Key" Target="OPENROUTER_API_KEY" Default="" Mode="" Description="OpenRouter API key. Optional if configured later in Settings &gt; Text analysis." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
 </Container>

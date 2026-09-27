@@ -1,6 +1,6 @@
 # Deployment
 
-Docker is the recommended deployment path.
+Docker is the recommended deployment path. This guide covers the V2 code on `dev`; `latest` examples below target the published production channel, which is not assumed to contain V2. For V2 testing, build the checkout locally or use an explicitly published immutable `dev-<git-sha>` candidate. Read [V2_UPGRADE.md](V2_UPGRADE.md) before attaching an existing data volume.
 
 ## Docker Run
 
@@ -9,12 +9,11 @@ docker run -d \
   --name podcast-ad-remover \
   -p 8000:8000 \
   -v ./data:/data \
-  -e GEMINI_API_KEY=your_key_here \
-  -e BASE_URL=http://your-server-ip:8000 \
+  --env-file .env \
   jdcb4/podcast-ad-remover:latest
 ```
 
-For a production install, also set a unique `SESSION_SECRET_KEY`.
+Copy `env.example` to a private `.env` first. Set a stable random `SESSION_SECRET_KEY`, a reachable `BASE_URL` and, optionally, the chosen provider key. Environment keys override saved keys; no multiple-key failover remains. Configure the provider/model after startup with the optional wizard or Settings.
 If users access the app through HTTPS behind a reverse proxy, set `COOKIE_SECURE=true`.
 Only set `TRUST_PROXY_HEADERS=true` when that proxy strips any client-supplied forwarding headers before passing requests to the app.
 For authenticated management access behind a reverse proxy, set `BASE_URL` or the System Settings public application URL to the browser-facing origin so same-origin checks accept legitimate form submissions.
@@ -53,7 +52,7 @@ The repository `docker-compose.yml` is intended for local source builds and deve
 
 ## Local Or OpenAI-Compatible LLM Networking
 
-Configure local text analysis from **Admin > AI Settings > Text Analysis**. The API base URL must use
+Configure local text analysis from **Settings → Text analysis**. The API base URL must use
 HTTP or HTTPS, must not contain credentials, a query string, or a fragment, and normally includes the
 service's `/v1` compatibility path.
 
@@ -103,7 +102,7 @@ not read them.
 
 ## Notifications
 
-Admin notifications are optional and off by default. Configure them from **Admin > Notifications** after the app is running.
+Admin notifications are optional and off by default. Configure them from **Settings → Notifications** after the app is running.
 
 The app embeds the Apprise Python library, so no extra container is required for most setups. Add one Apprise URL per line and use the test button before relying on alerts. Examples of supported targets include:
 
@@ -202,16 +201,16 @@ are cached for 30 seconds. Feed-check deadlines are recorded by the actual sched
 
 ## Install configurator publication
 
-`configurator/` is standalone static HTML/CSS/JS. It generates Compose or POSIX shell instructions without network calls or browser storage. Serve it locally to use it offline.
+`configurator/` is standalone static HTML/CSS/JS. It generates Compose or Docker run instructions for POSIX or PowerShell without network calls or browser storage. Open the generated offline bundle directly; no server is required.
 
 After a successful authorized Docker push, the publisher dispatches `.github/workflows/publish-configurator.yml` with the immutable image tag and exact commit. Configure repository Pages to use GitHub Actions and authenticate GitHub CLI with workflow access on the publishing host. The workflow verifies the image exists and preserves `/stable/` and `/dev/` independently on `gh-pages`. A failed dispatch reports an error; rerun the workflow for that same image/revision without republishing Docker. It does not publish Docker images itself.
 
-Follow [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md) before upgrading an existing installation. The optional setup wizard changes only its selected fields and can be dismissed/resumed/rerun. It does not move podcast ownership or enable paid speech automatically.
+Follow [V2_UPGRADE.md](V2_UPGRADE.md) before upgrading an existing installation. The optional setup wizard changes only its selected fields and can be dismissed/resumed/rerun. It does not move podcast ownership or enable paid speech automatically.
 
 ## V2 install configurator
 
 The static configurator runs entirely in the browser, including from an unpacked offline download. Choose Compose or Docker run, POSIX or PowerShell, port, persistent storage and reachable URL. Optional credentials are collapsed and are written only into the separately downloaded `install.env`. Download both files into the same folder. Compose output requires version 2.30 or later for raw env-file values; Docker run uses its standard env-file parser. Preserve the generated session secret when upgrading. Changing form choices does not rotate it; regeneration is explicit.
 
-The source offline bundle is built with `python scripts/build_configurator.py`; Pages builds it with release-specific metadata after an authorized successful Docker publish. No user inputs or generated configurations enter that bundle. Environment credentials override keys saved later in the application. Only enable proxy trust when direct access to the container is restricted to the trusted proxy.
+The source offline bundle is built with `python scripts/build_configurator.py`; Pages builds it with release-specific metadata after an authorized successful Docker publish. The bundle includes the [portable PAR agent skill](Agent_Skill.md) and matching API reference. No user inputs or generated configurations enter that bundle. Environment credentials override keys saved later in the application. Only enable proxy trust when direct access to the container is restricted to the trusted proxy.
 
 The first-install wizard is optional and rerunnable from System. Its draft is kept in server memory for 30 minutes and is lost on app restart. Settings apply only after review; cancellation discards the draft and conflicts with concurrent edits require restarting setup. Login/bootstrap and GPU setup links are separate actions.

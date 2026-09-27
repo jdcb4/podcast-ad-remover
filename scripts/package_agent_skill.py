@@ -15,7 +15,8 @@ def build(destination: Path) -> Path:
             if file.is_file() and file.suffix in {'.md', '.yaml'}:
                 archive.write(file, str(Path(source.name) / file.relative_to(source)))
         # Ship the exact guide, not a separately maintained copy that can drift.
-        for name in ('API.md', 'Agent_Skill.md', 'COMPLETE_TIMELINE.md'):
+        for name in ('API.md', 'Agent_Skill.md', 'COMPLETE_TIMELINE.md', 'V2_UPGRADE.md',
+                     'V2_RELEASE_NOTES.md', 'V2_IMPLEMENTATION.md', 'RECOVERY.md'):
             archive.write(ROOT / 'Documentation' / name, 'podcast-ad-remover/references/' + name)
     return destination
 

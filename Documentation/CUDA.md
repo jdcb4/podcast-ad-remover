@@ -52,7 +52,7 @@ to run on CPU or repair host GPU access. Application CPU fallback applies once t
 
 ## Manual setup and settings
 
-Open **Admin > AI Settings > Transcription** and select **Set up / retest GPU**. This tests the
+Open **Settings → Transcription** and select **Set up / retest GPU**. This tests the
 currently saved model, downloads the libraries if necessary and activates GPU only after successful
 inference. Refresh the page after success to see saved fields and supported GPU precision choices.
 

@@ -1,5 +1,7 @@
 # Audit Status
 
+Historical audit only. Feature-retention recommendations here, including Piper/Legacy behavior, are superseded where V2 decisions differ. See [current decisions](../DECISIONS.md) and [V2 upgrade guidance](../V2_UPGRADE.md).
+
 Date: 2026-06-11
 Branch: `audit-work`
 

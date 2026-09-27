@@ -1,6 +1,8 @@
 # Audit status
 
-Updated 2026-09-06. The 2026-09-05 whole-project assessment was approved for implementation.
+Updated for V2 documentation on 2026-09-27. The dated records below remain historical assessment evidence; they do not establish the current deployed version. V2 implementation and local checks are recorded in [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md), and publication remains pending separate approval and Joe’s expanded rationale.
+
+Assessment status recorded on 2026-09-06: The 2026-09-05 whole-project assessment was approved for implementation.
 The assessment work is released and deployed to production as **1.13.0**, following Joe's
 explicit promotion approval. The [production release record](PRODUCTION_RELEASE_1.13.0.md)
 records the immutable image, production-data rehearsal, verified backup/restore and live checks.
@@ -8,7 +10,7 @@ The [Dev rollout record](DEV_ROLLOUT_2026-09-06.md) preserves the earlier qualif
 additional live-found fixes. The usual podcast-client and subjective listening checks were
 not completed by this assessment.
 
-[Assessment implementation](ASSESSMENT_IMPLEMENTATION.md) is the current finding-by-finding
+[Assessment implementation](ASSESSMENT_IMPLEMENTATION.md) is the historical finding-by-finding
 record, with verification results and deployment limits. [CHANGELOG.md](CHANGELOG.md) describes
 released user-visible behavior; [RECOVERY.md](RECOVERY.md) is the upgrade/restore procedure.
 Future production promotions, version changes and release tags still require explicit approval.

@@ -58,11 +58,9 @@ In Docker, set `BASE_URL` or the System Settings public application URL to a hos
 - **Users & access:** dashboard/feed authentication, IP allowlist, users, access requests, feed tokens and API tokens/limits. Existing ownership behavior is unchanged.
 - **Notifications:** Apprise destinations and event toggles. **Logs:** existing viewer.
 
-These runtime settings are database-backed. Except provider credentials, environment values generally seed startup defaults rather than overriding an existing installation. The retired `SPONSORBLOCK_ENABLED`, Piper settings and `INSTALL_TTS` build argument are unsupported. YouTube RSS extraction still uses yt-dlp and Deno.
+These Settings pages are database-backed. Variables such as `WHISPER_MODEL` seed new database settings; changing them does not overwrite an existing saved choice. Runtime environment settings such as `PROCESSOR_ENABLED`, network trust and hard download limits remain installation-level controls. Provider credentials explicitly use environment precedence. Do not assume every environment value either seeds once or overrides every saved setting. The retired `SPONSORBLOCK_ENABLED`, Piper settings and `INSTALL_TTS` build argument are unsupported. YouTube RSS extraction still uses yt-dlp and Deno.
 
-## Migration
-
-### Speech catalog discovery
+## Speech catalog discovery
 
 Voice provides model/voice dropdowns, manual IDs and an explicit Refresh models & voices action. Refresh only reads metadata; it never synthesizes speech or saves the form. Entered keys override saved keys for that request, while cloud environment keys retain precedence. Errors preserve selections.
 
@@ -72,4 +70,20 @@ References: [Gemini voices](https://ai.google.dev/api/voices), [OpenAI speech](h
 
 New databases enable Ad-free artwork and Insert tone at content cuts; the other enhancements start off. Existing saved preferences are unchanged. Unavailable spoken controls retain their requested values when other settings are saved.
 
-[The implementation and rollback guide](V2_IMPLEMENTATION.md) describes the pre-upgrade backup, queued-job conversion and per-install migration report. Do not downgrade the executable alone after v2 writes. Restore a matching pre-upgrade database and previous immutable image; preserve the media recovery point.
+## Migration
+
+[The V2 upgrade guide](V2_UPGRADE.md) describes the pre-upgrade backup, queued-job conversion and per-install migration report. Do not downgrade the executable alone after v2 writes. Restore a matching pre-upgrade database and previous immutable image; preserve the media recovery point.
+
+## Retention and inheritance
+
+Content removal, retention and enhancements can inherit global defaults per podcast. Podcast-specific guidance is always applied when nonempty; there is no global guidance-inclusion switch or useful workflow selection. Retired inheritance/database fields may still appear in API compatibility models.
+
+Automatic episode retention is count-based (`retention_limit`); zero retains no automatically processed episodes and prevents automatic downloads. Manual downloads use `manual_retention_days`; zero makes completed manual output immediately eligible for cleanup. `retention_days` remains a stored compatibility setting but does not drive the current automatic cleanup path. Do not treat a zero retention value as “keep forever.”
+
+## Gemini quota handling
+
+Settings → Text analysis → Quota handling optionally enables PAR's shared Gemini free-tier accounting. Counters and reservations live in SQLite across jobs, and daily resets follow Pacific time. It applies to the one selected model; an exhausted model waits or produces an actionable quota state instead of moving through a cascade. Model limits are the application's configured estimates, not an authoritative statement about your account's current allowance. Unknown models and provider-reported limits must be handled according to the actual account response. See `app/core/gemini_quota.py` and the queue usage display; provider-call budgets and per-request timeouts still apply independently.
+
+## Import, installer and agent settings
+
+Import has no new Docker variables: use Add podcast → Import or the API's dry-run endpoint. The browser form accepts OPML/text uploads and pasted feeds. Configure API access and limits under Users & access; the [API reference](API.md) documents request limits and [Agent_Skill.md](Agent_Skill.md) explains the portable skill. The setup wizard intentionally omits advanced settings, and import does not overwrite existing podcast settings or ownership.

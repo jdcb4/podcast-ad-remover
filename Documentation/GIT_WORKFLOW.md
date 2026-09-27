@@ -20,6 +20,8 @@ exact Dev image, approval, fast-forward promotion to `main`, versioning and Dock
 Repository-maintenance changes to `main` also require explicit authorization; a branch rename is
 not an application release.
 
+Before V2 publication, complete the maintainer reasoning reminder in [VERSIONING.md](VERSIONING.md#v2-pre-publication-reminder). Draft release/commit copy is in [V2_RELEASE_NOTES.md](V2_RELEASE_NOTES.md); it does not authorize promotion or rewriting existing commit history.
+
 ## Normal work
 
 Start with a clean checkout, update `dev`, and create one branch for the change:

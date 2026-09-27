@@ -61,6 +61,10 @@ Commit after each significant coherent change, once verification appropriate to 
 - Dev Docker images use the rolling `jdcb4/podcast-ad-remover:dev` tag plus the immutable `jdcb4/podcast-ad-remover:dev-<git-sha>` tag. They must never update `latest` or a SemVer tag.
 - A production promotion begins only after the Dev image has been tested and Joe gives explicit approval. Follow `Documentation/VERSIONING.md` for the promotion checklist.
 
+## V2 publication reminder
+
+Before publishing V2 or finalizing its release announcement, remind Joe to explain his reasoning for the deliberate breaking changes in more detail. He explicitly requested this on 2026-09-27. The current wording in `Documentation/V2_RELEASE_NOTES.md` is a draft, not his final explanation. Record the discussion and update that draft before publication; preparing documentation does not authorize a version bump, image push or production promotion.
+
 ## Hard Rules
 
 - Do not delete, rewrite, or reset existing `/data` content as part of a code change.

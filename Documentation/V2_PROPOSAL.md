@@ -1,6 +1,6 @@
 # Podcast Ad Remover v2 proposal
 
-Status: **proposal for Joe's review; not an implementation or release authorization**.
+Status: **approved design-history record; implementation was authorized on 2026-09-27 and is recorded in V2_IMPLEMENTATION.md. This is not production-release authorization.**
 Prepared 2026-09-27 against `dev` commit `22f0aaa` (application version 1.16.0).
 
 ## Direction
@@ -15,9 +15,13 @@ lists and several settings disappear. Existing podcasts, media, feed addresses, 
 users and valid tokens should survive. A major version permits feature changes; it does not
 justify resetting user data. Version numbering and production promotion remain separate decisions.
 
-Joe requested a proposal first. No application behavior changes are included with this document.
+Joe originally requested a proposal first and later authorized implementation on Dev. The prospective wording below records that design stage; the current implementation and upgrade guides take precedence where later feedback changed details.
 Updated 2026-09-27 with confirmed decisions, deferred ownership changes, SponsorBlock removal,
 the static installation configurator and the in-app setup wizard.
+
+## Later decisions and current authority
+
+Subsequent user feedback placed Unified Feed beside search rather than in the sidebar/bottom bar; mobile primary navigation is My Podcasts, Library, Add, Tasks and Settings for administrators, with settings/account-only drawer contents. Short explanations were restored on settings pages and GPU setup remains expanded. Voice now offers refreshable catalogues with manual IDs where discovery is incomplete. Fresh artwork and cut-tone defaults are on; other enhancements are off. OPML/text import and a portable agent skill were added. Refer to [V2_UPGRADE.md](V2_UPGRADE.md), [API.md](API.md) and [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md) for implemented contracts, not the illustrative concepts below.
 
 ## Authority and reference interpretation
 
@@ -46,8 +50,7 @@ hostnames or unsupported features as product truth.
 
 ## Confirmed decisions
 
-Joe confirmed the following on 2026-09-27. These are accepted requirements for the planned
-implementation, not evidence that the features have been implemented. Ownership changes are deferred.
+Joe confirmed the following on 2026-09-27. They remain accepted requirements; implementation evidence is in V2_IMPLEMENTATION.md. Ownership changes remain deferred.
 
 | Decision | Accepted direction | Consequence |
 | --- | --- | --- |
@@ -528,8 +531,8 @@ deciding whether to replace or add an engine. This investigation is not a v2 com
 
 The handoff HTML and current templates were inspected as source; this is not a rendered visual
 prototype or browser-QA result. Provider capabilities were checked against documentation, not
-paid live inference. Ownership changes are deferred; queue transition details remain proposed. The
-current application remains unchanged while these decisions are reviewed.
+paid live inference. This describes the original proposal review, not current implementation status. Ownership remains
+deferred; queue conversion and the other implemented features are documented in V2_IMPLEMENTATION.md.
 
 ### Proposal verification
 

@@ -47,6 +47,12 @@ Retain the new UTC representation and document the parser impact in the release 
 See the 2026-09-10 decision in [DECISIONS.md](DECISIONS.md). This does not change the
 versioning rules for other incompatible changes or authorize production promotion.
 
+## V2 pre-publication reminder
+
+Before publishing V2, **remind Joe to expand his reasoning for the deliberate breaking changes**. Review the draft in [V2_RELEASE_NOTES.md](V2_RELEASE_NOTES.md), incorporate his explanation, and mark its reminder resolved with the date. Do this before finalizing the public release message. A documentation update is not authorization to bump versions or promote production.
+
+V2 deliberately retires supported configuration paths, so it is a proposed major-version boundary even though the database has a migration path. The current package version is still 1.16.0; the next production version remains subject to release approval.
+
 ## Release Checklist
 
 During normal development, publish and test clean committed Dev builds as needed:
@@ -57,7 +63,7 @@ npm run docker:dev:publish
 
 When Joe asks to prepare a release candidate:
 
-1. Decide the next SemVer number.
+1. Complete the V2 explanation reminder above when applicable, review [V2_UPGRADE.md](V2_UPGRADE.md), and decide the next SemVer number.
 2. Update `package.json`, `package-lock.json`, and `Documentation/CHANGELOG.md` on `dev`.
 3. Run local verification on `dev`:
 

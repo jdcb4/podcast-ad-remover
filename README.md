@@ -1,280 +1,132 @@
 # Podcast Ad Remover
 
-Podcast Ad Remover is a self-hosted app for downloading podcast episodes, removing ad and promo segments, and publishing replacement RSS feeds that can be subscribed to from a normal podcast client.
+Self-hosted podcast processing that removes selected content and publishes replacement RSS feeds for your usual podcast player.
 
-It is built for homelab-style deployment: one Docker container, SQLite state under `/data`, local transcription with Whisper/faster-whisper, FFmpeg audio editing, and LLM-backed ad detection through Gemini, OpenAI, Anthropic, or OpenRouter.
+PAR downloads episodes, transcribes them locally with **faster-whisper**, asks a structured-output model to classify the complete timeline, and uses FFmpeg to remove the categories you choose. Optional API speech can add a generated title or summary.
 
-## Current UI
+> **V2 development:** this README describes the V2 implementation on `dev`. A production 2.0 release has not been authorized or published by this work. Do not assume the Docker `latest` tag includes these changes. Read the [upgrade guide](Documentation/V2_UPGRADE.md) before testing an existing installation.
 
-Use the header's light/dark toggle to change appearance. Dark is the default. Your choice is
-saved in this browser only and shared across tabs for the same site; it does not follow the
-system theme or change another user's preference. If browser storage is disabled, the toggle
-still works until the page is reloaded.
+## Why V2 includes breaking changes
 
-### Dashboard
+We are deliberately making breaking changes in V2. After working on PAR for a while, we have a clearer idea of which features earn their place. Some legacy options no longer seem to offer lasting value, some make the tool harder to understand and maintain, and some are less useful to us now that remote inference has become more affordable.
 
-The compact dashboard switches between My Podcasts and the global Library without a page reload,
-refreshes processing progress independently, and offers direct RSS or generic podcast-app setup for
-each feed.
+We hope these removals will not affect anyone's day-to-day use, but we cannot assume nobody relies on them. This is a deliberate cleanup, with the changes and migration consequences documented below. Preserving podcasts, media and feed identities remains a priority; preserving every old operating mode does not.
 
-![Dashboard](Documentation/screenshots/dashboard.png)
+Local transcription stays. A custom, locally hosted analysis endpoint is still supported when it accepts native structured-output requests. Remote speech is optional, and an upgrade never silently moves a former local-speech installation onto a paid service.
 
-### Episode Management
+See the [draft release notes and breaking-change list](Documentation/V2_RELEASE_NOTES.md) and [migration checklist](Documentation/V2_UPGRADE.md).
 
-Episode pages expose reprocessing, manual downloads, ignore/delete actions, AI summaries, descriptions, playback, and podcast-client subscription links.
+## What PAR does
 
-![Episode management](Documentation/screenshots/episodes.png)
+- **Manage a shared library:** search for podcasts, add RSS feeds or public YouTube channels/playlists, and keep a personal My Podcasts list. Existing ownership rules remain unchanged.
+- **Import subscriptions:** upload Pocket Casts or other OPML exports, upload a text file, or paste one feed URL per line. Review duplicates, select entries, and retry failures. Existing library shows are reused without changing their settings or owner.
+- **Choose what to remove:** ads, promos, intros, outros and non-editorial non-speech. Complete Timeline classification keeps ordinary content and uncertain material; an advanced short-island rule controls very short retained gaps between cuts.
+- **Listen in your preferred app:** individual podcast feeds and a Unified Feed, with one RSS subscription action beside search on My Podcasts and Library.
+- **Add optional enhancements:** rewritten descriptions, generated spoken summaries/titles, an ad-free artwork badge, and a tone at content cuts. Fresh installs enable the artwork badge and cut tones; the other enhancements start off.
+- **Use a compact interface:** desktop sidebar, simple mobile podcast rows, consistent settings, light/dark mode, and account/access/token administration together under Users & access.
+- **Set up gradually:** an optional first-install wizard, rerunnable from System, and a browser-only Docker/Compose configurator with offline download.
+- **Track processing:** durable jobs, retries, queue status, last-good publication preservation, retention controls, logs and optional Apprise notifications.
+- **Connect an agent:** an optional scoped REST API plus a [portable agent skill](Documentation/Agent_Skill.md).
 
-### Public Subscribe Page
+Classification and transcription can make mistakes. Review reports and listen to edited seams when tuning removal preferences. PAR's cut boundaries depend on transcript timing; they are not guaranteed word-perfect.
 
-The optional `/subscribe` page is read-only and designed for people who only need to subscribe to existing feeds. It does not allow adding, editing, reprocessing, or deleting podcasts.
+## Get started
 
-![Public subscribe page](Documentation/screenshots/public-subscribe.png)
+### Install configuration
 
-### Operations Dashboard
+The [static configurator source](configurator/) generates Compose or Docker run files for POSIX shells or PowerShell. Released configurators are published to separate stable/dev GitHub Pages paths after authorized image publication. The generated files and credentials stay in your browser; nothing is sent to a server or saved in browser storage.
 
-The admin queue shows active jobs, queued/retry states, disk usage, next feed checks, and recently processed items.
+To use the source offline, run `python scripts/build_configurator.py`, then open `configurator/index.html`. Alternatively, download the offline ZIP from a published configurator. Download both the install file and its separate `install.env` into the same directory. Generated Compose uses raw env-file values and requires Docker Compose 2.30 or newer.
 
-![Operations dashboard](Documentation/screenshots/admin-queue.png)
+### Test V2 from this checkout
 
-## Features
-
-Experimental [optional NVIDIA GPU transcription](Documentation/CUDA.md) adds first-start or
-manual setup with libraries cached in `/data`. CPU remains the default; NVIDIA hardware
-qualification is required before supported release.
-
-- Podcast search, RSS subscription management, and direct YouTube channel/playlist subscriptions.
-- Global podcast library with per-user My Podcasts lists and one shared copy of each podcast.
-- In-place Library starring and My Podcasts/Library switching plus grid, artwork, and compact table views.
-- Podcast ownership rules for per-podcast settings, with admin owner reassignment and admin-only global deletion.
-- Grouped global-setting inheritance for processing workflow, content removal, retention, default features, and custom instructions.
-- Permission-checked bulk editing for podcast settings and ownership.
-- Optional ad-free badge composited onto generated podcast artwork.
-- Automatic episode download and retention controls.
-- Local transcription with Whisper/faster-whisper.
-- LLM-based ad, promo, intro, and outro detection.
-- Opt-in [Complete Timeline processing](Documentation/COMPLETE_TIMELINE.md): classify speech and
-  editorial/non-editorial gaps, choose removal categories, and apply a configurable short-island
-  rule. V2 uses Complete Timeline for every podcast and migrates queued jobs during upgrade.
-- FFmpeg-based audio cutting and rewritten RSS feed generation.
-- Per-podcast feeds plus a unified feed with configurable name, description, episode-title prefix,
-  and optional external artwork.
-- Optional AI episode summaries and spoken title intros using Gemini, OpenAI, OpenRouter or a custom speech API.
-- Durable SQLite-backed processing jobs with retry and rate-limit states.
-- A bounded, independently refreshed current-processing panel that does not disturb dashboard state.
-- Admin queue/operations dashboard.
-- Optional token-protected AI/automation REST API with scoped tokens and configurable rate limits.
-- Optional management login.
-- Optional feed/audio authentication with generated feed tokens.
-- Optional public read-only subscribe page for frictionless podcast-client setup.
-- Optional Apprise-backed admin notifications for access requests, new podcasts, completed episodes, and breaking processing errors.
-- Resource controls for Whisper CPU threads, FFmpeg threads, and unloading Whisper after jobs.
-
-## YouTube Sources
-
-Paste a direct public YouTube channel URL or an explicit `youtube.com/playlist?list=...` URL into the
-dashboard search bar. The app resolves it as one subscription, checks it on the normal feed interval,
-downloads best audio-only with pinned yt-dlp tooling, and sends that audio through the same
-Whisper/LLM/FFmpeg pipeline. Individual videos, Shorts, streams, private/member content, login
-cookies, and YouTube search are not supported.
-
-YouTube extraction is intended for self-hosted, opt-in use with public content. Operators are
-responsible for ensuring they have permission to download and process the content and that their use
-complies with applicable law and platform terms.
-
-SponsorBlock integration has been removed. YouTube sources remain supported through yt-dlp and Deno.
-
-## Quick Start
-
-### Docker Run
-
-Copy `env.example` to `.env`, configure the selected provider and public URL, and generate
-a `SESSION_SECRET_KEY` once with `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
-Save it in `.env` and retain it for upgrades. Run the published image with persistent `/data`:
+Build the checked-out code locally:
 
 ```bash
-docker run -d \
-  --name podcast-ad-remover \
-  -p 8000:8000 \
-  -v ./data:/data \
-  --env-file .env \
-  jdcb4/podcast-ad-remover:latest
+docker build -t podcast-ad-remover:v2-local .
 ```
 
-Open `http://localhost:8000`, then go to **Admin > AI Settings > Text Analysis** to confirm your provider and model settings.
-
-Keep `SESSION_SECRET_KEY` stable once set. Changing it invalidates browser sessions. Generated feed tokens are stored separately as hashes.
-
-### Docker Compose
-
-For local development from source:
+Copy `env.example` to a private `.env`. Generate `SESSION_SECRET_KEY` once, save it in that file, and set `BASE_URL` to an address your podcast clients can reach:
 
 ```bash
-cp env.example .env
-# Set SESSION_SECRET_KEY in .env to a random value generated once:
 python -c "import secrets; print(secrets.token_urlsafe(48))"
-# Save that value privately; changing it invalidates existing sessions.
-docker compose up -d --build
+docker run -d --name podcast-ad-remover-v2 -p 8000:8000 --mount source=podcast-ad-remover-v2-data,target=/data --env-file .env podcast-ad-remover:v2-local
 ```
 
-For a production-style compose file using the published image, see `docker-compose.prod.yml` and [Documentation/Deployment.md](Documentation/Deployment.md).
+This example uses a **new test volume**. Never mount the same writable data directory into two running PAR instances. For an existing installation, rehearse the upgrade against a backup and follow [V2_UPGRADE.md](Documentation/V2_UPGRADE.md).
 
-### Unraid
+Open `http://localhost:8000`. Use or dismiss the setup wizard, configure **Settings → Text analysis**, then add or import podcasts. Provider keys are optional at container startup; analysis must be configured before episodes can be processed. Speech can be configured later in **Settings → Voice**.
 
-A dedicated Unraid template is included at `Documentation/unraid/podcast-ad-remover.xml`. See [Documentation/Unraid_Deployment.md](Documentation/Unraid_Deployment.md).
+Keep the data volume and session secret across upgrades. See [Deployment](Documentation/Deployment.md), [Unraid](Documentation/Unraid_Deployment.md), and [environment/runtime configuration](Documentation/Environment_Variables.md) for production-style examples, networking, GPU access and configuration precedence.
 
-## AI Providers
+### Image channels
 
-Gemini is the application default; choose models and billing limits appropriate to your episode volume. Gemini direct access uses Google's OpenAI-compatible endpoint through the OpenAI Python SDK.
+| Image tag | Purpose |
+|-----------|---------|
+| `jdcb4/podcast-ad-remover:dev-<git-sha>` | An exact published Dev candidate; record the revision you test. |
+| `jdcb4/podcast-ad-remover:dev` | The most recently published Dev build, not necessarily the latest source commit. |
+| `jdcb4/podcast-ad-remover:<version>` | An explicitly published production release. |
+| `jdcb4/podcast-ad-remover:latest` | The production channel; never updated by a Dev publish. |
 
-Select one model for the chosen provider. There is no model cascade or credential rotation. Environment credentials take precedence. Custom OpenAI-compatible endpoints accept an explicit base URL and model ID; they never receive another provider's key. Models must support native structured outputs.
+A local build or Git commit does not publish any of these tags. Production promotion remains a separate, explicit maintainer decision.
 
-Quotas depend on model, project and billing tier. Check your active project limits in
-[Google AI Studio via the rate-limit guide](https://ai.google.dev/gemini-api/docs/rate-limits).
-The app does not assume a fixed free-tier allowance.
+## Models and speech
 
-You can set keys in the Admin UI or with environment variables:
+| Task | Supported configuration |
+|------|-------------------------|
+| Transcription | Local faster-whisper, CPU by default; [optional experimental NVIDIA GPU setup](Documentation/CUDA.md). |
+| Text analysis | Gemini, OpenAI, Anthropic, OpenRouter, or a custom OpenAI-compatible endpoint with native structured outputs. |
+| Optional speech | Gemini, OpenAI, OpenRouter, or a custom OpenAI-compatible speech endpoint. |
 
-- `GEMINI_API_KEY`
-- `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `OPENROUTER_API_KEY`
+Choose **one provider and model per task**, and one voice for speech. There is no automatic model cascade, provider fallback or key rotation. Retries and quota waiting on the same configured endpoint are distinct from fallback.
 
-Custom endpoint credentials are configured only in the Admin UI and may be left blank for keyless
-local servers.
+Environment keys (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`) take precedence over saved credentials. Custom endpoints use their own credentials. Voice has model/voice lists, metadata refresh and manual IDs where a provider does not expose a complete catalogue. Availability depends on the provider and account; refreshing metadata does not generate speech.
 
-## Text-To-Speech
+Local Piper speech is removed. Former Piper installations continue core processing without optional speech, retain their requested speech preferences and show configuration guidance. API charges may apply if you subsequently configure speech. See [configuration details](Documentation/Environment_Variables.md).
 
-Speech is API-only and optional. In **Settings > Voice**, select Gemini, OpenAI, OpenRouter or a custom OpenAI-compatible endpoint, then one model and voice. API charges may apply. Former Piper installations are marked as needing configuration; core processing continues without optional speech and preserves requested features.
+## Feeds, access and privacy
 
+Dashboard login, public read-only `/subscribe`, feed/audio protection and the agent API are separate choices. Configure users, access requests, feed tokens and API tokens in **Settings → Users & access**. The API is off by default.
 
-## Authentication And Feed Access
+A protected feed URL is a bearer secret. Keep it private and revoke its token if exposed. Keep provider keys, notification URLs, environment files and database backups private too. Transcription stays local, but the selected analysis provider receives transcript/episode context, and a speech provider receives text requested for synthesis. A self-hosted custom endpoint can keep analysis on your own infrastructure.
 
-The app supports separate choices for management access and podcast feed access:
+YouTube support is limited to public channels and explicit playlists. It does not support individual video subscriptions, Shorts/streams as dedicated sources, private/member content or login cookies. SponsorBlock is removed; yt-dlp and Deno remain. Use sources you are permitted to download and process.
 
-- Management pages can require login.
-- The public `/subscribe` page can remain available without login.
-- Feeds and audio can remain unauthenticated for the smoothest podcast-client setup.
-- Feed/audio authentication can be enabled when you want clients to use credentials or generated feed-token URLs.
+## Upgrade from 1.x
 
-Protected feed URLs containing `token=` are bearer secrets. Anyone with the full URL can read that feed and download audio until the token is revoked.
+The main removals are local Piper speech, model/key cascades, Legacy whitelist/blacklist processing, schema-free analysis, SponsorBlock, global free-form detection instructions, editable unified-feed descriptions and separate cut-position switches.
 
-## AI API
+The migration creates a database backup, converts queued jobs to Complete Timeline, chooses the first configured model/credential and records an upgrade report in System. An enabled old cut-position switch enables the new switch for all applicable positions. Existing published audio is not automatically reprocessed. Podcast-specific guidance remains available and always applies when nonempty.
 
-Admins can enable an optional REST API under `/api/v1` from **Admin > System Settings**. API clients use separate `par_...` bearer tokens with scoped access (`read`, `write`, `process`, `admin`) and SQLite-backed per-token/IP rate limits. See [Documentation/API.md](Documentation/API.md).
+**Drain running jobs before upgrading. Rollback requires the previous immutable image plus the pre-upgrade database and matching media recovery point; downgrading only the image is not supported.** Read [the full upgrade guide](Documentation/V2_UPGRADE.md), including the action table and preservation limits.
 
-## Admin Notifications
-
-Notifications are off by default. Admins can enable them from **Admin > Notifications** by adding one or more Apprise URLs and selecting which events should send alerts.
-
-Initial supported events are:
-
-- user access requested
-- new podcast added to the global library
-- episode processed and available in feeds
-- breaking processing errors, including max-retry failures and top-level worker errors
-
-Apprise supports many targets, including ntfy, Gotify, Pushover, Discord, Telegram, Slack, email/SMTP, webhooks, and SMS providers. Treat notification URLs as secrets because many contain tokens or webhook credentials.
-
-## Persistent Data
-
-Mount `/data` in Docker. It contains:
-
-- `/data/db/podcasts.db`
-- `/data/podcasts/`
-- `/data/feeds/`
-- `/data/artwork/`
-- `/data/models/`
-- `/data/backups/`
-- logs
-
-Database migrations are designed to preserve existing installs. Formal migrations create backups under `/data/backups/` before applying schema changes.
-
-New podcasts inherit all four global setting groups. Upgraded podcasts keep their existing explicit
-content-removal, retention, and feature values; only podcasts whose custom instructions were blank or
-NULL begin inheriting global custom instructions. The stored podcast values are retained while a group
-inherits, so disabling inheritance restores the podcast's previous overrides.
-
-## Verification
-
-Before completing code changes:
-
-```bash
-npm run verify
-```
-
-For Docker/release work:
-
-```bash
-npm run verify:docker
-```
-
-Normal development integrates into `dev`. A clean committed Dev revision can be built or published with rolling and commit-specific tags:
-
-```bash
-npm run docker:dev
-npm run docker:dev:publish
-```
-
-These produce `jdcb4/podcast-ad-remover:dev` and `jdcb4/podcast-ad-remover:dev-<git-sha>` without changing production tags.
-
-Experimental branch images can be published without touching `latest`:
-
-```bash
-npm run docker:experimental -- --push --tag experimental
-```
-
-Experimental Apple Silicon / ARM64 images can be built with API-only speech:
-
-```bash
-npm run docker:experimental:arm64 -- --push
-```
-
-`linux/amd64` remains the primary release target. ARM64 is experimental. Both images use API-only speech.
-
-Production promotion from `dev` to `main` requires explicit approval. Release publishing then runs from a clean `main` checkout and tags both the version and `latest`:
-
-```bash
-npm run docker:publish
-```
+Mandatory podcast ownership and any switch to whisper.cpp are deferred. V2 keeps the current ownership behavior and faster-whisper engine.
 
 ## Documentation
 
-- [Project Index](Documentation/PROJECT_INDEX.md)
-- [AI API](Documentation/API.md)
-- [Architecture](Documentation/Architecture.md)
-- [Deployment](Documentation/Deployment.md)
-- [Environment Variables](Documentation/Environment_Variables.md)
-- [Verification](Documentation/VERIFICATION.md)
-- [Versioning](Documentation/VERSIONING.md)
-- [Git workflow and branch cleanup](Documentation/GIT_WORKFLOW.md)
-- [Changelog](Documentation/CHANGELOG.md)
-- [Decisions](Documentation/DECISIONS.md)
-- [Resource Audit](Documentation/RESOURCE_AUDIT.md)
-- [Local LLM Evaluation](Documentation/LOCAL_LLM_EVALUATION.md)
-- [Local LLM HTML Comparison Report](Documentation/LOCAL_LLM_EVALUATION_REPORT.html)
-- [Roadmap](Documentation/ROADMAP.md)
-- [Naming](Documentation/NAMING.md)
-- [Security](SECURITY.md)
+- [Project and documentation index](Documentation/PROJECT_INDEX.md)
+- [V2 release notes](Documentation/V2_RELEASE_NOTES.md) · [Upgrade and rollback](Documentation/V2_UPGRADE.md)
+- [Configuration](Documentation/Environment_Variables.md) · [Deployment](Documentation/Deployment.md)
+- [Complete Timeline rules](Documentation/COMPLETE_TIMELINE.md) · [Cut tones](Documentation/WARNING_TONES.md)
+- [API reference](Documentation/API.md) · [Agent skill](Documentation/Agent_Skill.md)
+- [Architecture](Documentation/Architecture.md) · [Data flow](Documentation/Data_Flow.md)
+- [Security](SECURITY.md) · [Recovery](Documentation/RECOVERY.md)
+- [Changelog](Documentation/CHANGELOG.md) · [Decisions](Documentation/DECISIONS.md) · [Roadmap](Documentation/ROADMAP.md)
+
+Older screenshots, benchmarks and dated release records describe the versions they captured. They are historical evidence, not screenshots or qualification claims for the current V2 interface.
+
+## Development
+
+Python 3.11, FastAPI/Jinja, SQLite, FFmpeg and Tailwind. Normal integration happens on `dev`; `main` is production.
+
+```bash
+npm ci
+npm run verify
+npm run verify:docker
+```
+
+See [Contributing](CONTRIBUTING.md), [Verification](Documentation/VERIFICATION.md), [Git workflow](Documentation/GIT_WORKFLOW.md) and [Versioning](Documentation/VERSIONING.md). Publishing images or promoting a release requires explicit authorization.
 
 ## License
 
-MIT License
-
-### Optional removal sounds
-
-Global Subscription Settings includes separate beginning, middle and ending removal tones, off by
-default, using the fixed Wooden notes sounds. Beginning/end cues play only when content was removed at
-that edge. Sounds are bundled WAVs and do not require TTS. See [sound behavior](Documentation/WARNING_TONES.md).
-
-## V2 installation and upgrade
-
-The [browser-only configurator](configurator/index.html) builds Docker/Compose instructions locally. Successful authorized image publication updates matching stable/dev GitHub Pages configurators. On first install, use or dismiss the short setup wizard; run it again from System settings. Configure accounts and tokens together under Users & access.
-
-Before upgrading, stop new work and drain running jobs. The database migration creates an integrity-checked backup and an upgrade report under System. Existing publications, media and ownership are preserved. Read [V2 implementation and rollback](Documentation/V2_IMPLEMENTATION.md). Production promotion and a 2.0 version tag remain separate release steps.
-
-### Import and agent access
-
-Use **Add podcast → Import podcasts from OPML or a feed list** to review and import Pocket Casts exports or text lists. Duplicate feeds are skipped; existing library shows keep their settings. New shows use global defaults and the normal processing schedule.
-
-The [API guide](Documentation/API.md) covers the optional agent API. A [portable PAR agent skill](Documentation/Agent_Skill.md) is bundled with each release channel’s install configurator.
+[MIT](LICENSE)

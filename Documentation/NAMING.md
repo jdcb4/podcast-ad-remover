@@ -20,7 +20,7 @@ Keep status values lowercase strings. Current episode statuses include:
 - `completed`: processed and available in feeds.
 - `failed`: processing failed.
 - `rate_limited`: waiting for LLM quota reset.
-- `ignored`: hidden or soft-deleted.
+- `ignored`: skipped/non-episode or explicitly ignored; the Ignore action removes generated artifacts after worker acknowledgement. It is not just a hide toggle.
 - `pending_manual`: legacy/manual status still referenced by update logic.
 
 Add a migration and UI handling before introducing a new status value.
@@ -41,7 +41,7 @@ Jobs use lowercase strings and describe worker state rather than the user-facing
 
 - Persistent application data lives under `/data`.
 - The SQLite database is `/data/db/podcasts.db`.
-- Podcast episode artifacts live under `/data/podcasts/<podcast_slug>/<episode_slug>/`.
+- New artifacts live under `/data/podcasts/<podcast_slug>/episode-<database-id>/attempt-<token>/`; legacy GUID-derived directories remain readable. Do not rename existing data to match the newer layout.
 - Generated RSS feeds live under `/data/feeds/`.
 - Downloaded models live under `/data/models/`.
 
@@ -59,3 +59,5 @@ Jobs use lowercase strings and describe worker state rather than the user-facing
 - New maintenance docs should live in `Documentation/`.
 - Prefer clear descriptive names such as `VERSIONING.md`, `VERIFICATION.md`, and `ROADMAP.md`.
 - Keep `README.md` focused on users and `AGENTS.md` focused on maintainers and coding agents.
+
+V2 UI terms are **My Podcasts**, **Library**, **Tasks**, **Settings**, **Users & access**, **Complete Timeline**, **Voice**, and **Insert tone at content cuts**. Historical database names containing `cascade`, `warning_tone` or Legacy fields may remain for compatibility; do not infer that those old features are still supported.

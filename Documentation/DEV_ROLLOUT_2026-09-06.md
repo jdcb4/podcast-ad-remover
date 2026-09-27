@@ -1,5 +1,7 @@
 # Dev rollout — 6 September 2026
 
+Historical record: this document preserves the behavior, evidence and decisions of its stated version/date. It is not a current V2 setup guide or proof of today’s deployed production version. Use [V2_UPGRADE.md](V2_UPGRADE.md), [DECISIONS.md](DECISIONS.md) and [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md) for current V2 behavior and qualification scope.
+
 This records the pre-production Dev qualification. Joe subsequently approved
 [production release 1.13.0](PRODUCTION_RELEASE_1.13.0.md); the status below describes
 the point at which Dev qualification finished.

@@ -1,8 +1,10 @@
 # Cut tones
 
-Enable one **Insert tone at removed content** switch in Podcast defaults. Wooden notes is fixed. The switch inserts cues at every applicable beginning, interior and ending cut; it adds nothing when no content is removed. Spoken intros/summaries precede the retained-audio cue. Entirely removed episodes are skipped.
+Enable one **Insert tone at content cuts** switch in Podcast defaults. Wooden notes is fixed. The switch inserts cues at every applicable beginning, interior and ending cut; it adds nothing when no content is removed. Spoken intros/summaries precede the retained-audio cue. Entirely removed episodes are skipped.
 
 V2 enables this switch if any old position switch was enabled. Mixed settings therefore enable cues at every applicable position; the System upgrade report discloses this. Old columns remain only for recovery, and published audio changes only on reprocessing.
+
+Fresh databases enable cut tones. Existing installations use the migration rule above; no other fresh-install default overrides their saved tone intent. This is a removal indicator, not a warning/alarm system.
 
 ## Fixed sound
 

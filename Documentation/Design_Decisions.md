@@ -1,5 +1,7 @@
 # Design Decisions
 
+Historical record: this document preserves the behavior, evidence and decisions of its stated version/date. It is not a current V2 setup guide or proof of today’s deployed production version. Use [V2_UPGRADE.md](V2_UPGRADE.md), [DECISIONS.md](DECISIONS.md) and [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md) for current V2 behavior and qualification scope.
+
 ## 1. Framework: FastAPI vs Flask
 **Decision**: Use **FastAPI**.
 - **Reason**:

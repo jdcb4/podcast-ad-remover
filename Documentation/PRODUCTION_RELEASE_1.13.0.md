@@ -1,5 +1,7 @@
 # Production release 1.13.0 — 6 September 2026
 
+Historical record: this document preserves the behavior, evidence and decisions of its stated version/date. It is not a current V2 setup guide or proof of today’s deployed production version. Use [V2_UPGRADE.md](V2_UPGRADE.md), [DECISIONS.md](DECISIONS.md) and [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md) for current V2 behavior and qualification scope.
+
 Joe approved promotion after the [Dev qualification](DEV_ROLLOUT_2026-09-06.md).
 **1.13.0 is deployed at [pod.jboxtv.com](https://pod.jboxtv.com/).**
 

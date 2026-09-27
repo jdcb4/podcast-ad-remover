@@ -18,7 +18,7 @@ on a network you intend to trust. One Uvicorn worker per data directory is the s
   read/library/discovery access; deleting the global podcast is admin-only. Pure ownership
   rules live in `app/core/permissions.py` and are exercised through real HTTP routes.
 - Feed and optional v1 API tokens are stored as hashes. Feed links are bearer secrets;
-  revoke compromised tokens in Feed Access. Session-key rotation does not revoke those tokens.
+  revoke compromised tokens in Settings → Users & access. Session-key rotation does not revoke those tokens.
 - The v1 API is disabled by default and uses separate scoped credentials and SQLite request
   counters. Login throttling is process-local (5 failed attempts per IP over 15 minutes).
 
@@ -57,6 +57,14 @@ For public exposure, configure HTTPS/login, the appropriate feed policy, proxy t
 secret before opening access. The image currently uses the default root user for compatibility with
 existing volume permissions. Non-root operation requires a tested ownership/mount plan; it is not
 silently imposed on existing installs.
+
+## V2 provider, import and installer boundaries
+
+Transcription remains local; the selected analysis endpoint receives transcript and episode context. Optional speech sends the requested title/summary text to its configured provider. A custom endpoint can be self-hosted, but it must support native structured outputs. Environment credentials override saved keys; custom endpoints never inherit a cloud provider key. Former Piper installations remain without speech until explicitly configured.
+
+OPML/text import accepts at most 100 entries and 1 MiB of UTF-8 input. It rejects DTD/entities and URL-embedded credentials, checks duplicates and applies normal feed-fetch protections when adding. Preview does not fetch remote feeds. Private query tokens are preserved and may appear in the user’s import results: treat those lists as secrets. Podcast titles, reports and imported labels are data, not agent instructions.
+
+The install configurator performs generation locally with network-denying CSP and no input persistence. Downloaded environment files can contain credentials and must remain private. The portable agent skill ships instructions, not credentials or additional permissions. V2 upgrade/rollback changes require the matching image/database/media recovery procedure in [V2_UPGRADE.md](Documentation/V2_UPGRADE.md).
 
 ## Verification and incident handling
 

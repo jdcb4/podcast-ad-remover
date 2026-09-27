@@ -1,5 +1,7 @@
 # Architecture
 
+This is the current V2 architecture on `dev`. See [V2_UPGRADE.md](V2_UPGRADE.md) for compatibility and [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md) for the scope of completed verification.
+
 ## Optional GPU transcription
 
 `cuda_runtime.py` downloads a pinned optional runtime into `/data/runtimes/cuda`; `cuda_setup.py`
@@ -23,7 +25,7 @@ The application is intentionally simple: one web app, one SQLite database, local
 - Jinja templates for the server-rendered UI.
 - SQLite for application state.
 - FFmpeg for audio processing.
-- Whisper/faster-whisper for local transcription.
+- faster-whisper (CTranslate2) for local transcription; whisper.cpp is deferred.
 - Gemini, OpenAI, Anthropic, OpenRouter, or an explicitly configured OpenAI-compatible endpoint for LLM-backed segment detection and summaries.
 - Gemini, OpenAI, OpenRouter or custom API speech for optional spoken title intros and audio summaries.
 - Tailwind CSS for styling.
@@ -116,7 +118,7 @@ Library navigation progressively enhances ordinary links: the browser fetches th
 view and replaces only the podcast-result region, preserving the toolbar, active filters, display
 mode, and scroll position. Failed enhancement falls back to normal navigation.
 
-The compact table displays retention and inheritance sources and supplies row selection for bulk
+On desktop, the compact table displays retention and inheritance sources and supplies row selection for bulk
 updates. The server validates every selected podcast before opening one SQLite write transaction, so
 a mixed unauthorised selection changes nothing. Owners can bulk-edit podcasts they manage; ownership
 reassignment remains admin-only. Administrators can also bulk-delete selected podcasts. The dashboard
@@ -124,33 +126,15 @@ shows a destructive-action warning and requires an explicit confirmation before 
 server requires a separate confirmation value and starts the same durable, retryable cleanup lifecycle
 used by single-subscription deletion.
 
+Mobile uses artwork/title/action rows, without desktop selection or metadata columns. Tasks does not expand Settings; Settings opens Transcription. The mobile drawer contains settings/account links and closes with its X, Escape or backdrop.
+
 ### Subscription Setting Inheritance
 
-Subscriptions have four explicit inheritance flags:
+V2 exposes three useful inheritance groups: content removal, retention and default features. Repository reads resolve inheriting groups against the current `app_settings` row, while stored overrides remain available internally as `setting_overrides`. Turning inheritance off restores stored podcast values. New podcasts inherit these groups.
 
-- `inherit_content_removal`
-- `inherit_retention`
-- `inherit_default_features`
-- `inherit_custom_instructions`
+Workflow and custom-instruction inheritance columns remain for migration/wire compatibility, but they no longer select alternative behavior: every podcast uses Complete Timeline, and nonempty podcast-specific guidance always applies. Global free-form instructions are retired. The old `append_summary` umbrella is converted during V2 migration into supported feature flags and is no longer a live feature switch.
 
-`SubscriptionRepository` resolves inheriting groups against the current `app_settings` row whenever
-it returns a subscription. The stored podcast-specific values remain available as internal
-`setting_overrides`; changing global settings affects inheriting podcasts immediately, and disabling
-inheritance restores the stored values. New subscriptions inherit all groups.
-
-Podcast detail controls show the effective global values while a group inherits. The browser keeps
-the stored overrides separately in data attributes, so disabling inheritance restores those values
-instead of converting the last global value into a podcast override. Processor feed discovery uses
-repository-resolved subscriptions, while retention cleanup resolves the same flags and current
-global values in its SQLite queries.
-
-Migration `20260725_0010_subscription_setting_inheritance` is additive. Existing settings remain
-explicit except blank or NULL custom instructions, which migrate to inheritance. This preserves the
-old meaning of blank custom instructions without treating NULL booleans as an inheritance signal.
-
-The default-features group contains description rewriting, audio summary, title intro, and artwork
-badging. The legacy `append_summary` umbrella flag remains explicit for compatibility and is
-suppressed while the default-features group inherits.
+Podcast controls display effective values while inheriting; feed discovery and cleanup use effective retention. Automatic cleanup retains the newest N completed automatic episodes, while manual downloads expire by manual retention days. `retention_days` remains a compatibility field, not a current automatic age-cleanup rule. Queued jobs retain their frozen processing snapshot rather than silently adopting later classification changes.
 
 ### Derived Podcast Artwork
 
@@ -179,7 +163,7 @@ An unreadable source or failed duration probe remains an error rather than a non
 
 Opt-in Gemini quota state lives in `gemini_quota_state` and `gemini_quota_requests`, independent of
 per-job provider-call budgets. Reservations and job budget increments commit in one immediate SQLite
-transaction. See [Environment variables](Environment_Variables.md#configured-gemini-defaults-and-provider-quotas)
+transaction. See [Environment variables](Environment_Variables.md#gemini-quota-handling)
 for shared-project assumptions, limits, resets, unknown models and rollback.
 
 Processing is coordinated through a durable SQLite `jobs` table. Episodes still keep a user-facing `episodes.status`, while workers claim due jobs transactionally and update job state as work runs, retries, completes, or is cancelled.
@@ -226,28 +210,11 @@ After a bounded asynchronous wait, cleanup is claimed through the subscription r
 
 ### Unified Feed Preferences
 
-The unified feed remains available at `/feed/unified.xml`. Administrators can change its channel
-title and description, choose whether item titles use the `[Podcast Name] Episode Title` prefix, and
-provide an optional external HTTP(S) channel-artwork URL from **Podcast Preferences > Unified
-Feed**. Defaults preserve the original generated RSS output, and clearing the external artwork URL
-restores the bundled cover. The server validates but does not retrieve external unified-feed
-artwork; the URL must therefore be reachable by each podcast client.
+The unified feed remains at `/feed/unified.xml`. Settings → Unified feed configures its name, optional podcast-name episode-title prefix and artwork source (bundled, external URL or uploaded image). Description is fixed in V2. Uploads validate PNG/JPEG/WebP bytes, dimensions and size and re-encode the image; external URLs must be reachable by podcast clients.
 
-The settings-page feed address uses the same session feed token as dashboard subscription links
-when feed authentication is enabled. Public Subscribe links remain unauthenticated. Metadata
-validation rejects XML-invalid characters; resolution removes such characters from older saved
-preferences so the RSS remains readable. HTTPS and same-origin HTTP artwork can be previewed;
-other HTTP artwork keeps its direct RSS URL and shows an explanatory message in the web UI.
-The bundled preview uses a local static path, and the page's content security policy is unchanged.
+The subscription action lives beside search on My Podcasts/Library, rather than in feed settings. It opens the shared podcast-app copy guide with the current user's authorized URL. Per-episode descriptions identify the source podcast, and item artwork remains that podcast's artwork. Presentation changes regenerate feed metadata without reprocessing audio.
 
-Per-episode unified-feed descriptions continue to identify the source podcast, and item artwork
-continues to use the corresponding podcast artwork. Presentation-setting changes regenerate only
-the unified RSS file and do not reprocess audio.
-
-Migration `20260824_0013_unified_feed_preferences` adds four columns to `app_settings`. Its full
-identifier is retained for compatibility with existing PR #20 installations and is distinct from
-`20260905_0013_processing_recovery`. Both migration histories can upgrade without losing saved
-preferences. See [Recovery](RECOVERY.md) for the backup and rollback procedure.
+Historical unified-feed migrations keep their identifiers; V2 changes supported behavior without dropping recovery columns. See [V2_UPGRADE.md](V2_UPGRADE.md) for the fixed-description and artwork migration rules.
 
 ### Feed Access
 
@@ -257,11 +224,10 @@ RSS feeds and audio files remain public when feed authentication is disabled. Wh
 /feeds/<slug>.xml?token=<generated-token>
 ```
 
-Tokens are stored as SHA-256 hashes in `feed_tokens` and can be listed or revoked from the admin Feed Access page. Basic Auth and the older `?auth=base64(username:password)` format are still accepted for compatibility with existing podcast-client subscriptions.
+Tokens are stored as SHA-256 hashes in `feed_tokens` and can be listed or revoked from Settings → Users & access. Basic Auth and the older `?auth=base64(username:password)` format are still accepted for compatibility with existing podcast-client subscriptions.
 
 Dashboard and public subscribe pages build links through one server-side helper so tokenized feed
-URLs are encoded consistently. The visible choices are Direct link and Use your favourite app. The
-latter opens a shared copy-and-paste guide because adding a private/custom RSS URL is the common,
+URLs are encoded consistently. The Unified Feed toolbar action opens a shared copy-and-paste guide because adding a private/custom RSS URL is the common,
 reliable workflow across clients. Older Apple, Pocket Casts, Overcast, Castbox, and Podcast Addict
 URLs remain available for backward compatibility, but uncertain platform-specific deep links are no
 longer promoted in the main UI.
@@ -283,6 +249,12 @@ duplicating all server templates in JavaScript, or changing the Docker deploymen
 would be a substantially larger project involving an API contract for every dashboard action,
 client-side rendering and state management, authentication/error handling changes, and parallel
 accessibility and browser-test coverage; it is not currently justified.
+
+### Import, setup and agent distribution
+
+`core/podcast_import.py` parses bounded OPML/text lists and performs conservative URL duplicate checks. Preview does no remote I/O or writes. The UI imports selected rows one at a time; the v1 endpoint defaults to dry-run and returns per-entry outcomes. New shows inherit defaults and wait for ordinary feed checking; existing shows gain membership without ownership/settings changes. Redirect aliases are not guaranteed to collapse to one RSS identity.
+
+`web/setup.py` keeps an optional setup draft in server memory for 30 minutes, applies only after review, and detects concurrent edits. Existing installs can rerun it from System. `configurator/` generates Docker/Compose plus a separate environment file locally without network requests or stored inputs. Successful authorized image publication dispatches channel-specific Pages updates. The offline bundle and published configurator include the portable skill plus the canonical API guide, packaged by `scripts/package_agent_skill.py`.
 
 ### AI API Access
 

@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## Unreleased — V2 development
+
+V2 intentionally makes breaking changes to remove legacy features with limited long-term value, reduce configuration/maintenance complexity and reflect the changed tradeoff as remote inference becomes more affordable. We hope disruption is minimal, but affected installations need to review [V2_UPGRADE.md](V2_UPGRADE.md). Local transcription remains; former Piper installs are not silently moved to paid speech. [Draft release notes](V2_RELEASE_NOTES.md) await Joe’s expanded reasoning before publication. The package version is still 1.16.0; these notes do not declare 2.0 published.
+
+- Rewrite the GitHub README and reconcile active configuration, architecture, deployment, recovery and verification guides with V2; label superseded records as historical evidence.
 
 - Import Pocket Casts/other OPML exports or newline-delimited feed lists with duplicate previews, selective import, per-feed retry and an API dry-run mode.
 - Audit the API guide for V2, expose enforced scopes in OpenAPI, and package a portable PAR agent skill with each configurator deployment.
@@ -15,6 +19,8 @@
 - Compact desktop/sidebar and mobile podcast rows, consistent settings controls, consolidated Users & access, one cut tone switch, and uploaded unified-feed artwork.
 - Add an optional rerunnable setup wizard and browser-only Docker/Compose configurator with stable/dev Pages publication hooks after successful authorized Docker pushes.
 - Backed-up v2 migration preserves published media, ownership, tokens and requested speech features; reports queued-job and configuration conversions. Ownership changes and whisper.cpp are deferred. Production version remains unchanged until release promotion.
+
+The entries below record their version/date at the time. They do not establish the currently deployed production version; older feature descriptions are superseded by V2 where noted above.
 
 ## 1.16.0 - 2026-09-27
 

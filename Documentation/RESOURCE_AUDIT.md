@@ -1,219 +1,31 @@
-# Resource Audit
+# Resource use and measurement (V2)
 
-Date: 2026-06-10
-Branch: `audit-work`
+Local transcription and audio remain the main resource costs. PAR uses faster-whisper/CTranslate2, FFmpeg, local SQLite/media storage and network calls to the selected analysis/optional speech endpoints. Piper and its exclusive phonemizer dependency are removed; ONNX Runtime, NumPy and FFmpeg remain shared requirements of the transcription/audio stack. Do not equate Piper removal with removing all inference dependencies.
 
-## Summary
+Existing downloaded Piper voices under `/data/models` are not deleted during upgrade. The historical assessment measured roughly 46 MB of unpacked exclusive packages and 114 MB for one downloaded voice, but these are not measured V2 image or RAM savings. No new image-size, idle-RAM or performance claim is made by this documentation update.
 
-The Docker image was larger than necessary. The previous image was about 3.25 GB. A local optimized build is about 1.6 GB, mainly by removing the unused PyTorch install and keeping local development artifacts out of the image.
+## Current controls
 
-The app itself is small. The heavy parts are:
+- System exposes processing concurrency and Whisper/FFmpeg thread limits. One job can use several native threads; tune for the actual host rather than equating a job count with CPU cores.
+- Model choice, CPU precision and optional GPU setup are in Transcription. CPU/float32 remains the default. [CUDA.md](CUDA.md) records experimental host requirements and qualification limits.
+- `unload_whisper_after_job` releases the local model when the queue empties, trading lower idle RAM for a later reload. Use actual logs/measurements before choosing limits.
+- Scratch reservations, free-space checks, maximum download size and provider request/time limits bound work. They do not reserve disk space against unrelated host writers.
+- Automatic retention keeps a count of completed automatic episodes; manual retention is time-based. Media, backups and model/runtime caches all live under `/data` and need capacity planning.
+- API-only speech moves synthesis to the selected endpoint. It can incur fees and network latency; it does not remove local transcription or FFmpeg costs.
+- Both amd64 and experimental ARM64 images use API-only speech. There is no Piper/no-TTS image variant or `INSTALL_TTS` switch. whisper.cpp is a deferred evaluation, not a resource optimization already shipped.
 
-- FFmpeg and its Debian runtime libraries.
-- `faster-whisper`, CTranslate2, PyAV, tokenizers, and NumPy.
-- Piper TTS, ONNX Runtime, and phonemizer libraries when local TTS is installed.
-- Downloaded Whisper and Piper models under `/data/models`.
-- Processed podcast audio under `/data/podcasts`.
+## Measure the exact installation
 
-Idle memory in a smoke container was about 200 MB before loading Whisper or Piper models. Processing memory and CPU will be much higher while transcribing, detecting ads, cutting audio, or generating TTS.
-
-Live measurements from the current deployment while transcription was active:
-
-```text
-podcast-ad-remover CPU: 344.68%
-podcast-ad-remover memory: 1.163 GiB / 8 GiB
-worker process RSS: about 1.0 GiB
-uvicorn process RSS: about 325 MiB
-/data total: 2.2 GB
-/data/podcasts: 1.9 GB
-/data/models: 251 MB
-```
-
-This is not evidence of runaway resource use. It is consistent with a single active Whisper transcription using about three to four CPU cores and holding the base model plus runtime working memory. The 3% CPU observed earlier is acceptable idle/background activity for this deployment.
-
-For the current maintainer's deployment, high CPU during transcription is acceptable because it finishes CPU-bound work faster. Podcast storage and the Piper model footprint are not current priorities.
-
-## Findings
-
-### Image Size
-
-Measured locally:
-
-```text
-jdcb4/podcast-ad-remover:1.3.1     3.25 GB
-podcast-ad-remover:resource-audit  1.60 GB
-```
-
-The old image included:
-
-- Explicit CPU PyTorch install: about 1.03 GB layer.
-- Full `torch` package in site-packages: about 754 MB.
-- `torchvision` and `torchaudio`, neither imported by the application.
-- Local `node_modules` copied into `/app`: about 23 MB.
-- Git and wget installed in the runtime image.
-
-The optimized image keeps:
-
-- FFmpeg.
-- `faster-whisper` and CTranslate2.
-- Piper TTS and ONNX Runtime.
-- AI provider SDKs.
-- FastAPI/Jinja/SQLite runtime dependencies.
-
-### Runtime Disk Use
-
-Disk use is dominated by persistent `/data`, not the application code:
-
-- `/data/db/podcasts.db`: SQLite metadata.
-- `/data/podcasts`: processed audio, transcripts, reports, generated summaries.
-- `/data/feeds`: generated RSS files.
-- `/data/models`: downloaded Whisper and Piper models.
-- `/data/backups`: migration backups.
-
-The largest ongoing disk growth source is retained processed audio. This is worth making visible, but it is not currently a priority to shrink because the live `/data` size is reasonable for the host.
-
-### Runtime CPU and Memory
-
-Expected hotspots:
-
-- Whisper/faster-whisper transcription.
-- FFmpeg decoding, cutting, and concatenation.
-- LLM provider requests, mostly waiting on network/API rather than CPU.
-- Piper TTS when title intros or audio summaries are enabled with the local provider. Gemini TTS moves that work to the Gemini API and uses speech quotas instead of local Piper/ONNX runtime.
-
-The app already has a `concurrent_downloads` setting, but that is really processing concurrency. One concurrent job can still fan out into FFmpeg and Whisper internal threads. Small machines should usually use `concurrent_downloads=1`.
-
-The audit branch adds optional controls for `whisper_cpu_threads` and `ffmpeg_threads`, both defaulting to `0` for automatic/full-speed behavior. It also adds `unload_whisper_after_job`, which unloads the Faster-Whisper model once the queue is empty. That can reduce idle RAM after processing, with the tradeoff that the next transcription must reload the already-downloaded local model first. The app logs the measured reload time as `Model loaded in X.XXs`.
-
-## Changes Made
-
-- Removed explicit `torch`, `torchvision`, and `torchaudio` install from `Dockerfile`.
-- Changed apt install to `--no-install-recommends` and removed runtime `git`/`wget`.
-- Added `PYTHONDONTWRITEBYTECODE=1` and `PYTHONUNBUFFERED=1`.
-- Added `.dockerignore` entries for `node_modules`, tests, local agent files, and virtualenvs.
-- Moved pytest from production `requirements.txt` to `requirements-dev.txt`.
-
-## Recommended Next Steps
-
-1. Measure Whisper reload time on the live container after enabling `Unload Whisper After Jobs`.
-2. Add optional image variants only if image size becomes a real operational problem:
-   - `standard`: current full transcription plus Piper support.
-   - `no-tts`: remove Piper and ONNX Runtime for users who do not use local audio summaries or title intros.
-   - `experimental-arm64`: Apple Silicon / ARM64 test image using `INSTALL_TTS=0` because Piper's phonemizer dependency is not currently simple to install from Linux arm64 wheels. Gemini TTS can still provide spoken summaries/title intros on this image if API quota is available.
-   - potentially `external-transcription`: for users who do not want local Whisper.
-3. Add UI controls for existing download guardrails:
-   - minimum free disk space
-   - maximum episode download size
-4. Make cleanup safer and more visible:
-   - show retained episode count per podcast
-   - show estimated disk reclaimed before deleting files
-   - expand stale artifact cleanup if future staged processing introduces `.work` directories
-
-## Commands For A Real Container Audit
-
-Run these on the PC hosting the live Docker container.
-
-Find the container name:
-
-```bash
-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
-```
-
-Check image size:
-
-```bash
-docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}" | grep podcast
-```
-
-Check live CPU, memory, and block I/O:
+Use read-only checks on the authorized host, recording the image revision, model/precision, CPU/GPU, active-job count and episode duration with the result:
 
 ```bash
 docker stats <container-name> --no-stream
+docker image inspect <immutable-image-tag> --format '{{.Size}}'
+docker exec <container-name> sh -lc 'du -h -d 2 /data'
 ```
 
-Check persistent data size:
+Compare idle and active workload separately. Queue memory reporting prefers cgroup limits; provider token/call totals are usage records, not invoice estimates. The same episode and settings are needed for meaningful before/after performance comparisons. Do not run paid inference, change deployment settings or remove cached files merely to prepare documentation.
 
-```bash
-docker exec <container-name> sh -lc 'du -h -d 2 /data | sort -h'
-```
+## Historical evidence
 
-Check model sizes:
-
-```bash
-docker exec <container-name> sh -lc 'du -h -d 2 /data/models | sort -h'
-```
-
-Check podcast storage sizes:
-
-```bash
-docker exec <container-name> sh -lc 'du -h -d 2 /data/podcasts | sort -h | tail -30'
-```
-
-Check database and backup sizes:
-
-```bash
-docker exec <container-name> sh -lc 'du -h /data/db /data/backups 2>/dev/null || true'
-```
-
-Check idle process memory inside the container:
-
-```bash
-docker exec <container-name> sh -lc 'ps -o pid,ppid,rss,pcpu,comm,args | sort -k3 -n'
-```
-
-If a job is actively processing, run this several times a minute:
-
-```bash
-docker stats <container-name> --no-stream
-docker exec <container-name> sh -lc 'du -h -d 2 /data | sort -h | tail -30'
-```
-
-Send back the outputs if deeper tuning is needed.
-
-## 2026-09-05 safeguards
-
-Claim admission reserves an estimated 128,000 bytes per source second (minimum 64 MiB),
-representing source/output and two PCM copies. It subtracts running reservations and the
-configured free-space floor before admitting another job. Stage checks add twice the
-actual source size; streaming rechecks free space every 8 MiB. Estimates are conservative
-admission guards, not filesystem quotas. External disk writers can still cause ENOSPC;
-attempt isolation preserves the last publication and failed work can resume safely.
-Storage directory scans run off the request loop and are cached for 30 seconds.
-
-## Piper removal assessment — 2026-09-13
-
-Measured from the pinned Linux x86-64 / CPython 3.11 wheels, without installing them:
-
-| Component | Download bytes | Unpacked bytes |
-| --- | ---: | ---: |
-| piper-tts 1.2.0 | 29,454 | 151,257 |
-| piper-phonemize 1.1.0 | 24,955,361 | 46,041,353 |
-| Total exclusive packages | 24,984,815 (~25 MB) | 46,192,610 (~46 MB / 44 MiB) |
-
-The default Cori high voice is another 114,219,352 bytes (~114 MB / 109 MiB), plus a 4,963-byte
-configuration file. It is downloaded into `/data/models/piper` on demand, not included in the image.
-Removing installed Piper and one default voice therefore accounts for about 160 MB combined, across
-image and persistent storage. Additional downloaded voices add more. Do not delete existing voice
-files as part of a code update without a separate user request.
-
-ONNX Runtime is a direct dependency of faster-whisper 1.2.1 as well as Piper, so removing Piper
-**does not remove ONNX Runtime**, NumPy, FFmpeg, or the transcription stack. These are package/file
-measurements, not an exact Docker image delta. Docker Desktop's Linux engine was unavailable during
-this assessment; no comparable pair of images was built. Compression/layers/bytecode affect the
-actual image saving. The old 1.6 GB figure above is a historical image measurement, not a current one.
-
-The existing `INSTALL_TTS=0` Docker build option already excludes Piper; Gemini speech still works.
-A full removal would simplify `requirements-tts.txt`, Piper voice selection/status UI, model/config
-download and filename handling, `tts_worker.py`, subprocess startup/timeout/cleanup, and the
-architecture-dependent phonemizer packaging. Keep shared remote speech generation, audio
-concatenation, and optional title/summary features. Piper is loaded in short-lived subprocesses;
-removal avoids local speech-generation CPU/RAM bursts, but no isolated peak-RAM measurement was
-made, and large steady idle-memory savings should not be assumed.
-
-Assessment only: Piper remains available in this change. The warning sounds use bundled WAV assets
-(total 375,156 bytes), independent of either local or remote TTS.
-
-Sources checked: [Piper 1.2.0 package metadata](https://pypi.org/pypi/piper-tts/1.2.0/json),
-[phonemizer 1.1.0 wheel metadata](https://pypi.org/pypi/piper-phonemize/1.1.0/json),
-[faster-whisper 1.2.1 dependencies](https://pypi.org/pypi/faster-whisper/1.2.1/json), and
-[Cori high file sizes](https://huggingface.co/api/models/rhasspy/piper-voices/tree/main/en/en_GB/cori/high).
+[The preserved June–September resource audit](history/RESOURCE_AUDIT_2026-06_to_09.md) contains original image/host measurements, command recipes and the Piper-removal package assessment. Its old image variants, dependency choices, active-host claims and recommendations describe that time. The [RTX A4000](CUDA_RUNPOD_2026-09-24.md) and [L4 long-form](CUDA_LONGFORM_2026-09-24.md) reports remain bounded hardware evidence; they do not qualify every host or a future transcription engine.

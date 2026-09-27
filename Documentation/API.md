@@ -4,6 +4,8 @@ Podcast Ad Remover exposes an optional REST API for AI agents, custom GPT action
 
 Use this API when you want an assistant to inspect podcasts, find episodes, read transcripts/reports, add feeds, or trigger processing without using the browser UI.
 
+This guide describes the V2 `dev` contract; it does not announce a published 2.0 release. Review [V2_UPGRADE.md](V2_UPGRADE.md) before upgrading an existing API client.
+
 The installed instance's `/api/v1/openapi.json` is the machine-readable contract for request/response models. This guide adds permissions, side effects and workflows that a schema alone cannot express. The distributable agent skill and packaging instructions are in [Agent_Skill.md](Agent_Skill.md).
 
 ## Quick Start

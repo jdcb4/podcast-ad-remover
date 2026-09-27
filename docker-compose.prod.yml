@@ -8,12 +8,12 @@ services:
     volumes:
       - ./data:/data
     environment:
-      - BASE_URL=http://your-server-ip:8000
-      - SESSION_SECRET_KEY=replace-with-a-long-random-secret
-      - LOG_LEVEL=INFO
-      - COOKIE_SECURE=false
-      - TRUST_PROXY_HEADERS=false
-      - GEMINI_API_KEY=
-      - OPENAI_API_KEY=
-      - ANTHROPIC_API_KEY=
-      - OPENROUTER_API_KEY=
+      - BASE_URL=${BASE_URL:-http://localhost:8000}
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY:?Set a persistent random SESSION_SECRET_KEY in .env}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - TRUST_PROXY_HEADERS=${TRUST_PROXY_HEADERS:-false}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}

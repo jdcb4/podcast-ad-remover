@@ -33,8 +33,7 @@ Focused regression checks for download redirects, empty removals and Gemini quot
 python -m pytest tests/test_download_redirects.py tests/test_empty_audio.py tests/test_gemini_quota.py -q
 ```
 
-These cover eight/nine-hop boundaries, per-hop URL validation and loops; Legacy and Complete
-Timeline empty cuts, claim fencing and removal from both feeds; atomic multi-process accounting,
+These cover eight/nine-hop boundaries, per-hop URL validation and loops; Complete Timeline empty cuts and historical migration fixtures, claim fencing and removal from both feeds; atomic multi-process accounting,
 token reservations/reconciliation, restart persistence, Pacific DST resets, provider error mixtures,
 retry timing, job deferral, checkbox round trips, provider isolation and additive migration backups.
 The Gemini provider responses are deterministic fixtures; tests do not spend live API quota.
@@ -69,20 +68,9 @@ This is a maintenance update only; confirm the resulting `package-lock.json` cha
 
 ## Complete Timeline checks
 
-The standard gate includes `test_complete_timeline.py`, `test_timeline_migration.py`,
-`test_timeline_pipeline.py` and `test_timeline_http.py`. These exercise an actual older database
-and migration backup, Legacy queue preservation, frozen settings without credentials, strict
-coverage validation, provider/schema fallback boundaries, contextual-gap reference classifications,
-the 10/0-second island policy, escaped reports, and real FFmpeg cutting with deterministic provider
-responses. They also cover cache reuse and existing RSS-description/TTS switches. Synthetic
-reference classifications verify application behaviour, not live model classification accuracy.
+The standard gate covers full timeline coverage, contextual gaps, native schema requests, refusal/truncation failure, valid-object unwrapping, frozen settings without credentials, V2 queued-job conversion, the 10/0-second island policy, escaped reports, classification cache reuse and real FFmpeg cuts. Old migration fixtures retain their historical expectations only before V2 migration is applied. There is no live Legacy/schema-free/cascade fallback to qualify.
 
-For a UI review, use an isolated data directory: preview unsaved rules, switch Complete Timeline
-and Legacy tabs, reset one definition, opt in a podcast, toggle global inheritance, and verify
-that zero survives save/reload. Check desktop/mobile layouts and the resulting human report.
-Before wider opt-in, review real classifications and listen at edited seams; transcript timing
-and untranscribed audio can require an audio check. Keep private transcripts and benchmark
-artifacts outside the repository.
+On an isolated data directory, edit/preview/reset prompt definitions, change content-removal inheritance and verify that zero island timing survives save/reload. Check desktop/mobile reports and actual edited seams. Synthetic reference classifications verify application logic, not live model accuracy. Keep real transcripts/audio outside the repository; use explicit provider authorization for live paid tests.
 
 ## Docker Check
 
@@ -96,7 +84,7 @@ This runs the standard check and builds a local image tagged `podcast-ad-remover
 
 ## Opt-In Live YouTube Smoke Test
 
-The deterministic suite mocks YouTube and SponsorBlock. To verify the currently pinned extractor
+The deterministic suite mocks YouTube; SponsorBlock is removed and must not be called. To verify the currently pinned extractor
 against live public sources, supply a channel, explicit playlist, and short public video fixture:
 
 ```bash
@@ -121,17 +109,16 @@ Those research artifacts are not a production release gate.
 
 Automated coverage verifies:
 
-- new-subscription inheritance and the migration rule that only blank or NULL custom instructions inherit;
+- content-removal/retention/enhancement inheritance, V2 normalization and always-applied nonempty podcast guidance;
 - effective global values, effective inherited-control display, restoration of stored podcast overrides,
   and cleanup behavior after global retention changes;
-- backward-compatible API updates and all four inheritance flags;
+- supported API updates, retired-field rejection and compatibility-only workflow/guidance fields;
 - artwork URL validation, image limits, compositing/cache behavior, cleanup, and RSS output;
 - JPEG dimensions/transparency, legacy PNG serving, preservation after a failed database write
   or commit, and retry of interrupted legacy-artwork cleanup;
-- backward-compatible unified-feed defaults, customized channel metadata and external artwork,
-  optional podcast-name title prefixes, settings validation, and reset behavior;
+- fixed unified-feed description, editable name/title prefix and bundled/URL/uploaded artwork;
 - XML-invalid metadata rejection without replacing the published feed, valid legacy metadata
-  resolution, authenticated settings-page feed links, and CSP-compatible artwork previews;
+  resolution, authenticated toolbar feed links, and CSP-compatible artwork previews;
 - unified-feed upgrades from current `dev` and existing PR #20 databases, including saved values,
   migration idempotency, integrity-checked backups, and preservation of published GUIDs/durations;
 - in-place Library membership changes without dashboard navigation;
@@ -144,20 +131,11 @@ As an administrator, cancel the Delete Selected warning and confirm no podcasts 
 confirmed deletion removes each selected podcast and its local files. Confirm that non-admin users do
 not see the bulk-delete control.
 
-Open **Podcast Preferences > Unified Feed**, save custom metadata and an HTTP(S) artwork URL, and
-confirm `/feed/unified.xml` reflects the changes without changing its address. Disable the
-podcast-name title option and confirm item titles no longer contain the bracketed prefix. Clear the
-artwork URL or restore defaults and confirm the bundled cover returns.
-With feed authentication enabled, copy the displayed feed address into a fresh client and confirm
-it opens. Save an external HTTP artwork URL and confirm the page explains that its preview needs
-HTTPS while RSS retains the saved HTTP URL. HTTPS and same-origin HTTP images should still preview.
+Open **Settings → Unified feed**, save its name and HTTP(S) artwork URL, and confirm `/feed/unified.xml` reflects those changes without changing its address. Check the title-prefix option and uploaded/default artwork sources. The description is fixed; there is no page-wide restore-defaults or settings-page feed address. With feed authentication enabled, use Unified Feed beside dashboard search and confirm the generated URL opens in an appropriate client.
 
-At a mobile width, also confirm the four compact statistics remain readable, feed actions retain
-accessible touch targets, and approximately three queue rows are visible before internal scrolling.
-Switch My Podcasts/Library after setting a search, filter, sort, and display mode; the toolbar,
-scroll position, and layout should remain in place. Let queue auto-refresh run once and confirm only
-the queue changes. Disable JavaScript or simulate a failed request to confirm the normal view links
-and full Refresh action still work.
+At mobile widths, check artwork/title/action rows without desktop metadata or selection, readable wrapping, the RSS toolbar action, and bottom-bar clearance. Tasks must not expand Settings; Settings opens Transcription. Test the drawer's X, backdrop, Escape and focus return, visible theme/password controls, and every settings page's short explanation. Confirm GPU setup remains expanded and clearly separates current transcription device from setup status.
+
+Switch My Podcasts/Library after setting search/filter/sort and a desktop display mode; confirm state preservation and the separate mobile rendering. Test queue refresh without unrelated UI replacement. Ordinary navigation must survive a failed enhancement request. Import's JavaScript-dependent flow needs empty/error/upload/duplicate/selection/stop/retry checks, including escaped labels and no writes during preview.
 
 ## Migration Dry Run
 
@@ -243,13 +221,13 @@ The helper refuses `latest` and SemVer-looking tags.
 
 ## Experimental ARM64 Docker Tag
 
-`linux/amd64` remains the primary release target. For Apple Silicon / ARM64 trial builds, use the no-TTS experimental helper:
+`linux/amd64` remains the primary release target. For Apple Silicon / ARM64 trial builds, use the experimental helper:
 
 ```bash
 npm run docker:experimental:arm64 -- --push
 ```
 
-This publishes `jdcb4/podcast-ad-remover:experimental-arm64` when pushed. It passes `INSTALL_TTS=0`, so Piper TTS is not installed. Spoken summaries and title intros can still be tested with Gemini TTS when a Gemini API key is configured; the ARM64 experimental target is intended to test the core podcast download, transcription, ad detection, cutting, feed, and web UI path.
+This publishes `jdcb4/podcast-ad-remover:experimental-arm64` only when explicitly pushed. All V2 images use API-only speech; there is no `INSTALL_TTS` argument. Test the chosen supported speech endpoint separately from the core download, faster-whisper transcription, classification, cutting, feed and web paths.
 
 ## Current Gaps
 
@@ -268,13 +246,13 @@ integration tests. Offline tests stub external downloads/models, not database re
 
 ## Reproducible dependencies and container smoke
 
-`constraints.txt` pins the Python 3.11 runtime, verification and optional Piper dependency set,
+`constraints.txt` pins the Python 3.11 runtime and verification dependency set,
 including platform markers. Requirements install through it. `requirements-build.txt` also pins
 pip/setuptools so CI and the image do not inherit outdated bootstrap tools. Refresh deliberately in a clean
 Python 3.11 environment, inspect the diff, then run the full gate and image smoke:
 
 ```bash
-uv pip compile --python-version 3.11 --universal requirements-dev.txt requirements-tts.txt --output-file constraints.txt
+uv pip compile --python-version 3.11 --universal requirements-dev.txt --output-file constraints.txt
 pip install -r requirements-dev.txt
 npm ci
 npm run verify:docker
@@ -307,3 +285,9 @@ Run `npm run verify` with Python 3.11, and `npm run verify:docker` for the image
 `test_v2_interface.py` exercises compact page rendering, grouped saves, artwork uploads, consolidated account links, staged wizard review/cancel/conflicts and provider-preview failures. `test_configurator.py` exercises stable/regenerated secrets, separate env files, POSIX/PowerShell generation, private state clearing and offline bundle contents. The install output also needs an actual `docker compose config` and env-file round-trip check, plus PowerShell parsing on Windows; use synthetic credentials only.
 
 Before deployment, rehearse migration against a backup of the actual installation, retain the prior immutable image/media recovery point, and explicitly qualify the chosen live provider and any GPU host. Local unit tests do not prove paid endpoint support, production data compatibility or Pages account permissions. Pages publication itself occurs only after authorized Docker publication.
+
+## V2 documentation and publication gate
+
+Check the README, upgrade guide, release notes, install examples and API/skill references together. Distinguish fresh defaults from migrated preferences, local builds from published images and current guides from dated evidence. Validate local links, environment names and Unraid XML after editing install docs. Regenerate the agent package and offline configurator so they contain the same current reference.
+
+Before V2 publication, remind Joe to expand the rationale in [V2_RELEASE_NOTES.md](V2_RELEASE_NOTES.md) and complete that step in [VERSIONING.md](VERSIONING.md). Documentation preparation and a passing local gate are not publication approval.

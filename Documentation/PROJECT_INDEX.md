@@ -6,7 +6,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 
 - Python 3.11, FastAPI, Jinja templates, SQLite.
 - FFmpeg for audio cutting and concatenation.
-- Whisper/faster-whisper for local transcription.
+- faster-whisper/CTranslate2 for local transcription; whisper.cpp evaluation is deferred.
 - Gemini, OpenAI, Anthropic, OpenRouter or a custom OpenAI-compatible endpoint for segment detection.
 - Gemini, OpenAI, OpenRouter or custom API speech for optional spoken title intros and audio summaries.
 - Apprise for optional admin notifications.
@@ -18,7 +18,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 
 - `app/main.py`: application entry point and processor process startup.
 - `app/core/`: podcast, audio, AI, RSS, search, and processing logic.
-- `app/core/subscription_settings.py`: resolves effective values for the five subscription inheritance groups.
+- `app/core/subscription_settings.py`: resolves content-removal, retention and enhancement inheritance; retired workflow/guidance fields are compatibility-only.
 - `app/core/timeline.py`: versioned classification, transcript/gap boundaries and deterministic cut preferences.
 - `app/core/prompt_defaults.py`, `app/web/timeline_rules.py`: historical prompt constants and Complete Timeline rule editing/preview.
 - `app/core/unified_feed.py`: validates and resolves backward-compatible unified-feed presentation settings.
@@ -65,16 +65,20 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 
 ## Documentation Map
 
-- `Documentation/V2_PROPOSAL.md`: approved v2 UX, feature removals and migration contract; see V2_IMPLEMENTATION.md for progress.
+- `Documentation/V2_UPGRADE.md`: current breaking-change conversion, preflight and rollback guide.
+- `Documentation/V2_RELEASE_NOTES.md`: draft public explanation/commit copy and the unresolved maintainer reasoning reminder.
+- `Documentation/V2_PROPOSAL.md`: approved design-history record; later user decisions are called out at its top.
+- `Documentation/V2_IMPLEMENTATION.md`: implementation milestones and bounded qualification evidence.
+- `Documentation/V2_DOCUMENTATION_AUDIT.md`: coverage of current guides and preserved historical evidence.
 
 - `Documentation/CUDA.md`: experimental optional runtime setup, precision settings and GPU qualification.
 - `Documentation/CUDA_RUNPOD_2026-09-24.md`: real RTX A4000 inference, failure recovery and qualification limits.
 - `Documentation/CUDA_LONGFORM_2026-09-24.md`: full real-podcast CPU/GPU comparisons on NVIDIA L4, with timing and merge-quality findings.
 
-- `Documentation/WARNING_TONES.md`: opt-in removal cues, bundled sound previews and migration.
+- `Documentation/WARNING_TONES.md`: single cut-tone switch, fixed bundled sounds and migration.
 
 - `Documentation/Architecture.md`: current application structure and data layout.
-- `Documentation/COMPLETE_TIMELINE.md`: opt-in processing, categories, summaries, provider output handling and migration.
+- `Documentation/COMPLETE_TIMELINE.md`: the sole V2 processing workflow, categories, summaries, structured output and migration.
 - `Documentation/API.md`: optional AI-facing REST API, auth, scopes, and rate limits.
 - `app/core/podcast_import.py`, `app/web/podcast_import.py`: bounded OPML/text import, duplicate preview and shared-library reuse.
 - `skills/podcast-ad-remover/`, `Documentation/Agent_Skill.md`: portable agent instructions; `scripts/package_agent_skill.py` bundles them with the API guide for Pages.
@@ -87,7 +91,7 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 - `Documentation/AUDIT_STATUS.md`: current assessment status and links to historical audit evidence.
 - `Documentation/DECISIONS.md`: lightweight decision log.
 - `Documentation/ROADMAP.md`: improvement candidates and future direction.
-- `Documentation/RESOURCE_AUDIT.md`: image size, runtime resource findings, and live-container measurement commands.
+- `Documentation/RESOURCE_AUDIT.md`: current resource guidance and links to dated measurements; Piper removal does not remove shared transcription dependencies.
 - `Documentation/LOCAL_LLM_EVALUATION.md`: archived local-model and transcript-chunking research findings.
 - `Documentation/LOCAL_LLM_EVALUATION_REPORT.html`: self-contained pass/fail and exact detection comparison.
 - `Documentation/LOCAL_LLM_EVALUATION_RESULTS.json`: sanitized machine-readable research results.
@@ -99,4 +103,8 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 - `Documentation/DEV_ROLLOUT_2026-09-06.md`: Dev deployment, rollback evidence and live qualification.
 - `Documentation/PRODUCTION_RELEASE_1.13.0.md`: approved production promotion, exact image and verified recovery point.
 - `Documentation/PRODUCTION_RELEASE_1.14.0.md`: previous production release and recovery evidence.
-- `Documentation/PRODUCTION_RELEASE_1.15.0.md`: current production image, promotion checks, migration compatibility and tested rollback.
+- `Documentation/PRODUCTION_RELEASE_1.15.0.md`: dated 1.15.0 release evidence, promotion checks and tested rollback; not a live production inventory.
+
+## Documentation authority
+
+README and active guides describe the V2 `dev` implementation unless explicitly stated otherwise. V2 is not declared published by these documentation changes; image publication and production promotion remain separate. Dated release/benchmark/audit documents preserve what was verified at the time. They cannot establish today's production version or V2 acceptance. The latest explicit decisions supersede earlier conflicting design-history entries. Before publication, complete Joe's reasoning reminder in VERSIONING.md.

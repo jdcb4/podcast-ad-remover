@@ -31,6 +31,12 @@ Please ensure your code is clean and, where possible, documented.
 
 `dev` is the GitHub default and normal integration branch. `main` represents production and receives application changes only through an explicitly approved release promotion after the Dev image has been tested. Both branches require the GitHub Actions `verify` check. Delete feature branches after merging; preserve unmerged work. See [Git workflow](Documentation/GIT_WORKFLOW.md) for worktrees, cleanup and updating older clones.
 
+## V2 compatibility and documentation
+
+V2 development intentionally removes legacy processing, local Piper speech, model/key cascades and SponsorBlock. Read [V2_UPGRADE.md](Documentation/V2_UPGRADE.md), [DECISIONS.md](Documentation/DECISIONS.md) and the [draft release rationale](Documentation/V2_RELEASE_NOTES.md). A breaking feature decision does not permit deleting user data or bypassing the migration/backup path. Keep API references and the portable agent skill aligned with runtime changes. Label historical evidence rather than silently treating old behavior as current.
+
+Before V2 publication, remind Joe to expand his explanation as recorded in the release checklist.
+
 ## Development Setup
 
 See the `README.md` for instructions on running the app locally using Docker or Docker Compose.

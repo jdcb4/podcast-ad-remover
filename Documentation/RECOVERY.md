@@ -28,17 +28,15 @@ For a rollback after an upgrade, use the previous image and the pre-upgrade snap
 with its corresponding media backup. Downgrading only the executable is not a
 database rollback. No recovery command automatically stops services or replaces data.
 
-Migration `20260910_0016_complete_timeline_opt_in` adds workflow/prompt/non-speech/threshold
-settings and `jobs.processing_snapshot`. It pins existing podcasts to Legacy with workflow
-inheritance off and leaves existing job snapshots NULL (also explicitly Legacy). Saved Legacy
-prompts, whitelist mode, published identifiers, reports and audio paths remain intact. New
-Complete Timeline jobs freeze classification rules and removal choices without credentials.
-Retries keep that snapshot. See [COMPLETE_TIMELINE.md](COMPLETE_TIMELINE.md) for opt-in details.
+## V2 migration and rollback
 
-Use startup's integrity-checked pre-migration snapshot and the dry-run procedure above. Selecting
-Legacy again is a settings change for future jobs, requiring no database rollback. Rolling back
-the application requires the prior immutable image, pre-upgrade database and matching media
-backup; an older binary cannot honour the new job snapshots and must not use the upgraded DB.
+Migration `20260927_0023_v2` supersedes the old opt-in workflow. Drain all running jobs before upgrade; it refuses active `running` rows. Queued/retryable work becomes Complete Timeline, provider lists become one selected model/key, former Piper speech becomes unconfigured and old tone switches become one. Read the credential-free System upgrade report after startup. Ownership and existing publications are not rewritten.
+
+There is no supported switch back to Legacy inside V2. Rollback uses the old immutable image and pre-upgrade database/media recovery point, not a settings change or image-only downgrade. See [V2_UPGRADE.md](V2_UPGRADE.md) for the complete action table and rehearsal procedure.
+
+## Earlier migration history
+
+Migration `20260910_0016_complete_timeline_opt_in` originally introduced opt-in timeline settings and preserved Legacy jobs. That describes its 1.x behavior only; later V2 migration converts those jobs/settings. Historical columns remain for migration compatibility, not as selectable V2 modes.
 
 Migration `20260910_0015_timestamp_provenance` adds `users.last_login_is_utc` and
 `episodes.processed_at_is_utc`, both defaulting to `0`. It leaves all existing timestamp
@@ -82,8 +80,8 @@ an inferred invoice amount. Remote failures may omit token counts.
 
 Automatic retries copy finalized source/cache files into a fresh owned stage. Transcripts
 require matching source SHA-256 and Whisper model; analysis also requires the same
-transcript, prompts and selected provider/models. Legacy analysis additionally keys on removal
-options. Complete Timeline keys on measured duration and schema, excluding cut choices and the
+transcript, prompts and selected provider/model. Historical Legacy analysis is not reused as a
+V2 classification. Complete Timeline keys on measured duration and schema, excluding cut choices and the
 island threshold so matching classification can be reused on reprocess. Abandoned unpublished
 attempts older than 48 hours are removed unless an active job still references them.
 Published revisions remain available until episode deletion/retention removes their root.

@@ -2,6 +2,20 @@
 
 This is a lightweight decision log. Keep entries short, dated, and focused on choices that future maintainers may otherwise revisit.
 
+## Current V2 decisions — 2026-09-27
+
+V2 deliberately removes legacy features whose long-term value no longer justifies configuration and maintenance complexity. More affordable remote inference is part of the maintainer's reasoning for simplifying optional generation/fallback paths; it is not a guarantee of any provider's price or free tier. Local faster-whisper and structured-output self-hosted analysis remain supported.
+
+Use Complete Timeline exclusively, with native schemas and minimal valid-object unwrapping. Pick one model and environment-first credential; do not fall back across models/keys/providers. Speech is API-only and optional. Former Piper installs remain unconfigured for speech until explicit selection. SponsorBlock is removed while public YouTube sources remain. Podcast-specific guidance always applies; global free-form instructions and direct editorial non-speech removal are retired.
+
+Combine cut-position switches by OR during migration; retain requested speech settings; preserve existing ownership semantics, media and identities. Fresh artwork/cut tones default on, other enhancements off. Import previews duplicates without network/writes, reuses memberships without ownership changes, and does not start an immediate episode check. Agent packages embed the canonical API guide at build time. Ownership changes and whisper.cpp remain deferred.
+
+Ask Joe to expand this rationale before V2 publication and finalize [V2_RELEASE_NOTES.md](V2_RELEASE_NOTES.md). Production promotion/version bump/image publication require separate approval.
+
+## How to read earlier decisions
+
+The dated entries below preserve prior choices and their rationale. V2 supersedes the old choices to keep Piper, model cascades, SponsorBlock, optional Legacy classification, global custom-instruction inheritance and separately positioned cut tones. Other entries remain relevant at their stated scope. Do not treat old provider model lists, free-tier assumptions or build switches as current setup instructions.
+
 ## 2026-09-24: Keep CPU defaults and install optional CUDA runtime separately
 
 Use one application image with optional pinned NVIDIA libraries in persistent `/data`, activated

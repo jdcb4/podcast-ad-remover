@@ -22,8 +22,8 @@ episode metadata, not the audio. An introduction to a musical example supports k
 a sponsor segue followed by a gap and sales pitch supports a non-editorial classification.
 Unexplained gaps remain Content. This version does not supply acoustic silence detection.
 
-Legacy custom instructions are retained and included as additional classification guidance
-when a podcast opts in. Review instructions that say what to cut: express those preferences
+Podcast-specific custom instructions are retained and always included as classification guidance
+when nonempty. Global legacy free-form instructions are retired. Review instructions that say what to cut: express those preferences
 through definitions and category checkboxes. The fixed rules tell the model to classify every
 item, protect uncertain/mixed boundaries, and leave cut selection to the app.
 
@@ -37,8 +37,7 @@ Unresolvable timestamps fail processing. A mixed speech item that cannot be spli
 Content. Cut precision is therefore limited by Whisper's segment timing; it is not word alignment.
 
 1. Classify the complete timeline and generate the summary.
-2. Select removal intervals from the podcast's category choices. If already enabled for YouTube,
-   include the selected SponsorBlock categories as separate external evidence.
+2. Select removal intervals from the podcast's category choices. SponsorBlock no longer contributes external evidence.
 3. Merge overlapping/adjacent removal intervals. Remove a retained island only when it lies
    between two such intervals and is **strictly shorter** than the threshold.
 4. Cut and stitch the remaining audio with FFmpeg.
@@ -59,8 +58,9 @@ publication date, ads and housekeeping. Historical dates discussed in the episod
 Admins can edit the summary instructions independently of the category definitions.
 
 The combined summary appears in the report. Existing description-rewrite and spoken-summary
-switches still control RSS description replacement and TTS. Enabling Complete Timeline alone
-does not turn either feature on. The Legacy `append_summary` umbrella flag retains its meaning.
+switches control RSS description replacement and optional API speech. Complete Timeline does not
+turn either feature on. The Legacy `append_summary` umbrella is migrated to supported feature flags
+and is no longer an accepted active option.
 If summary formatting fails, one summary-only repair is attempted without discarding valid
 classifications. If it still fails, the report records the error, cuts can complete, and there is
 no invented summary. A later reprocess can retry the summary while reusing the classification.
@@ -72,7 +72,7 @@ cuts. JSON reports retain their existing root `segments` as the final removal in
 
 ## Output handling and provider routing
 
-**AI Prompt Rules → Output handling and effective prompt preview** shows the assembled system
+**Settings → Prompt rules → Preview assembled instructions** shows the assembled system
 instructions, JSON schema and resolved model selections, including unsaved definition edits.
 It can include a podcast's effective custom instructions. Preview does not call a model or expose
 API keys. The numbered transcript is supplied as a separate source-data message at processing time.
@@ -97,6 +97,6 @@ Classification caches require matching source SHA-256, transcript, measured dura
 schema and provider configuration. Changing only removal choices or the island threshold can
 reuse matching classification on reprocess. A changed download, including dynamically inserted
 ads, invalidates reuse. Previous published audio stays available until its replacement completes.
-Changing workflow does not move or rewrite existing reports, feed URLs, GUIDs or audio.
+The V2 workflow migration does not move or rewrite existing reports, feed URLs, GUIDs or audio.
 
 Rollback requires the previous immutable image, matching pre-upgrade database and media recovery point. Follow [RECOVERY.md](RECOVERY.md) and [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md); do not perform a binary-only downgrade after v2 writes.

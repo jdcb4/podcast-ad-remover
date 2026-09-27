@@ -7,7 +7,7 @@ description: Work with a Podcast Ad Remover (PAR) instance through its v1 HTTP A
 
 Use PAR's supported `/api/v1` HTTP API. Obtain the instance base URL and a bearer-token environment variable or secret-store reference from the user or authorized local configuration. Never ask the user to paste credentials into chat. Ask only for missing configuration or task scope; existing user authorization carries forward.
 
-Read [operations.md](references/operations.md) for workflows and side effects. Downloaded packages also include [API.md](references/API.md), the complete API guide from the same PAR revision. In a source checkout, that guide is at `../../Documentation/API.md`. Use the installed instance's `/api/v1/openapi.json` for exact models and feature availability; it may differ from this package.
+Read [operations.md](references/operations.md) for workflows and side effects. Downloaded packages also include [API.md](references/API.md), the complete API guide from the same PAR revision. In a source checkout, that guide is at `../../Documentation/API.md`. Use the installed instance's `/api/v1/openapi.json` for exact models and feature availability; it may differ from this package. V2 intentionally changes configuration compatibility while retaining `/api/v1`. Downloaded packages include the linked upgrade/recovery notes; do not assume a production instance already runs V2 or perform a server upgrade as part of an ordinary API task.
 
 ## Connect and discover
 

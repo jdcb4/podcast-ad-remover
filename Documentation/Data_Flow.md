@@ -1,5 +1,11 @@
 # Data Flow
 
+## 0. Installation and import
+
+The browser-only configurator creates installation files locally. On first installation, the optional setup wizard collects the minimum configuration and applies only after review. It can be dismissed and rerun from System.
+
+OPML/text import first parses and checks duplicates without contacting feeds. The user selects entries; adding validates each feed and rechecks the library, returns per-entry success/failure, and leaves existing ownership/settings intact. Unlike the single-add path, import does not request an immediate episode check. New shows use normal global defaults and scheduled processing. See [API.md](API.md#import-opml-or-a-feed-list).
+
 ## 1. Subscription & Polling
 1.  **User** searches for a podcast or pastes a direct RSS, YouTube channel, or explicit YouTube playlist URL.
 2.  **System** saves one global podcast row to `subscriptions`, or reuses the existing global row if the feed is already known. New rows inherit the current global content-removal, retention and default-feature groups. Podcast-specific instructions are always used when nonempty.
@@ -16,8 +22,8 @@ For each queued episode:
     - Fetch RSS audio from its enclosure, or use pinned yt-dlp to download a YouTube video's best audio-only format.
     - Claim a durable job with a unique token and scratch reservation. Save new artifacts under `/data/podcasts/{podcast_slug}/episode-{database_id}/attempt-{unique_token}/`; keep prior published paths intact.
 
-2.  **Transcribe (Whisper)**:
-    - Load Whisper model (if not loaded).
+2.  **Transcribe (faster-whisper)**:
+    - Load the faster-whisper model (if not loaded), on CPU by default or the separately configured experimental GPU worker. No whisper.cpp switch is part of V2.
     - Process audio file -> generate text segments with timestamps.
 
 3.  **Classification (configured LLM)**:
@@ -32,7 +38,7 @@ For each queued episode:
     - Save processed audio in the episode artifact directory.
 
 5.  **Finalize**:
-    - The combined summary supplies enabled description and API-only speech features. A summary-only format failure can be repaired without rerunning valid classification.
+    - The combined summary supplies enabled description and API-only speech features. If speech is unconfigured, retain requested preferences and continue without optional speech; do not select a paid provider. A summary-only format failure can be repaired without rerunning valid classification.
     - Validate output MP3 duration (non-MP3 no-cut sources are encoded to MP3).
     - Switch published artifact pointers and stats in one claim-guarded SQLite transaction.
     - Serialize and atomically replace podcast/unified RSS; clear the matching publication-pending flag only after success.
