@@ -813,7 +813,8 @@ class Processor:
             fingerprint = await asyncio.to_thread(source_fingerprint, input_path)
             if transcript:
                 provenance = transcript.get('_source', {}) if isinstance(transcript, dict) else {}
-                if provenance.get('sha256') != fingerprint or provenance.get('whisper_model') != global_settings.get('whisper_model', settings.WHISPER_MODEL):
+                from app.core.transcription_settings import provenance_matches
+                if not skip_transcription and (provenance.get('sha256') != fingerprint or provenance.get('whisper_model') != global_settings.get('whisper_model', settings.WHISPER_MODEL) or not provenance_matches(provenance, global_settings)):
                     logger.info("Source or transcription settings changed; transcribing again")
                     transcript = None
             self.ep_repo.update_source_media_path(ep.id, input_path)
@@ -884,7 +885,7 @@ class Processor:
                 duration = (datetime.now() - start_time).total_seconds()
                 logger.info(f"Transcription complete in {duration:.1f}s")
                 
-                transcript['_source'] = {'sha256': fingerprint, 'whisper_model': global_settings.get('whisper_model', settings.WHISPER_MODEL)}
+                transcript['_source'] = {'sha256': fingerprint, 'whisper_model': global_settings.get('whisper_model', settings.WHISPER_MODEL), **transcript.pop('_execution', {'device': 'cpu', 'compute_type': 'float32'})}
                 # Save Transcript (Prefer JSON now)
                 transcript_path = os.path.join(episode_dir, "transcript.json")
                 async with aiofiles.open(transcript_path, "w", encoding="utf-8") as f:

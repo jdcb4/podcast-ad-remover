@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     SPONSORBLOCK_ENABLED: bool = False
     CHECK_INTERVAL_MINUTES: int = 60
     WHISPER_MODEL: str = "base"
+    CUDA_SETUP: bool = False
     LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10 MB
     LOG_BACKUP_COUNT: int = 5
     MAX_FEED_BYTES: int = 10 * 1024 * 1024  # 10 MB

@@ -1,0 +1,10 @@
+label,status,seconds,audio_seconds,audio_speed_multiple,peak_gpu_mib_sampled,peak_process_tree_rss_mib_sampled,mean_gpu_util_percent,segment_count,normalized_word_count,first_start,last_end,word_edit_distance_vs_cpu,word_difference_pct_vs_cpu,monotonic_starts,valid_timestamps,temporary_audio_removed,settings_validation_seconds
+cpu-base-float32,passed,440.525,4129.224,9.37,1.0,1099.78,0.0,1452,12718,0.0,4125.16,0,0.0,True,True,True,0.022
+gpu-base-float16,passed,73.549,4129.224,56.14,500.0,1225.7,41.0,1425,12717,0.0,4113.24,507,3.99,True,True,True,3.329
+cpu-base-int8,passed,375.306,4129.224,11.0,0.0,948.8,0.0,1261,12683,0.0,4120.64,617,4.85,True,True,True,0.011
+gpu-base-float32,passed,96.321,4129.224,42.87,782.0,736.61,59.3,1446,12708,0.0,4117.56,16,0.13,True,True,True,4.331
+gpu-base-int8_float16,passed,85.718,4129.224,48.17,404.0,1872.21,36.4,1721,12738,30.0,4113.26,599,4.71,True,True,True,4.334
+gpu-small-float16,passed,123.273,4129.224,33.5,1044.0,1812.39,68.6,1492,12684,30.0,4048.24,1179,9.27,True,True,True,11.341
+gpu-medium-float16,passed,276.986,4129.224,14.91,2964.0,1950.59,86.1,1582,12531,30.0,4048.32,1264,9.94,True,True,True,22.36
+gpu-medium-int8_float16,passed,254.193,4129.224,16.24,2100.0,1663.17,85.3,1511,12641,30.0,4112.24,1182,9.29,True,True,True,8.339
+gpu-base-float16-repeat,passed,75.903,4129.224,54.4,500.0,1237.11,44.5,1425,12717,0.0,4113.24,507,3.99,True,True,True,3.333

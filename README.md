@@ -39,6 +39,10 @@ The admin queue shows active jobs, queued/retry states, disk usage, next feed ch
 
 ## Features
 
+Experimental [optional NVIDIA GPU transcription](Documentation/CUDA.md) adds first-start or
+manual setup with libraries cached in `/data`. CPU remains the default; NVIDIA hardware
+qualification is required before supported release.
+
 - Podcast search, RSS subscription management, and direct YouTube channel/playlist subscriptions.
 - Global podcast library with per-user My Podcasts lists and one shared copy of each podcast.
 - In-place Library starring and My Podcasts/Library switching plus grid, artwork, and compact table views.
