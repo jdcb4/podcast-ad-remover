@@ -44,6 +44,8 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `scripts/`: verification, online backups, migration dry runs, publication recovery, API-token user-linking and Docker release helpers.
 - `Dockerfile` and `docker-compose.yml`: container build and local compose configuration.
 
+`app/core/media_storage.py` owns audio location mappings and migration; `app/web/storage.py` provides admin controls. See [STORAGE.md](STORAGE.md).
+
 ## Common Commands
 
 ```bash

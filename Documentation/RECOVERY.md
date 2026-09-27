@@ -28,6 +28,10 @@ For a rollback after an upgrade, use the previous image and the pre-upgrade snap
 with its corresponding media backup. Downgrading only the executable is not a
 database rollback. No recovery command automatically stops services or replaces data.
 
+## Separate media volumes
+
+When `MEDIA_DIR` is enabled, back up its `audio/` tree and `.par-media-volume` identity marker as well as appdata. The database contains relative audio mappings and the migration manifest; restore matching snapshots. Old-image rollback needs the original audio layout restored. [STORAGE.md](STORAGE.md) documents migration and CLI recovery.
+
 ## V2 migration and rollback
 
 Migration `20260927_0023_v2` supersedes the old opt-in workflow. Drain all running jobs before upgrade; it refuses active `running` rows. Queued/retryable work becomes Complete Timeline, provider lists become one selected model/key, former Piper speech becomes unconfigured and old tone switches become one. Read the credential-free System upgrade report after startup. Ownership and existing publications are not rewritten.

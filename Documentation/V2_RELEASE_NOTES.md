@@ -24,6 +24,8 @@ Local transcription is staying. You can still use a self-hosted custom analysis 
 
 ### What is new
 
+- Optional separate processed-audio storage with a resumable System → Storage migration, stable playback URLs and explicit verified-original cleanup.
+
 - A compact desktop and mobile interface, clearer settings and consolidated Users & access.
 - A short, optional setup wizard that can be dismissed or run again later.
 - A browser-only Docker/Compose configurator for POSIX or PowerShell, including offline download and private local generation of environment files.

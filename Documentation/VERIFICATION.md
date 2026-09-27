@@ -291,3 +291,22 @@ Before deployment, rehearse migration against a backup of the actual installatio
 Check the README, upgrade guide, release notes, install examples and API/skill references together. Distinguish fresh defaults from migrated preferences, local builds from published images and current guides from dated evidence. Validate local links, environment names and Unraid XML after editing install docs. Regenerate the agent package and offline configurator so they contain the same current reference.
 
 Before V2 publication, remind Joe to expand the rationale in [V2_RELEASE_NOTES.md](V2_RELEASE_NOTES.md) and complete that step in [VERSIONING.md](VERSIONING.md). Documentation preparation and a passing local gate are not publication approval.
+
+## Separate media storage
+
+`tests/test_media_storage.py` exercises migration of current and older publications,
+resumption, conflicts, missing/wrong mounts, capacity failure, checksum-gated
+cleanup, queue drain, admin controls, cancelled attempts and cancellation during a
+copy. A real FFmpeg pipeline fixture checks media publication, local transcripts,
+unchanged feed paths and retention/deletion. Configurator tests cover the optional
+mount and MEDIA_DIR for Compose/PowerShell.
+
+A synthetic UI run on 2026-09-28 exercised enable → preview → copy → separate cleanup;
+HTTP Range playback still returned 206 after the local copy was removed. Desktop
+and 390px mobile captures passed the scoped Impeccable finish review in both
+supplied themes. An ephemeral Linux Docker check exercised copy/cleanup and
+symlink containment (the Windows symlink fixture can be skipped).
+
+These checks do not certify a user's NAS protocol, mount lifecycle, real-data
+migration or backup restore. Rehearse against a copy and qualify the actual
+filesystem before deleting originals. See [STORAGE.md](STORAGE.md).

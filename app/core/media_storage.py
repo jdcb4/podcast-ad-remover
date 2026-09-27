@@ -21,7 +21,7 @@ class StorageUnavailable(RuntimeError):
     pass
 
 
-ACTIVE = {'waiting', 'copying', 'cleaning', 'paused', 'error'}
+ACTIVE = {'waiting', 'copying', 'cleaning', 'paused', 'error', 'cancelling'}
 
 
 def lock():
@@ -32,7 +32,9 @@ def safe_path(root, key):
     parts = PurePosixPath(key).parts
     if not parts or key.startswith('/') or any(p in {'.', '..'} or ':' in p or '\\' in p for p in parts):
         raise ValueError('Invalid audio storage path')
-    root = Path(root).resolve()
+    root = Path(root).absolute()
+    if root.resolve() != root:
+        raise ValueError('Audio storage root must not be an alias')
     path = root.joinpath(*parts)
     if path.resolve() != path or not path.is_relative_to(root):
         raise ValueError('Audio storage aliases are not allowed')
@@ -104,7 +106,7 @@ def processing_blocked(conn):
         if not current['volume_id']:
             return True
         try:
-            volume()
+            volume(check_write=True)
         except (OSError, ValueError, StorageUnavailable):
             return True
     return False
@@ -136,7 +138,7 @@ def copy_audio(source, *, retain=True):
     key = key_for(source)
     destination = safe_path(root / 'audio', key)
     size, checksum = source.stat().st_size, digest(source)
-    if shutil.disk_usage(root).free < size + settings.MIN_FREE_SPACE_BYTES:
+    if not destination.exists() and shutil.disk_usage(root).free < size + settings.MIN_FREE_SPACE_BYTES:
         raise StorageUnavailable('Insufficient free space on media storage.')
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
@@ -250,7 +252,7 @@ def control(action):
             next_state = ('cleaning' if current['operation'] == 'cleanup' else 'copying') if current['backup_path'] else 'waiting'
             conn.execute('UPDATE media_storage SET status=?, error=NULL WHERE id=1', (next_state,))
         elif action == 'cancel' and current['status'] in ACTIVE:
-            conn.execute("UPDATE media_storage SET status='cancelled', error=NULL WHERE id=1")
+            conn.execute("UPDATE media_storage SET status='cancelling', error=NULL WHERE id=1")
         else:
             raise ValueError('That storage action is not available now.')
         conn.commit()
@@ -278,6 +280,10 @@ def step():
     try:
         with lock():
             current = state()
+            if current['status'] == 'cancelling':
+                with get_db_connection() as conn:
+                    conn.execute("UPDATE media_storage SET status='cancelled' WHERE id=1 AND status='cancelling'"); conn.commit()
+                return
             if current['status'] not in {'waiting', 'copying', 'cleaning'}:
                 return
             try:
@@ -317,7 +323,7 @@ def step():
                         conn.execute("UPDATE media_storage SET status='complete' WHERE id=1 AND status IN ('copying','cleaning')"); conn.commit()
             except (OSError, ValueError, StorageUnavailable) as exc:
                 with get_db_connection() as conn:
-                    conn.execute("UPDATE media_storage SET status='error',error=? WHERE id=1 AND status NOT IN ('cancelled','paused')", (str(exc),)); conn.commit()
+                    conn.execute("UPDATE media_storage SET status='error',error=? WHERE id=1 AND status NOT IN ('cancelled','cancelling','paused')", (str(exc),)); conn.commit()
     except Timeout:
         return
 
@@ -332,9 +338,9 @@ async def worker():
         await asyncio.sleep(1)
 
 
-def delete_media(prefix, conn):
+def delete_media(prefix, conn, *, cancelled_attempt=False):
     """Called under the episode deletion transaction. No nested write connection."""
-    if state(conn)['status'] in ACTIVE:
+    if state(conn)['status'] in ACTIVE and not cancelled_attempt:
         raise StorageUnavailable('Audio deletion is paused during storage migration.')
     if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='media_files'").fetchone():
         return

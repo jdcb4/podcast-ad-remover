@@ -57,6 +57,8 @@ from app.web.setup import router as setup_router
 router.include_router(setup_router)
 from app.web.podcast_import import router as podcast_import_router
 router.include_router(podcast_import_router)
+from app.web.storage import router as storage_router
+router.include_router(storage_router)
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 from app.core.speech import speech_ready
@@ -2560,8 +2562,12 @@ async def play_episode(episode_id: int):
         raise HTTPException(404, 'Published audio not found')
     path = Path(episode.local_filename).resolve()
     root = Path(app_settings.PODCASTS_DIR).resolve()
-    if not path.is_relative_to(root) or not path.is_file():
-        raise HTTPException(404, 'Published audio not found')
+    from app.core.media_storage import resolve, StorageUnavailable
+    try:
+        if not path.is_relative_to(root) or not resolve(path.relative_to(root).as_posix()).is_file():
+            raise HTTPException(404, 'Published audio not found')
+    except (OSError, StorageUnavailable):
+        raise HTTPException(503, 'Media storage unavailable')
     return RedirectResponse('/audio/' + quote(path.relative_to(root).as_posix(), safe='/'), status_code=307)
 
 

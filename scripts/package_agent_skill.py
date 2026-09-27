@@ -16,7 +16,7 @@ def build(destination: Path) -> Path:
                 archive.write(file, str(Path(source.name) / file.relative_to(source)))
         # Ship the exact guide, not a separately maintained copy that can drift.
         for name in ('API.md', 'Agent_Skill.md', 'COMPLETE_TIMELINE.md', 'V2_UPGRADE.md',
-                     'V2_RELEASE_NOTES.md', 'V2_IMPLEMENTATION.md', 'RECOVERY.md'):
+                     'V2_RELEASE_NOTES.md', 'V2_IMPLEMENTATION.md', 'RECOVERY.md', 'STORAGE.md'):
             archive.write(ROOT / 'Documentation' / name, 'podcast-ad-remover/references/' + name)
     return destination
 

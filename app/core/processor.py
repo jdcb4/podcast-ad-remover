@@ -1073,6 +1073,15 @@ class Processor:
         root = Path(settings.PODCASTS_DIR).resolve()
         resolved = directory.resolve()
         if directory == resolved and resolved.is_relative_to(root) and len(resolved.relative_to(root).parts) == 3 and resolved.name.startswith('attempt-'):
+            from app.core.media_storage import delete_media, lock as media_lock
+            from app.infra.database import get_db_connection
+            with media_lock(), get_db_connection() as conn:
+                conn.execute('BEGIN IMMEDIATE')
+                published = conn.execute('SELECT 1 FROM episodes WHERE local_filename=?', (str(resolved / 'processed.mp3'),)).fetchone()
+                if published:
+                    return
+                delete_media(resolved.relative_to(root).as_posix(), conn, cancelled_attempt=True)
+                conn.commit()
             shutil.rmtree(resolved, ignore_errors=False)
             self._attempt_dir = None
 

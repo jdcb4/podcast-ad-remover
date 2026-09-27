@@ -184,3 +184,89 @@ def test_admin_storage_auth_and_confirmation(storage):
     with get_db_connection() as conn:
         conn.execute('UPDATE app_settings SET auth_enabled=1 WHERE id=1'); conn.commit()
     assert client.post('/admin/system/storage', data={'action':'copy','confirmed':'true'},follow_redirects=False).status_code in {302,303,401,403}
+import asyncio
+import shutil
+import subprocess
+from types import SimpleNamespace
+from app.core.processor import Processor
+from app.infra.repository import EpisodeRepository, SubscriptionRepository
+from tests.test_processing_recovery import fixture_analysis
+
+
+@pytest.mark.skipif(not shutil.which('ffmpeg'), reason='FFmpeg required')
+def test_pipeline_publishes_to_media_and_keeps_metadata_local(storage, tmp_path, monkeypatch):
+    media.enable()
+    source = tmp_path / 'fixture.mp3'
+    subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','sine=frequency=440:duration=4',str(source)],check=True,timeout=30)
+    async def download(url, directory, **kwargs):
+        target = Path(directory) / 'original.mp3'; shutil.copyfile(source,target); return str(target)
+    async def notify(*args,**kwargs): pass
+    monkeypatch.setattr('app.core.processor.get_source_adapter',lambda _:SimpleNamespace(download=download))
+    monkeypatch.setattr('app.core.processor.send_notification_async',notify)
+    with get_db_connection() as conn:
+        conn.execute("UPDATE episodes SET status='pending',duration=4 WHERE id=90")
+        conn.execute('UPDATE app_settings SET cut_tone_enabled=0 WHERE id=1'); conn.commit()
+    jobs=JobRepository(); jobs.enqueue(90); claim=jobs.claim_due(1)[0]
+    processor=Processor()
+    processor.ep_repo=EpisodeRepository(attempt=(claim['job_id'],claim['claim_token']))
+    processor.transcriber=SimpleNamespace(transcribe=lambda *a,**k:{'segments':[{'start':0,'end':1,'text':'hello'},{'start':1,'end':3,'text':'Ad'},{'start':3,'end':4,'text':'Closing'}]})
+    monkeypatch.setattr(processor.ad_detector,'classify_timeline',lambda units,*a:fixture_analysis(units,2))
+    asyncio.run(processor._process_episode_inner(EpisodeRepository().get_by_id(90),SubscriptionRepository().get_by_id(90),claim))
+    ep=EpisodeRepository().get_by_id(90)
+    assert ep.status == 'completed'
+    assert not Path(ep.local_filename).exists()
+    output=media.resolve(media.key_for(ep.local_filename))
+    assert output.is_file() and output.is_relative_to(storage)
+    assert Path(ep.transcript_path).is_relative_to(Path(settings.DATA_DIR)) and Path(ep.transcript_path).is_file()
+    assert not (Path(ep.local_filename).parent/'original.mp3').exists()
+    feed=(Path(settings.FEEDS_DIR)/'show.xml').read_text()
+    assert '/audio/show/episode-90/attempt-' in feed and '/media/' not in feed
+    asyncio.run(processor.delete_episode(90))
+    assert not output.exists()
+
+
+def test_interrupted_copy_does_not_switch_playback(storage, monkeypatch):
+    path=audio();media.enable();media.start();media.step()
+    real_copy=media.shutil.copyfileobj
+    def fail_copy(source,destination,*args):
+        destination.write(b'partial');raise OSError('simulated disconnected NAS')
+    monkeypatch.setattr(media.shutil,'copyfileobj',fail_copy)
+    media.step()
+    assert media.state()['status']=='error'
+    assert media.resolve(media.key_for(path))==path
+    assert not list(storage.rglob('*.par-part'))
+    monkeypatch.setattr(media.shutil,'copyfileobj',real_copy)
+    media.control('resume');run()
+    assert media.resolve(media.key_for(path)).read_bytes()==path.read_bytes()
+
+def test_cancelled_attempt_removes_unpublished_media_copy(storage):
+    path=audio();media.enable();media.stage_publication(path)
+    target=media.resolve(media.key_for(path));assert target.exists()
+    processor=Processor();processor._attempt_dir=path.parent
+    processor._cleanup_artifacts(EpisodeRepository().get_by_id(90))
+    assert not target.exists() and not path.parent.exists()
+
+
+def test_cancel_cleanup_never_removes_committed_publication(storage):
+    path=audio();media.enable();media.stage_publication(path)
+    with get_db_connection() as conn:
+        conn.execute('UPDATE episodes SET local_filename=? WHERE id=90',(str(path),));conn.commit()
+    processor=Processor();processor._attempt_dir=path.parent
+    processor._cleanup_artifacts(EpisodeRepository().get_by_id(90))
+    assert media.resolve(media.key_for(path)).exists() and path.exists()
+
+def test_cancel_during_copy_keeps_processing_and_deletion_paused_until_file_finishes(storage, monkeypatch):
+    audio();media.enable();media.start();media.step()
+    original=media.shutil.copyfileobj
+    def cancel_during_copy(src,dst,*args):
+        media.control('cancel')
+        with get_db_connection() as conn:
+            assert media.processing_blocked(conn)
+            with pytest.raises(media.StorageUnavailable): media.delete_media('show',conn)
+        return original(src,dst,*args)
+    monkeypatch.setattr(media.shutil,'copyfileobj',cancel_during_copy)
+    media.step()
+    assert media.state()['status']=='cancelling'
+    media.step()
+    assert media.state()['status']=='cancelled'
+    assert media.status()['completed']==1

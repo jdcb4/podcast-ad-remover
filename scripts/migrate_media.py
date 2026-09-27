@@ -24,7 +24,7 @@ def main():
     elif args.action in {'pause', 'resume', 'cancel'}:
         storage.control(args.action)
     elif args.action == 'run':
-        while storage.state()['status'] in {'waiting', 'copying', 'cleaning'}:
+        while storage.state()['status'] in {'waiting', 'copying', 'cleaning', 'cancelling'}:
             storage.step(); time.sleep(0.2)
     print(json.dumps(storage.status(), indent=2))
     if storage.state()['status'] == 'error':

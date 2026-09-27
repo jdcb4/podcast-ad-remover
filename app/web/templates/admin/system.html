@@ -17,5 +17,6 @@
 {{ number('download_max_redirects','Download redirect limit',settings.download_max_redirects,min=0,max=50) }}
 </details><button class="btn-primary">Save</button></form>
 <p class="mt-6"><a href="/admin/setup" class="btn-secondary">Run setup wizard</a></p>
+<p class="mt-6"><a href="/admin/system/storage" class="btn-secondary">Storage · manage audio location</a></p>
 {% if settings.v2_migration_report %}<details><summary>V2 upgrade report</summary><pre class="text-sm whitespace-pre-wrap">{{ settings.v2_migration_report }}</pre></details>{% endif %}
 {% endblock %}

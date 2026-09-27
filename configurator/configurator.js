@@ -9,6 +9,7 @@
  const yaml=value=>"'"+String(value).replaceAll("'","''").replaceAll('$',()=> '$$')+"'";
  function newSecret(){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');}
  form.elements.storage.addEventListener('change',()=>{form.elements.path.disabled=form.elements.storage.value!=='bind';form.elements.path.required=!form.elements.path.disabled;});
+ form.elements.separate_media.addEventListener('change',()=>{form.elements.media_path.disabled=!form.elements.separate_media.checked;form.elements.media_path.required=form.elements.separate_media.checked;});
  form.elements.provider.addEventListener('change',()=>{form.elements.key.disabled=!form.elements.provider.value;});
  function clear(){form.elements.key.value='';secret='';generated='';environment='';output.textContent='';result.hidden=true;}
  document.getElementById('clear').addEventListener('click',clear);
@@ -19,11 +20,14 @@
   if(!Number.isInteger(Number(v.port))||Number(v.port)<1||Number(v.port)>65535)errors.push('Port must be between 1 and 65535.');
   const windowsPath=/^[A-Za-z]:[\\/]/.test(v.path||'');
   if(v.storage==='bind'&&(!v.path||/[\r\n,\0]/.test(v.path)||(!v.path.startsWith('/')&&!(v.shell==='powershell'&&windowsPath))))errors.push('Use an absolute host directory without commas or newlines; Windows paths require PowerShell.');
+  if(v.separate_media&&(!v.media_path||/[\r\n,\0]/.test(v.media_path)||(!v.media_path.startsWith('/')&&!(v.shell==='powershell'&&/^[A-Za-z]:[\\/]/.test(v.media_path)))))errors.push('Use an absolute media host directory without commas or newlines; Windows paths require PowerShell.');
+  if(v.separate_media&&v.storage==='bind'&&v.path===v.media_path)errors.push('Appdata and media must use different host directories.');
   if(v.key&&/[\r\n\0]/.test(v.key))errors.push('API keys cannot contain newlines.');
   result.hidden=false;
   if(errors.length){generated='';environment='';output.textContent='';document.getElementById('status').textContent=errors.join(' ');return;}
   secret ||= newSecret();
   const env={SESSION_SECRET_KEY:secret,BASE_URL:url.href.replace(/\/$/,'')};
+  if(v.separate_media)env.MEDIA_DIR='/media';
   if(v.https){env.COOKIE_SECURE='true';env.TRUST_PROXY_HEADERS='true';}
   if(v.provider&&v.key)env[v.provider]=v.key;
   environment=Object.entries(env).map(([k,x])=>k+'='+x).join('\n')+'\n';
@@ -31,13 +35,14 @@
   if(v.format==='compose'){
    filename='compose.yaml';
    generated=`services:\n  podcast-ad-remover:\n    image: ${yaml(release.image)}\n    restart: unless-stopped\n    ports:\n      - ${yaml(v.port+':8000')}\n    volumes:\n      - type: ${v.storage==='bind'?'bind':'volume'}\n        source: ${yaml(volume)}\n        target: /data\n    env_file:\n      - path: ./install.env\n        format: raw\n`;
+   if(v.separate_media)generated=generated.replace('    env_file:', `      - type: bind\n        source: ${yaml(v.media_path)}\n        target: /media\n        bind:\n          create_host_path: false\n    env_file:`);
    if(v.gpu)generated+='    deploy:\n      resources:\n        reservations:\n          devices:\n            - driver: nvidia\n              count: all\n              capabilities: [gpu]\n';
    if(v.storage!=='bind')generated+='volumes:\n  podcast-data:\n';
    document.getElementById('command').textContent='Download compose.yaml and install.env into the same folder. Requires Docker Compose 2.30+. Run: docker compose up -d';
   }else{
    const ps=v.shell==='powershell', quote=ps?powershell:shell, continuation=ps?' `\n':' \\\n';
    filename=ps?'install.ps1':'install.sh';
-   generated=(ps?"$ErrorActionPreference = 'Stop'\nSet-Location -LiteralPath $PSScriptRoot\n":"#!/bin/sh\nset -eu\ncd -- \"$(dirname -- \"$0\")\"\n")+['docker run -d --name podcast-ad-remover --restart unless-stopped',`  -p ${quote(v.port+':8000')}`,`  --mount ${quote(`type=${v.storage==='bind'?'bind':'volume'},source=${volume},target=/data`)}`,'  --env-file ./install.env',...(v.gpu?['  --gpus all']:[]),`  ${quote(release.image)}`].join(continuation)+'\n';
+   generated=(ps?"$ErrorActionPreference = 'Stop'\nSet-Location -LiteralPath $PSScriptRoot\n":"#!/bin/sh\nset -eu\ncd -- \"$(dirname -- \"$0\")\"\n")+['docker run -d --name podcast-ad-remover --restart unless-stopped',`  -p ${quote(v.port+':8000')}`,`  --mount ${quote(`type=${v.storage==='bind'?'bind':'volume'},source=${volume},target=/data`)}`,...(v.separate_media?[`  --mount ${quote(`type=bind,source=${v.media_path},target=/media`)}`]:[]),'  --env-file ./install.env',...(v.gpu?['  --gpus all']:[]),`  ${quote(release.image)}`].join(continuation)+'\n';
    if(ps)generated+='if ($LASTEXITCODE -ne 0) { throw "Docker failed with exit code $LASTEXITCODE" }\n';
    document.getElementById('command').textContent=`Download ${filename} and install.env into the same folder, then run: ${ps?'.\\install.ps1':'sh install.sh'}`;
   }

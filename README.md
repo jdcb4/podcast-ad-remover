@@ -92,6 +92,10 @@ A protected feed URL is a bearer secret. Keep it private and revoke its token if
 
 YouTube support is limited to public channels and explicit playlists. It does not support individual video subscriptions, Shorts/streams as dedicated sources, private/member content or login cookies. SponsorBlock is removed; yt-dlp and Deno remain. Use sources you are permitted to download and process.
 
+## Separate audio storage
+
+Optionally mount finished audio on a NAS or media disk with `MEDIA_DIR`. Keep appdata and temporary processing on local storage. **Settings → System → Storage** checks the mount, previews existing audio, runs a resumable verified migration and offers separate original-copy cleanup. Existing installs can keep their layout; public episode URLs stay unchanged. See [storage and migration](Documentation/STORAGE.md).
+
 ## Upgrade from 1.x
 
 The main removals are local Piper speech, model/key cascades, Legacy whitelist/blacklist processing, schema-free analysis, SponsorBlock, global free-form detection instructions, editable unified-feed descriptions and separate cut-position switches.

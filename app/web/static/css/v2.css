@@ -107,3 +107,14 @@ dialog::backdrop { background:#0008; }
 .speech-control .input,.speech-control .select { width:100%; margin:0; }
 .speech-control input[hidden] { display:none; }
 @media(max-width:480px) { .setting-row:has(>.speech-control) { flex-direction:column; align-items:stretch; gap:8px; } .speech-control { width:100%; max-width:none; } }
+
+.storage-paths { display:grid; grid-template-columns: minmax(7rem, auto) minmax(0,1fr); gap: .75rem 1rem; margin:1rem 0; }
+.storage-paths dt { font-weight:600; }
+.storage-paths dd, .storage-path { overflow-wrap:anywhere; }
+.storage-error { color:var(--text-primary); font-weight:600; margin:.75rem 0; }
+.storage-actions { display:flex; flex-wrap:wrap; gap:.75rem; }
+.storage-cleanup { display:grid; gap:1rem; justify-items:start; }
+.storage-cleanup label { display:flex; gap:.75rem; align-items:flex-start; }
+.storage-cleanup input { margin-top:.3rem; }
+#storage-progress { width:100%; accent-color:#7c3aed; }
+.storage-actions [hidden] { display:none; }

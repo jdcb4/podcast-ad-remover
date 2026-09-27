@@ -18,6 +18,10 @@ If users access the app through HTTPS behind a reverse proxy, set `COOKIE_SECURE
 Only set `TRUST_PROXY_HEADERS=true` when that proxy strips any client-supplied forwarding headers before passing requests to the app.
 For authenticated management access behind a reverse proxy, set `BASE_URL` or the System Settings public application URL to the browser-facing origin so same-origin checks accept legitimate form submissions.
 
+## Optional separate media mount
+
+Use `MEDIA_DIR` and a dedicated mounted directory to keep finished audio outside appdata. Enable and migrate it in System → Storage. The configurator supports this option; see [STORAGE.md](STORAGE.md) for the Compose fragment and recovery requirements.
+
 ## Docker Compose
 
 Use `docker-compose.prod.yml` and the published image when running a normal install:

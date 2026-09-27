@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 
-def generate(format='compose', key="key'with$dollar", gpu=False, shell='posix'):
+def generate(format='compose', key="key'with$dollar", gpu=False, shell='posix', media=''):
     script = r'''
 const {JSDOM}=require('jsdom'),fs=require('fs');
 (async()=>{
@@ -14,6 +14,7 @@ let blob;w.URL.createObjectURL=b=>{blob=b;return 'blob:test';};w.URL.revokeObjec
 const f=w.document.getElementById('config');
 if(!f.elements.provider.closest('details')||f.elements.provider.closest('details').open)throw Error('Credentials must start collapsed');
 f.elements.format.value=__FORMAT__;f.elements.shell.value=__SHELL__;f.elements.provider.value='OPENAI_API_KEY';f.elements.provider.dispatchEvent(new w.Event('change'));f.elements.key.value=__KEY__;f.elements.gpu.checked=__GPU__;
+if(__MEDIA__){f.elements.separate_media.checked=true;f.elements.separate_media.dispatchEvent(new w.Event('change'));f.elements.media_path.value=__MEDIA__;}
 const submit=()=>f.dispatchEvent(new w.Event('submit',{cancelable:true}));
 const env=async()=>{w.document.getElementById('download-env').click();return await new Promise(resolve=>{const reader=new w.FileReader();reader.onload=()=>resolve(reader.result);reader.readAsText(blob);});};
 submit();const first=await env();f.elements.port.value='8111';submit();const second=await env();
@@ -23,7 +24,7 @@ console.log(JSON.stringify({output:w.document.getElementById('output').textConte
 w.document.getElementById('clear').click();if(f.elements.key.value||w.document.getElementById('output').textContent)throw Error('Clear failed');
 dom.window.close();
 })().catch(e=>{console.error(e);process.exit(1)});
-'''.replace('__FORMAT__', json.dumps(format)).replace('__SHELL__',json.dumps(shell)).replace('__KEY__', json.dumps(key)).replace('__GPU__', json.dumps(gpu))
+'''.replace('__FORMAT__', json.dumps(format)).replace('__SHELL__',json.dumps(shell)).replace('__KEY__', json.dumps(key)).replace('__GPU__', json.dumps(gpu)).replace('__MEDIA__', json.dumps(media))
     result = subprocess.run(['node', '-e', script], capture_output=True, text=True, check=True)
     return json.loads(result.stdout)
 
@@ -71,3 +72,13 @@ def test_offline_archive_contains_only_static_assets(tmp_path):
     build(tmp_path)
     with ZipFile(tmp_path/'offline.zip') as archive:
         assert set(archive.namelist()) == {'index.html','style.css','configurator.js','release.js','podcast-ad-remover-skill.zip'}
+
+
+def test_separate_media_mount_and_environment():
+    result = generate(media='/mnt/nas/par audio')
+    service = yaml.safe_load(result['output'])['services']['podcast-ad-remover']
+    assert service['volumes'][1] == {'type':'bind','source':'/mnt/nas/par audio','target':'/media','bind':{'create_host_path':False}}
+    assert 'MEDIA_DIR=/media' in result['env']
+    result = generate('docker', shell='powershell', media='D:\\Media Store')
+    assert 'target=/media' in result['output']
+    assert 'MEDIA_DIR=/media' in result['env']

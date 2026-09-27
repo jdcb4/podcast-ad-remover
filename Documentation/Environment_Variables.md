@@ -15,6 +15,10 @@ Provider keys are optional at startup. Configure analysis before processing. Env
 
 If an old Gemini environment variable contains comma-separated keys, only its first nonempty key is used. Remove the unused keys from the installation configuration.
 
+## Separate audio storage
+
+`MEDIA_DIR` is an optional container path for processed audio. Leave it unset for the existing layout; configure a mount and enable it in System → Storage before new processing. It must not overlap the existing podcast tree. [Storage guide](STORAGE.md) covers migration, outages and backups. Scratch files and models stay under `DATA_DIR`.
+
 ## Optional / Defaults
 
 | Variable | Description | Default |

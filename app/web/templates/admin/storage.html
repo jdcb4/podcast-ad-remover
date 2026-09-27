@@ -1,0 +1,55 @@
+{% extends 'admin/layout.html' %}
+{% block title %}Storage{% endblock %}
+{% block admin_content %}
+<p><a href="/admin/system">System</a></p>
+<h1>Storage</h1>
+<p class="settings-intro">Keep finished audio on a separate disk or NAS. Settings, transcripts and processing files stay in appdata. Existing feed links remain unchanged.</p>
+<dl class="storage-paths">
+<dt>Appdata</dt><dd>{{ storage.appdata }}</dd>
+<dt>Processed audio</dt><dd>{{ storage.destination }}</dd>
+</dl>
+{% if storage_error %}<p role="alert" class="storage-error">{{ storage_error }}</p>{% endif %}
+{% if storage.availability_error %}<p role="alert" class="storage-error">{{ storage.availability_error }}</p>{% endif %}
+{% if not storage.configured %}
+<p class="settings-help">To use separate storage, mount an empty dedicated directory into the container and set <code>MEDIA_DIR</code> to that path. Restart the container, then return here. Leave it unset to keep the current layout.</p>
+{% elif not storage.volume_id %}
+<p class="settings-help">Enable the mounted directory for new audio. Existing episodes stay where they are until you migrate them. Processing waits until this destination is enabled.</p>
+<form method="post"><button class="btn-primary" name="action" value="enable">Check and enable destination</button></form>
+{% else %}
+<h2 class="settings-section-title">Move existing audio</h2>
+<p class="settings-help">Preview the files first. Migration waits for running episodes, pauses new processing and takes a database backup. It copies and verifies audio before switching playback. Closing this page is safe.</p>
+<form method="post"><button class="btn-secondary" name="action" value="preview">Check destination and preview</button></form>
+{% if preview %}
+<p role="status">{{ preview.count }} {{ 'file' if preview.count == 1 else 'files' }} · {{ '%.1f'|format(preview.bytes / 1048576) }} MB to copy · {{ '%.1f'|format(preview.free / 1073741824) }} GB available</p>
+{% if preview.enough and preview.count %}
+<form method="post"><input type="hidden" name="confirmed" value="true"><button class="btn-primary" name="action" value="copy">Start migration · keep originals</button></form>
+{% elif not preview.enough %}<p class="storage-error">Not enough space for this migration. Free space and preview again.</p>
+{% else %}<p>All available published audio is already in media storage.</p>{% endif %}
+{% endif %}
+{% endif %}
+<section aria-labelledby="migration-heading" class="mt-6" data-storage-status="{{ storage.status }}">
+<h2 id="migration-heading" class="settings-section-title">Migration progress</h2>
+<p id="storage-state" role="status" aria-live="polite">{{ storage.status|capitalize }}{% if storage.operation %} · {{ 'Removing verified local copies' if storage.operation == 'cleanup' else 'Copying audio' }}{% endif %}</p>
+<progress id="storage-progress" max="{{ storage.total or 1 }}" value="{{ storage.completed }}" aria-label="Files completed"></progress>
+<p id="storage-count">{{ storage.completed }} of {{ storage.total }} files complete</p>
+<p id="storage-detail" class="settings-help">{% if storage.status == 'cancelling' %}Finishing the current file before ending the operation.{% elif storage.status == 'waiting' %}Waiting for running episodes to finish. New processing is paused.{% elif storage.status in ['paused','error'] %}Processing stays paused. Resume the operation, or end it to allow processing again.{% endif %}</p>
+<p id="storage-job-error" role="alert" class="storage-error">{{ storage.error or '' }}</p>
+<form method="post" class="storage-actions">
+<button id="storage-pause" class="btn-secondary" name="action" value="pause" {% if storage.status not in ['waiting','copying','cleaning'] %}hidden{% endif %}>Pause after current file</button>
+<button id="storage-resume" class="btn-primary" name="action" value="resume" {% if storage.status not in ['paused','error'] %}hidden{% endif %}>Resume</button>
+<button id="storage-cancel" class="btn-secondary" name="action" value="cancel" {% if storage.status not in ['waiting','copying','cleaning','paused','error'] %}hidden{% endif %}>End operation · keep copies</button>
+</form>
+{% if storage.backup_path %}<details><summary>Recovery backup</summary><p class="storage-path">{{ storage.backup_path }}</p><p class="settings-help">A database backup does not include audio. Keep your existing appdata and media backups.</p></details>{% endif %}
+</section>
+{% if storage.volume_id %}
+<details class="mt-6"><summary>Remove verified original copies</summary>
+<p class="settings-help">After checking playback, remove only local audio copies whose media copies still pass checksum verification. Transcripts and reports stay. This cannot restore local copies; keep a backup before continuing.</p>
+<p id="storage-retained">{{ storage.retained }} local copies recorded</p>
+<form method="post" class="storage-cleanup">
+<label><input type="checkbox" name="confirmed" value="true" required> I have checked playback and want to delete verified local audio copies.</label>
+<button class="btn-secondary" name="action" value="cleanup">Delete verified local copies</button>
+</form>
+</details>
+{% endif %}
+<script src="/static/js/storage.js" defer></script>
+{% endblock %}

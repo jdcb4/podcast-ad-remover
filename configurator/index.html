@@ -18,6 +18,10 @@
 
 <label>Directory on Docker host<input name="path" placeholder="/srv/podcast-ad-remover" disabled></label><p class="hint">Keep this storage across upgrades. An existing installation must reuse its current data directory.</p>
 
+<label class="check"><input name="separate_media" type="checkbox">Store processed audio on a separate disk or NAS</label>
+<label>Media directory on Docker host<input name="media_path" placeholder="/mnt/nas/par-audio" disabled></label>
+<p class="hint">Use an empty dedicated directory on an already mounted disk. After starting PAR, enable it in System → Storage. Existing audio can be migrated there; transcripts and temporary processing stay in appdata.</p>
+
 <label>Application URL<input name="url" type="url" value="http://localhost:8000" required></label><p class="hint">Use your server's LAN address or HTTPS domain for podcast apps. This can be changed later.</p>
 
 <label class="check"><input name="https" type="checkbox">Behind an HTTPS reverse proxy</label><p class="hint">Enables secure cookies and trusts forwarded headers. Use only when the container is reachable exclusively through your trusted proxy.</p>

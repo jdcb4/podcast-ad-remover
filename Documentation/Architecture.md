@@ -216,6 +216,10 @@ The subscription action lives beside search on My Podcasts/Library, rather than 
 
 Historical unified-feed migrations keep their identifiers; V2 changes supported behavior without dropping recovery columns. See [V2_UPGRADE.md](V2_UPGRADE.md) for the fixed-description and artwork migration rules.
 
+### Processed-audio storage
+
+Optional `MEDIA_DIR` stores only finished audio. `media_files` maps unchanged relative audio URL keys to that identity-checked volume; historical `local_filename` values remain logical identifiers. Local processing stages and metadata stay beneath appdata. Migration state and per-file progress are durable in SQLite, shared by an admin UI, background task and CLI. Job claiming and retention respect the migration/storage availability gate. See [STORAGE.md](STORAGE.md).
+
 ### Feed Access
 
 RSS feeds and audio files remain public when feed authentication is disabled. When feed authentication is enabled, generated dashboard links use bearer tokens:

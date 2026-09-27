@@ -76,3 +76,13 @@ Qualification at `1e48a86`: 653 tests passed, 5 skipped; CSS and frontend/Python
 ## Documentation and release preparation
 
 The README and active guides now describe the implemented V2 behavior, with historical documents explicitly labeled. [V2_RELEASE_NOTES.md](V2_RELEASE_NOTES.md) contains draft release/commit wording about intentional compatibility breaks, and [V2_UPGRADE.md](V2_UPGRADE.md) is the user-facing migration guide. Before publishing, remind Joe to expand his reasoning and incorporate it into the final announcement. This remains open; writing the draft does not settle it.
+
+
+## Optional media storage — 2026-09-28
+
+Added MEDIA_DIR with explicit destination enablement, durable stable-URL mappings,
+copy/verify migration and separate verified-original cleanup. System → Storage and
+the recovery CLI share the same background manifest. The configurator supports a
+second mount. Appdata/transcripts and processing remain local; existing layouts
+remain supported. Mount identity gates processing, playback and retention. See
+[STORAGE.md](STORAGE.md) and the qualification scope in [VERIFICATION.md](VERIFICATION.md).
