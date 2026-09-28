@@ -174,3 +174,17 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,5));
     result = subprocess.run([shutil.which('node'), '-e', script], input=json.dumps(html), text=True,
                             capture_output=True, timeout=20, cwd=Path(__file__).resolve().parents[1])
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_repository_identity_matches_historical_urls_without_folding_path_case(import_db):
+    repo = SubscriptionRepository()
+    sub = repo.create(SubscriptionCreate(feed_url='https://example.com/Feed?key=A'), 'One', 'one')
+    with get_db_connection() as conn:
+        conn.execute('UPDATE subscriptions SET feed_url=? WHERE id=?', ('https://EXAMPLE.com:443/Feed?key=A#old', sub.id))
+        conn.commit()
+    assert repo.get_by_url('https://example.com/Feed?key=A').id == sub.id
+    with pytest.raises(ValueError, match='already exists'):
+        repo.create(SubscriptionCreate(feed_url='https://example.com/Feed?key=A'), 'Duplicate', 'duplicate')
+    distinct = repo.create(SubscriptionCreate(feed_url='https://example.com/feed?key=A'), 'Distinct', 'distinct')
+    assert distinct.id != sub.id
+    assert len(repo.get_all()) == 2

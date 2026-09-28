@@ -194,7 +194,8 @@ from tests.test_processing_recovery import fixture_analysis
 
 
 @pytest.mark.skipif(not shutil.which('ffmpeg'), reason='FFmpeg required')
-def test_pipeline_publishes_to_media_and_keeps_metadata_local(storage, tmp_path, monkeypatch):
+@pytest.mark.parametrize('failure', [None, 'stage', 'commit'])
+def test_pipeline_publishes_to_media_and_keeps_metadata_local(storage, tmp_path, monkeypatch, failure):
     media.enable()
     source = tmp_path / 'fixture.mp3'
     subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','sine=frequency=440:duration=4',str(source)],check=True,timeout=30)
@@ -211,8 +212,24 @@ def test_pipeline_publishes_to_media_and_keeps_metadata_local(storage, tmp_path,
     processor.ep_repo=EpisodeRepository(attempt=(claim['job_id'],claim['claim_token']))
     processor.transcriber=SimpleNamespace(transcribe=lambda *a,**k:{'segments':[{'start':0,'end':1,'text':'hello'},{'start':1,'end':3,'text':'Ad'},{'start':3,'end':4,'text':'Closing'}]})
     monkeypatch.setattr(processor.ad_detector,'classify_timeline',lambda units,*a:fixture_analysis(units,2))
+    if failure == 'stage':
+        def fail_stage(*args):
+            raise OSError('simulated media outage')
+        monkeypatch.setattr(media, 'stage_publication', fail_stage)
+    elif failure == 'commit':
+        original_update = processor.ep_repo.update_status
+        def fail_commit(id, status, **kwargs):
+            if status == 'completed':
+                raise OSError('simulated commit failure')
+            return original_update(id, status, **kwargs)
+        monkeypatch.setattr(processor.ep_repo, 'update_status', fail_commit)
     asyncio.run(processor._process_episode_inner(EpisodeRepository().get_by_id(90),SubscriptionRepository().get_by_id(90),claim))
     ep=EpisodeRepository().get_by_id(90)
+    if failure:
+        assert ep.status != 'completed'
+        assert not list(Path(settings.PODCASTS_DIR).rglob('published.json'))
+        assert media.preview()['count'] == 0
+        return
     assert ep.status == 'completed'
     assert not Path(ep.local_filename).exists()
     output=media.resolve(media.key_for(ep.local_filename))
@@ -270,3 +287,21 @@ def test_cancel_during_copy_keeps_processing_and_deletion_paused_until_file_fini
     media.step()
     assert media.state()['status']=='cancelled'
     assert media.status()['completed']==1
+
+
+def test_episode_deletion_defers_cleanly_during_migration(storage):
+    path = audio()
+    with get_db_connection() as conn:
+        conn.execute('UPDATE episodes SET local_filename=? WHERE id=90', (str(path),)); conn.commit()
+    media.enable(); media.start()
+    processor = Processor()
+    assert asyncio.run(processor.delete_episode(90))
+    assert path.exists()
+    with get_db_connection() as conn:
+        row = conn.execute('SELECT status,processing_step FROM episodes WHERE id=90').fetchone()
+        assert row['status'] == 'ignored' and row['processing_step'] != 'deleted'
+    media.control('cancel'); media.step()
+    processor._finalize_episode_deletion(90)
+    assert not path.exists()
+    with get_db_connection() as conn:
+        assert conn.execute('SELECT processing_step FROM episodes WHERE id=90').fetchone()[0] == 'deleted'

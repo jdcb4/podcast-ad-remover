@@ -34,23 +34,6 @@
       {% if user %}<a href="/change-password">{{ icon('key') }}Change password<span class="sr-only"> for {{ user.username }}</span></a><a href="/logout">{{ icon('logout') }}Log out</a>{% else %}<a href="/login">{{ icon('key') }}Log in</a>{% endif %}</div>
     </aside>
     {% if user %}<nav class="mobile-bottom" aria-label="Mobile navigation"><a href="/?view=mine">{{ icon('podcasts') }}My Podcasts</a><a href="/?view=library">{{ icon('library') }}Library</a><a href="/#add" data-add-podcast>{{ icon('add') }}Add</a>{% if user.is_admin %}<a href="/admin/queue">{{ icon('tasks') }}Tasks</a><a href="/admin/ai/transcription">{{ icon('settings') }}Settings</a>{% endif %}</nav>{% endif %}
-    <script nonce="{{ csp_nonce }}">
-        // Mobile menu toggle
-        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-        const mobileMenu = document.getElementById('mobile-menu');
-        const menuIconOpen = document.getElementById('menu-icon-open');
-        const menuIconClose = document.getElementById('menu-icon-close');
-
-        if (mobileMenuBtn && mobileMenu) {
-            mobileMenuBtn.addEventListener('click', () => {
-                const isOpen = !mobileMenu.classList.contains('hidden');
-                mobileMenu.classList.toggle('hidden');
-                menuIconOpen.classList.toggle('hidden');
-                menuIconClose.classList.toggle('hidden');
-                mobileMenuBtn.setAttribute('aria-expanded', !isOpen);
-            });
-        }
-    </script>
 
     <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
     <dialog id="app-dialog-overlay" class="app-dialog-overlay hidden" aria-modal="true"

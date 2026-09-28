@@ -12,6 +12,14 @@ from app.core.time_utils import now_utc
 from app.infra.database import get_db_connection
 from app.core.models import SubscriptionCreate, Subscription, Episode
 from app.core.subscription_settings import resolve_subscription_row
+from app.core.feed_urls import feed_key
+
+
+def _feed_identity(url: str) -> str:
+    try:
+        return feed_key(url)
+    except (ValueError, UnicodeError):
+        return url  # Preserve lookup compatibility for historical URLs.
 
 class SubscriptionRepository:
     @staticmethod
@@ -38,6 +46,10 @@ class SubscriptionRepository:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             try:
+                conn.execute('BEGIN IMMEDIATE')
+                identity = _feed_identity(sub.feed_url)
+                if any(_feed_identity(row[0]) == identity for row in conn.execute('SELECT feed_url FROM subscriptions')):
+                    raise ValueError("Subscription already exists")
                 cursor.execute(
                     """
                     INSERT INTO subscriptions
@@ -47,7 +59,7 @@ class SubscriptionRepository:
                     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1, 1, 1)
                     """,
                     (
-                        sub.feed_url,
+                        identity,
                         title,
                         slug,
                         image_url,
@@ -193,6 +205,10 @@ class SubscriptionRepository:
             row = conn.execute("SELECT * FROM subscriptions WHERE feed_url = ?", (url,)).fetchone()
             if row:
                 return self._subscription_from_row(row, self._global_settings(conn))
+            identity = _feed_identity(url)
+            for row in conn.execute('SELECT * FROM subscriptions'):
+                if _feed_identity(row['feed_url']) == identity:
+                    return self._subscription_from_row(row, self._global_settings(conn))
             return None
 
     def get_by_source_identity(self, source_type: str, external_id: str | None) -> Optional[Subscription]:

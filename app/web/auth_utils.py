@@ -98,7 +98,7 @@ def get_request_base_origin(request) -> str | None:
 
 def is_same_origin_request(request, app_external_url: str | None = None) -> bool:
     """
-    Validate browser-sent Origin/Referer headers for unsafe authenticated requests.
+    Validate browser-sent Origin/Referer headers for unsafe management requests.
 
     Missing Origin/Referer is allowed for compatibility with simple local clients and
     older form submissions. Mismatched values are rejected when present.
@@ -106,11 +106,14 @@ def is_same_origin_request(request, app_external_url: str | None = None) -> bool
     if getattr(request, "method", "GET").upper() not in UNSAFE_METHODS:
         return True
 
-    supplied_origin = _normalize_origin(_header_value(request.headers, "origin"))
+    raw_origin = _header_value(request.headers, "origin")
+    supplied_origin = _normalize_origin(raw_origin)
+    if raw_origin and not supplied_origin:
+        return False  # Opaque/sandboxed browser origins must not become headerless clients.
     if not supplied_origin:
         supplied_origin = _normalize_origin(_header_value(request.headers, "referer"))
     if not supplied_origin:
-        return True
+        return _header_value(request.headers, "sec-fetch-site") != "cross-site"
 
     allowed_origins = {
         origin

@@ -1,7 +1,7 @@
 """Bounded OPML/text import. Preview is local; adding rechecks shared-library identity."""
 import re
 import threading
-from urllib.parse import urlsplit, urlunsplit
+from app.core.feed_urls import feed_key
 from xml.etree import ElementTree
 
 from app.core.models import SubscriptionCreate
@@ -12,24 +12,6 @@ MAX_BYTES = 1024 * 1024
 MAX_FEEDS = 100
 _create_lock = threading.Lock()
 
-
-def feed_key(value: str) -> str:
-    """Conservative URL identity: never discard query tokens or change path case."""
-    value = value.strip()
-    if len(value) > 4096 or re.search(r"[\x00-\x20\x7f]", value):
-        raise ValueError("Use a feed URL without spaces or control characters (maximum 4,096 characters).")
-    parts = urlsplit(value)
-    if parts.scheme.lower() not in {"http", "https"} or not parts.hostname:
-        raise ValueError("Use a complete http:// or https:// feed URL.")
-    if parts.username is not None or parts.password is not None:
-        raise ValueError("URLs with embedded usernames or passwords are not supported.")
-    host = parts.hostname.encode("idna").decode("ascii").lower()
-    if ":" in host:
-        host = f"[{host}]"
-    port = parts.port
-    if port and (parts.scheme.lower(), port) not in {("http", 80), ("https", 443)}:
-        host += f":{port}"
-    return urlunsplit((parts.scheme.lower(), host, parts.path or "/", parts.query, ""))
 
 
 def parse_import(content: str) -> list[dict]:

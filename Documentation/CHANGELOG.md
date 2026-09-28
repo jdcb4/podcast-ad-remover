@@ -3,6 +3,7 @@
 ## Unreleased — V2 development
 
 - Reject cross-origin management writes even when dashboard login is disabled, protecting local/trusted-network installs from cross-site form submissions.
+- Address the Antigravity review: reject opaque browser origins, mark audio revisions published only after commit, defer deletion during storage migration, share duplicate feed identity across add/import paths, and fix light-theme settings contrast. See [review disposition](V2_ADVERSARIAL_REVIEW.md) for accepted findings and deferred proposals.
 
 V2 intentionally makes breaking changes to remove legacy features with limited long-term value, reduce configuration/maintenance complexity and reflect the changed tradeoff as remote inference becomes more affordable. We hope disruption is minimal, but affected installations need to review [V2_UPGRADE.md](V2_UPGRADE.md). Local transcription remains; former Piper installs are not silently moved to paid speech. [Draft release notes](V2_RELEASE_NOTES.md) await Joe’s expanded reasoning before publication. The package version is still 1.16.0; these notes do not declare 2.0 published.
 

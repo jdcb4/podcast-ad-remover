@@ -113,3 +113,14 @@ identifiers for compatibility. To roll back to an older application, restore its
 pre-upgrade database and matching original audio tree. Once originals are cleaned
 up, the old image cannot read moved files without restoring them. Do not remove
 the media configuration after migrating and expect playback to work automatically.
+
+### Interrupted processing during offline migration
+
+Migration waits for running episode jobs so it cannot race a writer. With
+`PROCESSOR_ENABLED=false`, a job left running by a prior crash may not drain.
+Check Tasks and the worker state first; do not clear a job that may still have a
+live worker. After confirming that the old worker has stopped, cancel the waiting
+migration and restart the normal processor to recover interrupted jobs, then retry
+migration. The normal processor also performs periodic stale-job recovery.
+Episode deletion during migration marks the episode ignored immediately; physical
+cleanup is retried by normal maintenance when storage is available again.

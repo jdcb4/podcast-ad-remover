@@ -3,6 +3,7 @@ from pathlib import Path
 import re
 
 from app.core.config import settings
+import pytest
 from app.web.auth_utils import (
     get_client_ip,
     get_request_base_origin,
@@ -255,3 +256,11 @@ def test_manual_download_uses_repository_enqueue_path():
 
     assert "ep_repo.update_status(episode_id, \"pending\")" in router_source
     assert "await proc.process_queue()" in router_source
+
+@pytest.mark.parametrize('headers', [
+    {'origin': 'null'},
+    {'origin': 'not-an-origin', 'referer': 'http://app.local/'},
+    {'sec-fetch-site': 'cross-site'},
+])
+def test_same_origin_rejects_opaque_or_cross_site_browser_context(headers):
+    assert not is_same_origin_request(make_request(method='POST', headers=headers))

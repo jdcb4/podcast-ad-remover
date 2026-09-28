@@ -48,7 +48,7 @@ dialog::backdrop { background:#0008; }
 .mobile-podcasts { display:none; }
 .settings-navigation { display:grid; gap:2px; padding-left:12px; font-size:14px; }
 .settings-navigation a { padding:7px 12px; }
-.settings-navigation a[aria-current=page] { color:#a78bfa; background:#7c3aed18; }
+.settings-navigation a[aria-current=page] { color:var(--link); background:#7c3aed18; }
 .settings-page .grid { gap:16px; }
 @media(max-width:900px) {
  .app-sidebar { display:none; width:min(300px,85vw); background:var(--panel-bg,#181820); }
@@ -111,7 +111,7 @@ dialog::backdrop { background:#0008; }
 .storage-paths { display:grid; grid-template-columns: minmax(7rem, auto) minmax(0,1fr); gap: .75rem 1rem; margin:1rem 0; }
 .storage-paths dt { font-weight:600; }
 .storage-paths dd, .storage-path { overflow-wrap:anywhere; }
-.storage-error { color:var(--text-primary); font-weight:600; margin:.75rem 0; }
+.storage-error { color:var(--danger); font-weight:600; margin:.75rem 0; }
 .storage-actions { display:flex; flex-wrap:wrap; gap:.75rem; }
 .storage-cleanup { display:grid; gap:1rem; justify-items:start; }
 .storage-cleanup label { display:flex; gap:.75rem; align-items:flex-start; }

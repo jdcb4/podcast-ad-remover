@@ -224,10 +224,6 @@ app.mount("/feeds", StaticFiles(directory=settings.FEEDS_DIR), name="feeds")
 # Mount general static files (css, js, images)
 app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 
-@app.get("/")
-async def root():
-    return {"message": "Podcast Ad Remover is running"}
-
 @app.get("/health")
 async def health():
     from fastapi.responses import JSONResponse

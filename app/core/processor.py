@@ -313,6 +313,14 @@ class Processor:
         return True
 
     def _finalize_episode_deletion(self, episode_id: int):
+        from app.core.media_storage import StorageUnavailable
+        try:
+            return self._finalize_episode_deletion_when_available(episode_id)
+        except StorageUnavailable as exc:
+            logger.info('Episode %s cleanup deferred until storage is available: %s', episode_id, exc)
+            return False
+
+    def _finalize_episode_deletion_when_available(self, episode_id: int):
         from app.infra.database import get_db_connection
         with get_db_connection() as conn:
             conn.execute('BEGIN IMMEDIATE')
@@ -953,10 +961,20 @@ class Processor:
             if ep.local_filename:
                 self.ep_repo.pending_metadata['published_guid'] = f'{ep.guid}#revision-{uuid4().hex}'
             file_size = os.path.getsize(output_path)
-            (self._attempt_dir / 'published.json').write_text(json.dumps({'episode_id': ep.id}), encoding='utf-8')
             from app.core.media_storage import stage_publication, remove_original, key_for, lock as media_lock
             separate_media = await asyncio.to_thread(stage_publication, output_path)
+            # Preserve the previous committed revision before replacing its DB pointer.
+            # This also repairs a marker missed by a crash just after the prior commit.
+            if ep.local_filename:
+                previous_dir = Path(ep.local_filename).parent
+                if previous_dir.name.startswith('attempt-') and previous_dir.is_relative_to(Path(settings.PODCASTS_DIR)):
+                    (previous_dir / 'published.json').write_text(json.dumps({'episode_id': ep.id}), encoding='utf-8')
             self.ep_repo.update_status(ep.id, 'completed', filename=output_path, file_size=file_size)
+            # The DB pointer protects a newly committed attempt if marker writing fails.
+            try:
+                (self._attempt_dir / 'published.json').write_text(json.dumps({'episode_id': ep.id}), encoding='utf-8')
+            except OSError as exc:
+                logger.warning('Published revision marker could not be written: %s', exc)
             self._attempt_dir = None  # Published files are never cancellation cleanup.
             self._remove_file_if_exists(input_path, 'source audio')
             if separate_media:
