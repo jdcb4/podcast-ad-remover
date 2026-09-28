@@ -15,6 +15,7 @@ def make_request(
     headers: dict[str, str] | None = None,
     session: dict | None = None,
     query_string: str = "",
+    method: str = "GET",
 ) -> Request:
     raw_headers = [
         (key.lower().encode("latin-1"), value.encode("latin-1"))
@@ -22,7 +23,7 @@ def make_request(
     ]
     scope = {
         "type": "http",
-        "method": "GET",
+        "method": method,
         "path": path,
         "raw_path": path.encode("ascii"),
         "query_string": query_string.encode("ascii"),
@@ -39,6 +40,38 @@ def enable_dashboard_auth() -> None:
     with get_db_connection() as conn:
         conn.execute("UPDATE app_settings SET auth_enabled = 1 WHERE id = 1")
         conn.commit()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+async def test_auth_disabled_rejects_cross_origin_management_writes(isolated_data_dir, method):
+    init_db()
+    with get_db_connection() as conn:
+        conn.execute("UPDATE app_settings SET auth_enabled = 0 WHERE id = 1")
+        conn.commit()
+    calls = []
+
+    async def call_next(request):
+        calls.append(request.url.path)
+        return Response("ok")
+
+    response = await auth_middleware(make_request(
+        "/admin/system/storage", method=method,
+        headers={"origin": "https://unrelated.example"},
+    ), call_next)
+    assert response.status_code == 403
+    assert calls == []
+
+    for headers in ({"origin": "http://testserver"}, {}):
+        response = await auth_middleware(make_request(
+            "/admin/system/storage", method=method, headers=headers,
+        ), call_next)
+        assert response.status_code == 200
+
+    response = await auth_middleware(make_request(
+        "/admin/system/storage", headers={"origin": "https://unrelated.example"},
+    ), call_next)
+    assert response.status_code == 200
 
 
 def set_feed_auth(enabled: bool, username: str | None = None, password_hash: str | None = None) -> None:

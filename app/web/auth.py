@@ -115,6 +115,12 @@ async def auth_middleware(request: Request, call_next):
        path.startswith("/audio/"):
         return await call_next(request)
 
+    # Local installs without login still need protection from cross-site forms.
+    if not is_same_origin_request(request, settings["app_external_url"]):
+        client_ip = get_client_ip(request)
+        logger.warning(f"AUTH - Cross-origin unsafe request blocked: {client_ip} - Path: {path}")
+        return JSONResponse(status_code=403, content={"detail": "Cross-origin management requests are not allowed"})
+
     # 2. USER AUTHENTICATION CHECK
     # Only if auth is enabled
     if settings['auth_enabled']:
@@ -133,11 +139,6 @@ async def auth_middleware(request: Request, call_next):
             logger.info(f"AUTH - Unauthorized access attempt: {client_ip} - Path: {path}")
             return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
-        if not is_same_origin_request(request, settings["app_external_url"]):
-            client_ip = get_client_ip(request)
-            logger.warning(f"AUTH - Cross-origin unsafe request blocked: {client_ip} - Path: {path}")
-            return JSONResponse(status_code=403, content={"detail": "Cross-origin management requests are not allowed"})
-        
         # Check if password change is required
         with get_db_connection() as conn:
             settings_row = conn.execute("SELECT require_password_change FROM app_settings WHERE id = 1").fetchone()

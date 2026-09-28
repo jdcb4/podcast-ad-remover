@@ -12,7 +12,7 @@ on a network you intend to trust. One Uvicorn worker per data directory is the s
   feed authentication. Startup and settings forms reject known example placeholders.
 - `COOKIE_SECURE=true` makes cookies HTTPS-only. `ENVIRONMENT=production` disables debug
   and interactive API docs; it does **not** automatically enable secure cookies or login.
-- SameSite=Lax cookies and same-origin checks protect authenticated management mutations.
+- SameSite=Lax cookies protect dashboard sessions. Same-origin checks protect management mutations even when dashboard login is disabled.
   Configure the public application URL to match the browser-facing origin.
 - Owners/admins manage podcast settings and episode processing/removal. Other members have
   read/library/discovery access; deleting the global podcast is admin-only. Pure ownership
