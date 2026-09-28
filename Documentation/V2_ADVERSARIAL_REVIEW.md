@@ -26,3 +26,7 @@ The offline migration stall hypothesis is operationally plausible when processin
 ## Verification
 
 Regression tests exercise cross-origin/opaque-origin requests, staging/commit failure markers, deferred deletion/retry and historical URL equivalence while preserving path case. Full verification and local redeployment are required for the accepted batch. A separate rendered UI check covers the changed theme/navigation controls; it does not retroactively make Antigravity's review a visual audit.
+
+Completed qualification: `npm run verify:docker` passed **680 tests, six skipped**, Python syntax, CSS build, frontend/Python dependency audits and the Docker build. Code deployed locally as `dev-5234c20`; Docker healthy, representative pages HTTP 200, SQLite integrity OK and 1,082 episodes preserved. Live cross-origin and opaque-Origin management probes returned 403. Desktop/light and mobile/light/dark inspection confirmed the changed navigation colors; mobile backdrop dismissal and 390px overflow checks passed. The mechanical design scan flagged existing palette/font/style choices outside this narrow fix, which were preserved. No production promotion or registry push occurred.
+
+Antigravity conversation: `6398e698-eff2-406f-aae4-9e7a9916dbd0` (resume with `agy --conversation=6398e698-eff2-406f-aae4-9e7a9916dbd0` from the review project). The CLI review completed and was closed normally.
