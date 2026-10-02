@@ -766,6 +766,8 @@ def init_db():
     """, (DEFAULT_OPENROUTER_MODEL_CASCADE,))
 
     _apply_formal_migrations(conn)
+    if not db_existed:
+        cursor.execute("UPDATE app_settings SET whisper_cpu_threads=3 WHERE id=1")
     if not db_existed and any(version == V2_MIGRATION for version, _ in FORMAL_MIGRATIONS):
         cursor.execute("UPDATE app_settings SET onboarding_status='not_started', default_watermark_artwork=1, cut_tone_enabled=1, default_ai_rewrite_description=0, default_ai_audio_summary=0, default_append_title_intro=0 WHERE id=1")
 

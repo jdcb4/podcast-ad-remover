@@ -1,5 +1,15 @@
 # Podcast Ad Remover
 
+### Resource limits
+
+Fresh installs use three Whisper CPU threads; upgrades preserve your saved value.
+This limits transcription threads, not the whole container, and does not reserve
+a CPU core for other applications. Consider setting Docker CPU and memory limits
+according to how much resource you want peak transcription to use. Leave enough
+RAM for your chosen Whisper model, concurrent work and the web interface; a memory
+limit that is too low can cause Docker to kill processing. Smaller models and
+supported int8 precision can reduce demand. See [Docker resource constraints](https://docs.docker.com/engine/containers/resource_constraints/).
+
 Self-hosted podcast processing that removes selected content and publishes replacement RSS feeds for your usual podcast player.
 
 PAR downloads episodes, transcribes them locally with **faster-whisper**, asks a structured-output model to classify the complete timeline, and uses FFmpeg to remove the categories you choose. Optional API speech can add a generated title or summary.

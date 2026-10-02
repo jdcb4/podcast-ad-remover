@@ -45,3 +45,14 @@ def test_migration_is_backed_up_and_idempotent(isolated_data_dir, monkeypatch):
         assert (row['whisper_device'], row['whisper_compute_type'], row['whisper_model']) == ('cpu', 'float32', 'small')
         assert conn.execute("SELECT count(*) FROM schema_migrations WHERE version=?", (CUDA_SETTINGS_MIGRATION,)).fetchone()[0] == 1
     assert list((isolated_data_dir / 'db' / 'backups').glob('*.db')) or list(isolated_data_dir.rglob('*before-migration*.db'))
+
+
+def test_fresh_threads_and_preserved_explicit_auto(isolated_data_dir):
+    init_db()
+    with get_db_connection() as conn:
+        assert conn.execute("SELECT whisper_cpu_threads FROM app_settings").fetchone()[0] == 3
+        conn.execute("UPDATE app_settings SET whisper_cpu_threads=0")
+        conn.commit()
+    init_db()
+    with get_db_connection() as conn:
+        assert conn.execute("SELECT whisper_cpu_threads FROM app_settings").fetchone()[0] == 0

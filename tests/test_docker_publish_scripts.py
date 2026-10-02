@@ -72,3 +72,46 @@ def test_package_exposes_separate_dev_build_and_publish_commands():
 
     assert package_json["scripts"]["docker:dev"] == "python scripts/publish_dev_docker.py"
     assert package_json["scripts"]["docker:dev:publish"].endswith("--push")
+
+
+@pytest.mark.parametrize("available,push", [(True,False),(True,True),(False,False),(False,True)])
+def test_build_commands(monkeypatch, available, push):
+    from types import SimpleNamespace
+    from scripts import publish_experimental_docker as build
+    calls = []
+    def execute(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=0 if available or command[1] != "buildx" else 1,
+                               stdout="linux/x86_64")
+    monkeypatch.setattr(build.subprocess, "run", execute)
+    build.build_image("linux/amd64", ["repo:test", "repo:test2"], ["X=1"], push)
+    command = next(c for c in calls if "--platform" in c)
+    assert "--build-arg" in command and "X=1" in command
+    assert "repo:test2" in command
+    assert ("--push" in command) == (available and push)
+    assert len([c for c in calls if c[1] == "push"]) == (2 if push and not available else 0)
+
+
+@pytest.mark.parametrize("target,host", [("linux/arm64","linux/x86_64"),("linux/amd64","linux/aarch64"),("linux/amd64","")])
+def test_fallback_rejects_wrong_architecture(monkeypatch, target, host):
+    from types import SimpleNamespace
+    from scripts import publish_experimental_docker as build
+    monkeypatch.setattr(build.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=1, stdout=host))
+    with pytest.raises(SystemExit):
+        build.build_image(target, ["repo:test"], [], False)
+
+
+def test_build_failure_does_not_fallback(monkeypatch):
+    import subprocess
+    from types import SimpleNamespace
+    from scripts import publish_experimental_docker as build
+    calls = []
+    def execute(command, **kwargs):
+        calls.append(command)
+        if "--platform" in command:
+            raise subprocess.CalledProcessError(1, command)
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(build.subprocess, "run", execute)
+    with pytest.raises(subprocess.CalledProcessError):
+        build.build_image("linux/amd64", ["repo:test"], [], True)
+    assert len(calls) == 2
