@@ -476,6 +476,11 @@ class SubscriptionRepository:
         if minimum_retained_seconds is not None:
             minimum_retained_seconds = threshold(minimum_retained_seconds)
         with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            if keep_whole_show and inherit_retention:
+                defaults = conn.execute('SELECT default_retention_limit,default_retention_days,default_manual_retention_days FROM app_settings WHERE id=1').fetchone()
+                retention_limit, retention_days, manual_retention_days = defaults
+                inherit_retention = False
             conn.execute("""
                 UPDATE subscriptions 
                 SET remove_ads = ?, 
@@ -1181,6 +1186,12 @@ def _enqueue_job(conn: sqlite3.Connection, episode_id: int, job_type: str = "pro
         """, (priority, existing["id"]))
         return existing["id"]
 
+    archived = conn.execute("""SELECT j.id FROM jobs j JOIN archive_batches b ON b.id=j.archive_batch_id
+        WHERE j.episode_id=? AND j.type=? AND j.status IN ('cancelled','failed')
+        AND b.status IN ('active','paused') ORDER BY j.id DESC LIMIT 1""", (episode_id, job_type)).fetchone()
+    if archived:
+        conn.execute("UPDATE jobs SET status='queued',next_run_at=CURRENT_TIMESTAMP,error=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?", (archived['id'],))
+        return archived['id']
     cursor = conn.execute("""
         INSERT INTO jobs (episode_id, type, status, priority, next_run_at, processing_snapshot)
         VALUES (?, ?, 'queued', ?, CURRENT_TIMESTAMP, ?)

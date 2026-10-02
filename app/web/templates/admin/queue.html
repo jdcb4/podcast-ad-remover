@@ -121,7 +121,7 @@
                 {% endif %}
                 <div class="min-w-0">
                     <p class="font-medium truncate" title="{{ item.title }}">{{ item.title }}</p>
-                    <p class="text-sm text-text-muted">{{ item.podcast_title }}</p>
+                    <p class="text-sm text-text-muted">{{ item.podcast_title }}{% if item.archive_batch_id %} · Archive batch {{ item.archive_batch_id }}{% endif %}</p>
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-3 flex-shrink-0">
@@ -220,7 +220,7 @@
                     {% endif %}
                     <div class="min-w-0">
                         <p class="text-sm font-medium text-text-secondary truncate" title="{{ item.title }}">{{ item.title }}</p>
-                        <p class="text-xs text-text-muted">{{ item.podcast_title }}</p>
+                        <p class="text-xs text-text-muted">{{ item.podcast_title }}{% if item.archive_batch_id %} · Archive batch {{ item.archive_batch_id }}{% endif %}</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 text-xs text-text-muted flex-shrink-0">

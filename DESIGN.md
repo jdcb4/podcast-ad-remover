@@ -159,3 +159,9 @@ Unavailable speech switches retain their saved preferences and show disabled con
 - Don't introduce invented status metrics or decorative live badges.
 - Don't turn the standalone configurator palette into the app theme.
 - Don't treat legacy display utilities or overlay wrappers as new shared patterns.
+
+## October 2026 settings refinement
+
+Keep the existing visual identity. Place Save at the top of each settings form; put immediate actions in labelled rows and report their outcome without saving unrelated drafts. Use aligned control columns, units in labels and mobile stacking. Model/voice refresh buttons are 44px icon controls beside selectors. Voice preview uses the unsaved selection. Prompt definitions stay expanded and grow with their contents; Restore default changes only the draft. GPU, retention/timing and system resource sections stay expanded.
+
+Podcast settings starts collapsed with an accessible chevron. Its compact groups retain inheritance and effective-value controls. Owner, source replacement, whole-show batches and labelled deletion live inside it. Subscription actions share the authenticated dialog and remain visible without hover. Upgrade history is historical migration information, not a live status panel.

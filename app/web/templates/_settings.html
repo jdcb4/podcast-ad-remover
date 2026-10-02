@@ -2,7 +2,7 @@
 <label class="setting-row" for="{{ name }}"><span>{{ label }}</span><input class="setting-switch" type="checkbox" id="{{ name }}" name="{{ name }}" value="true" {% if checked %}checked{% endif %} {% if disabled %}disabled aria-describedby="speech-unavailable"{% endif %}></label>
 {% endmacro %}
 {% macro number(name, label, value, unit='', min=0, max=100000, step=1) %}
-<label class="setting-row" for="{{ name }}"><span>{{ label }}</span><span class="setting-control"><input class="input" type="number" id="{{ name }}" name="{{ name }}" value="{{ value }}" min="{{ min }}" max="{{ max }}" step="{{ step }}" required><span>{{ unit }}</span></span></label>
+<label class="setting-row" for="{{ name }}"><span>{{ label }}{% if unit %} ({{ unit }}){% endif %}</span><span class="setting-control"><input class="input" type="number" id="{{ name }}" name="{{ name }}" value="{{ value }}" min="{{ min }}" max="{{ max }}" step="{{ step }}" required></span></label>
 {% endmacro %}
 {% macro text(name, label, value='', type='text', required=false) %}
 <label class="setting-row" for="{{ name }}"><span>{{ label }}</span><input class="input" id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ value or '' }}" {% if required %}required{% endif %}></label>

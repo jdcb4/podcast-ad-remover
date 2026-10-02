@@ -58,7 +58,7 @@ In Docker, set `BASE_URL` or the System Settings public application URL to a hos
 - **Podcast defaults:** ads, promos, intros, outros, non-editorial non-speech, optional summaries/title intros/artwork badge, one cut tone switch, retention, advanced short-island threshold (10 seconds; zero disables).
 - **Unified feed:** name, podcast-name prefix, and bundled/external/uploaded artwork. Description is fixed. Raster uploads support PNG/JPEG/WebP up to 5 MB and 4096 pixels, re-encoded as JPEG.
 - **Prompt rules:** category definitions and summary instructions; defaults can be restored per rule. Podcast-specific guidance is always applied when nonempty under advanced podcast settings.
-- **System:** concurrent downloads, check interval, retention, thread limits and download redirect limit (0–50; zero disallows redirects).
+- **System:** concurrent downloads, check interval, retention, thread limits (three Whisper CPU threads on fresh installs; existing values preserved) and download redirect limit (0–50; zero disallows redirects).
 - **Users & access:** dashboard/feed authentication, IP allowlist, users, access requests, feed tokens and API tokens/limits. Existing ownership behavior is unchanged.
 - **Notifications:** Apprise destinations and event toggles. **Logs:** existing viewer.
 

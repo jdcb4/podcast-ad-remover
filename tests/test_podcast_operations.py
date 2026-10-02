@@ -188,3 +188,35 @@ def test_history_pagination_and_loop(monkeypatch):
     monkeypatch.setattr(ops.FeedManager,'_fetch_feed',lambda url:feed('1','/one'))
     with pytest.raises(ValueError,match='loops'):
         ops.discover_history('https://example.org/one')
+
+
+def test_missing_dates_last_and_repair_cannot_escape_pause(show):
+    sid,entries=show
+    entries[1]['pub_date']=None
+    batch=ops.confirm(sid,ops.preview(sid,'archive')['preview_id'])['batch_id']
+    with get_db_connection() as conn:
+        order=conn.execute('SELECT e.guid FROM jobs j JOIN episodes e ON e.id=j.episode_id ORDER BY j.archive_position').fetchall()
+        assert [r[0] for r in order]==['2','3','1']
+        conn.execute("UPDATE jobs SET status='cancelled' WHERE episode_id=(SELECT id FROM episodes WHERE guid='2')")
+        conn.commit()
+    ops.control(sid,batch,'pause')
+    JobRepository().repair_missing_active_jobs()
+    assert JobRepository().claim_due(5)==[]
+    with get_db_connection() as conn:
+        assert conn.execute('SELECT count(*) FROM jobs').fetchone()[0]==3
+        assert conn.execute('SELECT count(*) FROM jobs WHERE archive_batch_id=?',(batch,)).fetchone()[0]==3
+
+
+def test_exact_guid_and_unique_enclosure_match_without_review(show):
+    sid,entries=show
+    with get_db_connection() as conn:
+        first=conn.execute("INSERT INTO episodes(subscription_id,guid,title,original_url,status) VALUES(?,'1','One','https://old.org/one','completed')",(sid,)).lastrowid
+        second=conn.execute("INSERT INTO episodes(subscription_id,guid,title,original_url,status) VALUES(?,'old-two','Two','https://example.org/2.mp3','completed')",(sid,)).lastrowid
+        conn.commit()
+    p=ops.preview(sid,'feed','https://new.org/feed')
+    matches={x['entry']['guid']:x['episode_id'] for x in p['items']}
+    assert matches=={'1':first,'2':second,'3':None}
+    ops.confirm(sid,p['preview_id'],{'3':None})
+    with get_db_connection() as conn:
+        assert conn.execute('SELECT guid FROM episodes WHERE id=?',(second,)).fetchone()[0]=='old-two'
+        assert conn.execute('SELECT count(*) FROM jobs').fetchone()[0]==0

@@ -60,10 +60,10 @@
   try { const response=await fetch('/admin/ai/cuda/setup',{method:'POST'}); document.getElementById('cuda-message').textContent=response.ok?'GPU setup started; status will update below.':'GPU setup failed. Check logs.'; } catch (_) { document.getElementById('cuda-message').textContent='Could not reach the server.'; }
  });
  document.getElementById('preview-speech')?.addEventListener('click',async()=>{
-  const status=document.getElementById('speech-status'); status.textContent='Generating preview…';
-  try { const response=await fetch('/admin/ai/voice/preview',{method:'POST'}); if(!response.ok) throw new Error((await response.json()).detail);
+  const status=document.getElementById('speech-status'),button=document.getElementById('preview-speech');button.disabled=true;status.textContent='Generating preview…';
+  try { const response=await fetch('/admin/ai/voice/preview',{method:'POST',body:new FormData(document.getElementById('aiForm'))}); if(!response.ok) throw new Error((await response.json()).detail);
    const audio=document.getElementById('speech-preview'); if(audio.src) URL.revokeObjectURL(audio.src); audio.src=URL.createObjectURL(await response.blob()); audio.hidden=false; status.textContent='Preview ready';
-  } catch(error) {status.textContent=error.message;}
+  } catch(error) {status.textContent=error.message;}finally{previewEnabled();}
  });
  const speechProvider=document.getElementById('speech-provider');
  const speechOptions={};
@@ -99,7 +99,7 @@
   const field=document.getElementById(id);field.hidden=event.target.value!=='__manual__';
   if(event.target.value==='__manual__'){field.focus();field.select();}else{field.value=event.target.value;field.dispatchEvent(new Event('input',{bubbles:true}));}
  });
- document.getElementById('refresh-speech-catalog')?.addEventListener('click',async event=>{
+ document.querySelectorAll('[data-refresh-speech]').forEach(refresh=>refresh.addEventListener('click',async event=>{
   const button=event.currentTarget,status=document.getElementById('speech-catalog-status'),request=++catalogRequest;
   const data=new FormData();data.set('provider',speechProvider.value);data.set('model',document.getElementById('speech-model').value);
   data.set('api_key',document.querySelector('[name=speech_credential]').value);data.set('base_url',document.querySelector('[name=tts_base_url]').value);
@@ -107,11 +107,11 @@
   try{const response=await fetch('/admin/ai/voice/catalog',{method:'POST',body:data});const catalog=await response.json();
    if(request!==catalogRequest)return;
    if(!response.ok)throw Error(catalog.detail||'Could not refresh catalog.');
-   options('speech-models',catalog.models);options('speech-voices',catalog.voices);
+   if(button.dataset.refreshSpeech==='models')options('speech-models',catalog.models);else options('speech-voices',catalog.voices);
    if(speechProvider.value==='gemini')speechOptions['speech-voices']=speechOptions['speech-voices'].filter(o=>o.provider!=='gemini').concat(catalog.voices.map(value=>({provider:'gemini',value})));
    status.textContent=`${catalog.models.length} models · ${catalog.voices.length} voices. ${catalog.note}`;
   }catch(error){if(request===catalogRequest)status.textContent=error.message;}finally{button.disabled=false;}
- });
+ }));
  function showProvider() { document.querySelectorAll('[data-provider-panel]').forEach(panel => { panel.hidden=panel.dataset.providerPanel!==provider.value; panel.querySelectorAll('input,select').forEach(input=>input.disabled=panel.hidden); }); }
  if(provider) { provider.addEventListener('change',showProvider); showProvider(); }
  document.querySelectorAll('[data-refresh-models],[data-test-provider]').forEach(button=>button.addEventListener('click',async()=>{
@@ -149,4 +149,42 @@
  });
  if(location.hash==='#processing-settings') document.getElementById('settings-form')?.classList.remove('hidden');
  filterMobile();
+ const previewButton=document.getElementById('preview-speech');
+ function previewEnabled(){
+  if(!previewButton)return;
+  const provider=speechProvider.value;
+  const fieldsReady=['speech-model','speech-voice'].every(id=>document.getElementById(id).value.trim());
+  const keyReady=provider==='custom'||speechProvider.selectedOptions[0]?.dataset.credential==='true'||document.querySelector('[name=speech_credential]').value.trim();
+  previewButton.disabled=provider==='unconfigured'||!fieldsReady||!keyReady||(provider==='custom'&&!document.querySelector('[name=tts_base_url]').value.trim());
+ }
+ document.getElementById('aiForm')?.addEventListener('input',previewEnabled);
+ document.getElementById('aiForm')?.addEventListener('change',previewEnabled);previewEnabled();
+ document.querySelectorAll('[data-autosize]').forEach(field=>{const resize=()=>{field.style.height='auto';field.style.height=field.scrollHeight+'px';};field.addEventListener('input',resize);window.addEventListener('resize',resize);resize();});
+ document.getElementById('copy-prompt')?.addEventListener('click',async()=>{const status=document.getElementById('copy-prompt-status');try{await navigator.clipboard.writeText(document.getElementById('timeline-prompt-preview').textContent);status.textContent='Copied';}catch{status.textContent='Could not copy. Select and copy the text manually.';}});
+ document.querySelectorAll('[data-remove-key]').forEach(button=>button.addEventListener('click',async()=>{const status=button.closest('[data-provider-panel]').querySelector('[data-provider-status]');button.disabled=true;try{const response=await fetch('/admin/ai/credentials/'+button.dataset.removeKey,{method:'DELETE'});const data=await response.json();if(!response.ok)throw Error(data.detail);status.textContent=data.message;const keyInput=button.closest('[data-provider-panel]').querySelector('input[type=password]');if(keyInput){keyInput.setAttribute('placeholder','No saved key');keyInput.closest('label').querySelector('span').textContent='API key';}window.appToast?.(data.message,{type:'success'});}catch(error){status.textContent=error.message;}finally{button.disabled=false;}}));
+ const history=document.getElementById('upgrade-history-data');
+ if(history){
+  try{
+   const raw=JSON.parse(history.textContent),data=typeof raw==='string'?JSON.parse(raw):raw,container=document.getElementById('upgrade-history-content');
+   const names={ai_model_cascade:'Gemini text',openai_model:'OpenAI text',anthropic_model:'Anthropic text',openrouter_model:'OpenRouter text',custom_llm_model:'Custom text',gemini_tts_model_cascade:'Gemini speech'};
+   function section(title){const node=document.createElement('section'),heading=document.createElement('h3');heading.textContent=title;node.className='settings-section';node.append(heading);container.append(node);return node;}
+   function paragraph(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p);}
+   const actions=section('Actions recorded at upgrade');
+   paragraph(actions,data.speech_setup_required?data.speech_action:'No speech configuration action was recorded.');
+   paragraph(actions,'This records the upgrade, so an action shown here may already have been completed.');
+   const models=section('Model selections');
+   if(!data.models?.length)paragraph(models,'No model selections changed.');
+   for(const model of data.models||[]){
+    const item=document.createElement('div');item.className='migration-model';
+    const heading=document.createElement('h4');heading.textContent=names[model.setting]||model.setting;item.append(heading);
+    paragraph(item,'Retained: '+(model.selected||'Not configured'));
+    const details=document.createElement('details'),summary=document.createElement('summary'),list=document.createElement('ul');summary.textContent='Previously configured models';details.append(summary,list);
+    let previous=model.previous;try{previous=JSON.parse(previous);}catch{}
+    for(const value of Array.isArray(previous)?previous:[previous]){const li=document.createElement('li');li.textContent=value||'Not configured';list.append(li);}
+    item.append(details);models.append(item);
+   }
+   for(const [key,title] of [['credential_policy','Credentials'],['cut_tones','Cut tones'],['ownership','Ownership'],['converted_jobs','Queued jobs converted']])if(data[key]!==undefined)paragraph(section(title),String(data[key]));
+   if(data.retired?.length){const node=section('Retired features'),list=document.createElement('ul');for(const value of data.retired){const li=document.createElement('li');li.textContent=value;list.append(li);}node.append(list);}
+  }catch{document.getElementById('upgrade-history-content').textContent='The saved upgrade history cannot be displayed.';}
+ }
 })();

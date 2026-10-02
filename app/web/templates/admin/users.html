@@ -21,21 +21,21 @@
 <details id="access-requests" {% if pending_requests %}open{% endif %}><summary>Access requests ({{ pending_requests|length }})</summary>
 {% for req in pending_requests %}<div class="setting-row"><div><strong>{{ req.username }}</strong><p>{{ req.email or '' }}</p><p>{{ req.reason or '' }}</p></div><div class="flex gap-2"><form method="post" action="/admin/access-requests/{{ req.id }}/approve"><button class="btn-secondary">Approve</button></form><form method="post" action="/admin/access-requests/{{ req.id }}/deny"><button class="btn-secondary">Deny</button></form></div></div>{% else %}<p>No pending requests.</p>{% endfor %}</details>
 <details id="authentication"><summary>Dashboard & feed access</summary>
-<form method="post" action="/admin/system/update"><input type="hidden" name="section" value="access"><input type="hidden" name="redirect_to" value="/admin/users">
+<form method="post" action="/admin/system/update"><div class="setting-row"><span>Settings</span><button class="btn-primary" type="submit">Save access</button></div><input type="hidden" name="section" value="access"><input type="hidden" name="redirect_to" value="/admin/users">
 {{ toggle('auth_enabled','Require dashboard login',settings.auth_enabled) }}
 {{ text('ip_allowlist','IP allowlist',settings.ip_allowlist) }}
 {{ toggle('public_subscribe_page_enabled','Public subscription page',settings.public_subscribe_page_enabled) }}
 {{ toggle('enable_feed_auth','Protect feeds and audio',settings.enable_feed_auth) }}
 <details><summary>Standalone feed credentials</summary><p class="text-sm text-text-muted">Only needed for protected feeds when dashboard login is off. Blank password keeps the saved value.</p>
 {{ text('feed_auth_username','Username',settings.feed_auth_username) }}{{ text('feed_auth_password','Password',type='password') }}</details>
-<button class="btn-primary">Save access</button></form></details>
+</form></details>
 <details id="api-tokens" {% if new_api_token %}open{% endif %}><summary>API tokens</summary>
-<form method="post" action="/admin/system/update"><input type="hidden" name="section" value="api"><input type="hidden" name="redirect_to" value="/admin/users">
+<form method="post" action="/admin/system/update"><div class="setting-row"><span>Settings</span><button class="btn-primary" type="submit">Save API limits</button></div><input type="hidden" name="section" value="api"><input type="hidden" name="redirect_to" value="/admin/users">
 {{ toggle('ai_api_enabled','Enable API',settings.ai_api_enabled) }}
 {{ number('ai_api_default_requests_per_minute','Default requests per minute',settings.ai_api_default_requests_per_minute,min=1,max=10000) }}
 {{ number('ai_api_default_requests_per_day','Default requests per day',settings.ai_api_default_requests_per_day,min=1,max=1000000) }}
 {{ number('ai_api_unauth_requests_per_minute','Unauthenticated requests per minute',settings.ai_api_unauth_requests_per_minute,min=1,max=1000) }}
-<button class="btn-primary">Save API limits</button></form>
+</form>
 {% include 'admin/_api_tokens.html' %}</details>
 <details id="feed-tokens"><summary>Feed tokens</summary><p class="text-sm text-text-muted">A token link is a bearer secret: anyone with it can access the feed until the token is revoked.</p>
 {% for token in active_feed_tokens %}<div class="setting-row"><span>{{ token.name }} · {{ token.username or 'Shared' }}</span><form method="post" action="/admin/feed-token/{{ token.id }}/revoke" onsubmit="return appConfirmSubmit(this, 'Revoke this feed token? Podcast apps using it will need updated feed URLs.', { danger: true });"><button class="btn-secondary">Revoke</button></form></div>{% else %}<p>No active feed tokens.</p>{% endfor %}

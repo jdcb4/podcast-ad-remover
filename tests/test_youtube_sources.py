@@ -341,7 +341,7 @@ def test_one_youtube_source_failure_does_not_abort_other_sources(isolated_data_d
         working_episode = conn.execute(
             "SELECT status FROM episodes WHERE subscription_id = ?", (working.id,)
         ).fetchone()
-    assert "extractor unavailable" in broken_state["last_check_error"]
+    assert "Feed check failed" in broken_state["last_check_error"]
     assert working_episode["status"] == "pending"
 
 

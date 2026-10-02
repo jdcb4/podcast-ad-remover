@@ -15,7 +15,7 @@ DISCOVERY_SECONDS = 120
 
 
 def discover_history(url):
-    entries, seen_pages, seen_guids = [], set(), set()
+    entries, seen_pages, seen_guids = [], set(), {}
     size = 0
     started = time.monotonic()
     for _ in range(50):
@@ -32,8 +32,10 @@ def discover_history(url):
         if parsed.bozo or not parsed.feed.get('title'):
             raise ValueError('The source did not return a valid podcast feed.')
         for item in FeedManager.episodes_from_parsed(parsed):
+            if item['guid'] in seen_guids and seen_guids[item['guid']] != item['original_url']:
+                raise ValueError('Feed contains conflicting duplicate GUIDs; history is incomplete.')
             if item['guid'] not in seen_guids:
-                seen_guids.add(item['guid'])
+                seen_guids[item['guid']] = item['original_url']
                 item['pub_date'] = item['pub_date'].isoformat() if item['pub_date'] else None
                 entries.append(item)
         if len(entries) > 10000:
@@ -43,7 +45,7 @@ def discover_history(url):
             return entries
         if len(set(links)) != 1:
             raise ValueError('Ambiguous feed pagination; nothing was queued.')
-        url = urljoin(url, links[0])
+        url = urljoin(getattr(raw, 'url', url), links[0])
     raise ValueError('History exceeds 50 pages; nothing was queued.')
 
 
@@ -56,7 +58,7 @@ def _subscription(conn, sub_id):
 
 def _fingerprint(conn, sub_id):
     sub = _subscription(conn, sub_id)
-    for key in ('last_checked', 'last_check_error', 'last_check_at', 'last_successful_check', 'last_check_truncated'):
+    for key in ('last_checked_at', 'last_check_error', 'last_check_error_at', 'source_truncated'):
         sub.pop(key, None)
     data = [sub,
             [tuple(r) for r in conn.execute('SELECT id,guid,original_url,status FROM episodes WHERE subscription_id=? ORDER BY id', (sub_id,))],
@@ -133,6 +135,8 @@ def _available(conn, sub_id, kind, url):
     if conn.execute("SELECT 1 FROM archive_batches WHERE subscription_id=? AND status IN ('active','paused')", (sub_id,)).fetchone():
         raise ValueError('Finish or cancel the existing archive batch first.')
     if kind == 'feed':
+        if conn.execute("SELECT 1 FROM episodes WHERE subscription_id=? AND status='processing'", (sub_id,)).fetchone():
+            raise ValueError('Wait for this podcast’s active processing to finish before changing its source.')
         if conn.execute("SELECT 1 FROM jobs j JOIN episodes e ON e.id=j.episode_id WHERE e.subscription_id=? AND j.status IN ('queued','running','retry_scheduled','rate_limited')", (sub_id,)).fetchone():
             raise ValueError('Finish or cancel this podcast’s queued/running work before changing its source.')
         for row in conn.execute('SELECT id,feed_url FROM subscriptions WHERE id!=?', (sub_id,)):

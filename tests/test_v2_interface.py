@@ -151,3 +151,89 @@ def test_speech_catalog_failure_does_not_expose_endpoint_details(client, monkeyp
     monkeypatch.setattr(speech_catalog,'refresh_catalog',fail)
     response=client.post('/admin/ai/voice/catalog',data={'provider':'openai'},headers={'Origin':'http://testserver'})
     assert response.status_code==502 and 'secret-token' not in response.text
+
+
+def test_unsaved_voice_preview_uses_draft_without_saving(client, monkeypatch):
+    from pathlib import Path
+    from app.core import speech
+    from app.core.config import settings
+    from app.core.provider_settings import credential
+    before = web.get_global_settings()
+    seen = {}
+    monkeypatch.setattr(settings, 'OPENAI_API_KEY', 'environment-fixture')
+    async def generate(text, path, values):
+        seen.update(values)
+        seen['resolved_key'] = credential('openai', values)
+        seen['path'] = path
+        Path(path).write_bytes(b'RIFFsynthetic-preview')
+    monkeypatch.setattr(speech,'generate_speech',generate)
+    response=client.post('/admin/ai/voice/preview',data={
+        'tts_provider':'openai','tts_model':'draft-model','tts_voice':'draft-voice',
+        'speech_credential':'draft-fixture','tts_base_url':''},headers={'Origin':'http://testserver'})
+    assert response.status_code==200
+    assert seen['tts_model']=='draft-model' and seen['tts_voice']=='draft-voice'
+    assert seen['resolved_key']=='environment-fixture'
+    assert web.get_global_settings()==before
+    assert not Path(seen['path']).exists()
+    assert b'fixture' not in response.content
+    assert client.post('/admin/ai/voice/preview',headers={'Origin':'https://evil.invalid'}).status_code==403
+
+
+def test_remove_only_selected_credential_with_environment_precedence(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings,'OPENAI_API_KEY','environment-fixture')
+    with get_db_connection() as conn:
+        conn.execute("UPDATE app_settings SET openai_api_key='saved-fixture',gemini_api_key='keep-fixture',tts_provider='openai' WHERE id=1")
+        conn.commit()
+    response=client.delete('/admin/ai/credentials/openai',headers={'Origin':'http://testserver'})
+    assert response.status_code==200
+    assert 'environment credential remains active' in response.text and 'Voice' in response.text
+    assert 'fixture' not in response.text
+    values=web.get_global_settings()
+    assert values['openai_api_key'] is None and values['gemini_api_key']=='keep-fixture'
+    assert client.delete('/admin/ai/credentials/gemini',headers={'Origin':'https://evil.invalid'}).status_code==403
+    assert web.get_global_settings()['gemini_api_key']=='keep-fixture'
+
+
+def test_voice_actions_require_admin(client):
+    from app.web.auth import require_admin
+    from fastapi import HTTPException
+    def denied():
+        raise HTTPException(403,'Administrator required')
+    client.app.dependency_overrides[require_admin]=denied
+    assert client.post('/admin/ai/voice/preview').status_code==403
+    assert client.delete('/admin/ai/credentials/openai').status_code==403
+
+
+def test_voice_catalog_refresh_preserves_manual_selection_in_browser(client):
+    import json, shutil, subprocess
+    with get_db_connection() as conn:
+        conn.execute("UPDATE app_settings SET tts_provider='openai',tts_model='manual-model',tts_voice='manual-voice',openai_api_key='fixture' WHERE id=1")
+        conn.commit()
+    html=client.get('/admin/ai/voice').text
+    script=r'''
+const {JSDOM}=require('jsdom'),fs=require('node:fs'),assert=require('node:assert/strict');
+const html=JSON.parse(fs.readFileSync(0,'utf8'));
+const dom=new JSDOM(html,{url:'http://testserver/admin/ai/voice',runScripts:'outside-only'}),w=dom.window;
+w.matchMedia=()=>({addEventListener(){}});
+w.fetch=async()=>({ok:true,json:async()=>({models:['discovered-model'],voices:['discovered-voice'],note:'Fixture'})});
+w.eval(fs.readFileSync('app/web/static/js/v2.js','utf8'));
+(async()=>{
+ for(const type of ['models','voices']){
+  w.document.querySelector(`[data-refresh-speech=${type}]`).click();
+  await new Promise(resolve=>setImmediate(resolve));
+ }
+ assert.equal(w.document.getElementById('speech-model').value,'manual-model');
+ assert.equal(w.document.getElementById('speech-voice').value,'manual-voice');
+ assert.equal(w.document.getElementById('speech-model-picker').value,'__manual__');
+ assert.equal(w.document.getElementById('preview-speech').disabled,false);
+ w.fetch=async()=>({ok:false,json:async()=>({detail:'Discovery unavailable'})});
+ w.document.querySelector('[data-refresh-speech=models]').click();
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(w.document.getElementById('speech-catalog-status').textContent,'Discovery unavailable');
+ assert.equal(w.document.getElementById('speech-model').value,'manual-model');
+ dom.window.close();
+})().catch(error=>{console.error(error);process.exitCode=1;dom.window.close();});
+'''
+    result=subprocess.run([shutil.which('node'),'--input-type=commonjs','-e',script],input=json.dumps(html),text=True,capture_output=True)
+    assert result.returncode==0,result.stderr

@@ -41,6 +41,15 @@ def slugify(text: str) -> str:
     text = re.sub(r'[-\s]+', '-', text).strip('-')
     return text
 
+
+class FeedDocument(bytes):
+    """Feed bytes with their final URL for resolving explicit pagination links."""
+
+    def __new__(cls, content, url):
+        document = super().__new__(cls, content)
+        document.url = url
+        return document
+
 class FeedManager:
     @staticmethod
     @_private_request
@@ -61,7 +70,7 @@ class FeedManager:
                     if total > settings.MAX_FEED_BYTES:
                         raise ValueError("Feed is larger than the configured maximum size")
                     chunks.append(chunk)
-                return b"".join(chunks)
+                return FeedDocument(b"".join(chunks), str(response.url))
 
     @staticmethod
     def parse_feed(url: str) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
