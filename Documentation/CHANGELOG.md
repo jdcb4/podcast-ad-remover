@@ -2,6 +2,7 @@
 
 ## Unreleased — V2 development
 
+- Update pinned oauthlib to 4.0.0 and urllib3 to 2.8.0 to resolve the dependency advisories reported during the October 2 Dev build.
 - Reject cross-origin management writes even when dashboard login is disabled, protecting local/trusted-network installs from cross-site form submissions.
 - Address the Antigravity review: reject opaque browser origins, mark audio revisions published only after commit, defer deletion during storage migration, share duplicate feed identity across add/import paths, and fix light-theme settings contrast. See [review disposition](V2_ADVERSARIAL_REVIEW.md) for accepted findings and deferred proposals.
 
