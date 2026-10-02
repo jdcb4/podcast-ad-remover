@@ -53,3 +53,6 @@ Local transcription remains faster-whisper. FFmpeg, CTranslate2 and shared depen
 Stop the new application, preserve its current data for diagnosis, and restore the pre-upgrade database into a separate recovery directory together with its matching media tree. Do not combine that database with newer WAL/SHM files. Start the recorded prior immutable image against the recovered copy, initially with processing disabled, and verify login, feeds and playback before switching traffic.
 
 **An image-only downgrade is unsupported after V2 database writes.** See [RECOVERY.md](RECOVERY.md) for the full procedure. A major-version number permits deliberate feature changes, not loss of the user's database or media.
+# Source and archive controls
+
+See [PODCAST_OPERATIONS.md](PODCAST_OPERATIONS.md) for the additive migration, automatic pre-upgrade database backup and rollback requirements. Existing retention values and thread counts (including zero) are preserved; only fresh databases start with three Whisper CPU threads.

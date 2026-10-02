@@ -7,6 +7,32 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple
 from app.core.config import settings
 from app.core.url_utils import validate_http_url, validate_redirect_target
+from contextvars import ContextVar
+from functools import wraps
+import logging
+
+_private_feed_fetch = ContextVar('private_feed_fetch', default=False)
+
+
+class _FeedRequestLogFilter(logging.Filter):
+    def filter(self, record):
+        # Feed URLs can carry paid-feed credentials in the path or query string.
+        return not _private_feed_fetch.get()
+
+
+for _logger_name in ('httpx', 'httpx2', 'httpcore', 'httpcore.connection', 'httpcore.http11'):
+    logging.getLogger(_logger_name).addFilter(_FeedRequestLogFilter())
+
+
+def _private_request(function):
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        token = _private_feed_fetch.set(True)
+        try:
+            return function(*args, **kwargs)
+        finally:
+            _private_feed_fetch.reset(token)
+    return wrapped
 
 def slugify(text: str) -> str:
     """Convert text to a filename-friendly slug."""
@@ -17,6 +43,7 @@ def slugify(text: str) -> str:
 
 class FeedManager:
     @staticmethod
+    @_private_request
     def _fetch_feed(url: str) -> bytes:
         validate_http_url(url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
         with httpx.Client(trust_env=settings.ALLOW_PRIVATE_FEEDS, timeout=30.0) as client:
@@ -63,6 +90,10 @@ class FeedManager:
     def parse_episodes(url: str) -> list:
         """Parse all episodes from feed."""
         d = feedparser.parse(FeedManager._fetch_feed(url))
+        return FeedManager.episodes_from_parsed(d)
+
+    @staticmethod
+    def episodes_from_parsed(d) -> list:
         episodes = []
 
         for entry in d.entries:

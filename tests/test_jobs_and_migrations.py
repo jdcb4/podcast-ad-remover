@@ -129,7 +129,7 @@ def test_init_db_creates_resource_tuning_defaults(isolated_data_dir):
             FROM app_settings WHERE id = 1
         """).fetchone()
 
-    assert row["whisper_cpu_threads"] == 0
+    assert row["whisper_cpu_threads"] == 3
     assert row["ffmpeg_threads"] == 0
     assert row["unload_whisper_after_job"] == 0
     assert row["ai_model_cascade"] == "gemini-3.8-flash"

@@ -259,3 +259,6 @@ legacy on-disk artifacts continue to resolve through constrained compatibility r
 ## 2026-09-27 — V2 simplification
 
 Implement the approved V2_PROPOSAL on dev. Use Complete Timeline exclusively and native schema requests with only valid-object unwrapping. Use one provider model and one credential (environment first). Optional speech is API-only and never silently chooses a paid service after Piper migration. Remove SponsorBlock, preserve YouTube. Consolidate account/token administration, keep setup optional, generate install configuration solely in the browser. Ownership semantics and whisper.cpp remain deferred. No production promotion or Docker publication is implied.
+## 2026-10-03 — Reviewed RSS operations
+
+Source replacement requires reviewed identities and atomic confirmation. Whole-show processing is an RSS-only snapshot batch, lower priority than ordinary work; pause/cancel allows running work to finish. Keep-whole-show retention is explicit and independent of the unchanged discovery window. Ownership rules remain unchanged. See PODCAST_OPERATIONS.md.

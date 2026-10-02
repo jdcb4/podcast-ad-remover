@@ -109,6 +109,25 @@ Example rate-limit response:
 
 When `TRUST_PROXY_HEADERS=true`, client IP detection uses trusted reverse-proxy headers. Only enable that setting behind a proxy that strips client-supplied forwarded headers.
 
+## Reviewed podcast operations
+
+RSS owners and administrators can preview and confirm source replacement or available-history processing. These endpoints require `write` scope, including status/control; legacy unlinked-token access follows existing API rules. See [PODCAST_OPERATIONS.md](PODCAST_OPERATIONS.md) for limits and retention behavior.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/subscriptions/{subscription_id}/operations/preview` | Preview a feed replacement or archive batch. |
+| `POST` | `/api/v1/subscriptions/{subscription_id}/operations/confirm` | Confirm a reviewed preview. |
+| `GET` | `/api/v1/subscriptions/{subscription_id}/archive-batches` | Latest ten batches, status and job counts. |
+| `POST` | `/api/v1/subscriptions/{subscription_id}/archive-batches/{batch_id}` | Pause, resume or cancel. |
+
+Preview body: `{ "kind": "feed", "url": "https://example.org/feed" }` or `{ "kind": "archive" }`. Response includes `preview_id`, `kind`, `total`, `counts` (`completed`, `active`, `excluded`, `eligible`), `items` and `existing_episodes`. Each item contains source `entry`, automatically matched `episode_id` or null, status and suggested candidate IDs. Candidates are hints, never automatic matches.
+
+Confirm body: `{ "preview_id": "…", "choices": { "incoming-guid": 42, "another-guid": null } }`. For feed replacement, every unmatched GUID must map explicitly to an existing episode ID or null (new episode). No two entries may map to one episode. Archive confirmation needs no `choices`. Response is `{ "status": "ok", "batch_id": 123 }` for archives, or null batch ID for replacement.
+
+Previews expire after 30 minutes. Staleness, duplicate destinations, conflicting work or invalid mappings return 409 without changing the feed/queue. Re-preview after a conflict; never silently confirm a changed scope. Control body is `{ "action": "pause" }`, `resume` or `cancel`. Batch statuses are `active`, `paused`, `completed`, `cancelled`; counts use job status names. Already-running episodes finish after pause/cancel.
+
+Subscription settings accept `keep_whole_show` (boolean): skip automatic count/age cleanup while preserving the discovery window. True disables retention inheritance. Archive confirmation freezes effective window values before disabling inheritance. Cancellation does not unset this option. False restores ordinary retention at subsequent cleanup; warn users before doing so.
+
 ## Common Workflows
 
 ### Let an AI answer "what podcasts do I have?"
