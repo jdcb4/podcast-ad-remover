@@ -11,6 +11,11 @@ import sys
 from pathlib import Path
 
 
+try:
+    from .docker_build import build_image
+except ImportError:
+    from docker_build import build_image
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPOSITORY = "jdcb4/podcast-ad-remover"
 DEV_BRANCH = "dev"
@@ -72,21 +77,7 @@ def main() -> int:
     if not args.skip_verify:
         run([sys.executable, "scripts/verify.py"], "Pre-build verification")
 
-    command = [
-        executable("docker"),
-        "buildx",
-        "build",
-        "--platform",
-        args.platform,
-        "--label",
-        f"org.opencontainers.image.revision={git_output('rev-parse', 'HEAD')}",
-    ]
-    for tag in tags:
-        command.extend(["-t", tag])
-    command.append("--push" if args.push else "--load")
-    command.append(".")
-
-    run(command, "Docker dev publish" if args.push else "Docker dev build")
+    build_image(args.platform, tags, [], args.push, labels=[f"org.opencontainers.image.revision={git_output('rev-parse', 'HEAD')}"])
     if args.push and args.repository == DEFAULT_REPOSITORY:
         from publish_configurator import dispatch
         dispatch('dev', git_output('rev-parse', 'HEAD'), tags[1])

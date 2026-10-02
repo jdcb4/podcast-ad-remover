@@ -115,3 +115,21 @@ def test_build_failure_does_not_fallback(monkeypatch):
     with pytest.raises(subprocess.CalledProcessError):
         build.build_image("linux/amd64", ["repo:test"], [], True)
     assert len(calls) == 2
+
+
+def test_fallback_push_failure_is_propagated(monkeypatch):
+    import subprocess
+    from types import SimpleNamespace
+    from scripts import docker_build as build
+    calls=[]
+    def execute(command, **kwargs):
+        calls.append(command)
+        if command[1]=='push':
+            raise subprocess.CalledProcessError(1,command)
+        return SimpleNamespace(returncode=1 if command[1]=='buildx' else 0,stdout='linux/amd64')
+    monkeypatch.setattr(build.subprocess,'run',execute)
+    with pytest.raises(subprocess.CalledProcessError):
+        build.build_image('linux/amd64',['repo:a','repo:b'],[],True,labels=['revision=test'])
+    command=next(c for c in calls if c[1]=='build')
+    assert command[command.index('--label')+1]=='revision=test'
+    assert calls[-1][1:] == ['push','repo:a']

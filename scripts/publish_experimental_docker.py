@@ -65,29 +65,10 @@ def default_tags() -> list[str]:
     return ["experimental", "audit-work", f"audit-work-{sha}"]
 
 
-def build_image(platform: str, tags: list[str], build_args: list[str], push: bool) -> None:
-    docker = executable("docker")
-    available = subprocess.run([docker, "buildx", "version"], capture_output=True).returncode == 0
-    if available:
-        command = [docker, "buildx", "build", "--platform", platform]
-    else:
-        host = subprocess.run([docker, "info", "--format", "{{.OSType}}/{{.Architecture}}"],
-                              capture_output=True, text=True, check=True).stdout.strip()
-        if platform != "linux/amd64" or host not in {"linux/amd64", "linux/x86_64"}:
-            raise SystemExit("Buildx is required unless target and Docker daemon are both Linux AMD64")
-        command = [docker, "build", "--platform", "linux/amd64"]
-    for arg in build_args:
-        command.extend(["--build-arg", arg])
-    for tag in tags:
-        command.extend(["-t", tag])
-    if available:
-        command.append("--push" if push else "--load")
-    command.append(".")
-    run(command, "Docker experimental build")
-    if push and not available:
-        for tag in tags:
-            run([docker, "push", tag], "Push experimental tag")
-    print(("Pushed tags: " if push else "Built locally: ") + ", ".join(tags))
+try:
+    from .docker_build import build_image
+except ImportError:
+    from docker_build import build_image
 
 
 def main() -> int:
