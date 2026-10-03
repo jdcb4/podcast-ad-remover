@@ -306,3 +306,7 @@ The entries below record their version/date at the time. They do not establish t
 
 ### Podcast settings navigation — 2026-10-03
 - Replace the expanded settings grid with desktop tabs and mobile accordions, inherited-setting summaries, and a draft-only save bar. Preserve form submission, timing inheritance and separate management actions.
+
+### Simplified podcast controls — 2026-10-03
+- Desktop tabs expose all controls in three Processing/Manage columns; mobile retains only section-level accordions. Inheritance disables rather than hides controls. Archive processing moves to Manage.
+- Retained-island timing is fixed at 10 seconds for new processing; remove its UI controls and reject alternate API/form values. Existing queued snapshots remain frozen.

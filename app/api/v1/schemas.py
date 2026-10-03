@@ -81,7 +81,7 @@ class SubscriptionSettingsUpdate(BaseModel):
     inherit_processing_workflow: bool | None = None
     remove_editorial_non_speech: Literal[False] | None = None
     remove_non_editorial_non_speech: bool | None = None
-    minimum_retained_seconds: float | None = Field(default=None, ge=0, le=600, allow_inf_nan=False)
+    minimum_retained_seconds: Literal[10] | None = None
 
 
 class ActionResponse(BaseModel):

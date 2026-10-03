@@ -2132,11 +2132,8 @@ async def update_global_subscription_settings(
     from app.core.timeline import WORKFLOWS, threshold
     if default_processing_workflow is not None and default_processing_workflow not in WORKFLOWS:
         raise HTTPException(400, 'Unknown processing workflow')
-    if default_minimum_retained_seconds is not None:
-        try:
-            default_minimum_retained_seconds = threshold(default_minimum_retained_seconds)
-        except ValueError as error:
-            raise HTTPException(400, str(error)) from error
+    if default_minimum_retained_seconds is not None and default_minimum_retained_seconds != 10:
+        raise HTTPException(400, "Retained-island timing is fixed at 10 seconds")
     if timeline_settings_present:
         default_remove_editorial_non_speech = bool(default_remove_editorial_non_speech)
         default_remove_non_editorial_non_speech = bool(default_remove_non_editorial_non_speech)
@@ -2730,11 +2727,8 @@ async def update_settings(
         inherit_processing_workflow = False
     if processing_workflow is not None and processing_workflow not in WORKFLOWS:
         raise HTTPException(400, 'Unknown processing workflow')
-    if minimum_retained_seconds is not None:
-        try:
-            minimum_retained_seconds = threshold(minimum_retained_seconds)
-        except ValueError as error:
-            raise HTTPException(400, str(error)) from error
+    if minimum_retained_seconds is not None and minimum_retained_seconds != 10:
+        raise HTTPException(400, "Retained-island timing is fixed at 10 seconds")
     if timeline_settings_present:
         inherit_processing_workflow = bool(inherit_processing_workflow)
         if inherit_processing_workflow:

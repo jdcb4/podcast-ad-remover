@@ -250,3 +250,10 @@ def test_incomplete_response_gets_one_repair_then_fails_closed(monkeypatch):
     with pytest.raises(AnalysisError, match='Incomplete timeline'):
         detector.classify_timeline(units, 5, {}, snapshot)
     assert len(calls) == 2
+
+def test_new_snapshots_ignore_retired_island_overrides():
+    from app.core.subscription_settings import resolve_subscription_row
+    for inherited in (False, True):
+        row = resolve_subscription_row({'minimum_retained_seconds': 0, 'inherit_content_removal': inherited}, {'default_minimum_retained_seconds': 77})
+        assert row['minimum_retained_seconds'] == 10
+        assert timeline.make_snapshot({'minimum_retained_seconds': 0}, {})['options']['minimum_retained_seconds'] == 10

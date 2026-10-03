@@ -161,10 +161,7 @@
                 <dt>Remove non-editorial non-speech</dt>
                 <dd>{{ 'On' if subscription.remove_non_editorial_non_speech else 'Off' }}</dd>
             </div>
-            <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
-                <dt>Short-island threshold</dt>
-                <dd>{{ subscription.minimum_retained_seconds }}s</dd>
-            </div>
+
             <div class="flex justify-between gap-4 border-b border-ink/[0.06] py-2">
                 <dt>Remove ads</dt>
                 <dd>{{ "On" if subscription.remove_ads else "Off" }}</dd>

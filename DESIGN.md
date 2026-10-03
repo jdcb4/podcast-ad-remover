@@ -178,3 +178,13 @@ preserving drafts. Timing keeps the content-removal inheritance policy even in
 Advanced. Save is shown only when processing preferences differ from the loaded
 values. Owner, feed/archive and delete actions remain separate immediate actions
 with their existing permissions and review safeguards.
+
+## Simplified podcast tabs (2026-10-03)
+
+Desktop Processing has three static columns: Remove content, Enhancements and
+Advanced. All controls remain visible; inheritance disables overrides, never
+hides them. Manage has static Owner, Feed and Process whole show columns. On
+mobile only the top-level sections collapse, with no nested disclosures. The
+retained-island setting is retired: new processing uses10seconds, ignoring old
+stored overrides. Existing queued snapshots retain their frozen policy. Historical
+columns remain for rollback compatibility; no database migration is needed.

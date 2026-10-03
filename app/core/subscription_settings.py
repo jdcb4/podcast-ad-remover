@@ -94,6 +94,7 @@ def resolve_subscription_row(
     if bool(data.get("inherit_default_features", 0)):
         data["append_summary"] = False
 
+    data["minimum_retained_seconds"] = 10
     data["processing_workflow"] = "complete_timeline"
     data["remove_editorial_non_speech"] = False
     data["custom_instructions"] = overrides.get("custom_instructions")

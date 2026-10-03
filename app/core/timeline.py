@@ -110,7 +110,7 @@ def make_snapshot(subscription: dict, settings: dict) -> dict:
     workflow = "complete_timeline"
     options = {field: bool(subscription.get(field, label in {"Ad", "Promo", "NonEditorialNonSpeech"}))
                for label, field in CUT_FIELDS.items()}
-    options["minimum_retained_seconds"] = threshold(subscription.get("minimum_retained_seconds", 10))
+    options["minimum_retained_seconds"] = 10
     return {"version": 1, "workflow": workflow, "prompt_version": PROMPT_VERSION,
             "schema_version": SCHEMA_VERSION, "prompt": build_prompt(settings, subscription.get("custom_instructions")),
             "summary_instructions": settings.get("timeline_summary_instructions") or SUMMARY_DEFAULT,

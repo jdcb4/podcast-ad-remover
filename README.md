@@ -20,7 +20,7 @@ See the [draft release notes and breaking-change list](Documentation/V2_RELEASE_
 
 - **Manage a shared library:** search for podcasts, add RSS feeds or public YouTube channels/playlists, and keep a personal My Podcasts list. Existing ownership rules remain unchanged.
 - **Import subscriptions:** upload Pocket Casts or other OPML exports, upload a text file, or paste one feed URL per line. Review duplicates, select entries, and retry failures. Existing library shows are reused without changing their settings or owner.
-- **Choose what to remove:** ads, promos, intros, outros and non-editorial non-speech. Complete Timeline classification keeps ordinary content and uncertain material; an advanced short-island rule controls very short retained gaps between cuts.
+- **Choose what to remove:** ads, promos, intros, outros and non-editorial non-speech. Complete Timeline classification keeps ordinary content and uncertain material; a fixed 10-second short-island rule removes very short retained gaps between cuts.
 - **Listen in your preferred app:** individual podcast feeds and a Unified Feed, with one RSS subscription action beside search on My Podcasts and Library.
 - **Add optional enhancements:** rewritten descriptions, generated spoken summaries/titles, an ad-free artwork badge, and a tone at content cuts. Fresh installs enable the artwork badge and cut tones; the other enhancements start off.
 - **Use a compact interface:** desktop sidebar, simple mobile podcast rows, consistent settings, light/dark mode, and account/access/token administration together under Users & access.

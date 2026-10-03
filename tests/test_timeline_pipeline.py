@@ -53,10 +53,11 @@ async def test_complete_pipeline_preserves_editorial_audio_and_summary_preferenc
     with get_db_connection() as conn:
         conn.execute("UPDATE app_settings SET cut_tone_enabled=0 WHERE id=1")  # isolate cut durations from optional tones
         conn.execute("INSERT INTO subscriptions(id,feed_url,title,slug,processing_workflow,minimum_retained_seconds,remove_ads,remove_intros,remove_outros,ai_rewrite_description,ai_audio_summary) VALUES(1,'https://example.com/feed','Show','show','complete_timeline',0,1,1,1,?,?)", (rewrite, spoken))
-        conn.execute("INSERT INTO episodes(id,subscription_id,guid,title,original_url,status,duration,description) VALUES(1,1,'guid','Episode','https://example.com/source','pending',6,'Original description')")
+        conn.execute("INSERT INTO episodes(id,subscription_id,guid,title,original_url,status,duration,description) VALUES(1,1,'guid','Episode','https://example.com/source','pending',60,'Original description')")
         conn.commit()
+    # Retained spans meet the fixed ten-second policy; editorial audio stays intact.
     source = tmp_path / 'fixture.mp3'
-    subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=6', str(source)], check=True, timeout=30)
+    subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=60', str(source)], check=True, timeout=30)
     async def download(url, directory, **kwargs):
         destination = Path(directory) / 'original.mp3'
         shutil.copyfile(source, destination)
@@ -71,7 +72,7 @@ async def test_complete_pipeline_preserves_editorial_audio_and_summary_preferenc
         data = json.loads(messages[1]['content'])
         # A synthetic reference classification; the prompt itself receives no cut flags.
         assert 'remove_ads' not in data
-        categories = {0: 'Intro', 1: 'Content', 2: 'EditorialNonSpeech', 3: 'Ad', 4: 'Content', 5: 'Outro'}
+        categories = {0: 'Intro', 10: 'Content', 20: 'EditorialNonSpeech', 30: 'Ad', 40: 'Content', 50: 'Outro'}
         return json.dumps({'segments': [{'first_id': u['id'], 'last_id': u['id'], 'label': categories.get(u['start'], 'Content'), 'reason': 'Synthetic reference'} for u in data['timeline']], 'summary': SUMMARY})
     fake = SimpleNamespace(generate_structured=generate, last_model='fixture-model', last_output_mode='json_schema')
     monkeypatch.setattr(AdDetector, '_get_provider', lambda self: fake)
@@ -91,24 +92,24 @@ async def test_complete_pipeline_preserves_editorial_audio_and_summary_preferenc
     worker = Processor()
     worker.ep_repo = EpisodeRepository(attempt=(claim['job_id'], claim['claim_token']))
     worker.transcriber = SimpleNamespace(transcribe=lambda *a, **k: {'segments': [
-        {'start': 0, 'end': 1, 'text': 'Welcome to the show.'},
-        {'start': 1, 'end': 2, 'text': 'Listen to this sample to understand the rhythm.'},
-        {'start': 3, 'end': 4, 'text': 'Buy a pillow at example.com.'},
-        {'start': 4, 'end': 5, 'text': 'In conclusion, the rhythm explains the genre.'},
-        {'start': 5, 'end': 6, 'text': 'Like and subscribe. Next week we have another episode.'}]})
+        {'start': 0, 'end': 10, 'text': 'Welcome to the show.'},
+        {'start': 10, 'end': 20, 'text': 'Listen to this sample to understand the rhythm.'},
+        {'start': 30, 'end': 40, 'text': 'Buy a pillow at example.com.'},
+        {'start': 40, 'end': 50, 'text': 'In conclusion, the rhythm explains the genre.'},
+        {'start': 50, 'end': 60, 'text': 'Like and subscribe. Next week we have another episode.'}]})
     await worker._process_episode_inner(repo.get_by_id(1), SubscriptionRepository().get_by_id(1), claim)
     completed = repo.get_by_id(1)
     assert completed.status == 'completed', completed.error_message
     assert len(calls) == 1
     assert completed.ai_summary == (SUMMARY if rewrite else None)
     assert spoken_texts == ([SUMMARY] if spoken else [])
-    expected_duration = 9 if spoken else 3
+    expected_duration = 90 if spoken else 30
     assert abs(completed.output_duration - expected_duration) < .25
     report = json.loads(Path(completed.ad_report_path).read_text(encoding='utf-8'))
-    assert [(r['start'], r['end']) for r in report['segments']] == [(0, 1), (3, 4), (5, 6)]
+    assert [(r['start'], r['end']) for r in report['segments']] == [(0, 10), (30, 40), (50, 60)]
     assert report['analysis']['summary'] == SUMMARY
     assert report['analysis']['timeline'][-1]['end'] == report['analysis']['duration']
-    assert any(u['kind'] == 'GAP' and u['start'] == 2 and u['end'] == 3 for u in report['analysis']['timeline'])
+    assert any(u['kind'] == 'GAP' and u['start'] == 20 and u['end'] == 30 for u in report['analysis']['timeline'])
     assert report['edit_policy']['island_seconds'] == 0
     html = Path(completed.report_path).read_text(encoding='utf-8')
     assert 'Editorial non-speech' in html and 'Complete timeline classification' in html
@@ -130,4 +131,4 @@ async def test_complete_pipeline_preserves_editorial_audio_and_summary_preferenc
     assert len(calls) == 1
     assert Path(completed.local_filename).is_file()
     new_report = json.loads(Path(replacement.ad_report_path).read_text(encoding='utf-8'))
-    assert [(r['start'], r['end']) for r in new_report['segments']] == [(3, 4), (5, 6)]
+    assert [(r['start'], r['end']) for r in new_report['segments']] == [(30, 40), (50, 60)]
