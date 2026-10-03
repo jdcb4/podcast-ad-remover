@@ -4,19 +4,20 @@
 {% block admin_content %}
 <h1>System</h1><p class="settings-intro">Manage processing capacity, storage limits and the address used by podcast apps. Changes apply to this installation.</p>
 <form method="post" action="/admin/system/update">
+<div class="setting-row"><span>Settings</span><button class="btn-primary" type="submit">Save</button></div>
 <input type="hidden" name="section" value="system">
 {{ number('concurrent_downloads','Concurrent downloads',settings.concurrent_downloads, min=1,max=10) }}
 {{ number('check_interval_minutes','Check for new episodes',settings.check_interval_minutes,'minutes',min=1) }}
 {{ number('retention_days','File retention',settings.retention_days,'days',min=0) }}
 {{ text('app_external_url','Public application URL',settings.app_external_url,'url') }}
-<details><summary>Resource limits</summary>
+<section class="settings-section"><h2>Resource limits</h2>
 {{ number('whisper_cpu_threads','Transcription CPU threads',settings.whisper_cpu_threads,min=0,max=64) }}
 {{ number('ffmpeg_threads','FFmpeg threads',settings.ffmpeg_threads,min=0,max=64) }}
 <p class="text-sm text-text-muted">Zero uses automatic threading.</p>
 {{ toggle('unload_whisper_after_job','Unload transcription model when idle',settings.unload_whisper_after_job) }}
 {{ number('download_max_redirects','Download redirect limit',settings.download_max_redirects,min=0,max=50) }}
-</details><button class="btn-primary">Save</button></form>
-<p class="mt-6"><a href="/admin/setup" class="btn-secondary">Run setup wizard</a></p>
-<p class="mt-6"><a href="/admin/system/storage" class="btn-secondary">Storage · manage audio location</a></p>
-{% if settings.v2_migration_report %}<details><summary>V2 upgrade report</summary><pre class="text-sm whitespace-pre-wrap">{{ settings.v2_migration_report }}</pre></details>{% endif %}
+</section></form>
+<div class="setting-row"><span>Setup wizard</span><a href="/admin/setup" class="btn-secondary">Run setup wizard</a></div>
+<div class="setting-row"><span>Audio storage</span><a href="/admin/system/storage" class="btn-secondary">Manage audio location</a></div>
+{% if settings.v2_migration_report %}<div class="setting-row"><span>Upgrade history</span><button type="button" class="btn-secondary" data-open-dialog="upgrade-history">View upgrade history</button></div><dialog id="upgrade-history"><div class="dialog-heading"><h2>Upgrade history</h2><button type="button" data-close-dialog>Close</button></div><p>Historical changes recorded during the V2 upgrade, not your current configuration.</p><div id="upgrade-history-content"></div></dialog><script type="application/json" id="upgrade-history-data">{{ settings.v2_migration_report|tojson }}</script>{% endif %}
 {% endblock %}

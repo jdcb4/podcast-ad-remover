@@ -200,6 +200,7 @@ class Processor:
                 
                 for i, ep_data in enumerate(episodes):
                     ep_data['subscription_id'] = sub.id
+                    ep_data['_source_feed_url'] = sub.feed_url
                     
                     # Determine status based on limit
                     should_be_pending = i < actual_limit
@@ -221,12 +222,12 @@ class Processor:
                                 sub.id, 
                                 ep_data['guid'], 
                                 'pending', 
-                                condition_status='unprocessed'
+                                condition_status='unprocessed', expected_feed_url=sub.feed_url
                             )
                 self.sub_repo.record_check_success(sub.id)
             except Exception as e:
-                logger.error(f"Error checking feed {sub.feed_url}: {e}")
-                self.sub_repo.record_check_error(sub.id, str(e))
+                logger.error("Error checking feed for podcast %s (%s)", sub.id, type(e).__name__)
+                self.sub_repo.record_check_error(sub.id, "Feed check failed; check the source URL and availability.")
 
     async def _check_youtube_source(self, sub, source_adapter, initial_limit: int) -> None:
         """Discover bounded public YouTube entries and queue each new item once."""
@@ -282,7 +283,7 @@ class Processor:
 
         self.sub_repo.record_check_success(sub.id, truncated=discovery.truncated)
 
-    async def delete_episode(self, episode_id: int):
+    async def delete_episode(self, episode_id: int, *, automatic: bool = False):
         """Ignore an episode, wait for its worker, then remove artifacts safely."""
         ep = await asyncio.to_thread(self.ep_repo.get_by_id, episode_id)
         if not ep:
@@ -293,7 +294,8 @@ class Processor:
         if not sub:
             return False
 
-        await asyncio.to_thread(self.ep_repo.request_deletion, episode_id)
+        if not await asyncio.to_thread(self.ep_repo.request_deletion, episode_id, automatic=automatic):
+            return False
 
         deadline = asyncio.get_running_loop().time() + self.DELETION_ACK_TIMEOUT_SECONDS
         while await asyncio.to_thread(self.job_repo.is_running_for_episode, episode_id):
@@ -1208,6 +1210,7 @@ class Processor:
                     CROSS JOIN app_settings a
                     WHERE e.status = 'completed' 
                       AND e.is_manual_download = 1
+                      AND s.keep_whole_show=0
                       AND datetime(e.processed_at) < datetime(
                           'now',
                           '-' || CASE
@@ -1243,7 +1246,7 @@ class Processor:
                         ) t
                         JOIN subscriptions s ON t.subscription_id = s.id
                         CROSS JOIN app_settings a
-                        WHERE t.rn > CASE
+                        WHERE s.keep_whole_show=0 AND t.rn > CASE
                             WHEN s.inherit_retention = 1
                                 THEN COALESCE(a.default_retention_limit, 1)
                             ELSE COALESCE(s.retention_limit, 1)
@@ -1256,7 +1259,7 @@ class Processor:
                     logger.error(f"Cleanup Auto Error (Window Function?): {e}")
 
             for ep_id in set(ids_to_delete):
-                await self.delete_episode(ep_id)
+                await self.delete_episode(ep_id, automatic=True)
                 
         except Exception as e:
             logger.error(f"Episode cleanup failed: {e}")

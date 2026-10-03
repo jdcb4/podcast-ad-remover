@@ -79,3 +79,20 @@ pair if necessary. Coordinate disruptive service or network changes with the ope
 Report security issues privately to the repository owner using the repository's available private
 contact or security-reporting channel. Include affected revision, reproduction steps and impact;
 do not post working secrets, private feed URLs, production databases or user transcripts publicly.
+
+## Approved build-only audit exception (2026-10-03)
+
+Joe approved a scoped exception for GHSA-vfj7-8cjw-p6xm (braces <=3.0.3 stack
+exhaustion). No patched braces version is currently available. Tailwind 3 uses
+this package only while building CSS from trusted repository paths; the Docker
+runtime ships compiled CSS, not these npm dependencies. Untrusted brace patterns
+must not be supplied to the build tools. This is an accepted build-time risk,
+not a vulnerability fix or a clean audit claim.
+
+`scripts/audit_frontend.py` accepts only this exact advisory and its transitive
+reports in braces/chokidar/micromatch/fast-glob/tailwindcss, requiring every affected
+lockfile node to remain development-only. Other moderate/high/critical advisories,
+missing audit data and audit failures still fail verification. The exception is
+printed on each run. Revisit when upgrading Tailwind or when a patched braces
+release is available; remove it once the dependency chain is fixed. Raw `npm audit`
+continues to report the advisory.

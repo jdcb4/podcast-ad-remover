@@ -362,7 +362,7 @@
                 <th class="p-3">Retention</th>
                 <th class="p-3">Settings source</th>
                 <th class="p-3">Status</th>
-                <th class="p-3 text-right">Actions</th>
+                <th class="p-3">Subscribe</th><th class="p-3 text-right">Actions</th>
             </tr>
         </thead>
         <tbody id="podcast-table-body" class="divide-y divide-ink/[0.06]">
@@ -410,10 +410,10 @@
                     {% if item.processing_count %}
                     <span class="badge-soft">{{ item.processing_count }} processing</span>
                     {% else %}
-                    <span class="badge-success">Active</span>
+                    <span class="badge-soft">Active</span>
                     {% endif %}
                 </td>
-                <td class="p-3 text-right">
+                <td class="p-3"><button type="button" class="btn-secondary icon-button" data-subscription-help data-feed-url="{{ item.links.rss }}" aria-label="Subscribe to {{ item.sub.title }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="1"/><path d="M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8"/></svg></button></td><td class="p-3 text-right">
                     <a href="/subscriptions/{{ item.sub.id }}" class="text-link hover:text-link-hover">Manage</a>
                 </td>
             </tr>
@@ -432,11 +432,10 @@
         data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}"
         data-recent="{{ item.latest_episode_date|default('') }}">
         <!-- Artwork -->
-        {% if item.artwork_url %}
-        <div class="podcast-artwork">
-            <img src="{{ item.artwork_url }}" alt="{{ item.sub.title }}" loading="lazy">
+        <div class="podcast-artwork"><button type="button" class="btn-secondary icon-button artwork-subscribe" data-subscription-help data-feed-url="{{ item.links.rss }}" aria-label="Subscribe to {{ item.sub.title }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="1"/><path d="M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8"/></svg></button>
+            <img src="{{ item.artwork_url or '/static/unified_feed_cover.png' }}" alt="{{ item.sub.title }}" loading="lazy">
             <div class="podcast-overlay">
-                <a href="/subscriptions/{{ item.sub.id }}"
+                <a href="/subscriptions/{{ item.sub.id }}" aria-label="Open {{ item.sub.title }}"
                     class="w-14 h-14 rounded-full bg-primary-500 flex items-center justify-center text-on-brand shadow-glow-md hover:scale-110 transition-transform">
                     <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
@@ -444,7 +443,6 @@
                 </a>
             </div>
         </div>
-        {% endif %}
 
         <!-- Content -->
         <div class="podcast-content p-4 sm:p-5">
@@ -490,21 +488,6 @@
             </p>
             {% endif %}
 
-            <!-- Client Badges -->
-            {% if item.episode_count > 0 %}
-            <div class="podcast-badges flex flex-wrap gap-2 mb-4">
-                {% for link in item.links.app_links %}
-                <a href="{{ link.url }}" {% if link.target %}target="{{ link.target }}"{% endif %}
-                    {% if link.key == 'apps' %}data-subscription-help data-feed-url="{{ item.links.rss }}"{% endif %}
-                    class="badge-soft">{{ link.label }}</a>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="mb-4 text-sm text-text-muted italic">
-                Feed links will appear once episodes are processed
-            </div>
-            {% endif %}
-
             <!-- Episodes Preview -->
             <div class="hidden sm:block border-t border-ink/[0.06] pt-4 mb-4">
                 <div class="flex justify-between items-center mb-3">
@@ -548,7 +531,7 @@
                 {% else %}
                 <span class="text-sm text-text-muted">Waiting for episodes...</span>
                 {% endif %}
-                <span class="badge-success">Active</span>
+                <button type="button" class="btn-secondary icon-button" data-subscription-help data-feed-url="{{ item.links.rss }}" aria-label="Subscribe to {{ item.sub.title }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="1"/><path d="M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8"/></svg><span>Subscribe in app</span></button>
             </div>
         </div>
     </article>

@@ -438,6 +438,17 @@ FORMAL_MIGRATIONS.append(("20260928_0024_media_storage", [
 ]))
 
 
+FORMAL_MIGRATIONS.append(("20261002_0025_podcast_operations", [
+    "ALTER TABLE subscriptions ADD COLUMN keep_whole_show INTEGER NOT NULL DEFAULT 0",
+    "CREATE TABLE episode_source_aliases (subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE, guid TEXT NOT NULL, episode_id INTEGER NOT NULL REFERENCES episodes(id) ON DELETE CASCADE, PRIMARY KEY(subscription_id,guid))",
+    "CREATE TABLE podcast_previews (id TEXT PRIMARY KEY, subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE, kind TEXT NOT NULL, fingerprint TEXT NOT NULL, payload TEXT NOT NULL, expires_at INTEGER NOT NULL)",
+    "CREATE TABLE archive_batches (id INTEGER PRIMARY KEY, subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE, status TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+    "CREATE UNIQUE INDEX one_active_archive ON archive_batches(subscription_id) WHERE status IN ('active','paused')",
+    "ALTER TABLE jobs ADD COLUMN archive_batch_id INTEGER REFERENCES archive_batches(id)",
+    "ALTER TABLE jobs ADD COLUMN archive_position INTEGER",
+]))
+
+
 def _backup_database_if_needed(migration_ids: list[str]):
     """Create a timestamped DB backup before applying formal migrations."""
     if not migration_ids or not os.path.exists(settings.DB_PATH):
@@ -766,6 +777,8 @@ def init_db():
     """, (DEFAULT_OPENROUTER_MODEL_CASCADE,))
 
     _apply_formal_migrations(conn)
+    if not db_existed:
+        cursor.execute("UPDATE app_settings SET whisper_cpu_threads=3 WHERE id=1")
     if not db_existed and any(version == V2_MIGRATION for version, _ in FORMAL_MIGRATIONS):
         cursor.execute("UPDATE app_settings SET onboarding_status='not_started', default_watermark_artwork=1, cut_tone_enabled=1, default_ai_rewrite_description=0, default_ai_audio_summary=0, default_append_title_intro=0 WHERE id=1")
 

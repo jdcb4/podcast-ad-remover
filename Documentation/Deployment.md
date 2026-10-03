@@ -218,3 +218,6 @@ The static configurator runs entirely in the browser, including from an unpacked
 The source offline bundle is built with `python scripts/build_configurator.py`; Pages builds it with release-specific metadata after an authorized successful Docker publish. The bundle includes the [portable PAR agent skill](Agent_Skill.md) and matching API reference. No user inputs or generated configurations enter that bundle. Environment credentials override keys saved later in the application. Only enable proxy trust when direct access to the container is restricted to the trusted proxy.
 
 The first-install wizard is optional and rerunnable from System. Its draft is kept in server memory for 30 minutes and is lost on app restart. Settings apply only after review; cancellation discards the draft and conflicts with concurrent edits require restarting setup. Login/bootstrap and GPU setup links are separate actions.
+## Building without Buildx
+
+The Dev, release and experimental build helpers prefer Buildx. If it is unavailable, they allow plain `docker build` only for `linux/amd64` against a verified Linux AMD64 Docker daemon. Unknown or other architectures fail clearly. This is a native fallback, not multi-architecture support. Build failures never trigger fallback. Publishing remains explicit and pushes every requested tag; branch and tag protections are unchanged.

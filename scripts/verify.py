@@ -40,7 +40,7 @@ def main() -> int:
     run([sys.executable, "-m", "compileall", "-q", "app", "scripts"], "Python syntax check")
     run([sys.executable, "-m", "pytest", "-q"], "Python unit tests")
     run([executable("npm"), "run", "build:css"], "Tailwind CSS build")
-    run([executable("npm"), "audit", "--audit-level=moderate"], "Frontend dependency audit")
+    run([sys.executable, "scripts/audit_frontend.py"], "Frontend dependency audit")
     run([sys.executable, "-m", "pip_audit", "--progress-spinner", "off"], "Python dependency audit")
 
     if args.docker:

@@ -67,6 +67,8 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 
 ## Documentation Map
 
+- `Documentation/PODCAST_OPERATIONS.md`: reviewed RSS replacement and durable archive processing.
+
 - `Documentation/V2_UPGRADE.md`: current breaking-change conversion, preflight and rollback guide.
 - `Documentation/V2_RELEASE_NOTES.md`: draft public explanation/commit copy and the unresolved maintainer reasoning reminder.
 - `Documentation/V2_PROPOSAL.md`: approved design-history record; later user decisions are called out at its top.

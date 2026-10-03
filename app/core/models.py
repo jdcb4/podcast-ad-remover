@@ -63,6 +63,7 @@ class Subscription(SubscriptionBase):
     retention_days: Optional[int] = 30
     manual_retention_days: Optional[int] = 14
     retention_limit: Optional[int] = 1
+    keep_whole_show: bool = False
 
 class EpisodeBase(BaseModel):
     guid: str

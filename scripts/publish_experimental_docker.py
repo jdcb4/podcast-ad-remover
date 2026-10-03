@@ -65,6 +65,12 @@ def default_tags() -> list[str]:
     return ["experimental", "audit-work", f"audit-work-{sha}"]
 
 
+try:
+    from .docker_build import build_image
+except ImportError:
+    from docker_build import build_image
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build or publish non-release Docker tags.")
     parser.add_argument("--push", action="store_true", help="Push tags to Docker Hub.")
@@ -81,23 +87,7 @@ def main() -> int:
     if not args.skip_verify:
         run([sys.executable, "scripts/verify.py"], "Pre-build verification")
 
-    command = [
-        executable("docker"),
-        "buildx",
-        "build",
-        "--platform",
-        args.platform,
-    ]
-    build_args = list(args.build_arg)
-    for build_arg in build_args:
-        command.extend(["--build-arg", build_arg])
-    for full_tag in full_tags:
-        command.extend(["-t", full_tag])
-    command.append("--push" if args.push else "--load")
-    command.append(".")
-
-    run(command, "Docker experimental publish" if args.push else "Docker experimental build")
-    print("\nBuilt tags: " + ", ".join(full_tags))
+    build_image(args.platform, full_tags, args.build_arg, args.push)
     return 0
 
 

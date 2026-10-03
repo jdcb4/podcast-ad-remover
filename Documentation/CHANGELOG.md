@@ -2,6 +2,10 @@
 
 ## Unreleased — V2 development
 
+- Fresh installs use three Whisper CPU threads; existing values are preserved. Dev, release and experimental Docker builds support a verified native AMD64 fallback when Buildx is unavailable.
+- Add reviewed RSS source replacement with stable publication identities and GUID aliases; add durable, low-priority whole-show batches with pause/resume/cancel and explicit keep-whole-show retention. See [podcast operations](PODCAST_OPERATIONS.md).
+- Compact Podcast settings, move owner/deletion controls inside, and add touch/keyboard subscription actions to library views. Refine settings alignment, top Save actions, expanded GPU/retention/resource sections, draft voice previews, immediate credential removal, editable prompt definitions and readable historical upgrade reports.
+
 - Update pinned oauthlib to 4.0.0 and urllib3 to 2.8.0 to resolve the dependency advisories reported during the October 2 Dev build.
 - Reject cross-origin management writes even when dashboard login is disabled, protecting local/trusted-network installs from cross-site form submissions.
 - Address the Antigravity review: reject opaque browser origins, mark audio revisions published only after commit, defer deletion during storage migration, share duplicate feed identity across add/import paths, and fix light-theme settings contrast. See [review disposition](V2_ADVERSARIAL_REVIEW.md) for accepted findings and deferred proposals.
@@ -293,3 +297,6 @@ The entries below record their version/date at the time. They do not establish t
 - Normalized the previous `1.3` release label to SemVer `1.3.0`.
 - Added whitelist processing mode.
 - Improved subprocess handling for non-ASCII paths and output.
+
+### Build verification exception — 2026-10-03
+- Explicitly approved, visible exception for build-only braces advisory GHSA-vfj7-8cjw-p6xm; other advisories remain blocking. See SECURITY.md.

@@ -468,6 +468,7 @@ class SubscriptionRepository:
         remove_editorial_non_speech: bool | None = None,
         remove_non_editorial_non_speech: bool | None = None,
         minimum_retained_seconds: float | None = None,
+        keep_whole_show: bool | None = None,
     ):
         from app.core.timeline import WORKFLOWS, threshold
         if processing_workflow is not None and processing_workflow not in WORKFLOWS:
@@ -475,6 +476,11 @@ class SubscriptionRepository:
         if minimum_retained_seconds is not None:
             minimum_retained_seconds = threshold(minimum_retained_seconds)
         with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            if keep_whole_show and inherit_retention:
+                defaults = conn.execute('SELECT default_retention_limit,default_retention_days,default_manual_retention_days FROM app_settings WHERE id=1').fetchone()
+                retention_limit, retention_days, manual_retention_days = defaults
+                inherit_retention = False
             conn.execute("""
                 UPDATE subscriptions 
                 SET remove_ads = ?, 
@@ -525,6 +531,8 @@ class SubscriptionRepository:
                 minimum_retained_seconds,
                 id,
             ))
+            if keep_whole_show is not None:
+                conn.execute('UPDATE subscriptions SET keep_whole_show=?,inherit_retention=CASE WHEN ? THEN 0 ELSE inherit_retention END WHERE id=?', (int(keep_whole_show), int(keep_whole_show), id))
             conn.commit()
 
 
@@ -640,6 +648,14 @@ class EpisodeRepository:
     def create_or_ignore(self, episode: dict) -> bool:
         """Returns True if created, False if already exists."""
         with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            if episode.get('_source_feed_url'):
+                current = conn.execute('SELECT feed_url FROM subscriptions WHERE id=?', (episode['subscription_id'],)).fetchone()
+                if not current or current[0] != episode['_source_feed_url']:
+                    return False
+            alias = conn.execute('SELECT 1 FROM episode_source_aliases WHERE subscription_id=? AND guid=?', (episode['subscription_id'], episode['guid'])).fetchone()
+            if alias:
+                return False
             try:
                 cursor = conn.execute("""
                     INSERT INTO episodes (subscription_id, guid, title, pub_date, original_url, duration, description, status, file_size, discovered_at)
@@ -669,6 +685,7 @@ class EpisodeRepository:
                 SELECT e.*,
                        s.title as podcast_title,
                        j.id as job_id,
+                       j.archive_batch_id,
                        j.status as job_status,
                        j.attempts as job_attempts,
                        j.locked_at as job_locked_at,
@@ -843,6 +860,7 @@ class EpisodeRepository:
                     updated_at = CURRENT_TIMESTAMP
                 WHERE status = 'running'
             """)
+            _settle_cancelled_archives(conn)
             conn.commit()
 
     def update_retry(self, id: int, retry_count: int, next_retry_at: datetime, error: str):
@@ -1006,9 +1024,15 @@ class EpisodeRepository:
             conn.execute("UPDATE episodes SET ai_summary = ? WHERE id = ?", (summary, id))
             conn.commit()
 
-    def update_status_by_guid(self, subscription_id: int, guid: str, status: str, condition_status: str = None):
+    def update_status_by_guid(self, subscription_id: int, guid: str, status: str, condition_status: str = None, expected_feed_url: str | None = None):
         """Update status of an episode by GUID, optionally only if current status matches condition."""
         with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            if expected_feed_url is not None and not conn.execute('SELECT 1 FROM subscriptions WHERE id=? AND feed_url=?', (subscription_id, expected_feed_url)).fetchone():
+                return
+            alias = conn.execute('SELECT e.guid FROM episode_source_aliases a JOIN episodes e ON e.id=a.episode_id WHERE a.subscription_id=? AND a.guid=?', (subscription_id, guid)).fetchone()
+            if alias:
+                guid = alias[0]
             if condition_status:
                 cursor = conn.execute("""
                     UPDATE episodes 
@@ -1075,10 +1099,12 @@ class EpisodeRepository:
             return None
 
 
-    def request_deletion(self, id: int) -> bool:
+    def request_deletion(self, id: int, *, automatic: bool = False) -> bool:
         """Mark an episode ignored and cancel queued work while retaining running-job ownership."""
         with get_db_connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            if automatic and conn.execute('SELECT 1 FROM subscriptions s JOIN episodes e ON e.subscription_id=s.id WHERE e.id=? AND s.keep_whole_show=1', (id,)).fetchone():
+                return False
             cursor = conn.execute("""
                 UPDATE episodes 
                 SET status = 'ignored',
@@ -1139,7 +1165,7 @@ def _enqueue_job(conn: sqlite3.Connection, episode_id: int, job_type: str = "pro
         return None
 
     existing = conn.execute("""
-        SELECT id FROM jobs
+        SELECT id,archive_batch_id FROM jobs
         WHERE episode_id = ?
           AND type = ?
           AND status IN ('queued', 'running', 'retry_scheduled', 'rate_limited')
@@ -1147,6 +1173,8 @@ def _enqueue_job(conn: sqlite3.Connection, episode_id: int, job_type: str = "pro
     """, (episode_id, job_type)).fetchone()
 
     if existing:
+        if existing["archive_batch_id"] is not None:
+            return existing["id"]
         conn.execute("""
             UPDATE jobs
             SET status = CASE WHEN status = 'running' THEN status ELSE 'queued' END,
@@ -1158,6 +1186,12 @@ def _enqueue_job(conn: sqlite3.Connection, episode_id: int, job_type: str = "pro
         """, (priority, existing["id"]))
         return existing["id"]
 
+    archived = conn.execute("""SELECT j.id FROM jobs j JOIN archive_batches b ON b.id=j.archive_batch_id
+        WHERE j.episode_id=? AND j.type=? AND j.status IN ('cancelled','failed')
+        AND b.status IN ('active','paused') ORDER BY j.id DESC LIMIT 1""", (episode_id, job_type)).fetchone()
+    if archived:
+        conn.execute("UPDATE jobs SET status='queued',next_run_at=CURRENT_TIMESTAMP,error=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?", (archived['id'],))
+        return archived['id']
     cursor = conn.execute("""
         INSERT INTO jobs (episode_id, type, status, priority, next_run_at, processing_snapshot)
         VALUES (?, ?, 'queued', ?, CURRENT_TIMESTAMP, ?)
@@ -1172,6 +1206,11 @@ def _schedule_retry_job(
     error: str,
     status: str = "retry_scheduled",
 ):
+    cancelled = conn.execute("SELECT j.id FROM jobs j JOIN archive_batches b ON b.id=j.archive_batch_id WHERE j.episode_id=? AND j.status='running' AND b.status='cancelled'", (episode_id,)).fetchone()
+    if cancelled:
+        conn.execute("UPDATE jobs SET status='cancelled',locked_by=NULL,locked_at=NULL WHERE id=?", (cancelled['id'],))
+        conn.execute("UPDATE episodes SET status='failed',next_retry_at=NULL WHERE id=?", (episode_id,))
+        return
     existing = conn.execute("""
         SELECT id FROM jobs
         WHERE episode_id = ?
@@ -1199,6 +1238,13 @@ def _schedule_retry_job(
     """, (episode_id, status, next_run_at, error, _processing_snapshot(conn, episode_id)))
 
 
+def _settle_cancelled_archives(conn):
+    ids = [r[0] for r in conn.execute("SELECT j.id FROM jobs j JOIN archive_batches b ON b.id=j.archive_batch_id WHERE b.status='cancelled' AND j.status IN ('queued','retry_scheduled','rate_limited')")]
+    for job_id in ids:
+        conn.execute("UPDATE episodes SET status='unprocessed',next_retry_at=NULL WHERE id=(SELECT episode_id FROM jobs WHERE id=?) AND status IN ('pending','failed','rate_limited')", (job_id,))
+        conn.execute("UPDATE jobs SET status='cancelled',locked_by=NULL,locked_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?", (job_id,))
+
+
 class JobRepository:
     """SQLite-backed jobs with transaction-based claiming and fenced ownership."""
 
@@ -1218,6 +1264,7 @@ class JobRepository:
             if row['status'] == 'processing':
                 conn.execute("UPDATE episodes SET status='pending', processing_step='worker interrupted' WHERE id=?", (row['episode_id'],))
             conn.execute("UPDATE jobs SET status=?, locked_by=NULL, locked_at=NULL, cancel_requested=0, updated_at=CURRENT_TIMESTAMP WHERE id=? AND locked_by=?", ('queued' if requeue else 'cancelled', job_id, token))
+            _settle_cancelled_archives(conn)
             conn.commit()
 
 
@@ -1264,6 +1311,7 @@ class JobRepository:
                 WHERE j.type = 'process_episode'
                   AND j.status IN ('queued', 'retry_scheduled', 'rate_limited')
                   AND (j.next_run_at IS NULL OR j.next_run_at <= CURRENT_TIMESTAMP)
+                  AND (j.archive_batch_id IS NULL OR EXISTS (SELECT 1 FROM archive_batches b WHERE b.id=j.archive_batch_id AND b.status='active'))
                   AND e.status IN ('pending', 'failed', 'rate_limited')
                   AND s.is_active = 1
                   AND s.deletion_status IS NULL
@@ -1335,10 +1383,11 @@ class JobRepository:
                 WHERE j.type = 'process_episode'
                   AND j.status IN ('queued', 'retry_scheduled', 'rate_limited')
                   AND (j.next_run_at IS NULL OR j.next_run_at <= CURRENT_TIMESTAMP)
+                  AND (j.archive_batch_id IS NULL OR EXISTS (SELECT 1 FROM archive_batches b WHERE b.id=j.archive_batch_id AND b.status='active'))
                   AND e.status IN ('pending', 'failed', 'rate_limited')
                   AND s.is_active = 1
                   AND s.deletion_status IS NULL
-                ORDER BY j.priority ASC, j.created_at ASC
+                ORDER BY j.priority ASC, j.archive_batch_id ASC, j.archive_position ASC, j.created_at ASC, j.id ASC
                 LIMIT ?
             """, (limit,)).fetchall()
 
@@ -1476,6 +1525,7 @@ class JobRepository:
                 WHERE id = ?
             """, [(episode_id,) for episode_id in episode_ids])
 
+            _settle_cancelled_archives(conn)
             conn.commit()
             return len(rows) + len(inconsistent_rows) + len(stale_cancellations)
 

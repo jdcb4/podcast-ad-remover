@@ -40,16 +40,7 @@
 
             <!-- Mobile Delete / Library Button (Between Image and Title) -->
             {% if user and user.is_admin %}
-            <button onclick="deleteSubscription({{ subscription.id }})"
-                class="md:hidden px-6 py-3 text-danger hover:text-danger bg-red-500/10 hover:bg-red-500/20 rounded-2xl transition-all flex items-center justify-center gap-3 text-sm font-bold border border-red-500/20 shadow-lg -mt-4 mb-2"
-                title="Delete subscription and all local files">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                    </path>
-                </svg>
-                Delete Subscription and Files
-            </button>
+
             {% elif user and user.id and user.id > 0 and is_in_user_library %}
             <form action="/subscriptions/{{ subscription.id }}/library" method="post" class="md:hidden -mt-4 mb-2">
                 <input type="hidden" name="action" value="remove">
@@ -69,14 +60,10 @@
                         {{ subscription.title }}
                     </h1>
                     <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-4">
-                        {% if owner_username %}
-                        <span class="badge-neutral">Owner: {{ owner_username }}</span>
-                        {% elif user and user.is_admin %}
-                        <span class="badge-warning">Unowned</span>
-                        {% endif %}
+
                         {% if user and user.is_admin %}
                         <span class="badge-neutral">{{ user_library_count }} user{% if user_library_count != 1 %}s{% endif %}</span>
-                        <span class="badge-neutral">{{ total_listens }} play{% if total_listens != 1 %}s{% endif %}</span>
+
                         {% endif %}
                         {% if user and user.id and user.id > 0 %}
                         <form action="/subscriptions/{{ subscription.id }}/library" method="post">
@@ -125,7 +112,7 @@
                             {% if link.target %}target="{{ link.target }}"{% endif %}
                             {% if link.key == 'apps' %}data-subscription-help data-feed-url="{{ links.rss }}"{% endif %}
                             title="{% if link.key == 'direct' %}Direct RSS Feed{% else %}Subscribe on {{ link.label }}{% endif %}">
-                            {{ link.label }}
+                            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="1"/><path d="M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8"/></svg>{{ link.label }}
                         </a>
                         {% endfor %}
                     </div>
@@ -140,26 +127,27 @@
 
             <!-- Delete button (desktop only - top right) -->
             {% if user and user.is_admin %}
-            <button onclick="deleteSubscription({{ subscription.id }})"
-                class="hidden md:block absolute top-6 right-6 p-3 text-text-primary/20 hover:text-danger hover:bg-red-500/10 rounded-2xl transition-all"
-                title="Delete subscription and all local files">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                    </path>
-                </svg>
-            </button>
+
             {% endif %}
         </div>
     </div>
 </div>
 </div>
 
-{% if user and user.is_admin %}
-<div class="card mb-6">
-    <form action="/subscriptions/{{ subscription.id }}/owner" method="POST" class="flex flex-col md:flex-row md:items-end gap-4">
-        <div class="flex-1">
-            <label class="block text-sm font-medium text-text-secondary mb-2" for="owner_user_id">Podcast Owner</label>
+<div class="card mb-6" id="processing-settings">
+    <button type="button" class="flex w-full justify-between items-center mb-4 cursor-pointer"
+        aria-expanded="false" aria-controls="settings-form" onclick="toggleProcessingSettings(this)">
+        <span class="font-display text-xl font-bold">Podcast settings</span>
+        <span class="text-text-muted text-sm hover:text-text-secondary transition-colors">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+    </button>
+
+    {% if can_manage_subscription %}
+    <div id="settings-form" class="hidden">{% if user and user.is_admin %}
+<div class="settings-section">
+    <form action="/subscriptions/{{ subscription.id }}/owner" method="POST" class="setting-row owner-setting">
+        <label for="owner_user_id">Owner</label><div class="owner-control">
             <select id="owner_user_id" name="owner_user_id" class="select">
                 <option value="" {% if not subscription.owner_user_id %}selected{% endif %}>Unowned</option>
                 {% for active_user in active_users %}
@@ -168,225 +156,15 @@
                 </option>
                 {% endfor %}
             </select>
-        </div>
-        <button type="submit" class="btn-primary md:w-auto">Update Owner</button>
+        <button type="submit" class="btn-secondary">Update owner</button></div>
     </form>
 </div>
 {% endif %}
 
-<div class="card mb-6" id="processing-settings">
-    <button type="button" class="flex w-full justify-between items-center mb-4 cursor-pointer"
-        aria-expanded="false" aria-controls="settings-form" onclick="toggleProcessingSettings(this)">
-        <span class="font-display text-xl font-bold">Processing Settings</span>
-        <span class="text-text-muted text-sm hover:text-text-secondary transition-colors">
-            {% if can_manage_subscription %}Toggle{% else %}View{% endif %}
-        </span>
-    </button>
-
-    {% if can_manage_subscription %}
-    <form id="settings-form" action="/subscriptions/{{ subscription.id }}/settings" method="POST" class="hidden">
-        <input type="hidden" name="timeline_settings_present" value="true">
-        {% set stored = subscription.setting_overrides %}
-        {% set displayed_retention_limit = subscription.retention_limit if subscription.inherit_retention else (stored.get('retention_limit') if stored.get('retention_limit') is not none else 1) %}
-        {% set displayed_manual_retention_days = subscription.manual_retention_days if subscription.inherit_retention else (stored.get('manual_retention_days') if stored.get('manual_retention_days') is not none else 14) %}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-            <div class="space-y-6">
-                <section class="space-y-4" data-inheritance-group>
-                <div class="flex items-center justify-between gap-4 border-b border-ink/[0.08] pb-2">
-                    <h4 class="font-semibold">Content Removal</h4>
-                    <label class="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
-                        <input type="checkbox" name="inherit_content_removal" value="true"
-                            data-inheritance-toggle {% if subscription.inherit_content_removal %}checked{% endif %}
-                            class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                        Use global settings
-                    </label>
-                </div>
-                {% if subscription.inherit_content_removal %}
-                <p class="text-xs text-link-hover">Currently using the global content-removal settings.</p>
-                {% endif %}
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="remove_ads" value="true" data-inherited-control
-                        data-effective-checked="{{ 'true' if settings.default_remove_ads else 'false' }}"
-                        data-override-checked="{{ 'true' if stored.get('remove_ads') else 'false' }}"
-                        {% if (subscription.remove_ads if subscription.inherit_content_removal else stored.get('remove_ads')) %}checked{% endif %}
-                        {% if subscription.inherit_content_removal %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Remove Ads</span>
-                </label>
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="remove_promos" value="true" data-inherited-control
-                        data-effective-checked="{{ 'true' if settings.default_remove_promos else 'false' }}"
-                        data-override-checked="{{ 'true' if stored.get('remove_promos') else 'false' }}"
-                        {% if (subscription.remove_promos if subscription.inherit_content_removal else stored.get('remove_promos')) %}checked{% endif %}
-                        {% if subscription.inherit_content_removal %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Remove Promos</span>
-                </label>
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="remove_intros" value="true" data-inherited-control
-                        data-effective-checked="{{ 'true' if settings.default_remove_intros else 'false' }}"
-                        data-override-checked="{{ 'true' if stored.get('remove_intros') else 'false' }}"
-                        {% if (subscription.remove_intros if subscription.inherit_content_removal else stored.get('remove_intros')) %}checked{% endif %}
-                        {% if subscription.inherit_content_removal %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Remove Intros</span>
-                </label>
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="remove_outros" value="true" data-inherited-control
-                        data-effective-checked="{{ 'true' if settings.default_remove_outros else 'false' }}"
-                        data-override-checked="{{ 'true' if stored.get('remove_outros') else 'false' }}"
-                        {% if (subscription.remove_outros if subscription.inherit_content_removal else stored.get('remove_outros')) %}checked{% endif %}
-                        {% if subscription.inherit_content_removal %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Remove Outros</span>
-                </label>
-                <div class="space-y-3 pt-3 border-t border-ink/[0.08]">
-                    <h5 class="text-sm font-semibold">Complete Timeline only</h5>
-                    {% for field, title in [('remove_non_editorial_non_speech', 'Remove non-editorial non-speech (ad jingles)')] %}
-                    <label class="flex items-center gap-3 text-sm">
-                        <input type="checkbox" name="{{ field }}" value="true" data-inherited-control
-                            data-effective-checked="{{ 'true' if settings['default_' ~ field] else 'false' }}"
-                            data-override-checked="{{ 'true' if stored.get(field) else 'false' }}"
-                            {% if subscription[field] %}checked{% endif %} {% if subscription.inherit_content_removal %}disabled{% endif %}>
-                        {{ title }}
-                    </label>
-                    {% endfor %}
-                    <label class="block text-sm" for="minimum_retained_seconds">Remove retained islands shorter than (seconds)</label>
-                    <input class="input" type="number" name="minimum_retained_seconds" id="minimum_retained_seconds" min="0" max="600" step="0.1" required data-inherited-control
-                        value="{{ subscription.minimum_retained_seconds }}" data-effective-value="{{ settings.default_minimum_retained_seconds }}"
-                        data-override-value="{{ stored.get('minimum_retained_seconds') if stored.get('minimum_retained_seconds') is not none else 10 }}"
-                        {% if subscription.inherit_content_removal %}disabled{% endif %}>
-                    <p class="text-xs text-text-muted">10 by default; 0 disables. Only between two removal intervals. This can cut brief Content or editorial islands; the report records that separately.</p>
-                </div>
-                </section>
-
-                <section class="pt-4 space-y-4" data-inheritance-group>
-                    <div class="flex items-center justify-between gap-4 border-b border-ink/[0.08] pb-2">
-                        <h4 class="font-semibold">Retention Policy</h4>
-                        <label class="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
-                            <input type="checkbox" name="inherit_retention" value="true"
-                                data-inheritance-toggle {% if subscription.inherit_retention %}checked{% endif %}
-                                class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                            Use global settings
-                        </label>
-                    </div>
-                    {% if subscription.inherit_retention %}
-                    <p class="text-xs text-link-hover">Global policy: keep latest {{ subscription.retention_limit }},
-                        automatic files {{ subscription.retention_days }} days, manual files {{ subscription.manual_retention_days }} days.</p>
-                    {% endif %}
-                    <input type="hidden" name="retention_days"
-                        value="{{ subscription.setting_overrides.get('retention_days') or 30 }}">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm text-text-secondary mb-2">Auto-Downloads (Episodes to
-                                Keep)</label>
-                            <select name="retention_limit" class="select" data-inherited-control
-                                data-effective-value="{{ settings.default_retention_limit if settings.default_retention_limit is not none else 1 }}"
-                                data-override-value="{{ stored.get('retention_limit') if stored.get('retention_limit') is not none else 1 }}"
-                                {% if subscription.inherit_retention %}disabled{% endif %}>
-                                <option value="0" {% if displayed_retention_limit==0 %}selected{% endif %}>None
-                                    (Manual Only)</option>
-                                <option value="1" {% if displayed_retention_limit==1 %}selected{% endif %}>Keep Latest 1 (Default)
-                                </option>
-                                <option value="2" {% if displayed_retention_limit==2 %}selected{% endif %}>Keep
-                                    Latest 2</option>
-                                <option value="3" {% if displayed_retention_limit==3 %}selected{% endif %}>Keep
-                                    Latest 3</option>
-                                <option value="5" {% if displayed_retention_limit==5 %}selected{% endif %}>Keep
-                                    Latest 5</option>
-                                <option value="10" {% if displayed_retention_limit==10 %}selected{% endif %}>Keep
-                                    Latest 10</option>
-                                <option value="20" {% if displayed_retention_limit==20 %}selected{% endif %}>Keep
-                                    Latest 20</option>
-                                <option value="1000" {% if displayed_retention_limit>=1000 %}selected{% endif %}>Keep
-                                    All</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm text-text-secondary mb-2">Manual Downloads</label>
-                            <select name="manual_retention_days" class="select" data-inherited-control
-                                data-effective-value="{{ settings.default_manual_retention_days if settings.default_manual_retention_days is not none else 14 }}"
-                                data-override-value="{{ stored.get('manual_retention_days') if stored.get('manual_retention_days') is not none else 14 }}"
-                                {% if subscription.inherit_retention %}disabled{% endif %}>
-                                <option value="7" {% if displayed_manual_retention_days==7 %}selected{% endif %}>Keep
-                                    7 Days</option>
-                                <option value="14" {% if displayed_manual_retention_days==14 %}selected{% endif %}>Keep 14 Days</option>
-                                <option value="30" {% if displayed_manual_retention_days==30 %}selected{% endif %}>
-                                    Keep 30 Days</option>
-                                <option value="90" {% if displayed_manual_retention_days==90 %}selected{% endif %}>
-                                    Keep 90 Days</option>
-                                <option value="365" {% if displayed_manual_retention_days==365 %}selected{% endif %}>
-                                    Keep 1 Year</option>
-                            </select>
-                        </div>
-                    </div>
-                </section>
-            </div>
-
-            <div class="space-y-4">
-                <section class="space-y-4" data-inheritance-group>
-                <div class="flex items-center justify-between gap-4 border-b border-ink/[0.08] pb-2">
-                    <h4 class="font-semibold">Default Features</h4>
-                    <label class="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
-                        <input type="checkbox" name="inherit_default_features" value="true"
-                            data-inheritance-toggle {% if subscription.inherit_default_features %}checked{% endif %}
-                            class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                        Use global settings
-                    </label>
-                </div>
-                {% if subscription.inherit_default_features %}
-                <p class="text-xs text-link-hover">Currently using the global feature settings.</p>
-                {% endif %}
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="ai_rewrite_description" value="true" data-inherited-control
-                        data-effective-checked="{{ 'true' if settings.default_ai_rewrite_description else 'false' }}"
-                        data-override-checked="{{ 'true' if stored.get('ai_rewrite_description') else 'false' }}"
-                        {% if (subscription.ai_rewrite_description if subscription.inherit_default_features else stored.get('ai_rewrite_description')) %}checked{% endif %}
-                        {% if subscription.inherit_default_features %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Rewrite Description (AI Text)</span>
-                </label>
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="ai_audio_summary" value="true" data-inherited-control {% if not speech_ready(settings) %}data-unavailable disabled title="Configure Voice settings to enable speech"{% endif %}
-                        data-effective-checked="{{ 'true' if settings.default_ai_audio_summary else 'false' }}"
-                        data-override-checked="{{ 'true' if stored.get('ai_audio_summary') else 'false' }}"
-                        {% if (subscription.ai_audio_summary if subscription.inherit_default_features else stored.get('ai_audio_summary')) %}checked{% endif %}
-                        {% if subscription.inherit_default_features %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Add generated spoken summary</span>
-                </label>
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="append_title_intro" value="true" data-inherited-control {% if not speech_ready(settings) %}data-unavailable disabled title="Configure Voice settings to enable speech"{% endif %}
-                        data-effective-checked="{{ 'true' if settings.default_append_title_intro else 'false' }}"
-                        data-override-checked="{{ 'true' if stored.get('append_title_intro') else 'false' }}"
-                        {% if (subscription.append_title_intro if subscription.inherit_default_features else stored.get('append_title_intro')) %}checked{% endif %}
-                        {% if subscription.inherit_default_features %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Add generated spoken title</span>
-                </label>
-                <label class="flex items-center cursor-pointer">
-                    <input type="checkbox" name="watermark_artwork" value="true" data-inherited-control
-                        data-effective-checked="{{ 'true' if settings.default_watermark_artwork else 'false' }}"
-                        data-override-checked="{{ 'true' if stored.get('watermark_artwork') else 'false' }}"
-                        {% if (subscription.watermark_artwork if subscription.inherit_default_features else stored.get('watermark_artwork')) %}checked{% endif %}
-                        {% if subscription.inherit_default_features %}disabled{% endif %}
-                        class="h-4 w-4 text-primary-500 rounded bg-surface-base border-ink/20 focus:ring-primary-500">
-                    <span class="ml-3">Add “Ad Free” Artwork Badge</span>
-                </label>
-                </section>
-
-                <details><summary>Advanced classification guidance</summary>
-                <label for="show-guidance">Podcast-specific instructions</label>
-                <textarea id="show-guidance" name="custom_instructions" rows="3" class="input">{{ stored.get('custom_instructions') or '' }}</textarea></details>
-
-            </div>
-        </div>
-
-        <div class="mt-6 flex justify-end pt-4 border-t border-ink/[0.08]">
-            <button type="submit" class="btn-primary">Save Settings</button>
-        </div>
-    </form>
-    <script src="/static/js/settings-inheritance.js" defer></script>
+{% include '_podcast_settings.html' %}
+    {% if subscription.source_type == 'rss' %}{% include '_podcast_operations.html' %}{% endif %}
+    {% if user and user.is_admin %}<div class="setting-row"><span>Delete podcast</span><button type="button" class="btn-danger" onclick="deleteSubscription({{ subscription.id }})"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>Delete podcast</button></div>{% endif %}
+    </div><script src="/static/js/settings-inheritance.js" defer></script>
     {% else %}
     <div id="settings-form" class="hidden">
         <div class="alert-info">

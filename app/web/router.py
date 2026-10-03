@@ -59,8 +59,11 @@ from app.web.podcast_import import router as podcast_import_router
 router.include_router(podcast_import_router)
 from app.web.storage import router as storage_router
 router.include_router(storage_router)
+from app.web.podcast_operations import router as podcast_operations_router
+router.include_router(podcast_operations_router)
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
+from app.core.provider_settings import credential as provider_credential
 from app.core.speech import speech_ready
 templates.env.globals["speech_ready"] = speech_ready
 
@@ -772,7 +775,8 @@ def _render_admin_ai(request: Request, ai_section: str):
             "cpu_compute_types": supported_compute_types() if ai_section == "ai_transcription" else [],
             "model_defaults": MODEL_DEFAULTS,
             "speech_voices": __import__("app.core.speech", fromlist=["VOICES"]).VOICES,
-            "env_keys": env_keys
+            "env_keys": env_keys,
+            "speech_credentials": {p: bool(provider_credential(p, saved_settings)) for p in ("gemini", "openai", "openrouter")}
         }
     )
 
@@ -1057,6 +1061,24 @@ async def preview_voice(request: Request, admin=Depends(require_admin)):
     values = get_global_settings()
     if not is_same_origin_request(request, values.get('app_external_url')):
         raise HTTPException(403, 'Cross-origin preview is not allowed')
+    form = await request.form()
+    if form:
+        for field in ('tts_provider', 'tts_model', 'tts_voice', 'tts_base_url'):
+            value = str(form.get(field, ''))
+            if len(value) > 4096:
+                raise HTTPException(400, 'Voice setting is too long')
+            values[field] = value
+        provider = values.get('tts_provider')
+        if provider not in ('gemini', 'openai', 'openrouter', 'custom'):
+            raise HTTPException(400, 'Choose a supported voice provider')
+        key = str(form.get('speech_credential', '')).strip()
+        if len(key) > 4096:
+            raise HTTPException(400, 'Voice credential is too long')
+        if key:
+            field = 'tts_api_key' if provider == 'custom' else 'gemini_api_key' if provider == 'gemini' else provider + '_api_key'
+            values[field] = key
+            if provider == 'gemini':
+                values['gemini_api_keys'] = None
     try:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'preview.audio'
@@ -2678,6 +2700,8 @@ async def update_settings(
     retention_days: int = Form(30),
     manual_retention_days: int = Form(14),
     retention_limit: int = Form(1),
+    keep_whole_show: bool = Form(False),
+    keep_whole_show_present: bool = Form(False),
     inherit_content_removal: bool = Form(False),
     inherit_retention: bool = Form(False),
     inherit_default_features: bool = Form(False),
@@ -2751,7 +2775,7 @@ async def update_settings(
     custom_instructions = (custom_instructions or "").strip() or None
 
     sub_repo.update_settings(
-        id, 
+        id,
         remove_ads, 
         remove_promos, 
         remove_intros, 
@@ -2774,6 +2798,7 @@ async def update_settings(
         remove_editorial_non_speech=remove_editorial_non_speech,
         remove_non_editorial_non_speech=remove_non_editorial_non_speech,
         minimum_retained_seconds=minimum_retained_seconds,
+        keep_whole_show=keep_whole_show if keep_whole_show_present else None,
     )
     
     # Trigger processing if any ads/promos settings were changed
@@ -3068,3 +3093,18 @@ async def get_unified_feed(request: Request):
             # Fallback to static file if injection fails
     
     return FileResponse(file_path, media_type="application/xml", headers=cache_headers)
+
+
+@router.delete('/admin/ai/credentials/{provider}')
+async def remove_saved_credential(provider: str, request: Request, admin=Depends(require_admin)):
+    from app.web.podcast_import import require_import_origin
+    from app.core.provider_settings import credential
+    require_import_origin(request)
+    fields = {'gemini': ['gemini_api_key', 'gemini_api_keys'], 'openai': ['openai_api_key'], 'anthropic': ['anthropic_api_key'], 'openrouter': ['openrouter_api_key'], 'custom': ['custom_llm_api_key']}
+    if provider not in fields:
+        raise HTTPException(400, 'Unknown provider')
+    with get_db_connection() as conn:
+        conn.execute('UPDATE app_settings SET '+','.join(field+'=NULL' for field in fields[provider])+' WHERE id=1')
+        conn.commit()
+    active = credential(provider, get_global_settings())
+    return {'message': 'Saved key removed.' + (' An environment credential remains active.' if active else '') + (' This shared provider credential also applies to Voice.' if provider in ('gemini','openai','openrouter') else '')}

@@ -389,6 +389,7 @@ async def update_subscription_settings(
         remove_editorial_non_speech=updates.get("remove_editorial_non_speech"),
         remove_non_editorial_non_speech=updates.get("remove_non_editorial_non_speech"),
         minimum_retained_seconds=updates.get("minimum_retained_seconds"),
+        keep_whole_show=updates.get("keep_whole_show"),
     )
 
     proc = _processor()
@@ -452,3 +453,6 @@ async def ignore_episode(episode_id: int, principal: ApiPrincipal = Depends(requ
     _episode_manage_or_403(principal, episode_id)
     await _processor().delete_episode(episode_id)
     return {"status": "ignored", "id": episode_id}
+
+from app.web.podcast_operations import routes as podcast_operation_routes
+podcast_operation_routes(api=True, router=router)

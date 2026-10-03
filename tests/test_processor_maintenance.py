@@ -213,7 +213,8 @@ async def test_cleanup_uses_current_global_retention_for_inheriting_podcasts(
     deleted = []
     processor = object.__new__(Processor)
 
-    async def record_delete(episode_id):
+    async def record_delete(episode_id, *, automatic=False):
+        assert automatic
         deleted.append(episode_id)
 
     monkeypatch.setattr(processor, "delete_episode", record_delete)

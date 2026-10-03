@@ -69,7 +69,7 @@ def test_check_feeds_skips_existing_episodes(mock_feed_manager, mock_processor):
 
     # Should attempt to backfill/update status since it's within the limit
     mock_processor.ep_repo.update_status_by_guid.assert_called_once_with(
-        1, 'guid-123', 'pending', condition_status='unprocessed'
+        1, 'guid-123', 'pending', condition_status='unprocessed', expected_feed_url=mock_sub.feed_url
     )
 
 
