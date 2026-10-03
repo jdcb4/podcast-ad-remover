@@ -312,3 +312,5 @@ symlink containment (the Windows symlink fixture can be skipped).
 These checks do not certify a user's NAS protocol, mount lifecycle, real-data
 migration or backup restore. Rehearse against a copy and qualify the actual
 filesystem before deleting originals. See [STORAGE.md](STORAGE.md).
+
+The frontend audit now uses scripts/audit_frontend.py with the explicitly approved build-only exception documented in SECURITY.md. It reports that exception visibly; other moderate-or-higher advisories and audit errors remain blocking.

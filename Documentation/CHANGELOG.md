@@ -297,3 +297,6 @@ The entries below record their version/date at the time. They do not establish t
 - Normalized the previous `1.3` release label to SemVer `1.3.0`.
 - Added whitelist processing mode.
 - Improved subprocess handling for non-ASCII paths and output.
+
+### Build verification exception — 2026-10-03
+- Explicitly approved, visible exception for build-only braces advisory GHSA-vfj7-8cjw-p6xm; other advisories remain blocking. See SECURITY.md.
