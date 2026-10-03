@@ -237,3 +237,48 @@ w.eval(fs.readFileSync('app/web/static/js/v2.js','utf8'));
 '''
     result=subprocess.run([shutil.which('node'),'--input-type=commonjs','-e',script],input=json.dumps(html),text=True,capture_output=True)
     assert result.returncode==0,result.stderr
+
+def test_podcast_tabs_preserve_drafts_inheritance_and_form_membership(client):
+    import json
+    import shutil
+    import subprocess
+    with get_db_connection() as conn:
+        sid = conn.execute("INSERT INTO subscriptions(feed_url,title,slug) VALUES('https://example.test/feed','Tabs fixture','tabs-fixture')").lastrowid
+        conn.commit()
+    response = client.get(f'/subscriptions/{sid}')
+    assert response.status_code == 200
+    script = r'''
+const {JSDOM}=require('jsdom'),fs=require('node:fs'),assert=require('node:assert/strict');
+const html=JSON.parse(fs.readFileSync(0,'utf8'));
+const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost/'}),w=dom.window,d=w.document;
+const media={matches:false,addEventListener:(name,fn)=>media.change=fn};w.matchMedia=()=>media;
+w.eval(fs.readFileSync('app/web/static/js/settings-inheritance.js','utf8'));
+w.eval(fs.readFileSync('app/web/static/js/podcast-settings.js','utf8'));
+const form=d.getElementById('podcast-settings-form'),bar=d.querySelector('.podcast-save-bar');
+assert.equal(bar.hidden,true);
+const ads=form.elements.namedItem('remove_ads'),inherit=form.elements.namedItem('inherit_content_removal');
+inherit.checked=true;inherit.dispatchEvent(new w.Event('change',{bubbles:true}));
+assert.equal(ads.disabled,true);
+assert.equal(form.elements.namedItem('minimum_retained_seconds').disabled,true);
+d.querySelector('[data-group="0"] [data-customize]').click();
+assert.equal(ads.disabled,false);assert.equal(form.elements.namedItem('minimum_retained_seconds').disabled,false);
+ads.checked=!ads.checked;ads.dispatchEvent(new w.Event('change',{bubbles:true}));const draft=ads.checked;
+assert.equal(bar.hidden,false);
+d.querySelector('[data-tab="downloads"]').click();assert.equal(d.getElementById('settings-panel-processing').hidden,true);
+d.querySelector('[data-tab="processing"]').click();assert.equal(ads.checked,draft);
+assert.equal(form.elements.namedItem('custom_instructions').form,form);
+assert.equal(form.elements.namedItem('keep_whole_show').form,form);
+assert.equal(form.elements.namedItem('owner_user_id'),null);
+assert.equal(new w.FormData(form).get('timeline_settings_present'),'true');
+media.matches=true;media.change();
+assert.equal(d.getElementById('settings-panel-downloads').hidden,false);
+assert.equal(d.querySelectorAll('.podcast-setting-group[open]').length,0);
+const groups=d.querySelectorAll('.podcast-setting-group');groups[0].open=true;groups[0].dispatchEvent(new w.Event('toggle'));groups[1].open=true;groups[1].dispatchEvent(new w.Event('toggle'));assert.equal(groups[0].open,false);
+assert.equal(ads.checked,draft);
+media.matches=false;media.change();
+d.querySelector('[data-tab="processing"]').dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+assert.equal(d.querySelector('[data-tab="downloads"]').getAttribute('aria-selected'),'true');
+w.close();
+'''
+    result = subprocess.run([shutil.which('node'), '--input-type=commonjs', '-e', script], input=json.dumps(response.text), text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr

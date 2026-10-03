@@ -167,3 +167,33 @@ dialog::backdrop { background:#0008; }
 #timeline-prompts-form [data-autosize] { min-height:0; padding:8px 12px; display:block; }
 @media(max-width:480px){.gpu-status .setting-row{align-items:flex-start;flex-direction:column;gap:4px}.gpu-status dd{width:100%;max-width:none}}
 
+
+/* Podcast settings: tabs on desktop, a single accordion level on phones. */
+.podcast-settings-tabs { display:none; }
+.settings-enhanced .podcast-settings-tabs { display:flex; gap:8px; border-bottom:1px solid #80808030; margin-bottom:16px; }
+.podcast-settings-tabs button { padding:10px 16px; min-height:44px; border-bottom:2px solid transparent; }
+.podcast-settings-tabs [aria-selected=true] { color:var(--link); border-bottom-color:currentColor; }
+.podcast-tab-panel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 32px; }
+.podcast-tab-panel[hidden],#podcast-settings-workspace [hidden] { display:none!important; }
+.podcast-setting-group { min-width:0; border-bottom:1px solid #80808030; padding:0 0 12px; }
+.podcast-setting-group>summary { cursor:pointer; min-height:44px; padding:10px 0; font-weight:650; }
+.podcast-setting-group>summary span { display:block; font-size:12px; font-weight:400; color:var(--text-secondary); margin-top:3px; }
+.podcast-setting-group .setting-row { min-height:44px; padding:8px 0; gap:12px; }
+.podcast-setting-group[data-group="3"],.podcast-setting-group[data-group="4"] { grid-column:1/-1; }
+.podcast-setting-group textarea { margin-top:8px; }
+.podcast-tab-panel[data-panel=downloads],.podcast-tab-panel[data-panel=manage] { grid-template-columns:1fr; }
+.inherited-summary { display:none; }
+.settings-enhanced .inherited-summary { display:block; padding:8px 0; }
+.inherited-summary p { font-size:14px; line-height:1.6; margin-bottom:12px; }
+.podcast-save-bar { position:sticky; bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; background:rgb(var(--surface-elevated)); border-top:1px solid #80808030; z-index:5; }
+.feed-replacement { margin:12px 0; }
+.feed-replacement summary { cursor:pointer; min-height:44px; padding:10px 0; }
+@media(max-width:700px){
+ .settings-enhanced .podcast-settings-tabs{display:none}
+ .podcast-tab-panel{display:block}
+ .podcast-setting-group{padding:0}
+ .podcast-setting-group .group-body{padding:0 0 16px}
+ .podcast-save-bar{bottom:calc(72px + env(safe-area-inset-bottom));font-size:14px}
+}
+
+#podcast-settings-workspace [data-inheritance-group] { opacity:1; }

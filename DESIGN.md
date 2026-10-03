@@ -167,3 +167,14 @@ Keep the existing visual identity. Place Save at the top of each settings form; 
 Podcast settings starts collapsed with an accessible chevron. Its compact groups retain inheritance and effective-value controls. Owner, source replacement, whole-show batches and labelled deletion live inside it. Subscription actions share the authenticated dialog and remain visible without hover. Upgrade history is historical migration information, not a live status panel.
 
 Podcast settings use four compact columns at 1200px and above, two below that, and one at 640px and below. GPU execution/setup details reuse label/value rows. Prompt editors have a 4px heading gap and resize to content, including after font loading.
+
+## Podcast settings navigation (Option A, 2026-10-03)
+
+The prior four-column layout is superseded by Processing, Downloads and Manage
+tabs. Processing uses two compact columns plus a collapsed Advanced section.
+Phones use one accordion level with only one section open. Inherited groups show
+effective summaries and Customize; controls stay in the same form across tabs,
+preserving drafts. Timing keeps the content-removal inheritance policy even in
+Advanced. Save is shown only when processing preferences differ from the loaded
+values. Owner, feed/archive and delete actions remain separate immediate actions
+with their existing permissions and review safeguards.

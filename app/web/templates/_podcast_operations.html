@@ -1,10 +1,2 @@
-<section id="podcast-operations" data-subscription-id="{{ subscription.id }}" class="settings-section">
-<h2>Source and archive</h2>
-<div class="setting-row"><label for="replacement-feed">Replacement feed URL</label><input id="replacement-feed" class="input" type="url" autocomplete="off" placeholder="https://…"></div>
-<div class="setting-row"><span>Change source feed</span><button type="button" class="btn-secondary" data-preview-operation="feed">Preview replacement</button></div>
-<div class="setting-row"><span>Process whole show</span><button type="button" class="btn-secondary" data-preview-operation="archive">Preview available history</button></div>
-<p role="status" id="podcast-operation-status"></p>
-<div id="archive-batches" aria-live="polite"></div>
-</section>
 <dialog id="podcast-operation-dialog"><div class="dialog-heading"><h2 id="podcast-operation-title">Review podcast action</h2><button type="button" data-close-dialog>Close</button></div><p id="podcast-operation-summary"></p><p id="podcast-operation-warning"></p><div id="podcast-operation-items"></div><p id="podcast-confirm-status" role="status"></p><button type="button" class="btn-primary" id="confirm-podcast-operation">Confirm</button></dialog>
 <script src="/static/js/podcast-operations.js?v={{ static_asset_version('js/podcast-operations.js') }}" defer></script>

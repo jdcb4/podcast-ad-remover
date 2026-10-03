@@ -303,3 +303,6 @@ The entries below record their version/date at the time. They do not establish t
 
 ### Compact settings follow-up — 2026-10-03
 - Four-column desktop podcast settings with responsive stacking, aligned GPU status label/value rows, and content-sized prompt editors with tighter heading spacing.
+
+### Podcast settings navigation — 2026-10-03
+- Replace the expanded settings grid with desktop tabs and mobile accordions, inherited-setting summaries, and a draft-only save bar. Preserve form submission, timing inheritance and separate management actions.
