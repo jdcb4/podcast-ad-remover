@@ -124,8 +124,9 @@ dialog::backdrop { background:#0008; }
 .icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: .5rem; }
 .speech-control { display: flex; align-items: center; gap: .5rem; min-width: 0; flex-wrap: wrap; }
 .speech-control .select,.speech-control .input { flex: 1; min-width: 120px; }
-[data-autosize] { resize: none; overflow: hidden; }
-.podcast-settings-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2,minmax(0,1fr)); }
+[data-autosize] { resize: none; overflow: hidden; transition: none; }
+.podcast-settings-grid { display: grid; gap: 1rem; grid-template-columns: repeat(4,minmax(0,1fr)); }
+@media(max-width:1199px){.podcast-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:640px){.podcast-settings-grid{grid-template-columns:1fr;}}
 
 .podcast-settings-compact .grid { gap: 1rem; }
@@ -155,3 +156,14 @@ dialog::backdrop { background:#0008; }
 .podcast-card:focus-within .podcast-overlay{opacity:1}
 
 #upgrade-history-content h3,#upgrade-history-content h4{font-weight:650}#upgrade-history-content p,#upgrade-history-content details{margin-top:6px}#upgrade-history-content ul{list-style:disc;padding-left:20px}.migration-model{margin:12px 0;padding-bottom:12px;border-bottom:1px solid #80808030;overflow-wrap:anywhere}
+
+/* Compact settings retain normal touch targets and stack on phones. */
+.podcast-settings-grid .settings-section { min-width:0; margin-top:.75rem; }
+.podcast-settings-grid .setting-row { min-height:44px; padding:8px 0; gap:12px; }
+.podcast-settings-grid .setting-control input { width:5rem; }
+.gpu-status dd { width:22rem; max-width:58%; overflow-wrap:anywhere; }
+#timeline-prompts-form .dialog-heading { margin-bottom:4px; }
+#timeline-prompts-form .dialog-heading h2 { margin:0; font-size:1rem; }
+#timeline-prompts-form [data-autosize] { min-height:0; padding:8px 12px; display:block; }
+@media(max-width:480px){.gpu-status .setting-row{align-items:flex-start;flex-direction:column;gap:4px}.gpu-status dd{width:100%;max-width:none}}
+

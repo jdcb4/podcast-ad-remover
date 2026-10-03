@@ -300,3 +300,6 @@ The entries below record their version/date at the time. They do not establish t
 
 ### Build verification exception — 2026-10-03
 - Explicitly approved, visible exception for build-only braces advisory GHSA-vfj7-8cjw-p6xm; other advisories remain blocking. See SECURITY.md.
+
+### Compact settings follow-up — 2026-10-03
+- Four-column desktop podcast settings with responsive stacking, aligned GPU status label/value rows, and content-sized prompt editors with tighter heading spacing.
