@@ -255,7 +255,12 @@ const media={matches:false,addEventListener:(name,fn)=>media.change=fn};w.matchM
 w.eval(fs.readFileSync('app/web/static/js/settings-inheritance.js','utf8'));
 w.eval(fs.readFileSync('app/web/static/js/podcast-settings.js','utf8'));
 const form=d.getElementById('podcast-settings-form'),bar=d.querySelector('.podcast-save-bar');
-assert.equal(bar.hidden,true);
+assert.equal(bar.hidden,false);assert.equal(bar.querySelector('button').disabled,true);
+const guidance=form.elements.namedItem('custom_instructions'),initialGuidance=guidance.value;
+guidance.value='Identify sponsorship reads';guidance.dispatchEvent(new w.Event('input',{bubbles:true}));
+assert.equal(bar.hidden,false);assert.equal(bar.querySelector('button').disabled,false);
+guidance.value=initialGuidance;guidance.dispatchEvent(new w.Event('input',{bubbles:true}));
+assert.equal(bar.hidden,false);assert.equal(bar.querySelector('button').disabled,true);
 assert.equal(d.querySelectorAll('.podcast-setting-group:not([open])').length,0);
 d.querySelector('[data-group="3"] > summary').click();assert.equal(d.querySelector('[data-group="3"]').open,true);
 assert.equal(d.querySelector('[data-preview-operation="archive"]').closest('[data-panel]').dataset.panel,'manage');

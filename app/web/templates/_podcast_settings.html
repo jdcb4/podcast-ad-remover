@@ -34,7 +34,8 @@
    {{ check('watermark_artwork','Ad-free artwork','default_features') }}
    {% if not speech_ready(settings) %}<p class="settings-help">Configure Voice to enable spoken additions. Existing preferences are retained.</p>{% endif %}
   </div></div></details><details class="podcast-setting-group" data-settings-tab="processing" data-group="3" ><summary>Advanced<span data-group-summary></span></summary><div class="group-body"><label for="show-guidance">Classification guidance</label>
-   <textarea form="podcast-settings-form" id="show-guidance" name="custom_instructions" rows="5" class="input">{{ stored.get('custom_instructions') or '' }}</textarea>
+   <textarea form="podcast-settings-form" id="show-guidance" name="custom_instructions" aria-describedby="show-guidance-help" rows="5" class="input">{{ stored.get('custom_instructions') or '' }}</textarea>
+   <p id="show-guidance-help" class="settings-help">Additional guidance for identifying ads and other content in this podcast. Your removal switches still decide what is cut.</p>
   </div></details></div><div id="settings-panel-downloads" class="podcast-tab-panel" data-panel="downloads"><details class="podcast-setting-group" data-settings-tab="downloads" data-group="2" data-inheritance-group><summary>Downloads<span data-group-summary></span></summary><div class="group-body">{{ inherit('retention') }}   <label class="setting-row"><span>Keep whole show</span><input form="podcast-settings-form" type="checkbox" class="setting-switch" name="keep_whole_show" value="true" {% if subscription.keep_whole_show %}checked{% endif %}></label><div data-override-fields>
 
    <p class="settings-help">Keep whole show prevents automatic cleanup, even after an archive batch is cancelled. Turning it off resumes the limits below.</p>
@@ -43,6 +44,6 @@
    {{ numeric('manual_retention_days','Days to keep manual downloads','retention',14,min=1) }}
    <p class="settings-help">Latest episodes also sets the normal discovery window: 0 is manual only; 1000 or more keeps all available. Shown values are effective while global settings are selected.</p>
   </div></div></details></div><div id="settings-panel-manage" class="podcast-tab-panel" data-panel="manage"><details class="podcast-setting-group" data-settings-tab="manage" data-group="4"><summary>Manage<span>Owner, feed and archive</span></summary><div class="group-body">{% include '_podcast_management.html' %}</div></details></div></div><p role="status" id="podcast-operation-status"></p></div>
-<div class="podcast-save-bar"><span>Unsaved changes</span><button type="submit" form="podcast-settings-form" class="btn-primary">Save settings</button></div>
+<div class="podcast-save-bar"><span role="status" style="visibility:hidden">Unsaved changes</span><button type="submit" form="podcast-settings-form" class="btn-primary">Save settings</button></div>
 {% if subscription.source_type == 'rss' %}{% include '_podcast_operations.html' %}{% endif %}
 </div>

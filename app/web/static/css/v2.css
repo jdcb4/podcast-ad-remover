@@ -209,9 +209,12 @@ dialog::backdrop { background:#0008; }
 .podcast-manage-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
 .podcast-manage-columns h3{font-size:1rem;font-weight:650;margin:0 0 12px}
 .podcast-manage-columns .owner-setting,.podcast-manage-columns .owner-control{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:none;gap:8px}
-.podcast-manage-columns .input{margin:8px 0 12px}
+.podcast-manage-columns .input{margin:0 0 8px}
 .podcast-manage-columns .setting-row{flex-wrap:wrap}
 .podcast-manage-columns .btn-secondary{max-width:100%;white-space:normal}
 @media(max-width:700px){.podcast-manage-columns{grid-template-columns:1fr;gap:20px}}
 
 @media(min-width:701px){.podcast-setting-group>summary span{display:none}}
+
+.podcast-save-bar button:disabled{opacity:.45;cursor:not-allowed}
+.podcast-manage-columns .owner-setting{padding-top:0}

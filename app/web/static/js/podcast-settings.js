@@ -13,7 +13,9 @@
    const inherited=toggle.checked;
    summary.textContent=group.querySelector('[name=keep_whole_show]')?.checked?'Keep whole show':inherited?'Global defaults':'Custom settings';
   });
-  root.querySelector('.podcast-save-bar').hidden=snapshot()===original;
+  const dirty=snapshot()!==original,bar=root.querySelector('.podcast-save-bar');
+  bar.querySelector('button').disabled=!dirty;
+  bar.querySelector('[role=status]').style.visibility=dirty?'visible':'hidden';
  }
  function layout(){
   tabs.forEach(t=>{t.setAttribute('aria-selected',String(t.dataset.tab===active));t.tabIndex=t.dataset.tab===active?0:-1;});

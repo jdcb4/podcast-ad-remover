@@ -2,6 +2,8 @@
 
 ## Unreleased — V2 development
 
+- Keep podcast Save settings visible and disabled when unchanged; clarify show-specific classification guidance and align replacement-feed controls. Verify guidance reaches the model’s system prompt and invalidates classification caches.
+
 - Fresh installs use three Whisper CPU threads; existing values are preserved. Dev, release and experimental Docker builds support a verified native AMD64 fallback when Buildx is unavailable.
 - Add reviewed RSS source replacement with stable publication identities and GUID aliases; add durable, low-priority whole-show batches with pause/resume/cancel and explicit keep-whole-show retention. See [podcast operations](PODCAST_OPERATIONS.md).
 - Compact Podcast settings, move owner/deletion controls inside, and add touch/keyboard subscription actions to library views. Refine settings alignment, top Save actions, expanded GPU/retention/resource sections, draft voice previews, immediate credential removal, editable prompt definitions and readable historical upgrade reports.
