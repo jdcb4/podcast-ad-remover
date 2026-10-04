@@ -14,6 +14,8 @@ Podcast Ad Remover 2.0 — a simpler tool, with deliberate breaking changes
 
 ## Proposed release body
 
+Podcast Ad Remover prepares podcast feeds with fewer interruptions, ready for your usual player. Add or import subscriptions, choose which content to remove, and let PAR download, transcribe and process new episodes. Optional summaries, spoken titles, a Unified Feed and separate audio storage help you manage a growing library.
+
 We are deliberately making breaking changes in V2. After spending more time building and using Podcast Ad Remover, we have a clearer view of which features are useful for the long term and which were mostly being kept for compatibility.
 
 We hope these changes will not affect anyone's day-to-day use. However, some installations may rely on the options we are removing, so we want to explain the decision rather than suggest this is a completely compatible upgrade.
@@ -29,7 +31,8 @@ Local transcription is staying. You can still use a self-hosted custom analysis 
 - A compact desktop and mobile interface, clearer settings and consolidated Users & access.
 - A short, optional setup wizard that can be dismissed or run again later.
 - A browser-only Docker/Compose configurator for POSIX or PowerShell, including offline download and private local generation of environment files.
-- Complete Timeline classification as the single processing path, followed by deterministic category removal and optional short-island cuts.
+- Complete Timeline classification as the single processing path, followed by deterministic category removal and a fixed 10-second short-island policy for new processing.
+- Reviewed RSS source replacement and durable whole-show processing with pause/resume/cancel and explicit archive retention.
 - API speech through Gemini, OpenAI, OpenRouter or a custom endpoint, with one model and voice, metadata refresh and manual IDs where needed.
 - OPML/text feed import with duplicate preview, per-feed selection, progress, stop and retry. Pocket Casts exports are supported.
 - Unified-feed artwork upload, a single RSS subscription action and consistent light/dark navigation.
@@ -48,6 +51,7 @@ Local transcription is staying. You can still use a self-hosted custom analysis 
 | Direct removal of editorial non-speech | Removed. Editorial material is kept unless an independent qualifying short-island cut applies. |
 | Separate beginning/middle/end tone switches | One switch. If any old position was enabled, all applicable cut positions are enabled after migration. |
 | Editable unified-feed description | Replaced by a fixed description. Name, podcast-title prefix, external artwork and uploaded artwork remain. |
+| Configurable retained-island threshold | Fixed at 10 seconds for new processing. Old stored overrides are ignored; already queued snapshots retain their frozen policy. |
 | Legacy API settings | `/api/v1` remains, but retired values/unknown PATCH fields are rejected. Update scripts against the installed OpenAPI schema. |
 
 Fresh installations enable ad-free artwork and Insert tone at content cuts; other enhancements start off. Existing saved preferences are preserved except the documented conversions. Requested optional speech preferences remain saved while speech is unconfigured.
@@ -64,7 +68,11 @@ Mandatory-owner changes and a whisper.cpp evaluation are deferred. faster-whispe
 
 ### Validation and remaining release work
 
-The implementation at `1e48a86` passed 653 tests (5 skipped), frontend/Python dependency audits and a local Docker build. Import UI review returned ship at its reviewed scope. These results do not certify every provider/account, a production-data upgrade, every GPU host or GitHub Pages deployment. Re-run release verification for the exact approved candidate, rehearse the target installation and complete the maintainer explanation before publication.
+See the [4 October launch review](V2_LAUNCH_REVIEW.md) for current verification and unresolved findings. The [web installer](https://jdcb4.github.io/podcast-ad-remover/) is implemented but its Pages deployment is blocked by stale environment branch rules; the [local preview](INSTALL_WIZARD.md) is available. Do not announce the hosted wizard as live until that gate succeeds.
+
+The existing CPU/GPU transcription chunk merger can omit or repeat words at chunk joins. GPU support remains experimental. See the [recorded audio-quality evidence](CUDA_LONGFORM_2026-09-24.md); no word-perfect cutting claim is made.
+
+Re-run release verification for the exact approved candidate, rehearse the target installation and complete the maintainer explanation before publication. Automated checks do not certify every provider/account, production-data upgrade or GPU host.
 
 ## Suggested release commit message
 

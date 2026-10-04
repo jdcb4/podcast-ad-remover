@@ -2,7 +2,7 @@
 
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>Install · Podcast Ad Remover</title><link rel="stylesheet" href="style.css"><script src="release.js" defer></script><script src="configurator.js" defer></script></head>
 
-<body><main><header><h1>Install Podcast Ad Remover</h1><p>Build a Docker configuration in your browser. Your inputs stay here: no uploads, analytics or saved credentials.</p><p id="release"></p></header>
+<body><main><header><h1>Install Podcast Ad Remover</h1><p>Build a Docker configuration in your browser. Your inputs stay here: no uploads, analytics or saved credentials.</p><p id="release"></p><p>This wizard prepares a new installation. Upgrading? Keep your existing configuration, data volume and session secret, and follow the <a href="https://github.com/jdcb4/podcast-ad-remover/blob/dev/Documentation/V2_UPGRADE.md">V2 upgrade guide</a> first.</p></header>
 
 <form id="config" autocomplete="off">
 
@@ -16,7 +16,7 @@
 
 <label>Data storage<select name="storage"><option value="volume">Named Docker volume (recommended)</option><option value="bind">Existing host directory</option></select></label>
 
-<label>Directory on Docker host<input name="path" placeholder="/srv/podcast-ad-remover" disabled></label><p class="hint">Keep this storage across upgrades. An existing installation must reuse its current data directory.</p>
+<label>Directory on Docker host<input name="path" placeholder="/srv/podcast-ad-remover" disabled></label><p class="hint">Keep this storage across upgrades. Compose names volumes per project: changing folders or switching to Docker run can select a different volume.</p>
 
 <label class="check"><input name="separate_media" type="checkbox">Store processed audio on a separate disk or NAS</label>
 <label>Media directory on Docker host<input name="media_path" placeholder="/mnt/nas/par-audio" disabled></label>

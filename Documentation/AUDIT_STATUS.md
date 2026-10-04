@@ -1,5 +1,7 @@
 # Audit status
 
+The [4 October 2026 V2 launch review](V2_LAUNCH_REVIEW.md) records the current targeted Dev review, Pages deployment blocker, remaining chunk-join defect and launch documentation verification. The records below retain their dated scope.
+
 Updated for V2 documentation on 2026-09-27. The dated records below remain historical assessment evidence; they do not establish the current deployed version. V2 implementation and local checks are recorded in [V2_IMPLEMENTATION.md](V2_IMPLEMENTATION.md), and publication remains pending separate approval and Joe’s expanded rationale.
 
 Assessment status recorded on 2026-09-06: The 2026-09-05 whole-project assessment was approved for implementation.
