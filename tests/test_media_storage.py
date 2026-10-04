@@ -305,3 +305,34 @@ def test_episode_deletion_defers_cleanly_during_migration(storage):
     assert not path.exists()
     with get_db_connection() as conn:
         assert conn.execute('SELECT processing_step FROM episodes WHERE id=90').fetchone()[0] == 'deleted'
+
+
+@pytest.mark.parametrize('key', ['/outside.mp3', '../outside.mp3', 'show/../../outside.mp3', 'C:/outside.mp3', 'C:outside.mp3', 'show\\outside.mp3'])
+def test_storage_paths_reject_traversal_and_windows_drives(tmp_path, key):
+    with pytest.raises(ValueError):
+        media.safe_path(tmp_path, key)
+
+
+@pytest.mark.skipif(__import__('os').name == 'nt', reason='Legacy colon filenames require a POSIX filesystem')
+@pytest.mark.parametrize('guid', ['tag:soundcloud,2010:tracks_1485675907', 'urn:bbc:podcast:p0p373lb'])
+def test_legacy_guid_migration_resume_playback_and_cleanup(storage, guid):
+    path = Path(settings.PODCASTS_DIR) / 'show' / guid / 'processed.mp3'
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b'legacy published audio')
+    with get_db_connection() as conn:
+        conn.execute('UPDATE episodes SET local_filename=? WHERE id=90', (str(path),))
+        conn.commit()
+    media.enable(); media.start(); media.step()
+    # Reproduce the persisted failed batch from the former colon restriction.
+    with get_db_connection() as conn:
+        conn.execute("UPDATE media_storage SET status='error',error='Invalid audio storage path' WHERE id=1")
+        conn.commit()
+    media.control('resume'); run()
+    assert media.state()['status'] == 'complete'
+    key = media.key_for(path)
+    assert _resolve_audio_file_path(key).read_bytes() == path.read_bytes()
+    assert path.exists()
+    media.start('cleanup'); run()
+    assert media.state()['status'] == 'complete'
+    assert not path.exists()
+    assert _resolve_audio_file_path(key).read_bytes() == b'legacy published audio'

@@ -2,6 +2,8 @@
 
 ## Unreleased — V2 development
 
+- Fix separate-audio migration and playback for legacy Linux episode folders containing colons (including BBC and SoundCloud GUIDs). Failed batches can resume without renaming files or changing published URLs.
+
 - Prepare a shorter launch README with key features, breaking-change rationale and the web wizard link; document the Pages deployment blocker and local preview, and reconcile stale short-island guidance with the fixed 10-second policy.
 
 - Keep podcast Save settings visible and disabled when unchanged; clarify show-specific classification guidance and align replacement-feed controls. Verify guidance reaches the model’s system prompt and invalidates classification caches.

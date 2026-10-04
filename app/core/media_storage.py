@@ -7,7 +7,7 @@ No network filesystem is used for SQLite, locks, transcripts or working files.
 import asyncio
 import hashlib
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import shutil
 import tempfile
 from uuid import uuid4
@@ -30,7 +30,11 @@ def lock():
 
 def safe_path(root, key):
     parts = PurePosixPath(key).parts
-    if not parts or key.startswith('/') or any(p in {'.', '..'} or ':' in p or '\\' in p for p in parts):
+    # Colons are valid in legacy RSS GUID directories on Linux (BBC/SoundCloud).
+    # Reject Windows drives on every platform, and ADS syntax on Windows only.
+    if not parts or key.startswith('/') or PureWindowsPath(key).drive or any(
+        p in {'.', '..'} or '\\' in p or (os.name == 'nt' and ':' in p) for p in parts
+    ):
         raise ValueError('Invalid audio storage path')
     root = Path(root).absolute()
     if root.resolve() != root:
