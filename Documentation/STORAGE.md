@@ -124,3 +124,5 @@ migration and restart the normal processor to recover interrupted jobs, then ret
 migration. The normal processor also performs periodic stale-job recovery.
 Episode deletion during migration marks the episode ignored immediately; physical
 cleanup is retried by normal maintenance when storage is available again.
+
+Legacy Linux GUID directories containing colons are supported. If an older Dev build stopped with `Invalid audio storage path` for a BBC/SoundCloud GUID, upgrade and choose Resume. Keep the existing migration and originals; no database conversion or file rename is needed. Windows drive paths, traversal and symlink aliases remain rejected.
