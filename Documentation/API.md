@@ -669,7 +669,7 @@ Accepted PATCH fields (unknown fields are rejected):
 | Group | Fields | Constraints |
 |-------|--------|-------------|
 | Content removal | `remove_ads`, `remove_promos`, `remove_intros`, `remove_outros` | Boolean. |
-| Timeline removal | `remove_non_editorial_non_speech`, `minimum_retained_seconds` | Boolean; finite number `0..600`. Null leaves the stored value unchanged. |
+| Timeline removal | `remove_non_editorial_non_speech`, `minimum_retained_seconds` | Boolean; retained-island compatibility field accepts only `10` or null. |
 | Enhancements | `append_title_intro`, `ai_rewrite_description`, `ai_audio_summary`, `watermark_artwork` | Boolean. Requested speech preferences are retained even if speech is unconfigured; processing skips unavailable optional speech. |
 | Retention | `retention_days`, `manual_retention_days`, `retention_limit` | Integer `>=0`. Automatic retention uses `retention_limit` (keep newest N completed episodes); zero retains none and disables automatic downloads. Manual retention uses `manual_retention_days`; zero makes completed manual downloads immediately eligible for cleanup. `retention_days` is retained for compatibility but is not used by current episode cleanup. |
 | Inheritance | `inherit_content_removal`, `inherit_retention`, `inherit_default_features` | Boolean. |
@@ -683,7 +683,7 @@ Content-removal, retention and default-feature groups can inherit global values.
 The default-features group includes `ai_rewrite_description`, `ai_audio_summary`,
 `append_title_intro`, and `watermark_artwork`.
 
-Complete Timeline is the only supported workflow. Optional `remove_non_editorial_non_speech` and `minimum_retained_seconds` belong to content removal. The threshold must be finite and between 0 and 600 seconds; zero disables bridging. Omission or null retains existing values. Editorial non-speech is never selected directly for removal.
+Complete Timeline is the only supported workflow. Optional `remove_non_editorial_non_speech` and `minimum_retained_seconds` belong to content removal. Retained-island timing is fixed at 10 seconds for new processing. The compatibility field accepts only 10 or null; old stored overrides are ignored. Editorial non-speech is never selected directly for removal.
 
 V2 rejects `processing_workflow: "legacy"`, `remove_editorial_non_speech: true`, `inherit_custom_instructions: true`, `append_summary: true`, and unknown update fields. Queued legacy snapshots are migrated during upgrade; new jobs freeze classification settings. Published audio is not automatically reprocessed. Its JSON report preserves
 root `segments` as final cuts and adds `workflow`, `analysis` and `edit_policy` to distinguish

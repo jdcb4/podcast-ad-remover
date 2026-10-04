@@ -72,25 +72,25 @@ def test_podcast_opt_in_zero_threshold_and_existing_queued_job_are_preserved(cli
     jobs.enqueue(1)
     data = {'timeline_settings_present': 'true', 'processing_workflow': 'complete_timeline',
             'remove_ads': 'true', 'remove_intros': 'true', 'remove_outros': 'true',
-            'minimum_retained_seconds': '0', 'custom_instructions': 'Preserve musical demonstrations'}
+            'minimum_retained_seconds': '10', 'custom_instructions': 'Preserve musical demonstrations'}
     result = client.post('/subscriptions/1/settings', data=data, follow_redirects=False)
     assert result.status_code == 303
     sub = SubscriptionRepository().get_by_id(1)
     assert sub.processing_workflow == 'complete_timeline' and not sub.inherit_processing_workflow
-    assert sub.minimum_retained_seconds == 0 and not sub.remove_non_editorial_non_speech
+    assert sub.minimum_retained_seconds == 10 and not sub.remove_non_editorial_non_speech
     with get_db_connection() as conn:
         assert json.loads(conn.execute('SELECT processing_snapshot FROM jobs').fetchone()[0])['workflow'] == 'complete_timeline'
     assert client.get('/subscriptions/1').status_code == 200
     # An older form omits new fields and must not reset them.
     assert client.post('/subscriptions/1/settings', data={'remove_ads': 'true', 'custom_instructions': 'Preserve musical demonstrations'}, follow_redirects=False).status_code == 303
     after = SubscriptionRepository().get_by_id(1)
-    assert after.processing_workflow == 'complete_timeline' and after.minimum_retained_seconds == 0
+    assert after.processing_workflow == 'complete_timeline' and after.minimum_retained_seconds == 10
 
 
 def test_global_default_does_not_convert_existing_podcasts_and_old_form_preserves_it(client):
     result = client.post('/admin/global-subscription-settings/update', data={
         'default_processing_workflow': 'complete_timeline', 'timeline_settings_present': 'true',
-        'default_minimum_retained_seconds': '0', 'whitelist_mode': 'true'}, follow_redirects=False)
+        'default_minimum_retained_seconds': '10', 'whitelist_mode': 'true'}, follow_redirects=False)
     assert result.status_code == 303
     assert SubscriptionRepository().get_by_id(1).processing_workflow == 'complete_timeline'
     assert client.get('/admin/global-subscription-settings').status_code == 200
@@ -98,10 +98,10 @@ def test_global_default_does_not_convert_existing_podcasts_and_old_form_preserve
     assert result.status_code == 303
     with get_db_connection() as conn:
         row = conn.execute('SELECT default_processing_workflow,default_minimum_retained_seconds,whitelist_mode FROM app_settings').fetchone()
-        assert tuple(row) == ('complete_timeline', 0, 0)
+        assert tuple(row) == ('complete_timeline', 10, 0)
 
 
-@pytest.mark.parametrize('value', ['-1', 'nan', 'inf', '601'])
+@pytest.mark.parametrize('value', ['0', '-1', 'nan', 'inf', '601'])
 def test_invalid_thresholds_are_rejected_without_changes(client, value):
     result = client.post('/admin/global-subscription-settings/update', data={'default_minimum_retained_seconds': value})
     assert result.status_code == 400
@@ -148,9 +148,9 @@ async def test_api_new_fields_preserve_omitted_or_null_options_and_accept_zero(i
     await update(minimum_retained_seconds=None, processing_workflow=None)
     same = repo.get_by_id(sub.id)
     assert same.inherit_content_removal and same.inherit_processing_workflow
-    await update(processing_workflow='complete_timeline', minimum_retained_seconds=0, remove_editorial_non_speech=False)
+    await update(processing_workflow='complete_timeline', minimum_retained_seconds=10, remove_editorial_non_speech=False)
     changed = repo.get_by_id(sub.id)
     assert changed.processing_workflow == 'complete_timeline' and not changed.inherit_processing_workflow
-    assert changed.minimum_retained_seconds == 0 and not changed.inherit_content_removal
+    assert changed.minimum_retained_seconds == 10 and not changed.inherit_content_removal
     await update(remove_ads=False)
-    assert repo.get_by_id(sub.id).minimum_retained_seconds == 0
+    assert repo.get_by_id(sub.id).minimum_retained_seconds == 10

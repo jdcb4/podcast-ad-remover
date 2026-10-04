@@ -1,0 +1,21 @@
+<div class="podcast-manage-columns"><section><h3>Owner</h3>{% if user and user.is_admin %}
+<div>
+    <form action="/subscriptions/{{ subscription.id }}/owner" method="POST" class="setting-row owner-setting">
+        <label for="owner_user_id" class="sr-only">Owner</label><div class="owner-control">
+            <select id="owner_user_id" name="owner_user_id" class="select">
+                <option value="" {% if not subscription.owner_user_id %}selected{% endif %}>Unowned</option>
+                {% for active_user in active_users %}
+                <option value="{{ active_user.id }}" {% if subscription.owner_user_id==active_user.id %}selected{% endif %}>
+                    {{ active_user.username }}{% if active_user.is_admin %} (admin){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        <button type="submit" class="btn-secondary">Update owner</button></div>
+    </form>
+</div>
+{% else %}<p>{{ owner_username or "Unowned" }}</p>{% endif %}
+
+    {% if user and user.is_admin %}<div class="setting-row"><button type="button" class="btn-danger" onclick="deleteSubscription({{ subscription.id }})"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>Delete podcast</button></div>{% endif %}
+</section><section><h3>Feed</h3>
+{% if subscription.source_type == 'rss' %}<label for="replacement-feed" class="sr-only">Replacement feed URL</label><input id="replacement-feed" class="input" type="url" autocomplete="off" placeholder="Replacement feed URL" aria-describedby="replacement-feed-help"><p id="replacement-feed-help" class="settings-help">Replace this podcast’s source RSS feed while keeping its processed episodes and subscription links. Preview changes before confirming.</p><button type="button" class="btn-secondary" data-preview-operation="feed">Preview replacement</button>{% else %}<p class="settings-help">Feed replacement is available for RSS podcasts.</p>{% endif %}
+</section><section><h3>Process whole show</h3>{% if subscription.source_type == 'rss' %}<button type="button" class="btn-secondary" data-preview-operation="archive">Preview available history</button><div id="archive-batches" aria-live="polite"></div>{% else %}<p class="settings-help">Archive processing is available for RSS podcasts.</p>{% endif %}</section></div>

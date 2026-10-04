@@ -43,12 +43,12 @@ Content. Cut precision is therefore limited by Whisper's segment timing; it is n
 4. Cut and stitch the remaining audio with FFmpeg.
 
 At a 10-second threshold, `Ad → 8 seconds of Content → Intro` bridges the Content only when both
-Ads and Intros are selected for removal. Exactly 10 seconds is kept. Zero disables bridging.
+Ads and Intros are selected for removal. Exactly 10 seconds is kept. New processing uses a fixed 10-second threshold; it is no longer configurable. Existing queued snapshots keep their frozen policy.
 Leading and trailing retained material is not an island. This rule deliberately overrides even
 Content or editorial classifications for qualifying islands; the report identifies those extra
 cuts separately. It does not modify the original model labels.
 
-Editorial non-speech is never directly selected for removal. The advanced short-island policy remains independent.
+Editorial non-speech is never directly selected for removal. The fixed short-island policy remains independent.
 
 ## Summary and reports
 
@@ -94,7 +94,7 @@ One selected model and credential are used. Unsupported schemas, outages, authen
 V2 migration `20260927_0023_v2` creates timeline snapshots for queued/retryable legacy jobs and normalizes existing timeline snapshots. Running jobs must be drained first. Credentials are loaded only at execution, never written to snapshots. The upgrade report identifies conversions. New jobs freeze the prompt, schema, selected model and removal policy; retries retain that snapshot.
 
 Classification caches require matching source SHA-256, transcript, measured duration, prompt,
-schema and provider configuration. Changing only removal choices or the island threshold can
+schema and provider configuration. Changing only removal choices can
 reuse matching classification on reprocess. A changed download, including dynamically inserted
 ads, invalidates reuse. Previous published audio stays available until its replacement completes.
 The V2 workflow migration does not move or rewrite existing reports, feed URLs, GUIDs or audio.

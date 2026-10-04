@@ -165,3 +165,26 @@ Unavailable speech switches retain their saved preferences and show disabled con
 Keep the existing visual identity. Place Save at the top of each settings form; put immediate actions in labelled rows and report their outcome without saving unrelated drafts. Use aligned control columns, units in labels and mobile stacking. Model/voice refresh buttons are 44px icon controls beside selectors. Voice preview uses the unsaved selection. Prompt definitions stay expanded and grow with their contents; Restore default changes only the draft. GPU, retention/timing and system resource sections stay expanded.
 
 Podcast settings starts collapsed with an accessible chevron. Its compact groups retain inheritance and effective-value controls. Owner, source replacement, whole-show batches and labelled deletion live inside it. Subscription actions share the authenticated dialog and remain visible without hover. Upgrade history is historical migration information, not a live status panel.
+
+Podcast settings use four compact columns at 1200px and above, two below that, and one at 640px and below. GPU execution/setup details reuse label/value rows. Prompt editors have a 4px heading gap and resize to content, including after font loading.
+
+## Podcast settings navigation (Option A, 2026-10-03)
+
+The prior four-column layout is superseded by Processing, Downloads and Manage
+tabs. Processing uses two compact columns plus a collapsed Advanced section.
+Phones use one accordion level with only one section open. Inherited groups show
+effective summaries and Customize; controls stay in the same form across tabs,
+preserving drafts. Timing keeps the content-removal inheritance policy even in
+Advanced. Save is shown only when processing preferences differ from the loaded
+values. Owner, feed/archive and delete actions remain separate immediate actions
+with their existing permissions and review safeguards.
+
+## Simplified podcast tabs (2026-10-03)
+
+Desktop Processing has three static columns: Remove content, Enhancements and
+Advanced. All controls remain visible; inheritance disables overrides, never
+hides them. Manage has static Owner, Feed and Process whole show columns. On
+mobile only the top-level sections collapse, with no nested disclosures. The
+retained-island setting is retired: new processing uses10seconds, ignoring old
+stored overrides. Existing queued snapshots retain their frozen policy. Historical
+columns remain for rollback compatibility; no database migration is needed.

@@ -23,7 +23,7 @@ Migration `20260927_0023_v2` runs through the normal backup-aware migration runn
 | Speech | Existing Gemini speech remains selected. Former Piper/local speech becomes unconfigured. Requested spoken features stay saved, core processing continues, and an actionable warning asks you to configure Voice. No paid replacement is chosen. |
 | Timeline | All processing uses Complete Timeline. Queued, retry-scheduled and rate-limited jobs are converted; compatible frozen timeline rules/options are retained and normalized. Running jobs must be drained. |
 | Instructions | Global free-form detection instructions and whitelist behavior are retired. Nonempty podcast-specific classification guidance still applies; review old guidance for conflicts with category definitions. |
-| Editorial audio | Direct editorial non-speech removal is disabled. The advanced retained-island rule remains independent (default 10 seconds; zero disables it). |
+| Editorial audio | Direct editorial non-speech removal is disabled. Retained-island removal is fixed at 10 seconds for new processing; old stored overrides are ignored. Already queued snapshots retain their frozen policy. |
 | Legacy summary umbrella | Old `append_summary` intent is converted into the supported description/audio-summary flags and the umbrella is disabled. Review effective inherited feature settings. |
 | Cut tones | Enabled if any previous beginning/middle/end switch was on. Mixed old settings now produce tones at all applicable cut positions; System's upgrade report records the conversion. |
 | Unified feed | Description becomes a fixed default. Name and episode-title prefix remain; an existing external artwork URL selects the URL artwork source. Upload is now another option. |
@@ -43,7 +43,7 @@ Local transcription remains faster-whisper. FFmpeg, CTranslate2 and shared depen
 - Read the **System** upgrade report, then confirm the application URL and client feed links.
 - Check **Text analysis** provider/model/key precedence and native structured-output support. There is no schema-free or different-model fallback.
 - Configure **Voice** only if wanted. Refresh metadata or enter supported IDs; an explicit speech preview can incur charges. Unconfigured spoken controls are disabled without losing saved intent.
-- Review **Podcast defaults**, per-podcast overrides, prompt rules, retained-island timing and the single cut-tone switch. Compare a representative report and listen at edits before broad reprocessing.
+- Review **Podcast defaults**, per-podcast overrides, prompt rules and the single cut-tone switch. Compare a representative report and listen at edits before broad reprocessing.
 - Verify **Users & access** login, feed tokens and API tokens. API stays at `/api/v1`, but retired PATCH values are rejected; review [API.md](API.md).
 - Remove `SPONSORBLOCK_ENABLED`, obsolete Piper configuration and `INSTALL_TTS` build arguments from deployment files. They no longer configure supported behavior.
 - Verify playback, individual/unified feeds, artwork, queue/worker health and your actual provider. Existing published audio should remain available during failed replacement attempts.

@@ -18,7 +18,11 @@
     function syncGroup(group, initial = false) {
         const toggle = group.querySelector('[data-inheritance-toggle]');
         if (!toggle) return;
-        group.querySelectorAll('[data-inherited-control]').forEach((control) => {
+        const controls = [...group.querySelectorAll('[data-inherited-control]')];
+        if (group.closest('#podcast-settings-workspace')) {
+            document.querySelectorAll('[data-inheritance-source="' + toggle.name.replace('inherit_', '') + '"] [data-inherited-control]').forEach(control => controls.push(control));
+        }
+        controls.forEach((control) => {
             if (!initial) {
                 if (toggle.checked) {
                     storeOverride(control);

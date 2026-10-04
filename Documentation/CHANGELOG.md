@@ -2,6 +2,8 @@
 
 ## Unreleased — V2 development
 
+- Keep podcast Save settings visible and disabled when unchanged; clarify show-specific classification guidance and align replacement-feed controls. Verify guidance reaches the model’s system prompt and invalidates classification caches.
+
 - Fresh installs use three Whisper CPU threads; existing values are preserved. Dev, release and experimental Docker builds support a verified native AMD64 fallback when Buildx is unavailable.
 - Add reviewed RSS source replacement with stable publication identities and GUID aliases; add durable, low-priority whole-show batches with pause/resume/cancel and explicit keep-whole-show retention. See [podcast operations](PODCAST_OPERATIONS.md).
 - Compact Podcast settings, move owner/deletion controls inside, and add touch/keyboard subscription actions to library views. Refine settings alignment, top Save actions, expanded GPU/retention/resource sections, draft voice previews, immediate credential removal, editable prompt definitions and readable historical upgrade reports.
@@ -300,3 +302,13 @@ The entries below record their version/date at the time. They do not establish t
 
 ### Build verification exception — 2026-10-03
 - Explicitly approved, visible exception for build-only braces advisory GHSA-vfj7-8cjw-p6xm; other advisories remain blocking. See SECURITY.md.
+
+### Compact settings follow-up — 2026-10-03
+- Four-column desktop podcast settings with responsive stacking, aligned GPU status label/value rows, and content-sized prompt editors with tighter heading spacing.
+
+### Podcast settings navigation — 2026-10-03
+- Replace the expanded settings grid with desktop tabs and mobile accordions, inherited-setting summaries, and a draft-only save bar. Preserve form submission, timing inheritance and separate management actions.
+
+### Simplified podcast controls — 2026-10-03
+- Desktop tabs expose all controls in three Processing/Manage columns; mobile retains only section-level accordions. Inheritance disables rather than hides controls. Archive processing moves to Manage.
+- Retained-island timing is fixed at 10 seconds for new processing; remove its UI controls and reject alternate API/form values. Existing queued snapshots remain frozen.

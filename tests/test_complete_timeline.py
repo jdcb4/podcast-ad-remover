@@ -250,3 +250,28 @@ def test_incomplete_response_gets_one_repair_then_fails_closed(monkeypatch):
     with pytest.raises(AnalysisError, match='Incomplete timeline'):
         detector.classify_timeline(units, 5, {}, snapshot)
     assert len(calls) == 2
+
+def test_new_snapshots_ignore_retired_island_overrides():
+    from app.core.subscription_settings import resolve_subscription_row
+    for inherited in (False, True):
+        row = resolve_subscription_row({'minimum_retained_seconds': 0, 'inherit_content_removal': inherited}, {'default_minimum_retained_seconds': 77})
+        assert row['minimum_retained_seconds'] == 10
+        assert timeline.make_snapshot({'minimum_retained_seconds': 0}, {})['options']['minimum_retained_seconds'] == 10
+
+
+def test_show_guidance_reaches_provider_and_changes_classification_cache(monkeypatch):
+    from app.core.subscription_settings import resolve_subscription_row
+    guidance = 'Treat the recurring Acme sponsorship read as an ad.'
+    subscription = resolve_subscription_row({'custom_instructions': guidance, 'inherit_custom_instructions': True}, {})
+    snapshot = timeline.make_snapshot(subscription, {})
+    calls = []
+    fake = SimpleNamespace(generate_structured=lambda messages, schema, mode: calls.append(messages) or response([row(1, 1, 'Content')], SUMMARY), last_model='fixture', last_output_mode='json_schema')
+    monkeypatch.setattr(AdDetector, '_get_provider', lambda self: fake)
+    monkeypatch.setattr(AdDetector, '_load_settings', lambda self: {})
+    units, _ = timeline.prepare_timeline({'segments': [{'start': 0, 'end': 5, 'text': 'Episode transcript'}]}, 5)
+    AdDetector().classify_timeline(units, 5, {}, snapshot)
+    assert calls[0][0]['role'] == 'system'
+    assert guidance in calls[0][0]['content']
+    assert 'not cut selection' in calls[0][0]['content']
+    without_guidance = timeline.make_snapshot({}, {})
+    assert timeline.cache_key('source', {}, 5, snapshot) != timeline.cache_key('source', {}, 5, without_guidance)

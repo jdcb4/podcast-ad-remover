@@ -6,9 +6,9 @@
             const response = await fetch('/admin/ai/cuda/status', {credentials: 'same-origin'});
             if (!response.ok) return;
             const state = await response.json();
-            set('cuda-phase', `GPU setup status: ${state.phase || 'idle'}`);
+            set('cuda-phase', state.phase || 'idle');
             set('cuda-message', state.message || '');
-            set('cuda-effective', `Currently transcribing with: ${(state.effective_device || 'cpu').toUpperCase()} (${state.effective_compute_type || 'float32'})`);
+            set('cuda-effective', `${(state.effective_device || 'cpu').toUpperCase()} (${state.effective_compute_type || 'float32'})`);
             set('cuda-download', state.phase === 'downloading' ? `${Math.round((state.downloaded || 0) / 1048576)} MB downloaded` : '');
             // Avoid a reload: the user may be editing unsaved settings.
             if (state.phase === 'ready') set('cuda-message', `${state.message} Refresh this page to see the saved device and precision choices.`);

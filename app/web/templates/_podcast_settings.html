@@ -1,45 +1,49 @@
 {% set stored = subscription.setting_overrides %}
 {% macro inherit(group) %}
-<label class="setting-row"><span>Use global settings</span><input class="setting-switch" type="checkbox" name="inherit_{{ group }}" value="true" data-inheritance-toggle {% if subscription['inherit_' ~ group] %}checked{% endif %}></label>
+<label class="setting-row"><span>Use global settings</span><input form="podcast-settings-form" class="setting-switch" type="checkbox" name="inherit_{{ group }}" value="true" data-inheritance-toggle {% if subscription['inherit_' ~ group] %}checked{% endif %}></label>
 {% endmacro %}
 {% macro check(field, label, group, speech=false) %}
-<label class="setting-row"><span>{{ label }}</span><input class="setting-switch" type="checkbox" name="{{ field }}" value="true" data-inherited-control
+<label class="setting-row"><span>{{ label }}</span><input form="podcast-settings-form" class="setting-switch" type="checkbox" name="{{ field }}" value="true" data-inherited-control
  data-effective-checked="{{ 'true' if settings['default_' ~ field] else 'false' }}" data-override-checked="{{ 'true' if stored.get(field) else 'false' }}"
  {% if subscription[field] %}checked{% endif %} {% if subscription['inherit_' ~ group] %}disabled{% endif %}
  {% if speech and not speech_ready(settings) %}data-unavailable disabled title="Configure Voice settings to enable speech"{% endif %}></label>
 {% endmacro %}
 {% macro numeric(field, label, group, fallback, min=0, max=100000, step=1) %}
-<label class="setting-row"><span>{{ label }}</span><span class="setting-control"><input class="input" type="number" name="{{ field }}" min="{{ min }}" max="{{ max }}" step="{{ step }}" required data-inherited-control
+<label class="setting-row"><span>{{ label }}</span><span class="setting-control"><input form="podcast-settings-form" class="input" type="number" name="{{ field }}" min="{{ min }}" max="{{ max }}" step="{{ step }}" required data-inherited-control
  value="{{ subscription[field] }}" data-effective-value="{{ settings['default_' ~ field] }}" data-override-value="{{ stored.get(field) if stored.get(field) is not none else fallback }}"
  {% if subscription['inherit_' ~ group] %}disabled{% endif %}></span></label>
 {% endmacro %}
-<form id="podcast-settings-form" action="/subscriptions/{{ subscription.id }}/settings" method="post" class="podcast-settings-compact">
- <div class="setting-row"><span>Settings</span><button type="submit" class="btn-primary">Save settings</button></div>
- <input type="hidden" name="keep_whole_show_present" value="true"><input type="hidden" name="timeline_settings_present" value="true">
- <div class="podcast-settings-grid">
-  <section data-inheritance-group class="settings-section"><h2>Remove content</h2>{{ inherit('content_removal') }}
+<div id="podcast-settings-workspace" class="podcast-settings-compact">
+<form id="podcast-settings-form" action="/subscriptions/{{ subscription.id }}/settings" method="post">
+<input type="hidden" name="keep_whole_show_present" value="true"><input type="hidden" name="timeline_settings_present" value="true">
+</form>
+<div class="podcast-settings-tabs" role="tablist" aria-label="Podcast settings sections">
+{% for key,label in [('processing','Processing'),('downloads','Downloads'),('manage','Manage')] %}<button type="button" role="tab" id="settings-tab-{{ key }}" data-tab="{{ key }}" aria-selected="{{ 'true' if loop.first else 'false' }}" aria-controls="settings-panel-{{ key }}">{{ label }}</button>{% endfor %}
+</div>
+<div id="podcast-operations" data-subscription-id="{{ subscription.id }}">
+<div class="podcast-setting-groups">
+<div id="settings-panel-processing" class="podcast-tab-panel" data-panel="processing"><details class="podcast-setting-group" data-settings-tab="processing" data-group="0" data-inheritance-group><summary>Remove content<span data-group-summary></span></summary><div class="group-body">{{ inherit('content_removal') }}<div data-override-fields>
    {{ check('remove_ads','Ads','content_removal') }}{{ check('remove_promos','Promos','content_removal') }}
    {{ check('remove_intros','Intros','content_removal') }}{{ check('remove_outros','Outros','content_removal') }}
    {{ check('remove_non_editorial_non_speech','Non-editorial non-speech','content_removal') }}
-   {{ numeric('minimum_retained_seconds','Minimum retained island (seconds)','content_removal',10,max=600,step=0.1) }}
-  </section>
-  <section data-inheritance-group class="settings-section"><h2>Enhancements</h2>{{ inherit('default_features') }}
+
+  </div></div></details><details class="podcast-setting-group" data-settings-tab="processing" data-group="1" data-inheritance-group><summary>Enhancements<span data-group-summary></span></summary><div class="group-body">{{ inherit('default_features') }}<div data-override-fields>
    {{ check('ai_rewrite_description','Rewrite description','default_features') }}
    {{ check('ai_audio_summary','Add generated spoken summary','default_features',true) }}
    {{ check('append_title_intro','Add generated spoken title','default_features',true) }}
    {{ check('watermark_artwork','Ad-free artwork','default_features') }}
    {% if not speech_ready(settings) %}<p class="settings-help">Configure Voice to enable spoken additions. Existing preferences are retained.</p>{% endif %}
-  </section>
-  <section data-inheritance-group class="settings-section"><h2>Downloads and retention</h2>{{ inherit('retention') }}
-   <label class="setting-row"><span>Keep whole show</span><input type="checkbox" class="setting-switch" name="keep_whole_show" value="true" {% if subscription.keep_whole_show %}checked{% endif %}></label>
+  </div></div></details><details class="podcast-setting-group" data-settings-tab="processing" data-group="3" ><summary>Advanced<span data-group-summary></span></summary><div class="group-body"><label for="show-guidance">Classification guidance</label>
+   <textarea form="podcast-settings-form" id="show-guidance" name="custom_instructions" aria-describedby="show-guidance-help" rows="5" class="input">{{ stored.get('custom_instructions') or '' }}</textarea>
+   <p id="show-guidance-help" class="settings-help">Additional guidance for identifying ads and other content in this podcast. Your removal switches still decide what is cut.</p>
+  </div></details></div><div id="settings-panel-downloads" class="podcast-tab-panel" data-panel="downloads"><details class="podcast-setting-group" data-settings-tab="downloads" data-group="2" data-inheritance-group><summary>Downloads<span data-group-summary></span></summary><div class="group-body">{{ inherit('retention') }}   <label class="setting-row"><span>Keep whole show</span><input form="podcast-settings-form" type="checkbox" class="setting-switch" name="keep_whole_show" value="true" {% if subscription.keep_whole_show %}checked{% endif %}></label><div data-override-fields>
+
    <p class="settings-help">Keep whole show prevents automatic cleanup, even after an archive batch is cancelled. Turning it off resumes the limits below.</p>
    {{ numeric('retention_limit','Latest episodes (episodes)','retention',1) }}
    {{ numeric('retention_days','Days to keep automatic downloads','retention',30,min=1) }}
    {{ numeric('manual_retention_days','Days to keep manual downloads','retention',14,min=1) }}
    <p class="settings-help">Latest episodes also sets the normal discovery window: 0 is manual only; 1000 or more keeps all available. Shown values are effective while global settings are selected.</p>
-  </section>
-  <section class="settings-section"><h2><label for="show-guidance">Podcast-specific instructions</label></h2>
-   <textarea id="show-guidance" name="custom_instructions" rows="5" class="input">{{ stored.get('custom_instructions') or '' }}</textarea>
-  </section>
- </div>
-</form>
+  </div></div></details></div><div id="settings-panel-manage" class="podcast-tab-panel" data-panel="manage"><details class="podcast-setting-group" data-settings-tab="manage" data-group="4"><summary>Manage<span>Owner, feed and archive</span></summary><div class="group-body">{% include '_podcast_management.html' %}</div></details></div></div><p role="status" id="podcast-operation-status"></p></div>
+<div class="podcast-save-bar"><span role="status" style="visibility:hidden">Unsaved changes</span><button type="submit" form="podcast-settings-form" class="btn-primary">Save settings</button></div>
+{% if subscription.source_type == 'rss' %}{% include '_podcast_operations.html' %}{% endif %}
+</div>
