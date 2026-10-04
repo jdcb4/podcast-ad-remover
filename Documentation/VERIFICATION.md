@@ -72,7 +72,7 @@ This is a maintenance update only; confirm the resulting `package-lock.json` cha
 
 The standard gate covers full timeline coverage, contextual gaps, native schema requests, refusal/truncation failure, valid-object unwrapping, frozen settings without credentials, V2 queued-job conversion, the 10/0-second island policy, escaped reports, classification cache reuse and real FFmpeg cuts. Old migration fixtures retain their historical expectations only before V2 migration is applied. There is no live Legacy/schema-free/cascade fallback to qualify.
 
-On an isolated data directory, edit/preview/reset prompt definitions, change content-removal inheritance and verify that zero island timing survives save/reload. Check desktop/mobile reports and actual edited seams. Synthetic reference classifications verify application logic, not live model accuracy. Keep real transcripts/audio outside the repository; use explicit provider authorization for live paid tests.
+On an isolated data directory, edit/preview/reset prompt definitions and change content-removal inheritance. Confirm new processing uses the fixed 10-second island policy despite old stored overrides, and existing queued snapshots retain their frozen policy. Check desktop/mobile reports and actual edited seams. Synthetic reference classifications verify application logic, not live model accuracy. Keep real transcripts/audio outside the repository; use explicit provider authorization for live paid tests.
 
 ## Docker Check
 

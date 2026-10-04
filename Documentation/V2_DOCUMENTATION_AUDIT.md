@@ -1,6 +1,6 @@
 # V2 documentation reconciliation â€” 2026-09-27
 
-Scope: revise current user/developer guidance against the implemented V2 code and confirmed user decisions; prepare the GitHub README and draft release/commit explanation. This is documentation preparation, not production publication or a claim of a real installation upgrade.
+Scope: revise current user/developer guidance against the implemented V2 code and confirmed user decisions; prepare the GitHub README and draft release/commit explanation. This is documentation preparation, not production publication or a claim of a real installation upgrade. Follow-up: the [4 October launch review](V2_LAUNCH_REVIEW.md) shortens the README, adds the installer guide, corrects retired threshold guidance and records current verification and Pages blockers.
 
 ## Current guidance reviewed and updated
 

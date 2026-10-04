@@ -70,6 +70,8 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 - `Documentation/PODCAST_OPERATIONS.md`: reviewed RSS replacement and durable archive processing.
 
 - `Documentation/V2_UPGRADE.md`: current breaking-change conversion, preflight and rollback guide.
+- `Documentation/INSTALL_WIZARD.md`: hosted/local installer, in-app onboarding, upgrade boundaries and Pages publication checklist.
+- `Documentation/V2_LAUNCH_REVIEW.md`: 4 October Dev review, verified legacy concerns and remaining launch gates.
 - `Documentation/V2_RELEASE_NOTES.md`: draft public explanation/commit copy and the unresolved maintainer reasoning reminder.
 - `Documentation/V2_PROPOSAL.md`: approved design-history record; later user decisions are called out at its top.
 - `Documentation/V2_IMPLEMENTATION.md`: implementation milestones and bounded qualification evidence.
