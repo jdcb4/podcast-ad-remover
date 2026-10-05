@@ -280,8 +280,6 @@ async def create_subscription(
 ):
     try:
         source = await asyncio.to_thread(resolve_source, request_body.feed_url)
-        if source.source_type.startswith("youtube_") and request_body.initial_count not in {0, 1, 3, 5}:
-            raise ValueError("YouTube initial import must be 0, 1, 3, or 5 videos")
         existing = (
             sub_repo.get_by_source_identity(source.source_type, source.external_id)
             or sub_repo.get_by_url(source.canonical_url)
@@ -300,6 +298,8 @@ async def create_subscription(
             owner_user_id=principal.user_id,
             source_type=source.source_type,
             source_external_id=source.external_id,
+            retention_limit=request_body.initial_count,
+            inherit_retention=False,
         )
         await send_notification_async(
             EVENT_NEW_PODCAST,

@@ -13,7 +13,8 @@ OPML/text import first parses and checks duplicates without contacting feeds. Th
 4.  **Scheduler** wakes up (e.g., every hour) and iterates active subscriptions.
 5.  **Source adapter** fetches RSS entries or performs bounded YouTube discovery (50 recent channel entries or 500 flat playlist members).
 6.  **System** compares remote episodes with `episodes` table (by GUID).
-7.  **System** queues new episodes for processing. New Complete Timeline jobs freeze their prompt, schema, selected model and removal choices without credentials. V2 migration upgrades queued/retryable legacy snapshots before processing.
+7.  **System** queues new or unprocessed episodes inside the effective latest-episode window for both RSS and YouTube. The web form can inherit the global limit or save an explicit override; API single-add counts save an override. Zero queues no automatic downloads. YouTube counts eligible entries in source order, skips duplicate IDs and excluded Shorts/live items, and leaves entries outside the window unprocessed. Increasing the limit can queue known unprocessed videos. Existing queued/manual/completed/ignored work is not cancelled or reset by discovery.
+8.  **System** prepares queued episodes for processing. New Complete Timeline jobs freeze their prompt, schema, selected model and removal choices without credentials. V2 migration upgrades queued/retryable legacy snapshots before processing.
 
 ## 2. Episode Processing Pipeline
 For each queued episode:

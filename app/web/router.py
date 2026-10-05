@@ -2086,6 +2086,7 @@ async def reset_unified_feed_settings(
 # --- Admin: Global Subscription Settings ---
 @router.get("/admin/global-subscription-settings", response_class=HTMLResponse)
 async def admin_global_subscription_settings(request: Request):
+    from app.core.podcast_titles import podcast_feed_title
     user = get_current_user(request)
     
     with get_db_connection() as conn:
@@ -2099,6 +2100,7 @@ async def admin_global_subscription_settings(request: Request):
             "user": user,
             "settings": settings_row,
             "active_tab": "global_subs",
+            "podcast_title_example": podcast_feed_title("The Rest is History", dict(settings_row)),
         }
     )
 
@@ -2123,9 +2125,28 @@ async def update_global_subscription_settings(
     default_minimum_retained_seconds: float | None = Form(None),
     timeline_settings_present: bool = Form(False),
     cut_tone_enabled: bool = Form(False),
+    podcast_titles_present: bool = Form(False),
+    podcast_title_prefix_enabled: bool = Form(False),
+    podcast_title_prefix: str | None = Form(None),
+    podcast_title_suffix_enabled: bool = Form(False),
+    podcast_title_suffix: str | None = Form(None),
     admin_user = Depends(require_admin)
 ):
     saved = get_global_settings()
+    from app.core.podcast_titles import validate_title_affix
+    title_updates = {}
+    if podcast_titles_present:
+        try:
+            for kind, enabled, value in (
+                ('prefix', podcast_title_prefix_enabled, podcast_title_prefix),
+                ('suffix', podcast_title_suffix_enabled, podcast_title_suffix),
+            ):
+                # Disabled inputs are omitted by browsers; keep their saved text.
+                text = saved[f'podcast_title_{kind}'] if value is None and not enabled else (value or '')
+                title_updates[f'podcast_title_{kind}'] = validate_title_affix(text, kind.capitalize(), enabled)
+                title_updates[f'podcast_title_{kind}_enabled'] = enabled
+        except ValueError as exc:
+            return RedirectResponse('/admin/global-subscription-settings?error=' + quote(str(exc)), status_code=303)
     if not speech_ready(saved):
         default_ai_audio_summary = bool(saved.get('default_ai_audio_summary'))
         default_append_title_intro = bool(saved.get('default_append_title_intro'))
@@ -2168,6 +2189,8 @@ async def update_global_subscription_settings(
             default_remove_non_editorial_non_speech, default_minimum_retained_seconds
         ))
         conn.execute("UPDATE app_settings SET cut_tone_enabled=?, default_processing_workflow='complete_timeline', default_remove_editorial_non_speech=0, whitelist_mode=0, default_custom_instructions=NULL WHERE id=1", (cut_tone_enabled,))
+        if title_updates:
+            conn.execute('UPDATE app_settings SET ' + ', '.join(f'{key}=?' for key in title_updates) + ' WHERE id=1', tuple(title_updates.values()))
         conn.commit()
 
     background_tasks.add_task(_reconcile_artwork_and_feeds)
@@ -2203,19 +2226,7 @@ async def add_subscription(
         default_retention_limit = app_settings["default_retention_limit"]
         if default_retention_limit is None:
             default_retention_limit = 1
-        if source.source_type.startswith("youtube_"):
-            retention_limit = default_retention_limit
-            inherit_retention = True
-            if str(initial_count).strip().lower() == "inherit":
-                initial_limit = min(max(int(default_retention_limit), 0), 5)
-            else:
-                try:
-                    initial_limit = int(initial_count)
-                except (TypeError, ValueError) as exc:
-                    raise ValueError("Invalid initial video count") from exc
-                if initial_limit not in {0, 1, 3, 5}:
-                    raise ValueError("YouTube initial import must be 0, 1, 3, or 5 videos")
-        elif inherit_retention:
+        if inherit_retention:
             retention_limit = default_retention_limit
             initial_limit = retention_limit
         else:

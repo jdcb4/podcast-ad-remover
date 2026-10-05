@@ -314,3 +314,5 @@ migration or backup restore. Rehearse against a copy and qualify the actual
 filesystem before deleting originals. See [STORAGE.md](STORAGE.md).
 
 The frontend audit now uses scripts/audit_frontend.py with the explicitly approved build-only exception documented in SECURITY.md. It reports that exception visibly; other moderate-or-higher advisories and audit errors remain blocking.
+
+`tests/test_podcast_titles.py` covers defaults, validation, disabled-field preservation, old-form compatibility, individual RSS names, unchanged Unified Feed/library names and migration backups/idempotency. YouTube source tests cover inherited/explicit/zero windows, a 40-video catch-up, duplicate IDs, repeat checks, excluded entries and increased limits.

@@ -602,8 +602,8 @@
                 const feedUrl = escapeHtml(pod.feed_url || '');
                 const sourceType = pod.source_type || 'rss';
                 const isYouTube = sourceType.startsWith('youtube_');
-                const limits = isYouTube ? [0, 1, 3, 5] : [0, 1, 3, 5, 10];
-                if (!isYouTube && !limits.includes(GLOBAL_RETENTION_DEFAULT)) limits.push(GLOBAL_RETENTION_DEFAULT);
+                const limits = [0, 1, 3, 5, 10];
+                if (!limits.includes(GLOBAL_RETENTION_DEFAULT)) limits.push(GLOBAL_RETENTION_DEFAULT);
                 limits.sort((a, b) => a - b);
                 let optionsHtml = '<option value="inherit" selected>Use global setting</option>';
                 limits.forEach(limit => {

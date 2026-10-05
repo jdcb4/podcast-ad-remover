@@ -449,6 +449,15 @@ FORMAL_MIGRATIONS.append(("20261002_0025_podcast_operations", [
 ]))
 
 
+PODCAST_TITLES_MIGRATION = "20261005_0026_podcast_titles"
+FORMAL_MIGRATIONS.append((PODCAST_TITLES_MIGRATION, [
+    "ALTER TABLE app_settings ADD COLUMN podcast_title_prefix_enabled INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE app_settings ADD COLUMN podcast_title_prefix TEXT NOT NULL DEFAULT 'PAR - '",
+    "ALTER TABLE app_settings ADD COLUMN podcast_title_suffix_enabled INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE app_settings ADD COLUMN podcast_title_suffix TEXT NOT NULL DEFAULT '(ad free)'",
+]))
+
+
 def _backup_database_if_needed(migration_ids: list[str]):
     """Create a timestamped DB backup before applying formal migrations."""
     if not migration_ids or not os.path.exists(settings.DB_PATH):

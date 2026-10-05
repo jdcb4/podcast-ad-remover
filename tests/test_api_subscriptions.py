@@ -16,7 +16,7 @@ class FakeSubscriptionRepository:
     def get_by_url(self, url):
         return None
 
-    def create(self, sub, title, slug, image_url=None, description=None, retention_limit=1, owner_user_id=None, inherit_retention=True):
+    def create(self, sub, title, slug, image_url=None, description=None, retention_limit=1, owner_user_id=None, inherit_retention=True, **source):
         self.created = {
             "sub": sub,
             "title": title,
@@ -72,22 +72,21 @@ async def test_create_subscription_accepts_parse_feed_description(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_create_youtube_subscription_rejects_unsupported_initial_count(monkeypatch):
-    monkeypatch.setattr(
-        subscriptions,
-        "resolve_source",
-        lambda _url: SimpleNamespace(source_type="youtube_channel"),
-    )
-
-    with pytest.raises(HTTPException) as exc:
-        await subscriptions.create_subscription(
-            SubscriptionCreate(feed_url="https://www.youtube.com/@example"),
-            initial_count=2,
-            user=object(),
-        )
-
-    assert exc.value.status_code == 400
-    assert exc.value.detail == "YouTube initial import must be 0, 1, 3, or 5 videos"
+@pytest.mark.parametrize("count", [0, 2, 10])
+async def test_create_youtube_subscription_persists_requested_limit(monkeypatch, count):
+    repo = FakeSubscriptionRepository()
+    processor = FakeProcessor()
+    monkeypatch.setattr(subscriptions, "repo", repo)
+    monkeypatch.setattr(subscriptions, "get_processor", lambda: processor)
+    monkeypatch.setattr(subscriptions, "resolve_source", lambda url: SimpleNamespace(
+        source_type="youtube_channel", external_id="UC_TEST", canonical_url=url,
+        title="Test", slug="test", image_url=None, description=""))
+    await subscriptions.create_subscription(
+        SubscriptionCreate(feed_url="https://www.youtube.com/@example"),
+        initial_count=count, user=object())
+    assert repo.created["retention_limit"] == count
+    assert repo.created["inherit_retention"] is False
+    assert processor.checked == {"subscription_id": 1, "limit": count}
 
 
 @pytest.mark.asyncio

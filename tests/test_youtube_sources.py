@@ -141,14 +141,15 @@ def test_discovery_is_bounded_and_reports_truncation(monkeypatch, source_type, c
     assert captured["playlistend"] == expected_limit + 1
 
 
-def test_playlist_discovery_initial_cap_and_new_old_member(isolated_data_dir, monkeypatch):
+def test_playlist_discovery_respects_window_for_new_old_member(isolated_data_dir, monkeypatch):
     init_db()
     subscriptions = SubscriptionRepository()
     subscription = subscriptions.create(
         SubscriptionCreate(feed_url="https://www.youtube.com/playlist?list=PL_TEST"),
         "Test Playlist",
         "test-playlist",
-        retention_limit=20,
+        retention_limit=3,
+        inherit_retention=False,
         source_type="youtube_playlist",
         source_external_id="PL_TEST",
     )
@@ -187,7 +188,7 @@ def test_playlist_discovery_initial_cap_and_new_old_member(isolated_data_dir, mo
                 (subscription.id,),
             ).fetchall()
         ]
-    assert statuses == ["pending"] * 5 + ["unprocessed"] * 2
+    assert statuses == ["pending"] * 3 + ["unprocessed"] * 4
 
     asyncio.run(processor.check_feeds(subscription_id=subscription.id, limit=5))
     with get_db_connection() as conn:
@@ -198,7 +199,7 @@ def test_playlist_discovery_initial_cap_and_new_old_member(isolated_data_dir, mo
             "SELECT COUNT(*) AS count FROM episodes WHERE subscription_id = ?",
             (subscription.id,),
         ).fetchone()
-    assert old["status"] == "pending"
+    assert old["status"] == "unprocessed"
     assert old["discovered_at"] is not None
     assert retained["count"] == 8
 
@@ -441,3 +442,54 @@ def test_migration_adds_youtube_source_state(isolated_data_dir):
     assert {"discovered_at", "source_media_path"} <= episode_columns
     assert {"subscription_id", "external_id", "eligibility", "is_present"} <= source_item_columns
     assert migration is not None
+
+
+@pytest.mark.parametrize("source_type", ["youtube_channel", "youtube_playlist"])
+@pytest.mark.parametrize("limit,inherit", [(0, False), (3, False), (10, False), (3, True)])
+def test_youtube_window_bounds_catchup_and_promotes_known_items(isolated_data_dir, monkeypatch, source_type, limit, inherit):
+    init_db()
+    repo = SubscriptionRepository()
+    with get_db_connection() as conn:
+        conn.execute("UPDATE app_settings SET default_retention_limit=?", (limit,))
+        conn.commit()
+    sub = repo.create(SubscriptionCreate(feed_url="https://www.youtube.com/source"),
+        "Window", "window", retention_limit=20 if inherit else limit,
+        inherit_retention=inherit, source_type=source_type, source_external_id="window")
+    processor = Processor.__new__(Processor)
+    processor.sub_repo, processor.ep_repo = repo, EpisodeRepository()
+    processor.source_item_repo = SourceItemRepository()
+    entries = [{"id": "previous"}]
+    monkeypatch.setattr("app.core.sources.discover_youtube_entries",
+        lambda *_: SimpleNamespace(entries=entries, truncated=False))
+    hydrated = []
+    def hydrate(video_id):
+        hydrated.append(video_id)
+        if video_id == "short":
+            return None, "short", False
+        return dict(guid=video_id, title=video_id, pub_date=None,
+            original_url=f"https://www.youtube.com/watch?v={video_id}",
+            duration=60, description="", file_size=0), None, False
+    monkeypatch.setattr("app.core.processor.hydrate_youtube_entry", hydrate)
+    asyncio.run(processor.check_feeds(subscription_id=sub.id))
+    entries[:] = [{"id": "short"}] + [{"id": f"new-{i}"} for i in range(40)] + entries
+    entries.insert(2, {"id": "new-0"})  # duplicate does not consume a slot
+    asyncio.run(processor.check_feeds(subscription_id=sub.id))
+    def statuses():
+        with get_db_connection() as conn:
+            return dict(conn.execute("SELECT guid,status FROM episodes WHERE subscription_id=?", (sub.id,)).fetchall())
+    result = statuses()
+    assert sum(result[f"new-{i}"] == "pending" for i in range(40)) == limit
+    assert len(result) == 41
+    count = len(hydrated)
+    asyncio.run(processor.check_feeds(subscription_id=sub.id))
+    assert len(hydrated) == count
+    assert statuses() == result
+    with get_db_connection() as conn:
+        conn.execute("UPDATE subscriptions SET retention_limit=12,inherit_retention=0 WHERE id=?", (sub.id,))
+        conn.execute("UPDATE episodes SET status='ignored' WHERE guid='new-0'")
+        conn.commit()
+    asyncio.run(processor.check_feeds(subscription_id=sub.id))
+    result = statuses()
+    assert result['new-0'] == 'ignored'
+    assert sum(result[f"new-{i}"] == "pending" for i in range(40)) == 11
+    assert len(hydrated) == count

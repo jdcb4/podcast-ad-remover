@@ -105,7 +105,7 @@ user_subscriptions(user_id, subscription_id, added_at)
 Subscriptions carry a source type and canonical external identity. Existing rows remain `rss`.
 YouTube channel aliases resolve to a canonical channel ID and explicit playlists to their list ID,
 preventing duplicate global subscriptions. `source_items` records provider membership independently
-of retained episode media, so an old video newly added to a playlist queues once and removed playlist
+of retained episode media, so an old video newly added to a playlist queues only if inside its configured window, and removed playlist
 members are not deleted or rediscovered. YouTube output retention uses discovery time while RSS and
 the generated feed continue to expose original publication/upload dates.
 

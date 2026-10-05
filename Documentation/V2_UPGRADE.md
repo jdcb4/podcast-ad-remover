@@ -56,3 +56,11 @@ Stop the new application, preserve its current data for diagnosis, and restore t
 # Source and archive controls
 
 See [PODCAST_OPERATIONS.md](PODCAST_OPERATIONS.md) for the additive migration, automatic pre-upgrade database backup and rollback requirements. Existing retention values and thread counts (including zero) are preserved; only fresh databases start with three Whisper CPU threads.
+
+## Podcast title preferences and YouTube windows
+
+Migration `20261005_0026_podcast_titles` adds four settings without changing stored podcast names, episode titles, media, feed URLs or GUIDs. Both fresh and upgraded installations start with prefix disabled (`PAR - `) and suffix enabled (`(ad free)`, replacing the former hard-coded `(Ad-Free)`). Set both in **Podcast defaults → Podcast titles**; these are global-only settings for individual RSS feeds. The Unified Feed keeps its separate name settings. Each text field allows 40 characters, rejects markup, multiline and control characters, and adds a separating space when needed. Saving regenerates feeds; players may display the old title until they refresh.
+
+Startup takes the normal integrity-checked pre-migration database backup under `/data/backups`. Preserve that backup and the matching image/media recovery point before upgrading. The added columns are backward-compatible, but older code ignores title preferences and publishes its hard-coded suffix. For a complete rollback follow [RECOVERY.md](RECOVERY.md); do not drop columns or restore an old database over a running instance.
+
+YouTube now uses the same effective latest-episode window as RSS for initial and later checks. Videos outside it remain available for manual processing. This does not cancel jobs already queued by older versions or resolve upstream download errors such as HTTP 403. Review existing excess work separately.

@@ -37,8 +37,6 @@ async def create_subscription(sub: SubscriptionCreate, initial_count: int = 5, u
         if initial_count < 0:
             raise ValueError("Initial episode count must be non-negative")
         source = await asyncio.to_thread(resolve_source, sub.feed_url)
-        if source.source_type.startswith("youtube_") and initial_count not in {0, 1, 3, 5}:
-            raise ValueError("YouTube initial import must be 0, 1, 3, or 5 videos")
         identity_lookup = getattr(repo, "get_by_source_identity", lambda *_args: None)
         existing = identity_lookup(source.source_type, source.external_id) or repo.get_by_url(source.canonical_url)
         if existing:
@@ -54,9 +52,8 @@ async def create_subscription(sub: SubscriptionCreate, initial_count: int = 5, u
         }
         if source.source_type != "rss":
             create_args.update(source_type=source.source_type, source_external_id=source.external_id)
-        else:
-            # Match the web form's explicit initial-count selection, including zero.
-            create_args.update(retention_limit=initial_count, inherit_retention=False)
+        # Match the web form for every source, including zero.
+        create_args.update(retention_limit=initial_count, inherit_retention=False)
         new_sub = repo.create(
             SubscriptionCreate(feed_url=source.canonical_url),
             source.title,

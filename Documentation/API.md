@@ -616,7 +616,7 @@ Request fields:
 | Field | Required | Notes |
 |-------|----------|-------|
 | `feed_url` | yes | Must be HTTP or HTTPS. |
-| `initial_count` | no | Requested initial check limit. Default `5`, allowed `0..50`; YouTube allows only `0`, `1`, `3`, `5`. For RSS, the effective inherited retention limit takes precedence in the current processor, so `0` does **not** reliably suppress initial downloads. Use the import endpoint to add without an immediate feed check. |
+| `initial_count` | no | Latest-episode window saved as an explicit retention override for new RSS and YouTube subscriptions. Default `5`, allowed `0..50`; `0` discovers entries without automatically queuing them. Later checks use the same window. Existing subscriptions retain their settings. Use the import endpoint to add without an immediate feed check. |
 
 Outcome:
 

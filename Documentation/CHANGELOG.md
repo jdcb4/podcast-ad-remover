@@ -2,6 +2,9 @@
 
 ## Unreleased — V2 development
 
+- Apply the same inherited or per-podcast latest-episode window to RSS and YouTube, including zero and catch-up checks; remove the YouTube-only five-video initial cap. Existing queued jobs are not cancelled.
+- Add global Podcast titles controls under Podcast defaults: prefix off with `PAR - ` and suffix on with `(ad free)`. Each supports up to 40 characters of single-line plain text, with disabled fields when off and a live example. Changes affect individual RSS channel names only and regenerate feeds on save.
+
 - Fix separate-audio migration and playback for legacy Linux episode folders containing colons (including BBC and SoundCloud GUIDs). Failed batches can resume without renaming files or changing published URLs.
 
 - Prepare a shorter launch README with key features, breaking-change rationale and the web wizard link; document the Pages deployment blocker and local preview, and reconcile stale short-island guidance with the fixed 10-second policy.
