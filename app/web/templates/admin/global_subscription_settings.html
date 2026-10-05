@@ -3,9 +3,19 @@
 {% block admin_content %}<h1>Podcast defaults</h1><p class="settings-intro">Choose what to remove and add to episodes. Podcasts inherit these defaults unless you give them their own settings.</p>
 <form action="/admin/global-subscription-settings/update" method="post">
 <div class="setting-row"><span>Settings</span><button class="btn-primary" type="submit">Save</button></div><input type="hidden" name="timeline_settings_present" value="true">
+<section class="settings-section" aria-labelledby="podcast-titles-heading">
+<h2 id="podcast-titles-heading">Podcast titles</h2>
+<p class="settings-help" id="podcast-titles-help">Applies to every individual podcast feed. Library names, episode titles and the Unified Feed name stay unchanged. Up to 40 characters per field; single-line plain text only. A separating space is added when needed.</p>
+<input type="hidden" name="podcast_titles_present" value="true">
+{{ toggle('podcast_title_prefix_enabled','Prepend text to Podcast titles?',settings.podcast_title_prefix_enabled) }}
+<label class="setting-row" for="podcast_title_prefix"><span>Text to prepend to titles</span><input class="input" id="podcast_title_prefix" name="podcast_title_prefix" value="{{ settings.podcast_title_prefix }}" maxlength="40" aria-describedby="podcast-titles-help" {% if not settings.podcast_title_prefix_enabled %}disabled{% else %}required{% endif %}></label>
+{{ toggle('podcast_title_suffix_enabled','Append text to Podcast titles?',settings.podcast_title_suffix_enabled) }}
+<label class="setting-row" for="podcast_title_suffix"><span>Text to append to titles</span><input class="input" id="podcast_title_suffix" name="podcast_title_suffix" value="{{ settings.podcast_title_suffix }}" maxlength="40" aria-describedby="podcast-titles-help" {% if not settings.podcast_title_suffix_enabled %}disabled{% else %}required{% endif %}></label>
+<p class="settings-help break-words">Example: <output id="podcast-title-example" aria-live="polite">{{ podcast_title_example }}</output></p>
+</section>
 <fieldset><legend>Remove content</legend>{% for field,label in [('ads','Ads'),('promos','Promos'),('intros','Intros'),('outros','Outros'),('non_editorial_non_speech','Non-editorial audio')] %}{{ toggle('default_remove_' ~ field,label,settings['default_remove_' ~ field]) }}{% endfor %}</fieldset>
 {% if not speech_ready(settings) %}<p id="speech-unavailable" class="settings-help">To enable spoken additions, configure a provider, model, voice and credential in <a class="text-link" href="/admin/ai/voice">Voice settings</a>. Existing preferences are retained.</p>{% endif %}<fieldset class="mt-6"><legend>Enhancements</legend>{% for field,label in [('ai_rewrite_description','Rewrite episode description'),('ai_audio_summary','Add generated spoken summary'),('append_title_intro','Add generated spoken title'),('watermark_artwork','Ad-free artwork badge')] %}{{ toggle('default_' ~ field,label,settings['default_' ~ field], disabled=field in ['ai_audio_summary','append_title_intro'] and not speech_ready(settings)) }}{% endfor %}
 {{ toggle('cut_tone_enabled','Insert tone at content cuts',settings.cut_tone_enabled) }}</fieldset>
 <section class="settings-section"><h2>Retention</h2>{{ number('default_retention_limit','Latest episodes',settings.default_retention_limit,'episodes') }}{{ number('default_retention_days','Days to keep automatic downloads',settings.default_retention_days) }}{{ number('default_manual_retention_days','Days to keep manual downloads',settings.default_manual_retention_days) }}</section>
 
-</form>{% endblock %}
+</form><script src="/static/js/podcast-titles.js" defer></script>{% endblock %}

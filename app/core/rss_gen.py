@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.infra.repository import SubscriptionRepository, EpisodeRepository
 from app.core.artwork import effective_artwork_url
 from app.core.unified_feed import resolve_unified_feed_settings
+from app.core.podcast_titles import podcast_feed_title
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class RSSGenerator:
         rss = Element('rss', version='2.0', **{'xmlns:itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'})
         channel = SubElement(rss, 'channel')
         
-        SubElement(channel, 'title').text = f"{sub.title} (Ad-Free)"
+        SubElement(channel, 'title').text = podcast_feed_title(sub.title, global_settings)
         
         # Build description with latest episode info
         # Build description

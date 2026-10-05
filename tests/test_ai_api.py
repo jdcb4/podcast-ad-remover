@@ -192,6 +192,9 @@ def test_create_subscription_accepts_valid_http_url_and_returns_existing_on_dupl
     assert created.json()["feed_url"] == payload["feed_url"]
     assert created.json()["slug"] == "nasa-podcast"
     assert created.json()["is_active"] is True
+    with get_db_connection() as conn:
+        row = conn.execute("SELECT retention_limit,inherit_retention FROM subscriptions WHERE id=?", (created.json()["id"],)).fetchone()
+    assert tuple(row) == (0, 0)
     assert checked == [{"subscription_id": created.json()["id"], "limit": 0}]
 
     assert duplicate.status_code == 200

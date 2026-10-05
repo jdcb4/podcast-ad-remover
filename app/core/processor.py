@@ -181,17 +181,17 @@ class Processor:
                 if not isinstance(source_type, str):
                     source_type = "rss"
                 source_adapter = get_source_adapter(source_type)
+                actual_limit = sub.retention_limit if sub.retention_limit is not None else limit
                 if source_type in {"youtube_channel", "youtube_playlist"}:
                     await self._check_youtube_source(
                         sub,
                         source_adapter,
-                        initial_limit=min(max(int(limit), 0), 5),
+                        limit=actual_limit,
                     )
                     continue
 
                 # Use subscription limit if set, else default. 
                 # Limit of 0 is valid (means skip initial downloads)
-                actual_limit = sub.retention_limit if sub.retention_limit is not None else limit
                 logger.info(f"Checking {sub.title} (Sub Limit: {sub.retention_limit}, Ref Limit: {limit}, Final Limit: {actual_limit})...")
 
                 # Fetch ALL episodes
@@ -229,27 +229,33 @@ class Processor:
                 logger.error("Error checking feed for podcast %s (%s)", sub.id, type(e).__name__)
                 self.sub_repo.record_check_error(sub.id, "Feed check failed; check the source URL and availability.")
 
-    async def _check_youtube_source(self, sub, source_adapter, initial_limit: int) -> None:
-        """Discover bounded public YouTube entries and queue each new item once."""
-        is_initial = self.source_item_repo.count(sub.id) == 0
+    async def _check_youtube_source(self, sub, source_adapter, limit: int) -> None:
+        """Apply the effective RSS-style window on every YouTube discovery pass."""
         discovery = await source_adapter.discover(sub.source_type, sub.feed_url)
         if sub.source_type == "youtube_playlist" and not discovery.truncated:
             self.source_item_repo.begin_reconciliation(sub.id)
 
-        eligible_initial = 0
+        eligible_count = 0
+        seen = set()
         for flat_entry in discovery.entries:
             external_id = str(flat_entry.get("id") or "").strip()
-            if not external_id:
+            if not external_id or external_id in seen:
                 continue
+            seen.add(external_id)
             canonical_url = f"https://www.youtube.com/watch?v={external_id}"
             observed, is_new = self.source_item_repo.observe(sub.id, external_id, canonical_url)
 
-            if (
-                sub.source_type == "youtube_channel"
-                and not is_new
-                and observed.get("eligibility") == "eligible"
-            ):
-                break
+            if observed.get("eligibility") == "eligible":
+                # Known items still occupy their place in the window. Increasing
+                # the limit can queue unprocessed rows; completed/ignored/failed
+                # rows and their existing jobs are left alone, just as with RSS.
+                if eligible_count < limit:
+                    self.ep_repo.update_status_by_guid(
+                        sub.id, external_id, 'pending', condition_status='unprocessed',
+                        expected_feed_url=sub.feed_url,
+                    )
+                eligible_count += 1
+                continue
 
             should_hydrate = is_new or observed.get("eligibility") in {"unknown", "transient"}
             if not should_hydrate:
@@ -272,14 +278,18 @@ class Processor:
 
             self.source_item_repo.set_eligibility(sub.id, external_id, "eligible")
             episode_data["subscription_id"] = sub.id
-            if is_initial:
-                should_queue = eligible_initial < initial_limit
-                eligible_initial += 1
-            else:
-                should_queue = is_new or observed.get("eligibility") == "transient"
+            episode_data["_source_feed_url"] = sub.feed_url
+            should_queue = eligible_count < limit
+            eligible_count += 1
             episode_data["status"] = "pending" if should_queue else "unprocessed"
-            if self.ep_repo.create_or_ignore(episode_data) and should_queue:
-                logger.info("New YouTube episode queued: %s", episode_data["title"])
+            if self.ep_repo.create_or_ignore(episode_data):
+                if should_queue:
+                    logger.info("New YouTube episode queued: %s", episode_data["title"])
+            elif should_queue:
+                self.ep_repo.update_status_by_guid(
+                    sub.id, episode_data['guid'], 'pending', condition_status='unprocessed',
+                    expected_feed_url=sub.feed_url,
+                )
 
         self.sub_repo.record_check_success(sub.id, truncated=discovery.truncated)
 

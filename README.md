@@ -12,6 +12,7 @@ Transcription runs locally with faster-whisper. Your chosen AI model classifies 
 
 - **Keep your player:** subscribe to individual shows or combine them in one Unified Feed.
 - **Choose what to skip:** ads, promos, intros, outros and non-editorial non-speech, with defaults and per-show preferences.
+- **Name feeds your way:** optional global prefix and suffix under Podcast defaults → Podcast titles, with a live preview.
 - **Bring your subscriptions:** search for podcasts, add RSS feeds or public YouTube channels/playlists, and import OPML exports such as Pocket Casts.
 - **Make episodes easier to browse:** optional rewritten descriptions, spoken titles and summaries, artwork badges and cut tones.
 - **Run your own library:** local transcription, retention controls, processing reports, retries and optional notifications. Finished audio can live on a separate disk or NAS.
