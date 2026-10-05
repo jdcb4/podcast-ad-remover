@@ -26,6 +26,7 @@ This roadmap lists improvement candidates. It is not a release commitment.
 
 ## User Experience
 
+- Add LLM detection of promotional episodes outside a podcast's standard episode mix, with an optional setting to exclude them (requested by Joe, 2026-10-05). Examples include standalone trailers, cross-promotions and promotional announcements. Distinguish these from regular episodes containing ad or promo segments, which remain eligible for normal content removal. This is a roadmap item, not an implemented feature.
 - Add OPML export for a selected podcast list (requested by Joe, 2026-10-05). Proposed flow: select one or more podcasts in either **My Podcasts** or **Library**, then use an **Export OPML** button in the bulk settings area to download the selected list. Disable the action when nothing is selected. This is a roadmap item, not an implemented feature.
 - Refine the implemented optional setup wizard based on real first-install feedback; keep it limited to essential choices.
 - Add clearer queue state explanations for failed, rate-limited, ignored, and unprocessed episodes.
