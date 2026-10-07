@@ -17,6 +17,38 @@ SUMMARY = 'This episode includes a musical demonstration. It closes with substan
 
 
 @pytest.mark.asyncio
+async def test_retry_classifies_cached_nested_transcript_without_changing_source(isolated_data_dir, tmp_path, monkeypatch):
+    from app.core import timeline
+    init_db()
+    worker = Processor()
+    worker._attempt_dir = tmp_path / 'attempt'
+    worker._attempt_dir.mkdir()
+    monkeypatch.setattr('app.core.processor.AudioProcessor.get_duration', lambda _: 20.0)
+    path = worker._attempt_dir / 'transcript.json'
+    path.write_text(json.dumps({'segments': [{'start': 5, 'end': 15, 'text': 'Whole sentence.'},
+                                            {'start': 7, 'end': 8, 'text': 'Short alternative.'}]}), encoding='utf-8')
+    before = path.read_bytes()
+    calls = []
+    def generate(messages, schema, mode):
+        data = json.loads(messages[1]['content'])
+        calls.append(data)
+        assert data['timeline'][1]['text'] == 'Whole sentence.\nShort alternative.'
+        assert (data['timeline'][1]['start'], data['timeline'][1]['end']) == (5, 15)
+        return json.dumps({'segments': [{'first_id': 1, 'last_id': 3, 'label': 'Content', 'reason': 'Discussion'}], 'summary': SUMMARY})
+    fake = SimpleNamespace(generate_structured=generate, last_model='fixture', last_output_mode='json_schema')
+    monkeypatch.setattr(AdDetector, '_get_provider', lambda self: fake)
+    args = (SimpleNamespace(title='Episode', pub_date=None, ad_report_path=None), SimpleNamespace(title='Show'),
+            json.loads(path.read_text(encoding='utf-8')), 'source', 'fingerprint', timeline.make_snapshot({}, {}), tmp_path)
+    analysis = await worker._classify_complete_timeline(*args)
+    assert analysis['segments'][0]['end'] == 20
+    assert 'all text retained' in analysis['normalization_notes'][0]['reason']
+    assert path.read_bytes() == before
+    assert len(calls) == 1
+    await worker._classify_complete_timeline(*args)
+    assert len(calls) == 1  # the corrected classification cache is reusable
+
+
+@pytest.mark.asyncio
 async def test_cached_classification_can_repair_a_previously_failed_summary(isolated_data_dir, tmp_path, monkeypatch):
     from app.core import timeline
     init_db()

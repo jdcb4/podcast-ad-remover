@@ -317,6 +317,7 @@ class Transcriber:
 
     def _transcribe_chunked(self, audio_path: str, total_duration: float, progress_callback=None, ffmpeg_threads: int = 0) -> Dict:
         from app.core.audio import AudioProcessor
+        from app.core.transcript_segments import merge_chunk_segments
 
         # Chunk settings
         chunk_duration = 1200.0 # 20 mins
@@ -343,7 +344,9 @@ class Transcriber:
                 global_start_time = i * (chunk_duration - overlap)
 
                 # Define merge boundaries for this chunk
-                # We keep segments that START within [Boundary-Start, Boundary-End]
+                # Keep every segment intersecting the chunk's ownership window.
+                # A segment starting before the seam may contain unique speech
+                # after it. Cross-chunk overlaps are combined after transcription.
                 # Boundary-Start: global_start_time + overlap/2 (except first chunk)
                 # Boundary-End: global_start_time + chunk_duration - overlap/2 (except last chunk)
 
@@ -362,10 +365,11 @@ class Transcriber:
                     seg_end = segment.end + global_start_time
 
                     # Filter based on merge boundaries
-                    if seg_start >= merge_start and seg_start < merge_end:
+                    if seg_end > merge_start and seg_start < merge_end:
                         # Convert to dict and update timestamps
                         seg_dict = {
                             "id": len(all_segments), # New ID for merged list
+                            "chunk_index": i,
                             "seek": segment.seek, # seek is relative to chunk, maybe not useful merged
                             "start": seg_start,
                             "end": seg_end,
@@ -384,6 +388,8 @@ class Transcriber:
                             progress_callback(seg_end, total_duration)
 
                 logger.info(f"Chunk {i} complete. Added {chunk_segments_count} segments.")
+
+            all_segments = merge_chunk_segments(all_segments)
 
             # Final result
             result = {

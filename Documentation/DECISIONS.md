@@ -1,5 +1,16 @@
 # Decisions
 
+## 2026-10-08: Preserve ambiguous transcription chunk seams
+
+Select segments intersecting each chunk's ownership window, rather than by start
+time alone. Combine connected cross-chunk overlaps into one indivisible item with
+all wording and retained source timings. For older cached transcripts, keep safe
+midpoint splits; otherwise combine the entire connected overlap group without
+changing the saved source. Prefer a coarser item (and preservation of mixed speech)
+to invented word boundaries or dropping shorter alternatives as duplicates.
+Version classification caches when normalization changes. CPU/CUDA share the merger;
+no new model calls, schema migration or automatic historical retry is introduced.
+
 ## 2026-09-28: optional processed-audio volume
 
 Keep SQLite, transcript/report metadata and processing local; allow an optional

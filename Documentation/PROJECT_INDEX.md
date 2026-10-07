@@ -20,6 +20,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/core/`: podcast, audio, AI, RSS, search, and processing logic.
 - `app/core/subscription_settings.py`: resolves content-removal, retention and enhancement inheritance; retired workflow/guidance fields are compatibility-only.
 - `app/core/timeline.py`: versioned classification, transcript/gap boundaries and deterministic cut preferences.
+- `app/core/transcript_segments.py`: conservative chunk-seam grouping with retained text/timing alternatives.
 - `app/core/prompt_defaults.py`, `app/web/timeline_rules.py`: historical prompt constants and Complete Timeline rule editing/preview.
 - `app/core/unified_feed.py`: validates and resolves backward-compatible unified-feed presentation settings.
 - `app/core/artifacts.py`, `publication.py`, `reports.py`: artifact identity, atomic RSS writes and escaped reports.

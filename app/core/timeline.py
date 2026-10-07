@@ -6,11 +6,14 @@ import json
 import math
 import re
 
+from app.core.transcript_segments import combine_segments, overlap_groups
+
 
 WORKFLOWS = {"complete_timeline"}
 OUTPUT_MODES = {"strict"}
 PROMPT_VERSION = "complete-timeline-2"
 SCHEMA_VERSION = 1
+NORMALIZATION_VERSION = 2
 
 DEFINITIONS = {
     "Ad": "A commercial message for an external product, service or sponsor: endorsements, offers, calls to purchase and sponsor reads. Identify every commercial interruption, even inside a substantive discussion. An editorial mention of a product is not automatically an ad.",
@@ -164,12 +167,30 @@ def prepare_timeline(transcript: dict, duration: float) -> tuple[list[dict], lis
     for previous, current in zip(segments, segments[1:]):
         if current["start"] < previous["start"]:
             raise TimelineError("Transcript items are out of chronological order")
-        if current["start"] < previous["end"] - 1e-7:
-            boundary = (current["start"] + previous["end"]) / 2
-            if boundary >= current["end"] or boundary <= previous["start"]:
-                raise TimelineError("Transcript overlap cannot safely be normalized")
-            notes.append({"source_index": current["source_index"], "reason": "Overlapping segment seam split at midpoint; text unchanged", "boundary": boundary})
-            previous["end"] = current["start"] = boundary
+    normalized = []
+    for group in overlap_groups(segments):
+        candidates, adjustments = [dict(s) for s in group], []
+        for previous, current in zip(candidates, candidates[1:]):
+            if current["start"] < previous["end"] - 1e-7:
+                boundary = (current["start"] + previous["end"]) / 2
+                if boundary >= current["end"] or boundary <= previous["start"]:
+                    # Cached chunk transcripts can contain nested segments. A
+                    # midpoint would erase an item or move it beyond its timing.
+                    # Preserve this entire connected span as one item instead.
+                    combined = combine_segments(group)
+                    indices = [s['source_index'] for s in group]
+                    combined['source_indices'] = indices
+                    normalized.append(combined)
+                    notes.append({'source_indices': indices,
+                                  'reason': 'Overlapping transcript group combined; all text retained without word-level boundaries',
+                                  'start': combined['start'], 'end': combined['end']})
+                    break
+                adjustments.append({"source_index": current["source_index"], "reason": "Overlapping segment seam split at midpoint; text unchanged", "boundary": boundary})
+                previous["end"] = current["start"] = boundary
+        else:
+            normalized.extend(candidates)
+            notes.extend(adjustments)
+    segments = normalized
     units, cursor = [], 0.0
     for segment in segments:
         if segment["start"] > cursor + 1e-7:
@@ -186,7 +207,7 @@ def prepare_timeline(transcript: dict, duration: float) -> tuple[list[dict], lis
 def source_message(units: list[dict], duration: float, metadata: dict) -> str:
     return json.dumps({**metadata, "duration_seconds": duration,
                        "gap_evidence": "GAP means no transcript text, not measured silence. Infer purpose from context only.",
-                       "timeline": [{k: (round(v, 6) if isinstance(v, float) else v) for k, v in u.items() if k != "source_index"} for u in units]},
+                       "timeline": [{k: (round(v, 6) if isinstance(v, float) else v) for k, v in u.items() if k not in {"source_index", "source_indices"}} for u in units]},
                       ensure_ascii=False, separators=(",", ":"))
 
 
@@ -253,7 +274,7 @@ def valid_summary(value) -> bool:
 def cache_key(fingerprint: str, transcript: dict, duration: float, snapshot: dict) -> str:
     # Deliberately exclude cut preferences and the short-island threshold.
     value = [fingerprint, transcript, duration, snapshot["prompt"], snapshot["prompt_version"],
-             snapshot["schema_version"], SCHEMA, snapshot["settings"]]
+             snapshot["schema_version"], SCHEMA, snapshot["settings"], NORMALIZATION_VERSION]
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 

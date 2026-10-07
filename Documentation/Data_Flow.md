@@ -26,6 +26,7 @@ For each queued episode:
 2.  **Transcribe (faster-whisper)**:
     - Load the faster-whisper model (if not loaded), on CPU by default or the separately configured experimental GPU worker. No whisper.cpp switch is part of V2.
     - Process audio file -> generate text segments with timestamps.
+    - Long audio uses overlapping 20-minute chunks. Retain segments intersecting each chunk's ownership window and combine connected cross-chunk overlaps while preserving all text and original timing alternatives. Cached nested overlaps are conservatively grouped during timeline preparation without rewriting the transcript.
 
 3.  **Classification (configured LLM)**:
     - Complete Timeline: add explicit gaps through the measured episode duration, send numbered items separately from the rules, and request complete ID ranges plus a summary. Validate exact coverage and known labels, then map IDs to source boundaries. Native schema constraints are required.
