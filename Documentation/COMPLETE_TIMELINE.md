@@ -31,9 +31,18 @@ item, protect uncertain/mixed boundaries, and leave cut selection to the app.
 
 The model returns inclusive `first_id` / `last_id` ranges covering every numbered item exactly
 once. The app maps these IDs to the original segment/gap boundaries, without accepting invented
-model timestamps. Transcript overlap seams are normalized at their midpoint when both segments
-remain valid; the report records that adjustment and the source transcript is unchanged.
-Unresolvable timestamps fail processing. A mixed speech item that cannot be split safely stays
+model timestamps. New chunked transcriptions retain every segment crossing its ownership seam
+and combine connected cross-chunk overlaps into one item covering their full interval. Original
+segment text and timing remain available in the transcript's `source_segments`; differing or
+repeated wording is retained rather than guessed away. CPU and experimental CUDA use this same merger.
+
+Cached transcript overlap seams are normalized at their midpoint when every segment in the
+connected group remains valid. If a nested/contained segment cannot safely be split, the group
+becomes one item containing all its text over the original interval. The report records the
+adjustment, and the saved source transcript is unchanged. No retranscription is needed for this
+recovery. Classification cache keys include the normalization version to prevent reuse of old
+item boundaries. Malformed, nonfinite, reversed and out-of-order timestamps still fail processing.
+A mixed speech item that cannot be split safely stays
 Content. Cut precision is therefore limited by Whisper's segment timing; it is not word alignment.
 
 1. Classify the complete timeline and generate the summary.

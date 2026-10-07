@@ -44,6 +44,63 @@ def test_overlap_normalization_is_documented_and_keeps_both_texts():
     assert source['segments'][0]['end'] == 8
 
 
+@pytest.mark.parametrize('bounds', [
+    [(1188, 1200), (1191.44, 1195.52)],
+    [(3548.76, 3557.72), (3550.84, 3552.56)],
+    [(1187.16, 1195.16), (1191.28, 1192.44)],
+    [(0, 10), (5, 15), (6, 7)],  # midpoint normalization would reorder later items
+    [(0, 10), (0, 1), (1, 2), (2, 12)],
+])
+def test_cached_nested_overlaps_keep_all_text_and_source_timestamps(bounds):
+    source = {'segments': [{'start': start, 'end': end, 'text': f'Alternative {i}.'}
+                           for i, (start, end) in enumerate(bounds)]}
+    original = copy.deepcopy(source)
+    duration = max(end for _, end in bounds) + 5
+    units, notes = timeline.prepare_timeline(source, duration)
+    spoken = [u for u in units if u['kind'] == 'TRANSCRIBED']
+    assert len(spoken) == 1
+    assert (spoken[0]['start'], spoken[0]['end']) == (bounds[0][0], duration - 5)
+    assert spoken[0]['text'] == '\n'.join(s['text'] for s in source['segments'])
+    assert spoken[0]['source_indices'] == list(range(len(bounds)))
+    assert all(a['end'] == b['start'] for a, b in zip(units, units[1:]))
+    assert all(u['end'] > u['start'] for u in units)
+    assert units[0]['start'] == 0 and units[-1]['end'] == duration
+    assert len(notes) == 1 and 'all text retained' in notes[0]['reason']
+    assert source == original
+
+
+def test_disjoint_overlap_groups_do_not_absorb_neighboring_speech_or_gaps():
+    source = {'segments': [{'start': 0, 'end': 4, 'text': 'Before.'},
+                           {'start': 6, 'end': 12, 'text': 'Long.'},
+                           {'start': 7, 'end': 8, 'text': 'Nested.'},
+                           {'start': 12, 'end': 15, 'text': 'After.'},
+                           {'start': 17, 'end': 20, 'text': 'Simple A.'},
+                           {'start': 19, 'end': 22, 'text': 'Simple B.'}]}
+    units, notes = timeline.prepare_timeline(source, 24)
+    assert [(u['start'], u['end'], u['text']) for u in units if u['kind'] == 'TRANSCRIBED'] == [
+        (0, 4, 'Before.'), (6, 12, 'Long.\nNested.'), (12, 15, 'After.'),
+        (17, 19.5, 'Simple A.'), (19.5, 22, 'Simple B.')]
+    assert len(notes) == 2
+
+
+@pytest.mark.parametrize('segments', [
+    [{'start': 3, 'end': 4}, {'start': 1, 'end': 2}],
+    [{'start': -1, 'end': 4}], [{'start': 2, 'end': 2}],
+    [{'start': float('nan'), 'end': 4}], [{'start': 2, 'end': float('inf')}],
+    [{'start': 10, 'end': 11}], [{'end': 4}],
+])
+def test_overlap_recovery_does_not_accept_invalid_source_timestamps(segments):
+    with pytest.raises(timeline.TimelineError):
+        timeline.prepare_timeline({'segments': segments}, 10)
+
+
+def test_normalization_version_invalidates_old_classification_cache(monkeypatch):
+    snapshot = timeline.make_snapshot({}, {})
+    key = timeline.cache_key('source', {}, 20, snapshot)
+    monkeypatch.setattr(timeline, 'NORMALIZATION_VERSION', timeline.NORMALIZATION_VERSION - 1)
+    assert timeline.cache_key('source', {}, 20, snapshot) != key
+
+
 @pytest.mark.parametrize('rows', [[], [row(2, 2, 'Ad')], [row(1, 1, 'Ad'), row(1, 2, 'Content')],
                                      [row(1, 3, 'Content')], [row(True, 2, 'Ad')],
                                      [row(1, 2, 'Silence')], [{'first_id': 1, 'last_id': 2, 'reason': 'Missing label'}]])

@@ -2,6 +2,10 @@
 
 ## Unreleased — V2 development
 
+- Pin the Tailwind 3 build's selector parser to 7.1.6 and source-map-js to 1.2.2 to resolve blocking dependency advisories without changing generated CSS or broadening the existing braces audit exception.
+
+- Preserve speech crossing transcription chunk seams and combine overlapping alternatives into one timestamped item. Recover nested overlaps in cached transcripts without retranscription or changing the saved source; keep invalid timestamps rejected and version classification caches for the new normalization.
+
 - Apply the same inherited or per-podcast latest-episode window to RSS and YouTube, including zero and catch-up checks; remove the YouTube-only five-video initial cap. Existing queued jobs are not cancelled.
 - Add global Podcast titles controls under Podcast defaults: prefix off with `PAR - ` and suffix on with `(ad free)`. Each supports up to 40 characters of single-line plain text, with disabled fields when off and a live example. Changes affect individual RSS channel names only and regenerate feeds on save.
 
