@@ -82,6 +82,14 @@ do not post working secrets, private feed URLs, production databases or user tra
 
 ## Approved build-only audit exception (2026-10-03)
 
+The October 8 Dev dependency refresh pins `postcss-selector-parser` to 7.1.6 and
+`source-map-js` to 1.2.2 through npm overrides, addressing
+[GHSA-rj75-hqrm-r3gf](https://github.com/advisories/GHSA-rj75-hqrm-r3gf) and
+[GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
+Tailwind 3/PostCSS use the patched parser with byte-identical generated CSS in
+verification. These pins do not expand the exception below; retain them until
+the supported build dependencies select patched versions themselves.
+
 Joe approved a scoped exception for GHSA-vfj7-8cjw-p6xm (braces <=3.0.3 stack
 exhaustion). No patched braces version is currently available. Tailwind 3 uses
 this package only while building CSS from trusted repository paths; the Docker
