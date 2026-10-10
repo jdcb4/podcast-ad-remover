@@ -225,7 +225,7 @@ dialog::backdrop { background:#0008; }
 .stats-page { max-width: 960px; }
 .stats-page h2 { font-size: 17px; font-weight: 650; margin: 28px 0 12px; }
 .stats-selectors { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin: 24px 0 28px; }
-.stats-selector { display: flex; flex-wrap: wrap; gap: 8px; }
+.stats-selector { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border: 1px solid var(--control-border); border-radius: 12px; }
 .stats-selector button { min-height: 44px; }
 .stats-date { color: var(--text-secondary); font-size: 14px; font-weight: 400; }
 .stats-widgets { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin: 12px 0 28px; }
