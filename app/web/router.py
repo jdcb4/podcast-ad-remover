@@ -66,6 +66,7 @@ templates = Jinja2Templates(directory=TEMPLATE_DIR)
 from app.core.provider_settings import credential as provider_credential
 from app.core.speech import speech_ready
 templates.env.globals["speech_ready"] = speech_ready
+templates.env.globals["processing_is_paused"] = lambda: bool(get_global_settings().get("processing_paused"))
 
 # Helper to get CSP nonce from request
 def get_csp_nonce(request: Request) -> str:
@@ -163,8 +164,12 @@ def generate_rss_links(request: Request, sub, global_settings: dict, user_obj=No
 
 
 @router.get('/account/feed')
-async def account_feed(request: Request, user=Depends(require_auth)):
-    return _build_rss_links(request, '/feed/unified.xml', get_global_settings(), user)
+async def account_feed(request: Request, view: str = "mine", user=Depends(require_auth)):
+    if view not in {"mine", "library"}:
+        raise HTTPException(422, "Unknown collection")
+    user_id = _real_user_id(user)
+    path = f"/feed/users/{user_id}/unified.xml" if view == "mine" and user_id else "/feed/unified.xml"
+    return _build_rss_links(request, path, get_global_settings(), user)
 
 # Helper to get pending access requests count for sidebar badge
 def get_pending_requests_count():
@@ -531,6 +536,7 @@ async def update_system_settings(
     whisper_cpu_threads: int = Form(0),
     ffmpeg_threads: int = Form(0),
     unload_whisper_after_job: bool = Form(False),
+    processing_paused: Annotated[bool | None, Form()] = None,
     ai_api_enabled: bool = Form(False),
     ai_api_default_requests_per_minute: int = Form(60),
     ai_api_default_requests_per_day: int = Form(1000),
@@ -547,6 +553,8 @@ async def update_system_settings(
     admin_user = Depends(require_admin)
 ):
     current = get_global_settings()
+    if processing_paused is None or section not in {None, "system"}:
+        processing_paused = bool(current.get("processing_paused"))
     if section not in {None, "system", "access", "api"}:
         raise HTTPException(422, "Unknown settings section")
     if section is not None and section != "system":
@@ -647,7 +655,7 @@ async def update_system_settings(
                 check_interval_minutes = ?,
                 whisper_cpu_threads = ?,
                 ffmpeg_threads = ?,
-                unload_whisper_after_job = ?,
+                unload_whisper_after_job = ?, processing_paused = ?,
                 ai_api_enabled = ?,
                 ai_api_default_requests_per_minute = ?,
                 ai_api_default_requests_per_day = ?,
@@ -663,7 +671,7 @@ async def update_system_settings(
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
         """, (concurrent_downloads, download_max_redirects, retention_days, check_interval_minutes,
-              whisper_cpu_threads, ffmpeg_threads, 1 if unload_whisper_after_job else 0,
+              whisper_cpu_threads, ffmpeg_threads, 1 if unload_whisper_after_job else 0, int(processing_paused),
               1 if ai_api_enabled else 0,
               ai_api_default_requests_per_minute,
               ai_api_default_requests_per_day,
@@ -1839,7 +1847,7 @@ def _render_index(request: Request, error: str = None):
     # Generate Unified Links if subscriptions exist
     unified_links = None
     if all_subs:
-        unified_links = _build_rss_links(request, "/feed/unified.xml", global_settings, user)
+        unified_links = _build_rss_links(request, f"/feed/users/{user_id}/unified.xml" if library_view == "mine" and user_id else "/feed/unified.xml", global_settings, user)
 
     return templates.TemplateResponse(
         request=request,
@@ -2380,6 +2388,7 @@ async def bulk_update_subscription_settings(
     background_tasks: BackgroundTasks,
     subscription_ids: list[int] = Form(...),
     content_mode: str = Form("unchanged"),
+    pause_mode: Annotated[str, Form()] = "unchanged",
     remove_ads: bool = Form(False),
     remove_promos: bool = Form(False),
     remove_intros: bool = Form(False),
@@ -2399,6 +2408,10 @@ async def bulk_update_subscription_settings(
     owner_user_id: str = Form(""),
     user = Depends(require_auth),
 ):
+    if pause_mode not in {"unchanged", "pause", "resume"}:
+        raise HTTPException(422, "Invalid pause mode")
+    if pause_mode != "unchanged" and not user.is_admin:
+        raise HTTPException(403, "Only administrators can pause feeds")
     ids = list(dict.fromkeys(subscription_ids))
     if not ids:
         raise HTTPException(status_code=400, detail="Select at least one podcast")
@@ -2446,6 +2459,9 @@ async def bulk_update_subscription_settings(
     def set_value(column: str, value):
         assignments.append(f"{column} = ?")
         values.append(value)
+
+    if pause_mode != "unchanged":
+        set_value("processing_paused", int(pause_mode == "pause"))
 
     if content_mode == "inherit":
         set_value("inherit_content_removal", 1)
@@ -3001,15 +3017,20 @@ async def get_individual_feed(slug: str, request: Request):
     
     return FileResponse(file_path, media_type="application/xml", headers=cache_headers)
 
+@router.get("/feed/users/{user_id}/unified.xml")
 @router.get("/feed/unified")
 @router.get("/feed/unified.xml")
-async def get_unified_feed(request: Request):
+async def get_unified_feed(request: Request, user_id: int | None = None):
     """Serve the unified RSS feed with optional authentication."""
     # Check Auth if enabled
     settings = get_global_settings()
     auth_enabled_val = settings.get('enable_feed_auth')
     is_auth_enabled = str(auth_enabled_val).lower() in ('1', 'true', 'yes', 'on') if auth_enabled_val is not None else False
 
+    if user_id is not None:
+        with get_db_connection() as conn:
+            if not conn.execute("SELECT 1 FROM users WHERE id=?", (user_id,)).fetchone():
+                raise HTTPException(404, "Feed not found")
     if is_auth_enabled:
         # Check preferred bearer token, Basic Auth header, or legacy auth query param.
         import base64
@@ -3020,10 +3041,13 @@ async def get_unified_feed(request: Request):
         username = None
         password = None
         audio_token = None
+        authenticated_user_id = None
 
         if feed_token and feed_token_repo.validate(feed_token):
             authorized = True
             audio_token = feed_token
+            with get_db_connection() as conn:
+                authenticated_user_id = conn.execute("SELECT user_id FROM feed_tokens WHERE token_hash=? AND revoked_at IS NULL", (feed_token_repo.hash_token(feed_token),)).fetchone()[0]
         
         encoded_creds = None
         if not authorized and auth_header and auth_header.startswith('Basic '):
@@ -3038,12 +3062,12 @@ async def get_unified_feed(request: Request):
                 
                 if settings.get('auth_enabled'):
                      # Validate against app users
-                    from app.infra.database import get_db_connection
                     from app.web.auth_utils import verify_password
                     with get_db_connection() as conn:
-                        user_row = conn.execute("SELECT password_hash FROM users WHERE username = ?", (username,)).fetchone()
+                        user_row = conn.execute("SELECT id, password_hash FROM users WHERE username = ?", (username,)).fetchone()
                         if user_row and verify_password(password, user_row['password_hash']):
                             authorized = True
+                            authenticated_user_id = user_row["id"]
                 else:
                     # Validate against standalone settings
                     expected_user = settings.get('feed_auth_username')
@@ -3053,6 +3077,8 @@ async def get_unified_feed(request: Request):
             except Exception:
                 pass
         
+        if user_id is not None and authenticated_user_id != user_id:
+            authorized = False
         if not authorized:
             headers = {"WWW-Authenticate": 'Basic realm="Podcast Ad Remover"'}
             raise HTTPException(status_code=401, detail="Unauthorized", headers=headers)
@@ -3060,12 +3086,12 @@ async def get_unified_feed(request: Request):
     from fastapi.responses import FileResponse, Response
     from app.core.config import settings as app_settings
     
-    file_path = os.path.join(app_settings.FEEDS_DIR, "unified.xml")
-    if not os.path.exists(file_path):
+    file_path = os.path.join(app_settings.FEEDS_DIR, "unified.xml" if user_id is None else f"unified-user-{user_id}.xml")
+    if user_id is not None or not os.path.exists(file_path):
         # Generate on demand if missing
         from app.core.rss_gen import RSSGenerator
         gen = RSSGenerator()
-        gen.generate_unified_feed()
+        gen.generate_unified_feed(user_id=user_id)
     
     # Set no-cache headers
     cache_headers = {
@@ -3113,3 +3139,29 @@ async def remove_saved_credential(provider: str, request: Request, admin=Depends
         conn.commit()
     active = credential(provider, get_global_settings())
     return {'message': 'Saved key removed.' + (' An environment credential remains active.' if active else '') + (' This shared provider credential also applies to Voice.' if provider in ('gemini','openai','openrouter') else '')}
+
+
+@router.post("/subscriptions/{subscription_id}/pause")
+async def pause_subscription(subscription_id: int, processing_paused: bool = Form(False), user=Depends(require_admin)):
+    with get_db_connection() as conn:
+        result = conn.execute("UPDATE subscriptions SET processing_paused=? WHERE id=? AND deletion_status IS NULL", (int(processing_paused), subscription_id))
+        if not result.rowcount:
+            raise HTTPException(404, "Podcast not found")
+        conn.commit()
+    return RedirectResponse(f"/subscriptions/{subscription_id}#processing-settings", status_code=303)
+
+
+@router.get("/stats", response_class=HTMLResponse)
+async def statistics_page(request: Request, period: str = "all", user=Depends(require_auth)):
+    from app.core.statistics import get_statistics
+    if period not in {"all", "week", "month", "year"}:
+        raise HTTPException(422, "Unknown statistics period")
+    user_id = _real_user_id(user)
+    personal = get_statistics(user_id=user_id) if user_id else get_statistics()
+    history = get_statistics(user_id=user_id, period=period, historical=True) if user_id else get_statistics(period=period, historical=True)
+    library = get_statistics() if user.is_admin else None
+    library_history = get_statistics(period=period, historical=True) if user.is_admin else None
+    return templates.TemplateResponse(request=request, name="stats.html", context={
+        "request": request, "user": user, "csp_nonce": get_csp_nonce(request), "period": period,
+        "personal": personal, "history": history, "library": library, "library_history": library_history,
+    })

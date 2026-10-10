@@ -57,7 +57,7 @@
                 <div class="mb-4">
                     <h1
                         class="font-display text-4xl md:text-5xl font-extrabold tracking-tight text-text-primary mb-4 leading-tight">
-                        {{ subscription.title }}
+                        {{ subscription.title }}{% if subscription.processing_paused %}<span class="pause-notice podcast-pause" role="img" aria-label="Feed paused" title="Feed paused">{{ icon('pause') }}</span>{% endif %}
                     </h1>
                     <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-4">
 

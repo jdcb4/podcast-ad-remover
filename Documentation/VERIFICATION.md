@@ -324,3 +324,5 @@ filesystem before deleting originals. See [STORAGE.md](STORAGE.md).
 The frontend audit now uses scripts/audit_frontend.py with the explicitly approved build-only exception documented in SECURITY.md. It reports that exception visibly; other moderate-or-higher advisories and audit errors remain blocking.
 
 `tests/test_podcast_titles.py` covers defaults, validation, disabled-field preservation, old-form compatibility, individual RSS names, unchanged Unified Feed/library names and migration backups/idempotency. YouTube source tests cover inherited/explicit/zero windows, a 40-video catch-up, duplicate IDs, repeat checks, excluded entries and increased limits.
+
+`tests/test_pause_stats_feeds.py` covers persistent pause/queue and automatic-deletion guards, admin permissions, personal/global feed selection and token isolation, and durable membership-at-completion statistics. Feed discovery fixtures explicitly set pause state. Use the project Python 3.11 environment for the standard verification gate.

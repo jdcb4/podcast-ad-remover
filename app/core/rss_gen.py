@@ -160,7 +160,7 @@ class RSSGenerator:
         return output_path
 
     @serialized_feed
-    def generate_unified_feed(self):
+    def generate_unified_feed(self, user_id: int | None = None):
         """Generate a single RSS feed containing all episodes from all subscriptions."""
         
         from app.core.utils import get_global_settings
@@ -168,7 +168,7 @@ class RSSGenerator:
         base_url = _get_feed_base_url(global_settings)
         feed_settings = resolve_unified_feed_settings(global_settings, base_url)
 
-        episodes = self.ep_repo.get_completed_with_subscription_info()
+        episodes = self.ep_repo.get_completed_with_subscription_info(user_id=user_id)
         subscriptions = {sub.id: sub for sub in self.sub_repo.get_all()}
 
         rss = Element('rss', version='2.0', **{'xmlns:itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'})
@@ -240,7 +240,7 @@ class RSSGenerator:
         # minidom.toprettyxml() has a bug that corrupts URLs like "http://192" into "O2"
         xml_str = _serialize_rss(rss)
         
-        output_path = os.path.join(settings.FEEDS_DIR, "unified.xml")
+        output_path = os.path.join(settings.FEEDS_DIR, "unified.xml" if user_id is None else f"unified-user-{user_id}.xml")
         
         atomic_write(output_path, xml_str)
             

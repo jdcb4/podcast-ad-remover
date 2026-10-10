@@ -68,6 +68,8 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 
 ## Documentation Map
 
+- `Documentation/PROCESSING_CONTROLS.md`: admin pause controls, personal/global unified feeds and durable statistics.
+
 - `Documentation/PODCAST_OPERATIONS.md`: reviewed RSS replacement and durable archive processing.
 
 - `Documentation/V2_UPGRADE.md`: current breaking-change conversion, preflight and rollback guide.

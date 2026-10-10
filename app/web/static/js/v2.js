@@ -10,7 +10,7 @@
   if (event.target.closest('[data-close-sidebar]')) setSidebar(false);
  });
  document.querySelectorAll('[data-feed-apps]').forEach(button=>button.addEventListener('click',async()=>{
-  try { const response=await fetch('/account/feed'); if(!response.ok) throw new Error('Could not load feed URL'); const links=await response.json();
+  try { const response=await fetch('/account/feed?view='+encodeURIComponent(document.getElementById('dashboard-podcast-results')?.dataset.libraryView||new URL(location.href).searchParams.get('view')||'mine')); if(!response.ok) throw new Error('Could not load feed URL'); const links=await response.json();
    window.location.assign(links.apps);
   } catch(error) { window.appToast?.(error.message,{type:'error'}); }
  }));
@@ -35,7 +35,7 @@
  if(setupProvider){const update=()=>{document.getElementById('setup-custom').hidden=setupProvider.value!=='custom';};setupProvider.addEventListener('change',update);update();}
  document.querySelectorAll('.app-sidebar .primary-navigation>a,.mobile-bottom>a').forEach(link=>{
   const url=new URL(link.href),current=new URL(location.href);
-  const active=url.pathname==='/'?current.pathname==='/'&&!url.hash&&(url.searchParams.get('view')||'mine')===(current.searchParams.get('view')||'mine'):url.pathname==='/admin/queue'?current.pathname==='/admin/queue':url.pathname==='/admin/ai/transcription'&&current.pathname.startsWith('/admin')&&current.pathname!=='/admin/queue';
+  const active=url.pathname==='/'?current.pathname==='/'&&!url.hash&&(url.searchParams.get('view')||'mine')===(current.searchParams.get('view')||'mine'):url.pathname==='/stats'?current.pathname==='/stats':url.pathname==='/admin/queue'?current.pathname==='/admin/queue':url.pathname==='/admin/ai/transcription'&&current.pathname.startsWith('/admin')&&current.pathname!=='/admin/queue';
   if(active)link.setAttribute('aria-current','page');
  });
  if (location.hash === '#add') document.getElementById('add-podcast-dialog')?.showModal();

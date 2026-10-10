@@ -208,11 +208,15 @@ Subscription deletion uses a durable two-phase lifecycle because the web app and
 
 After a bounded asynchronous wait, cleanup is claimed through the subscription row and runs outside the FastAPI event loop. It removes the contained podcast directory and feed file, regenerates the unified feed once, and then removes the subscription, episode, and job rows. Failures leave the inactive subscription in `deletion_status = failed`; the processor loop retries failed or interrupted cleanup idempotently. A stale `cleaning` claim can be reclaimed after five minutes.
 
+### Pause controls and statistics
+
+`subscriptions.processing_paused` and `app_settings.processing_paused` are persistent admin controls. Worker claims check them inside the immediate SQLite transaction; running workers retain publication rights. Discovery and automatic retention respect pause, including the repository's automatic-deletion guard. Durable `processing_history` and `processing_history_users` record unique completed episodes and collection membership, independent of retained media. `/stats` exposes personal current/history totals, plus global and provider usage for admins. See [processing controls](PROCESSING_CONTROLS.md).
+
 ### Unified Feed Preferences
 
-The unified feed remains at `/feed/unified.xml`. Settings → Unified feed configures its name, optional podcast-name episode-title prefix and artwork source (bundled, external URL or uploaded image). Description is fixed in V2. Uploads validate PNG/JPEG/WebP bytes, dimensions and size and re-encode the image; external URLs must be reachable by podcast clients.
+The global unified feed remains at `/feed/unified.xml`; `/feed/users/{user_id}/unified.xml` generates a current-membership feed on demand under the same publication lock. Settings → Unified feed configures its name, optional podcast-name episode-title prefix and artwork source (bundled, external URL or uploaded image). Description is fixed in V2. Uploads validate PNG/JPEG/WebP bytes, dimensions and size and re-encode the image; external URLs must be reachable by podcast clients.
 
-The subscription action lives beside search on My Podcasts/Library, rather than in feed settings. It opens the shared podcast-app copy guide with the current user's authorized URL. Per-episode descriptions identify the source podcast, and item artwork remains that podcast's artwork. Presentation changes regenerate feed metadata without reprocessing audio.
+The subscription action lives beside search on My Podcasts/Library, rather than in feed settings. It opens the shared podcast-app copy guide with the current user's authorized personal URL in My Pods, or the global URL in Library. Per-episode descriptions identify the source podcast, and item artwork remains that podcast's artwork. Presentation changes regenerate feed metadata without reprocessing audio.
 
 Historical unified-feed migrations keep their identifiers; V2 changes supported behavior without dropping recovery columns. See [V2_UPGRADE.md](V2_UPGRADE.md) for the fixed-description and artwork migration rules.
 

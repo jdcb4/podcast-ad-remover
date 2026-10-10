@@ -6,6 +6,9 @@
 <form method="post" action="/admin/system/update">
 <div class="setting-row"><span>Settings</span><button class="btn-primary" type="submit">Save</button></div>
 <input type="hidden" name="section" value="system">
+<input type="hidden" name="processing_paused" value="false">
+{{ toggle('processing_paused','Pause all processing',settings.processing_paused) }}
+<p class="settings-help">Running episodes finish. New processing and automatic episode cleanup wait until resumed. Published feeds remain available.</p>
 {{ number('concurrent_downloads','Concurrent downloads',settings.concurrent_downloads, min=1,max=10) }}
 {{ number('check_interval_minutes','Check for new episodes',settings.check_interval_minutes,'minutes',min=1) }}
 {{ number('retention_days','File retention',settings.retention_days,'days',min=0) }}

@@ -163,6 +163,8 @@
 
             currentResults.replaceChildren(...Array.from(nextResults.childNodes).map((node) => node.cloneNode(true)));
             currentResults.dataset.libraryView = view;
+            const heading = document.querySelector('[data-library-heading]');
+            if (heading) heading.textContent = view === 'library' ? 'Library' : 'My Pods';
             const grid = document.getElementById('podcast-grid');
             if (grid) grid.dataset.libraryView = view;
             document.querySelectorAll('[data-library-view-link]').forEach((link) => {

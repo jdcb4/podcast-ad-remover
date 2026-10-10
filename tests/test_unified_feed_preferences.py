@@ -22,7 +22,7 @@ ITUNES_NAMESPACE = {"itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd"}
 
 
 class UnifiedEpisodeRepository:
-    def get_completed_with_subscription_info(self):
+    def get_completed_with_subscription_info(self, user_id=None):
         return [
             {
                 "subscription_id": 1,

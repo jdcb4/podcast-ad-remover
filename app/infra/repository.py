@@ -620,6 +620,7 @@ class EpisodeRepository:
     def __init__(self, attempt: tuple[int, str] | None = None):
         self.attempt = attempt
         self.pending_metadata = {}
+        self.transcription_seconds = None
 
     def owns_attempt(self, episode_id: int) -> bool:
         if self.attempt is None:
@@ -756,7 +757,7 @@ class EpisodeRepository:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def get_completed_with_subscription_info(self) -> List[dict]:
+    def get_completed_with_subscription_info(self, user_id: int | None = None) -> List[dict]:
         with get_db_connection() as conn:
             rows = conn.execute(
                 """
@@ -767,8 +768,9 @@ class EpisodeRepository:
                 FROM episodes e
                 JOIN subscriptions s ON e.subscription_id = s.id
                 WHERE e.local_filename IS NOT NULL AND e.status != 'ignored' AND s.deletion_status IS NULL
+                  AND (? IS NULL OR EXISTS (SELECT 1 FROM user_subscriptions u WHERE u.subscription_id=s.id AND u.user_id=?))
                 ORDER BY e.pub_date DESC
-                """
+                """, (user_id, user_id)
             ).fetchall()
             return [dict(row) for row in rows]
 
@@ -950,6 +952,9 @@ class EpisodeRepository:
                     columns = ', '.join(f'{key}=?' for key in self.pending_metadata)
                     conn.execute(f'UPDATE episodes SET {columns} WHERE id=?', (*self.pending_metadata.values(), id))
                 conn.execute("UPDATE episodes SET publication_pending=1, processing_step='completed', progress=100 WHERE id=?", (id,))
+                from app.core.statistics import record_completion
+                record_completion(conn, id, self.transcription_seconds)
+
             if status == "pending":
                 if cursor.rowcount:
                     _enqueue_job(conn, id)
@@ -1103,7 +1108,7 @@ class EpisodeRepository:
         """Mark an episode ignored and cancel queued work while retaining running-job ownership."""
         with get_db_connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            if automatic and conn.execute('SELECT 1 FROM subscriptions s JOIN episodes e ON e.subscription_id=s.id WHERE e.id=? AND s.keep_whole_show=1', (id,)).fetchone():
+            if automatic and conn.execute('SELECT 1 FROM subscriptions s JOIN episodes e ON e.subscription_id=s.id WHERE e.id=? AND (s.keep_whole_show=1 OR s.processing_paused=1 OR (SELECT processing_paused FROM app_settings WHERE id=1)=1)', (id,)).fetchone():
                 return False
             cursor = conn.execute("""
                 UPDATE episodes 
@@ -1367,7 +1372,7 @@ class JobRepository:
         with get_db_connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             from app.core.media_storage import processing_blocked
-            if processing_blocked(conn):
+            if processing_blocked(conn) or conn.execute("SELECT processing_paused FROM app_settings WHERE id=1").fetchone()[0]:
                 return []
             if max_running is not None:
                 running = conn.execute("SELECT COUNT(*) FROM jobs WHERE status='running'").fetchone()[0]
@@ -1385,7 +1390,7 @@ class JobRepository:
                   AND (j.next_run_at IS NULL OR j.next_run_at <= CURRENT_TIMESTAMP)
                   AND (j.archive_batch_id IS NULL OR EXISTS (SELECT 1 FROM archive_batches b WHERE b.id=j.archive_batch_id AND b.status='active'))
                   AND e.status IN ('pending', 'failed', 'rate_limited')
-                  AND s.is_active = 1
+                  AND s.is_active = 1 AND s.processing_paused=0
                   AND s.deletion_status IS NULL
                 ORDER BY j.priority ASC, j.archive_batch_id ASC, j.archive_position ASC, j.created_at ASC, j.id ASC
                 LIMIT ?
