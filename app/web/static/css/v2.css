@@ -224,17 +224,23 @@ dialog::backdrop { background:#0008; }
 .feed-pause-form { margin-top: 24px; }
 .stats-page { max-width: 960px; }
 .stats-page h2 { font-size: 17px; font-weight: 650; margin: 28px 0 12px; }
-.stats-page h3 { font-weight: 600; margin: 24px 0 8px; }
-.stats-widgets { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin: 16px 0; }
-.stats-widgets > div { border-bottom: 1px solid var(--control-border); padding: 12px 0; }
+.stats-selectors { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin: 24px 0 28px; }
+.stats-selector { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border: 1px solid var(--control-border); border-radius: 12px; }
+.stats-selector button { min-height: 44px; }
+.stats-date { color: var(--text-secondary); font-size: 14px; font-weight: 400; }
+.stats-widgets { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin: 12px 0 28px; }
+.stats-widgets > div { background: var(--bg-surface-elevated); border: 1px solid var(--control-border); border-radius: 12px; padding: 20px; min-width: 0; }
 .stats-widgets dt { color: var(--text-secondary); font-size: 14px; }
-.stats-widgets dd { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.stats-widgets dd { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 8px; overflow-wrap: anywhere; }
 .stats-widgets small { font-size: 14px; font-weight: 400; }
-.stats-period { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.stats-period .select { width: auto; }
-@media (max-width: 640px) { .stats-widgets { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+.stats-resources { grid-template-columns: repeat(3,minmax(0,1fr)); }
+@media (max-width: 640px) {
+  .stats-widgets { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .stats-widgets > div { padding: 16px; }
+  .stats-selectors { align-items: stretch; }
+  .stats-date { display: block; margin-top: 4px; }
+}
 
-.stats-page > .settings-intro { margin-top: 8px; }
 .artwork-pause { position: absolute; top: 8px; left: 8px; z-index: 5; background: var(--bg-surface); padding: 6px; border-radius: 6px; }
 
 .pause-status { display: inline-flex; align-items: center; gap: 4px; }

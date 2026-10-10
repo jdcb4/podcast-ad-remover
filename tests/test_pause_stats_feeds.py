@@ -224,3 +224,45 @@ def test_personal_basic_auth_and_regular_user_admin_controls(sample):
     page=client.get('/stats').text
     assert 'Library · Current holdings' not in page
     assert 'LLM / speech calls' not in page
+
+
+def test_stats_preloads_all_periods_and_scopes_without_leaking_admin_data(sample):
+    client,app,users,shows,episodes=sample
+    with get_db_connection() as conn:
+        conn.execute("INSERT INTO user_subscriptions(user_id,subscription_id,added_at) VALUES(?,?,'2000-01-01')",(users[0],shows[0]))
+        for eid in episodes:
+            job=conn.execute("INSERT INTO jobs(episode_id,status) VALUES(?,'completed')",(eid,)).lastrowid
+            conn.execute("INSERT INTO provider_calls(job_id,input_tokens,output_tokens,outcome) VALUES(?,100,20,'success')",(job,))
+        conn.commit()
+    admin=User(id=users[0],username='joe',password_hash='',is_admin=True)
+    app.dependency_overrides[require_auth]=lambda:admin
+    response=client.get('/stats')
+    assert response.status_code==200
+    values=response.context['statistics']
+    assert values['mine']['current']['podcasts']==1
+    assert values['library']['current']['podcasts']==2
+    for period in ['all','week','month','year']:
+        assert values['mine']['history'][period]['usage']['calls']==1
+        assert values['library']['history'][period]['usage']['calls']==2
+        assert f'data-stats-history="{period}"' in response.text
+    assert 'data-initial-period="all"' in response.text
+    assert 'Time saved excludes' not in response.text and 'History counts' not in response.text
+    assert '<select' not in response.text and '>Apply<' not in response.text
+    assert 'Recorded transcription' not in response.text
+    regular=User(id=users[1],username='listener',password_hash='',is_admin=False)
+    app.dependency_overrides[require_auth]=lambda:regular
+    response=client.get('/stats')
+    assert set(response.context['statistics'])=={'mine'}
+    assert all('usage' not in row for row in response.context['statistics']['mine']['history'].values())
+    assert 'Resources used' not in response.text and 'data-stats-scope="library"' not in response.text
+
+
+def test_personal_resource_totals_retain_completion_membership_after_removal(sample):
+    client,app,users,shows,episodes=sample
+    with get_db_connection() as conn:
+        job=conn.execute("INSERT INTO jobs(episode_id,status) VALUES(?,'completed')",(episodes[0],)).lastrowid
+        conn.execute("INSERT INTO provider_calls(job_id,input_tokens,output_tokens) VALUES(?,30,4)",(job,))
+        conn.execute('DELETE FROM user_subscriptions WHERE user_id=?',(users[1],))
+        conn.commit()
+    assert get_statistics(user_id=users[1],historical=True,include_usage=True)['usage']['input_tokens']==30
+    assert get_statistics(user_id=users[2],historical=True,include_usage=True)['usage']['calls']==0
