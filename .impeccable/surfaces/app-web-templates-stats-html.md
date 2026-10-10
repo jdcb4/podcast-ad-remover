@@ -17,7 +17,7 @@ OWN-WORLD: Retain the existing violet navigation, Inter typography, semantic the
 
 STORY: Listeners scan four measurements for their collection and choose a calendar period. Administrators also inspect global holdings and measured provider/transcription usage. Missing history is explained rather than estimated.
 
-FIRST VIEWPORT: Stats title and concise introduction, then current collection and global totals in four-column definition rows, two columns on phones. Calendar-period controls introduce historical totals. Admin pause state sits beneath Settings; library headings carry the contrasting paused suffix.
+FIRST VIEWPORT: Stats title and concise introduction, then current collection and global totals in four-column definition rows, two columns on phones. Calendar-period controls introduce historical totals. Admin pause state sits in the account footer above the color-mode control; library headings carry the contrasting paused suffix.
 
 FORM: Brief-pinned simple widgets inside the existing Operate world, with grouped definition lists instead of a new dashboard shell. No free visual concept axis or generated comp is needed.
 
