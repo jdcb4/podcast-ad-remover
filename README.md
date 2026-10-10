@@ -75,6 +75,8 @@ Dashboard login, public subscription browsing, feed/audio protection and API acc
 
 YouTube support covers public channels and explicit playlists, not individual video subscriptions or private/member content. Use sources you are permitted to download and process.
 
+Admin pause controls preserve subscriptions and audio while queued processing waits. My Pods has a personal Unified Feed; Library has the global feed. Stats shows current holdings and recorded processing history. See [processing controls and statistics](Documentation/PROCESSING_CONTROLS.md).
+
 ## Documentation and development
 
 - [Documentation index](Documentation/PROJECT_INDEX.md) · [2.0 readiness review](Documentation/V2_LAUNCH_REVIEW.md)

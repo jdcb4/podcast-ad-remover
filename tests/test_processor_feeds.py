@@ -8,8 +8,9 @@ from app.infra.database import get_db_connection, init_db
 from app.infra.repository import SubscriptionRepository
 
 @pytest.fixture
-def mock_processor():
+def mock_processor(isolated_data_dir):
     """Fixture to provide a Processor instance with mocked external dependencies."""
+    init_db()
     with patch("app.core.processor.EpisodeRepository") as mock_ep_repo, \
             patch("app.core.processor.SubscriptionRepository") as mock_sub_repo, \
             patch("app.core.processor.JobRepository"), \
@@ -23,7 +24,7 @@ def mock_processor():
 @patch("app.core.sources.FeedManager")
 def test_check_feeds_creates_new_episodes_from_feed(mock_feed_manager, mock_processor):
     """Test that new episodes are queued (status: pending) from feed."""
-    mock_sub = MagicMock()
+    mock_sub = MagicMock(processing_paused=False)
     mock_sub.id = 1
     mock_sub.feed_url = "https://example.com/feed"
     mock_sub.retention_limit = 5
@@ -53,7 +54,7 @@ def test_check_feeds_creates_new_episodes_from_feed(mock_feed_manager, mock_proc
 @patch("app.core.sources.FeedManager")
 def test_check_feeds_skips_existing_episodes(mock_feed_manager, mock_processor):
     """Test that existing episodes are handled correctly (skipped or backfilled)."""
-    mock_sub = MagicMock()
+    mock_sub = MagicMock(processing_paused=False)
     mock_sub.id = 1
     mock_sub.retention_limit = 5
     mock_processor.sub_repo.get_all.return_value = [mock_sub]
@@ -76,7 +77,7 @@ def test_check_feeds_skips_existing_episodes(mock_feed_manager, mock_processor):
 @patch("app.core.sources.FeedManager")
 def test_check_feeds_respects_retention_limit(mock_feed_manager, mock_processor):
     """Test that retention limit is respected by marking older episodes unprocessed."""
-    mock_sub = MagicMock()
+    mock_sub = MagicMock(processing_paused=False)
     mock_sub.id = 1
     mock_sub.retention_limit = 1 # Only the first episode should be pending
     mock_processor.sub_repo.get_all.return_value = [mock_sub]
@@ -101,7 +102,7 @@ def test_check_feeds_respects_retention_limit(mock_feed_manager, mock_processor)
 @patch("app.core.sources.FeedManager")
 def test_check_feeds_handles_feed_parsing_error(mock_feed_manager, mock_processor):
     """Test that feed parsing errors are handled gracefully without crashing the loop."""
-    mock_sub = MagicMock()
+    mock_sub = MagicMock(processing_paused=False)
     mock_processor.sub_repo.get_all.return_value = [mock_sub]
 
     # Simulate a parsing exception
@@ -116,8 +117,8 @@ def test_check_feeds_handles_feed_parsing_error(mock_feed_manager, mock_processo
 @patch("app.core.sources.FeedManager")
 def test_check_feeds_all_subscriptions(mock_feed_manager, mock_processor):
     """Test processing loops over all active subscriptions."""
-    mock_sub1 = MagicMock(id=1, feed_url="https://feed1.com")
-    mock_sub2 = MagicMock(id=2, feed_url="https://feed2.com")
+    mock_sub1 = MagicMock(processing_paused=False, id=1, feed_url="https://feed1.com")
+    mock_sub2 = MagicMock(processing_paused=False, id=2, feed_url="https://feed2.com")
 
     mock_processor.sub_repo.get_all.return_value = [mock_sub1, mock_sub2]
     mock_feed_manager.parse_episodes.return_value = []
@@ -130,7 +131,7 @@ def test_check_feeds_all_subscriptions(mock_feed_manager, mock_processor):
 @patch("app.core.sources.FeedManager")
 def test_check_feeds_with_zero_limit_skips_initial_downloads(mock_feed_manager, mock_processor):
     """Test that a retention limit of zero sets status to unprocessed (skips downloads)."""
-    mock_sub = MagicMock()
+    mock_sub = MagicMock(processing_paused=False)
     mock_sub.id = 1
     mock_sub.retention_limit = 0 # 0 means skip initial downloads
     mock_processor.sub_repo.get_all.return_value = [mock_sub]

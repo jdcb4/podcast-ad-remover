@@ -1,5 +1,9 @@
 # Decisions
 
+## 2026-10-10: Persistent pause and personal processing history
+
+Keep pause independent of retention and ownership: only admins change feed/global pause, running attempts finish, new claims wait and automatic episode cleanup stops. Keep the existing global RSS identity and add collection-based per-user unified feeds. Personal historical totals belong to memberships present at completion, survive later removal, and do not retroactively credit a newly added podcast. Count unique episodes by first recorded completion; disclose incomplete imported history and measured provider/transcription coverage. See [processing controls](PROCESSING_CONTROLS.md).
+
 ## 2026-10-08: Preserve ambiguous transcription chunk seams
 
 Select segments intersecting each chunk's ownership window, rather than by start

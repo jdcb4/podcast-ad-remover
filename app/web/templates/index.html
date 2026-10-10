@@ -27,7 +27,7 @@
 </script>
 {% endif %}
 
-<h1 class="text-2xl font-semibold mb-5">{{ 'Library' if library_view == 'library' else 'My Podcasts' }}</h1>
+<h1 class="text-2xl font-semibold mb-5"><span data-library-heading>{{ 'Library' if library_view == 'library' else 'My Pods' }}</span>{% if settings.processing_paused %}<span class="pause-notice"> (processing paused)</span>{% endif %}</h1>
 <dialog id="add-podcast-dialog"><div class="dialog-heading"><h2>Add podcast</h2><button type="button" data-close-dialog aria-label="Close add podcast">Close</button></div>
     <!-- Search -->
     <div class="mb-4 sm:mb-8">
@@ -149,7 +149,7 @@
     <a href="/?view=mine" data-library-view-link="mine"
         aria-current="{% if library_view == 'mine' %}page{% else %}false{% endif %}"
         class="{% if library_view == 'mine' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">
-        My Podcasts
+        My Pods
         <span id="my-podcast-count" class="badge-neutral ml-1">{{ my_podcast_count }}</span>
     </a>
     <a href="/?view=library" data-library-view-link="library"
@@ -262,6 +262,11 @@
                 </label>
                 {% endfor %}
             </div>
+            {% if user and user.is_admin %}<section><h3 class="text-sm font-semibold">Pause feed</h3>
+            <label for="bulk-pause-mode" class="sr-only">Pause selected feeds</label>
+            <select id="bulk-pause-mode" name="pause_mode" class="select text-sm">
+              <option value="unchanged">Leave unchanged</option><option value="pause">Pause feeds</option><option value="resume">Resume feeds</option>
+            </select></section>{% endif %}
         </fieldset>
 
         <fieldset class="rounded-lg border border-ink/[0.08] p-3 space-y-3">
@@ -347,7 +352,7 @@
 <div class="mobile-podcasts">
 {% for item in subscriptions %}<article class="mobile-podcast" data-subscription-id="{{ item.sub.id }}" data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}" data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}" data-recent="{{ item.latest_episode_date|default('') }}">
 {% if item.artwork_url %}<img src="{{ item.artwork_url }}" alt="" loading="lazy">{% endif %}
-<a class="podcast-title" href="/subscriptions/{{ item.sub.id }}">{{ item.sub.title }}</a>
+<a class="podcast-title" href="/subscriptions/{{ item.sub.id }}">{{ item.sub.title }}{% if item.sub.processing_paused %}<span class="pause-notice podcast-pause" title="Feed paused" role="img" aria-label="Feed paused"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></span>{% endif %}</a>
 <a class="manage" href="/subscriptions/{{ item.sub.id }}{% if item.can_manage %}#processing-settings{% endif %}" aria-label="{{ 'Manage' if item.can_manage else 'View' }} {{ item.sub.title }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 5 5-12 12H4v-5L16 3Z"/></svg></a></article>{% endfor %}
 </div>
 <div id="podcast-table-container" class="hidden mb-6 overflow-x-auto rounded-xl border border-ink/[0.08] bg-surface-elevated">
@@ -387,7 +392,7 @@
                         {% endif %}
                         <div class="min-w-0">
                             <a href="/subscriptions/{{ item.sub.id }}"
-                                class="font-medium hover:text-link block truncate max-w-[260px]">{{ item.sub.title }}</a>
+                                class="font-medium hover:text-link block truncate max-w-[260px]">{{ item.sub.title }}{% if item.sub.processing_paused %}<span class="pause-notice podcast-pause" title="Feed paused" role="img" aria-label="Feed paused"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></span>{% endif %}</a>
                             <span class="text-xs text-text-muted">{{ item.episode_count }} completed · {{ item.total_listens|default(0) }} plays</span>
                         </div>
                     </div>
@@ -407,9 +412,10 @@
                     </div>
                 </td>
                 <td class="p-3">
+                    {% if item.sub.processing_paused %}<span class="pause-notice pause-status">{{ icon('pause') }}Paused</span>{% endif %}
                     {% if item.processing_count %}
                     <span class="badge-soft">{{ item.processing_count }} processing</span>
-                    {% else %}
+                    {% elif not item.sub.processing_paused %}
                     <span class="badge-soft">Active</span>
                     {% endif %}
                 </td>
@@ -432,7 +438,7 @@
         data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}"
         data-recent="{{ item.latest_episode_date|default('') }}">
         <!-- Artwork -->
-        <div class="podcast-artwork"><button type="button" class="btn-secondary icon-button artwork-subscribe" data-subscription-help data-feed-url="{{ item.links.rss }}" aria-label="Subscribe to {{ item.sub.title }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="1"/><path d="M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8"/></svg></button>
+        <div class="podcast-artwork">{% if item.sub.processing_paused %}<span class="artwork-pause pause-notice" role="img" aria-label="Feed paused" title="Feed paused">{{ icon('pause') }}</span>{% endif %}<button type="button" class="btn-secondary icon-button artwork-subscribe" data-subscription-help data-feed-url="{{ item.links.rss }}" aria-label="Subscribe to {{ item.sub.title }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="1"/><path d="M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8"/></svg></button>
             <img src="{{ item.artwork_url or '/static/unified_feed_cover.png' }}" alt="{{ item.sub.title }}" loading="lazy">
             <div class="podcast-overlay">
                 <a href="/subscriptions/{{ item.sub.id }}" aria-label="Open {{ item.sub.title }}"
@@ -449,7 +455,7 @@
             <div class="flex items-start gap-3 mb-1">
                 <h3 class="font-display text-lg font-bold truncate flex-1">
                     <a href="/subscriptions/{{ item.sub.id }}" class="hover:text-link transition-colors">{{
-                        item.sub.title }}</a>
+                        item.sub.title }}{% if item.sub.processing_paused %}<span class="pause-notice podcast-pause" title="Feed paused" role="img" aria-label="Feed paused"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></span>{% endif %}</a>
                 </h3>
                 {% if user and user.id and user.id > 0 %}
                 <form action="/subscriptions/{{ item.sub.id }}/library" method="post"
@@ -458,8 +464,8 @@
                     <input type="hidden" name="action" value="{% if item.in_user_library %}remove{% else %}add{% endif %}">
                     <button type="submit"
                         class="p-2 rounded-full border border-ink/[0.08] hover:border-primary-500/50 hover:bg-primary-500/10 transition-colors {% if item.in_user_library %}text-link{% else %}text-text-muted{% endif %}"
-                        title="{% if item.in_user_library %}Remove from My Podcasts{% else %}Add to My Podcasts{% endif %}"
-                        aria-label="{% if item.in_user_library %}Remove from My Podcasts{% else %}Add to My Podcasts{% endif %}">
+                        title="{% if item.in_user_library %}Remove from My Pods{% else %}Add to My Pods{% endif %}"
+                        aria-label="{% if item.in_user_library %}Remove from My Pods{% else %}Add to My Pods{% endif %}">
                         <svg class="w-4 h-4" fill="{% if item.in_user_library %}currentColor{% else %}none{% endif %}"
                             stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

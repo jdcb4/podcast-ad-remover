@@ -2,6 +2,10 @@
 
 ## Unreleased — V2 development
 
+- Add admin-only Pause feed controls in Manage and bulk Content Removal, plus Pause all processing in System. Paused queues wait, running episodes finish and automatic episode cleanup stops; UI indicators leave published RSS titles unchanged.
+- Split Unified Feed subscription actions into My Pods collection feeds and the existing global Library feed. Personal feeds use collection membership and enforce user-bound credentials when feed authentication is enabled.
+- Add Stats navigation with current holdings and durable unique-episode history, UTC week/month/year filters and admin transcription/provider usage. Personal history records collection membership at processing time. See [pause, feeds and statistics](PROCESSING_CONTROLS.md) for migration and historical-data limits.
+
 - Pin the Tailwind 3 build's selector parser to 7.1.6 and source-map-js to 1.2.2 to resolve blocking dependency advisories without changing generated CSS or broadening the existing braces audit exception.
 
 - Preserve speech crossing transcription chunk seams and combine overlapping alternatives into one timestamped item. Recover nested overlaps in cached transcripts without retranscription or changing the saved source; keep invalid timestamps rejected and version classification caches for the new normalization.

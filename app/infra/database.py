@@ -458,6 +458,16 @@ FORMAL_MIGRATIONS.append((PODCAST_TITLES_MIGRATION, [
 ]))
 
 
+FORMAL_MIGRATIONS.append(("20261010_0027_pause_statistics", [
+    "ALTER TABLE subscriptions ADD COLUMN processing_paused INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE app_settings ADD COLUMN processing_paused INTEGER NOT NULL DEFAULT 0",
+    "CREATE TABLE processing_history (episode_id INTEGER PRIMARY KEY, subscription_id INTEGER NOT NULL, processed_at TEXT NOT NULL, source_seconds REAL, output_seconds REAL, transcription_seconds REAL, imported INTEGER NOT NULL DEFAULT 0)",
+    "CREATE TABLE processing_history_users (episode_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY(episode_id,user_id))",
+    "INSERT INTO processing_history SELECT id,subscription_id,processed_at,duration,output_duration,NULL,1 FROM episodes WHERE processed_at IS NOT NULL AND local_filename IS NOT NULL AND status!='ignored'",
+    "INSERT INTO processing_history_users SELECT h.episode_id,u.user_id FROM processing_history h JOIN user_subscriptions u ON u.subscription_id=h.subscription_id WHERE datetime(u.added_at)<=datetime(h.processed_at)",
+]))
+
+
 def _backup_database_if_needed(migration_ids: list[str]):
     """Create a timestamped DB backup before applying formal migrations."""
     if not migration_ids or not os.path.exists(settings.DB_PATH):
@@ -494,6 +504,12 @@ def _apply_formal_migrations(conn: sqlite3.Connection):
         ):
             statements = []
         for sql in statements:
+            # Some early installations have a minimal episode table. Import only
+            # when all historical measurements exist; do not invent old totals.
+            if version == "20261010_0027_pause_statistics" and sql.startswith("INSERT INTO processing_history SELECT"):
+                available = {row[1] for row in cursor.execute('PRAGMA table_info(episodes)')}
+                if not {'processed_at', 'duration', 'local_filename', 'output_duration'} <= available:
+                    continue
             cursor.execute(sql)
         if version == V2_MIGRATION:
             from app.infra.v2_migration import migrate

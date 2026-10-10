@@ -17,6 +17,7 @@ class Subscription(SubscriptionBase):
     slug: Optional[str] = None
     image_url: Optional[str] = None
     is_active: bool
+    processing_paused: bool = False
     created_at: datetime
     last_checked_at: Optional[datetime] = None
     source_type: str = "rss"

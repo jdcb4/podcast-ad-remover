@@ -168,6 +168,7 @@ class Processor:
 
     async def check_feeds(self, subscription_id: int = None, limit: int = 5):
         """Check subscriptions for new episodes."""
+        from app.core.utils import get_global_settings
         
         if subscription_id:
             sub = self.sub_repo.get_by_id(subscription_id)
@@ -176,6 +177,8 @@ class Processor:
             subs = self.sub_repo.get_all()
             
         for sub in subs:
+            if get_global_settings().get('processing_paused') or sub.processing_paused:
+                continue
             try:
                 source_type = getattr(sub, "source_type", "rss")
                 if not isinstance(source_type, str):
@@ -548,6 +551,7 @@ class Processor:
     async def _classify_complete_timeline(self, ep, sub, transcript, input_path, fingerprint, snapshot, episode_root):
         from app.core import timeline
         duration = await asyncio.to_thread(AudioProcessor.get_duration, input_path)
+        self.ep_repo.pending_metadata["duration"] = round(duration)
         units, notes = timeline.prepare_timeline(transcript, duration)
         metadata = {'podcast_name': sub.title, 'episode_title': ep.title,
                     'publication_date': str(ep.pub_date) if ep.pub_date else None}
@@ -783,6 +787,7 @@ class Processor:
                      return
 
                 duration = (datetime.now() - start_time).total_seconds()
+                self.ep_repo.transcription_seconds = duration
                 logger.info(f"Transcription complete in {duration:.1f}s")
                 
                 transcript['_source'] = {'sha256': fingerprint, 'whisper_model': global_settings.get('whisper_model', settings.WHISPER_MODEL), **transcript.pop('_execution', {'device': 'cpu', 'compute_type': 'float32'})}
@@ -1210,7 +1215,7 @@ class Processor:
             ids_to_delete = []
             with get_db_connection() as conn:
                 from app.core.media_storage import processing_blocked
-                if processing_blocked(conn):
+                if processing_blocked(conn) or conn.execute("SELECT processing_paused FROM app_settings WHERE id=1").fetchone()[0]:
                     return
                 # 1. Manual Downloads (Time Based)
                 # processed_at < now - manual_retention_days
@@ -1220,7 +1225,7 @@ class Processor:
                     CROSS JOIN app_settings a
                     WHERE e.status = 'completed' 
                       AND e.is_manual_download = 1
-                      AND s.keep_whole_show=0
+                      AND s.keep_whole_show=0 AND s.processing_paused=0
                       AND datetime(e.processed_at) < datetime(
                           'now',
                           '-' || CASE
@@ -1256,7 +1261,7 @@ class Processor:
                         ) t
                         JOIN subscriptions s ON t.subscription_id = s.id
                         CROSS JOIN app_settings a
-                        WHERE s.keep_whole_show=0 AND t.rn > CASE
+                        WHERE s.keep_whole_show=0 AND s.processing_paused=0 AND t.rn > CASE
                             WHEN s.inherit_retention = 1
                                 THEN COALESCE(a.default_retention_limit, 1)
                             ELSE COALESCE(s.retention_limit, 1)
