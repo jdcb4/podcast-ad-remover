@@ -1771,7 +1771,6 @@ def _render_index(request: Request, error: str = None):
 
     subs_with_links = []
     global_settings = get_global_settings()
-    artwork_base_url = get_app_base_url(global_settings, request)
     for sub in subs:
         # Get completed episodes for this subscription
         with get_db_connection() as conn:
@@ -1835,7 +1834,7 @@ def _render_index(request: Request, error: str = None):
             "can_manage": _can_manage_subscription(user, sub),
             "owner_username": sub_repo.get_owner_username(sub.id),
             "user_library_count": user_library_count,
-            "artwork_url": effective_artwork_url(sub, artwork_base_url),
+            "artwork_url": effective_artwork_url(sub),
         })
 
     # Get queue data for dashboard display
@@ -1873,7 +1872,6 @@ def _render_index(request: Request, error: str = None):
 
 def _build_public_subscribe_context(request: Request, global_settings: dict):
     subs = sub_repo.get_all()
-    artwork_base_url = get_app_base_url(global_settings, request)
     public_links = []
     for sub in subs:
         with get_db_connection() as conn:
@@ -1896,7 +1894,7 @@ def _build_public_subscribe_context(request: Request, global_settings: dict):
             "links": generate_rss_links(request, sub, global_settings, include_auth_token=False),
             "episode_count": row["count"] if row else 0,
             "latest_episode": dict(latest) if latest else None,
-            "artwork_url": effective_artwork_url(sub, artwork_base_url),
+            "artwork_url": effective_artwork_url(sub),
         })
 
     unified_links = None
@@ -2673,7 +2671,7 @@ async def view_subscription(request: Request, id: int):
             "has_more": has_more,
             "page_size": INITIAL_PAGE_SIZE,
             "settings": global_settings,
-            "artwork_url": effective_artwork_url(sub, get_app_base_url(global_settings, request)),
+            "artwork_url": effective_artwork_url(sub),
         }
     )
 

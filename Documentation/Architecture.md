@@ -144,6 +144,10 @@ caches a JPEG under `/data/artwork/`. Output is capped at 1400x1400 and encoded 
 reduce client downloads. Source aspect ratios are preserved and small images are not enlarged.
 Generated feeds and the web UI use the local `/artwork/{id}.jpg` route with a content
 hash cache key; the encoder settings are part of that hash, so changing them republishes every URL.
+The web UI uses root-relative artwork paths so local images follow the browser's current
+origin even when the configured public application URL differs (for example, LAN IP versus
+proxy hostname). RSS artwork URLs remain absolute for podcast clients. The existing CSP
+permits same-origin HTTP artwork through `'self'`; no additional HTTP image origins are needed.
 The older `/artwork/{id}.png` route is still served for clients holding cached feed XML. Disabling
 the feature clears the derived file and restores the source artwork URL. An artwork failure is
 logged but does not prevent subscription creation or feed processing.

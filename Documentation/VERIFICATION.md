@@ -19,6 +19,11 @@ pip install -r requirements-dev.txt
 
 ## Standard Check
 
+`tests/test_artwork_watermark.py` renders dashboard, public Subscribe and podcast detail
+pages with HTTP/HTTPS browser origins differing from the configured public URL. It checks
+same-origin generated JPEG/legacy PNG paths, successful image retrieval, unchanged CSP,
+absolute RSS artwork URLs and preservation of original artwork when badging is disabled.
+
 `tests/test_transcript_chunks.py` checks nested seams, speech starting before a seam,
 exact ownership boundaries, chronological ordering, multiple seams, short final chunks
 and temporary-file cleanup on failure with synthetic Whisper outputs. Timeline tests

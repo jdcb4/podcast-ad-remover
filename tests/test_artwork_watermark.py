@@ -3,21 +3,74 @@ import io
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
+from urllib.parse import urljoin
+from xml.etree.ElementTree import fromstring
 
 import pytest
 import httpx
 from PIL import Image
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.artwork import BADGE_PATH, ArtworkWatermarker, effective_artwork_url
 from app.core.config import settings
 from app.core.models import SubscriptionCreate
+from app.core.rss_gen import RSSGenerator
 from app.infra.database import get_db_connection, init_db
 from app.infra.repository import SubscriptionRepository
 from app.web.router import router as web_router
 from app.web.router import serve_watermarked_artwork
+from app.web.security_headers import SecurityHeadersMiddleware
 
 
 CACHE_CONTROL = "public, max-age=31536000, immutable"
+
+
+@pytest.mark.parametrize("browser_origin", [
+    "http://podcasts.lan:8000", "https://podcasts.example",
+])
+@pytest.mark.parametrize("suffix", [".jpg", ".png"])
+def test_ui_artwork_uses_browser_origin_and_rss_keeps_public_url(
+    isolated_data_dir, monkeypatch, browser_origin, suffix,
+):
+    repo, sub = _watermarked_subscription("origin", _image_bytes(), monkeypatch)
+    artwork = Path(settings.ARTWORK_DIR) / f"{sub.id}{suffix}"
+    artwork.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (32, 32)).save(artwork)
+    public_url = "http://192.168.1.100:8000"
+    with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE app_settings SET app_external_url=?, public_subscribe_page_enabled=1 WHERE id=1",
+            (public_url,),
+        )
+        conn.execute(
+            "UPDATE subscriptions SET watermarked_image_path=?, watermarked_image_hash=? WHERE id=?",
+            (str(artwork), "a" * 64, sub.id),
+        )
+        conn.commit()
+
+    app = FastAPI()
+    app.add_middleware(SessionMiddleware, secret_key="artwork-test")
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.include_router(web_router)
+    local_url = f"/artwork/{sub.id}{suffix}?v={'a' * 12}"
+    with TestClient(app, base_url=browser_origin) as client:
+        for page in ("/?view=library", "/subscribe", f"/subscriptions/{sub.id}"):
+            response = client.get(page)
+            assert response.status_code == 200
+            assert f'src="{local_url}"' in response.text
+            assert f'src="{public_url}/artwork/' not in response.text
+            assert "img-src 'self' data: blob: https:;" in response.headers["content-security-policy"]
+            assert public_url not in response.headers["content-security-policy"]
+            image = client.get(urljoin(str(response.url), local_url))
+            assert image.status_code == 200
+            assert image.content == artwork.read_bytes()
+
+    xml = fromstring(Path(RSSGenerator().generate_feed(sub.id)).read_text())
+    image = xml.find("channel/{http://www.itunes.com/dtds/podcast-1.0.dtd}image")
+    assert image.attrib["href"] == public_url + local_url
+    assert effective_artwork_url(repo.get_by_id(sub.id)) == local_url
 
 
 @pytest.mark.parametrize("content_type,valid_image,accepted", [
@@ -351,3 +404,4 @@ def test_original_artwork_is_used_when_watermark_is_disabled(isolated_data_dir):
     )
 
     assert effective_artwork_url(sub, "https://podcasts.example") == sub.image_url
+    assert effective_artwork_url(sub) == sub.image_url

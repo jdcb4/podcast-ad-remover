@@ -50,6 +50,49 @@ variable alone does not configure GPU passthrough. Keep the existing `/data` map
 If Docker itself rejects a GPU reservation, the container cannot start: remove the GPU request
 to run on CPU or repair host GPU access. Application CPU fallback applies once the container runs.
 
+## Host troubleshooting: stale NVIDIA CDI specifications
+
+On Linux hosts using Container Device Interface (CDI), Docker may fail before the container
+starts if a driver or related NVIDIA library update leaves a CDI specification referencing
+a removed library. A CachyOS user reported a reference to `libnvidia-egl-wayland.so.1.1.23`
+after the installed library changed to `1.1.24`. This is a host configuration issue; the
+application's GPU setup cannot repair it inside the container.
+
+On the **Docker host**, inspect CDI resolution and both specification locations:
+
+```bash
+nvidia-ctk --debug cdi list
+ls -l /etc/cdi/ /var/run/cdi/
+```
+
+NVIDIA Container Toolkit 1.18.0 and later provides `nvidia-cdi-refresh` on systemd hosts
+to regenerate `/var/run/cdi/nvidia.yaml` after driver/toolkit updates and reboot. If that
+service is installed, check its watcher and logs, then trigger regeneration:
+
+```bash
+systemctl status nvidia-cdi-refresh.path
+journalctl -u nvidia-cdi-refresh.service
+sudo systemctl restart nvidia-cdi-refresh.service
+```
+
+For older or manually managed installations, regenerate the specification in the location
+your runtime uses, for example:
+
+```bash
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+```
+
+Check **both** `/etc/cdi/` and `/var/run/cdi/` for stale or duplicate NVIDIA specifications.
+Back up a confirmed obsolete file outside those scanned directories before moving it out;
+do not remove all CDI files or another device's configuration. On service-managed hosts,
+prefer the refresh service's `/var/run/cdi/nvidia.yaml` and retire an obsolete manually
+generated copy rather than maintaining competing NVIDIA specifications.
+
+Run `nvidia-ctk --debug cdi list` again and verify Docker GPU access with your existing
+GPU configuration before retrying **Set up / retest GPU** in the app. Regeneration does
+not install a missing driver or configure GPU passthrough. See
+[NVIDIA's CDI generation and troubleshooting guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html).
+
 ## Manual setup and settings
 
 Open **Settings → Transcription** and select **Set up / retest GPU**. This tests the
