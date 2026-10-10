@@ -36,7 +36,8 @@ LEGACY_OUTPUT_SUFFIX = ".png"
 ENCODE_SALT = f"artwork-v2:jpeg:{OUTPUT_MAX_EDGE}:q{JPEG_QUALITY}".encode()
 
 
-def effective_artwork_url(subscription, base_url: str) -> str | None:
+def effective_artwork_url(subscription, base_url: str = "") -> str | None:
+    """Use same-origin local artwork for the UI; supply a public base URL for RSS."""
     path = getattr(subscription, "watermarked_image_path", None)
     if getattr(subscription, "watermark_artwork", False) and path and Path(path).is_file():
         version = getattr(subscription, "watermarked_image_hash", None) or "current"

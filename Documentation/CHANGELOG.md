@@ -2,6 +2,9 @@
 
 ## Unreleased — V2 development
 
+- Fix generated podcast artwork in the dashboard, public Subscribe page and podcast details when the browser address differs from the configured public URL, using same-origin UI paths while preserving absolute RSS URLs and the existing CSP.
+- Document stale NVIDIA CDI specifications after host driver/library updates, including automatic refresh and manual regeneration.
+
 - Simplify Stats into preloaded My Pods/Library and Week/Month/Year/All time selectors, compact metric components, dated history/resource sections and collection-scoped admin resource totals.
 - Move the processing-paused sidebar notice above the color-mode control so expanded Settings navigation stays together.
 
