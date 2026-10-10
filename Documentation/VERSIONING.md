@@ -49,7 +49,7 @@ versioning rules for other incompatible changes or authorize production promotio
 
 ## V2 pre-publication reminder
 
-Before publishing V2, complete Joe's requested rationale review. **The reminder has been raised and his expanded cascade explanation was recorded on 11 October 2026**, including the confirmed 9Router, OmniRoute and LiteLLM examples. It is incorporated in the [README](../README.md#upgrading-to-20-what-changes-and-why) and [release notes](V2_RELEASE_NOTES.md). Await his review of that wording, then record acceptance and resolve the final-copy reminder; do not ask him to repeat the explanation. A documentation update is not authorization to bump versions or promote production.
+Before publishing V2, complete Joe's requested rationale review. **The reminder has been raised and his expanded cascade explanation was recorded on 11 October 2026**, including the confirmed 9Router, OmniRoute and LiteLLM examples. It is incorporated in the [README](../README.md#why-v2-simplifies-things) and [release notes](V2_RELEASE_NOTES.md). Await his review of that wording, then record acceptance and resolve the final-copy reminder; do not ask him to repeat the explanation. A documentation update is not authorization to bump versions or promote production.
 
 V2 deliberately retires supported configuration paths, so **2.0.0 is the proposed next release**, even though the database has a migration path. The current package version is still 1.16.0 pending review and authorization to cut the versioned candidate. See [the promotion review](V2_PROMOTION_REVIEW.md) for qualification evidence and remaining gates.
 

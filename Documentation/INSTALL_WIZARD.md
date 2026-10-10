@@ -4,7 +4,7 @@ The [web setup wizard](https://jdcb4.github.io/podcast-ad-remover/) prepares a n
 
 ## Availability during the 2.0 preview
 
-Rechecked on 11 October 2026: the Pages homepage still shows the old Local LLM Ad Detection Evaluation report, and the Dev wizard path returns 404. Publication is rejected because its environment still permits `master` and an old experimental branch, not `dev`. Use the local preview until publication succeeds. See the [promotion review](V2_PROMOTION_REVIEW.md) for evidence and remaining launch work.
+Maintainer evidence, rechecked on 11 October 2026: the Pages homepage still shows the old Local LLM Ad Detection Evaluation report, and the Dev wizard path returns 404. Publication is rejected because its environment still permits `master` and an old experimental branch, not `dev`. The launch README assumes working hosting at Joe's request; resolve this before publishing that copy. The single-HTML repository download is independent of Pages once merged. See the [promotion review](V2_PROMOTION_REVIEW.md) for remaining launch work.
 
 Once published, the landing page links to available channels:
 
@@ -31,15 +31,21 @@ Use [V2_UPGRADE.md](V2_UPGRADE.md), not a newly generated install file as a drop
 
 Drain jobs and rehearse against backups before upgrading. Do not attach two running instances to the same writable data. Image-only rollback after database migration is unsupported.
 
-## Local and offline preview
+## Download one HTML file
 
-From the repository root, run `python scripts/build_configurator.py`, then open `configurator/index.html`. This also builds `offline.zip` and the portable agent package. Alternatively:
+The hosted wizard offers **Download single HTML wizard**. You can also
+[download the repository copy](https://github.com/jdcb4/podcast-ad-remover/raw/refs/heads/dev/configurator/install.html),
+save it as an HTML file and open it in your browser. No Python, local server or
+other files are needed. The source-repository copy displays the Dev channel;
+published channel copies display their exact release image/revision. Always check
+that metadata before installing. The file generates configuration offline; Docker
+still needs access to the image registry when you install the application.
 
-```bash
-python -m http.server 8778 --bind 127.0.0.1 --directory configurator
-```
-
-Open `http://127.0.0.1:8778`. Serve only the configurator folder, not your repository or data directory. The offline ZIP can be extracted and its `index.html` opened without a server. Use **Clear credentials & output** when finished; a page navigation also clears temporary configuration state.
+Scripts, styling and release metadata are embedded. CSP permits only those exact
+script/style hashes and blocks network requests. Credentials stay in memory until
+you download `install.env`; use **Clear credentials & output** when finished.
+Navigation also clears the temporary state. The existing offline ZIP remains
+available with separate source assets and the portable agent package.
 
 ## Test the current checkout
 
@@ -55,5 +61,5 @@ Generate the install files, then replace the output image with `podcast-ad-remov
 
 1. Review the GitHub `github-pages` environment branch rules. The dispatch helper runs the workflow from `dev` for both channels; allow that intended branch explicitly. Retain the workflow's checks that stable revisions belong to `main`, Dev revisions belong to `dev`, and immutable images exist. Do not disable environment protection wholesale.
 2. After authorized image publication, dispatch `publish-configurator.yml` with its full commit SHA, channel and immutable image tag. A workflow retry must retain the intended revision/image; do not substitute a rolling tag. Preparing docs does not authorize publication or permission changes.
-3. Check the landing page, channel page, `release.js`, offline ZIP and agent ZIP. Verify the other channel was preserved. Generate and parse install output, and verify displayed metadata against the published image.
-4. Replace the temporary unavailable notice in README and this guide only after live success. Before stable 2.0, also finish Joe's rationale review and the [release checklist](VERSIONING.md).
+3. Check the landing page, channel page, `release.js`, single-file `install.html`, offline ZIP and agent ZIP. Verify the other channel was preserved. Generate and parse install output from the hosted page and downloaded HTML, and verify displayed metadata against the published image. `scripts/build_configurator.py` generates these assets; commit its repository `install.html` output whenever source assets change.
+4. The launch README assumes working hosting at Joe's request; the dated availability evidence above is retained for maintainers. Confirm live success before publication. Before stable 2.0, also finish Joe's rationale review and the [release checklist](VERSIONING.md).

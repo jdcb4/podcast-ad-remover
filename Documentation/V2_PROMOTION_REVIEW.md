@@ -6,17 +6,17 @@ not change `main`, SemVer/`latest`, repository deployment policy or live service
 
 ## Review first
 
-- [README: what changes and why](../README.md#upgrading-to-20-what-changes-and-why).
+- [README: what changes and why](../README.md#why-v2-simplifies-things).
 - [Draft public release body](V2_RELEASE_NOTES.md#proposed-release-body).
 - [Upgrade checklist and conversion table](V2_UPGRADE.md).
 - [Measured image sizes](RESOURCE_AUDIT.md#release-image-comparison--11-october-2026).
 
 Joe's expanded rationale is recorded: affordable capable paid models make one
 model practical for many users, and 9Router, OmniRoute and LiteLLM provide external
-routing for those who need it. The README explains local Piper removal separately,
-including loss of bundled offline speech, explicit API configuration, preserved
-speech preferences and continued local transcription. It distinguishes feature
-removals from less disruptive changes such as tone conversion and feed titles.
+routing for those who need it. The README focuses on current features, CUDA acceleration and the principles behind
+the three main V2 changes. Detailed compatibility conversions live in the changelog,
+separate V2 release notes and upgrade guide. It links the hosted wizard and a
+self-contained HTML download; users do not need to build or serve the wizard.
 The explanation reminder has been raised; final wording still needs Joe's review.
 
 ## Application evidence
@@ -58,8 +58,10 @@ not every provider, operating system, podcast player or GPU host.
    Allowed environment branches remain `master` and the retired experimental
    branch. [Run38093480028](https://github.com/jdcb4/podcast-ad-remover/actions/runs/38093480028)
    failed on that policy. Both stable and Dev installer publication dispatch from
-   `dev`; do not advertise the hosted wizard as available. Local generation works.
-   Repository-policy changes and Pages publication remain separate actions.
+   `dev`. At Joe's request the launch README assumes working hosting; this dated
+   operational finding remains a publication gate. A single downloadable HTML
+   wizard now works without adjacent assets or a server. Repository-policy changes
+   and Pages publication remain separate actions.
 4. **Image reduction measured.** Compared with1.16.0, the tested V2 image is
    47.8MB smaller in uncompressed layers (3.4%) and25.3MB smaller in compressed
    registry layers (5.3%). Docker Desktop reports73.1MB less combined stored content
@@ -71,9 +73,9 @@ not every provider, operating system, podcast player or GPU host.
 ## Remaining promotion steps
 
 1. Joe reviews the README and release wording; record acceptance. Resolve the
-   installer policy/publication issue before presenting the wizard as a launch
-   feature, or explicitly agree to launch with local installation only and make
-   that the primary README installation route.
+   installer policy/publication issue before launch. The README is intentionally
+   written for working hosting; verify the hosted and single-HTML downloads before
+   publishing that copy.
 2. Confirm2.0.0 and authorize cutting the versioned candidate. Align package files
    and dated changelog, commit on `dev`, run the required local/Docker checks,
    publish the exact Dev candidate and qualify its immutable image. Re-measure
@@ -95,3 +97,26 @@ checks do not change runtime code or dependencies. The final versioned candidate
 still requires its own release qualification.
 No new model calls, paid inference, live data migration, image push or deployment
 is part of this documentation review.
+
+### README and single-file wizard follow-up
+
+At Joe's request, the README now emphasizes current app features and CUDA speed,
+with a short principles section for Piper removal, cascade removal and Complete
+Timeline. Detailed compatibility conversions are consolidated in the changelog;
+the separate V2 release notes remain linked. Installation copy assumes working
+Pages hosting and offers one downloadable HTML file, without user-facing local
+build/server steps.
+
+The configurator builder embeds CSS, scripts and channel metadata into `install.html`,
+with exact CSP hashes and network connections still blocked. Publication regenerates
+it for the channel's immutable image. The committed source copy clearly selects Dev.
+Automated checks exercise the standalone file after deleting adjacent assets,
+including GPU Compose generation, separate environment download, secret preservation,
+explicit rotation and clearing. Hash checks and committed-output drift checks pass.
+The browser client's URL policy prevented a native `file://` preview; automated
+file-page tests passed, but no native-browser file preview is claimed.
+
+`npm run verify` passed:781 tests,8 skips, syntax, CSS and dependency audits with
+the existing documented frontend exception. Local Markdown links and
+`git diff --check` passed. The application runtime and dependencies are unchanged;
+the final versioned release candidate still needs the normal Docker qualification.

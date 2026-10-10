@@ -2,7 +2,7 @@
 
 This guide describes the implemented V2 code on `dev`, not an announcement that 2.0 or a matching `latest` image has been published. Check the exact image revision you intend to install. The [release notes](V2_RELEASE_NOTES.md) explain why this is deliberately a breaking-change boundary.
 
-**Most significant functional changes:** bundled local Piper speech is gone, model/key cascades are gone, and Complete Timeline replaces Legacy processing. Former Piper users get no new spoken additions until Voice is explicitly configured; ad removal and existing published audio continue. A data-preserving upgrade still requires a settings review. The [README](../README.md#upgrading-to-20-what-changes-and-why) explains the rationale and other behavior changes.
+**Most significant functional changes:** bundled local Piper speech is gone, model/key cascades are gone, and Complete Timeline replaces Legacy processing. Former Piper users get no new spoken additions until Voice is explicitly configured; ad removal and existing published audio continue. A data-preserving upgrade still requires a settings review. The [README](../README.md#why-v2-simplifies-things) explains the rationale and other behavior changes.
 
 ## Before upgrading
 

@@ -27,6 +27,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/core/speech.py`, `provider_settings.py`: bounded API speech and single credential/model resolution.
 - `app/web/setup.py`: staged optional setup with review/apply and conflict detection.
 - `configurator/`, `scripts/build_configurator.py`: private static installer and offline bundle.
+- `configurator/install.html`: committed self-contained wizard download, regenerated from the installer assets with hash-based CSP.
 - `app/infra/v2_migration.py`: v2 conversion and actionable upgrade report.
 - `app/core/provider_budget.py`, `worker_health.py`: durable request limits and processing readiness.
 - `app/core/gemini_quota.py`: opt-in shared Gemini quotas, token reservations, Pacific resets and provider cooldowns.
