@@ -219,7 +219,7 @@ dialog::backdrop { background:#0008; }
 .podcast-save-bar button:disabled{opacity:.45;cursor:not-allowed}
 .podcast-manage-columns .owner-setting{padding-top:0}
 
-.pause-notice { color: var(--caution); }
+.pause-notice { color: var(--caution); white-space: nowrap; }
 .podcast-pause { display: inline-flex; vertical-align: middle; margin-inline-start: 6px; }
 .feed-pause-form { margin-top: 24px; }
 .stats-page { max-width: 960px; }
