@@ -2,6 +2,7 @@
 
 ## Unreleased — V2 development
 
+- Expand the README and V2 release/upgrade notes with the maintainer's cascade-removal rationale, explicit local speech impacts and other significant configuration/behavior changes. Record measured 1.16.0 versus V2 Docker image sizes and refresh promotion readiness, including the October 8 seam fix and remaining installer publication gate.
 - Fix generated podcast artwork in the dashboard, public Subscribe page and podcast details when the browser address differs from the configured public URL, using same-origin UI paths while preserving absolute RSS URLs and the existing CSP.
 - Document stale NVIDIA CDI specifications after host driver/library updates, including automatic refresh and manual regeneration.
 
@@ -33,7 +34,7 @@
 - Reject cross-origin management writes even when dashboard login is disabled, protecting local/trusted-network installs from cross-site form submissions.
 - Address the Antigravity review: reject opaque browser origins, mark audio revisions published only after commit, defer deletion during storage migration, share duplicate feed identity across add/import paths, and fix light-theme settings contrast. See [review disposition](V2_ADVERSARIAL_REVIEW.md) for accepted findings and deferred proposals.
 
-V2 intentionally makes breaking changes to remove legacy features with limited long-term value, reduce configuration/maintenance complexity and reflect the changed tradeoff as remote inference becomes more affordable. We hope disruption is minimal, but affected installations need to review [V2_UPGRADE.md](V2_UPGRADE.md). Local transcription remains; former Piper installs are not silently moved to paid speech. [Draft release notes](V2_RELEASE_NOTES.md) await Joe’s expanded reasoning before publication. The package version is still 1.16.0; these notes do not declare 2.0 published.
+V2 intentionally makes breaking changes to remove legacy features with limited long-term value and reduce configuration/maintenance complexity. Affordable capable models and dedicated external routers reduce the value of maintaining PAR's own cascade. Affected installations need to review [V2_UPGRADE.md](V2_UPGRADE.md). Local transcription remains; former Piper installs are not silently moved to paid speech. [Draft release notes](V2_RELEASE_NOTES.md) include Joe's expanded reasoning recorded on 11 October and await his review of the wording. The package version is still 1.16.0; these notes do not declare 2.0 published.
 
 - Add optional separate processed-audio storage, identity-checked mounts, stable playback URLs and a resumable admin migration with verified-copy cleanup and recovery CLI.
 

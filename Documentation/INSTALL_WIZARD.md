@@ -4,7 +4,7 @@ The [web setup wizard](https://jdcb4.github.io/podcast-ad-remover/) prepares a n
 
 ## Availability during the 2.0 preview
 
-On 4 October 2026 the Pages homepage still shows the old Local LLM Ad Detection Evaluation report, and the Dev wizard path returns 404. The first Pages deployment was rejected because its environment still permits `master` and an old experimental branch, not `dev`. Use the local preview until publication succeeds. See the [readiness review](V2_LAUNCH_REVIEW.md) for evidence and remaining launch work.
+Rechecked on 11 October 2026: the Pages homepage still shows the old Local LLM Ad Detection Evaluation report, and the Dev wizard path returns 404. Publication is rejected because its environment still permits `master` and an old experimental branch, not `dev`. Use the local preview until publication succeeds. See the [promotion review](V2_PROMOTION_REVIEW.md) for evidence and remaining launch work.
 
 Once published, the landing page links to available channels:
 

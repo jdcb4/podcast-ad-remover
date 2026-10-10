@@ -2,7 +2,34 @@
 
 Local transcription and audio remain the main resource costs. PAR uses faster-whisper/CTranslate2, FFmpeg, local SQLite/media storage and network calls to the selected analysis/optional speech endpoints. Piper and its exclusive phonemizer dependency are removed; ONNX Runtime, NumPy and FFmpeg remain shared requirements of the transcription/audio stack. Do not equate Piper removal with removing all inference dependencies.
 
-Existing downloaded Piper voices under `/data/models` are not deleted during upgrade. The historical assessment measured roughly 46 MB of unpacked exclusive packages and 114 MB for one downloaded voice, but these are not measured V2 image or RAM savings. No new image-size, idle-RAM or performance claim is made by this documentation update.
+Existing downloaded Piper voices under `/data/models` are not deleted during upgrade. The historical assessment measured roughly 46 MB of unpacked exclusive packages and 114 MB for one downloaded voice; those package estimates do not isolate the image change measured below. No idle-RAM or performance saving has been measured here.
+
+## Release image comparison — 11 October 2026
+
+Measured the published Linux/amd64 images for 1.16.0 and the tested V2 application
+revision `bbced603103a159c35565621eaf3e98dc46bbe79`, before the release-documentation
+changes. Decimal MB/GB are used below; these are not GiB/MiB.
+
+| Measurement | 1.16.0 | V2 `dev-bbced60` | Reduction |
+| --- | ---: | ---: | ---: |
+| Unpacked image (`docker image inspect .Size`) | 1,859,750,071 bytes (1.860 GB) | 1,786,682,589 bytes (1.787 GB) | 73,067,482 bytes (73.1 MB), 3.9% |
+| Compressed registry layers (download payload) | 474,451,231 bytes (474.5 MB) | 449,155,654 bytes (449.2 MB) | 25,295,577 bytes (25.3 MB), 5.3% |
+
+Immutable image digests:
+
+- 1.16.0: `sha256:939bea0a4f6ac4e918e48e952e61bcd82f8a4611103bdde7d6b0222a9e73fc16`.
+- V2 tested build: `sha256:b5bc458c9d93c4b3cf84edf91ea4ab6c010c48df50843bdd1b929b5c4972edaa`.
+
+The compressed values sum `layers[].size` from the Linux/amd64 manifest retrieved
+with `docker buildx imagetools inspect --raw`, selecting that platform from the
+image index first. They exclude small manifests/configs and any cache reuse.
+Unpacked size is the image's reported logical content, not exclusive disk use:
+shared layers and Docker storage implementation affect actual host storage.
+Downloaded Whisper/Piper voices, optional CUDA runtime, database and media under
+`/data` or `/media` are excluded from both measurements. No CUDA libraries are
+bundled in the normal image. These totals cover all changes since 1.16.0 and do
+not isolate Piper removal; no RAM saving was measured. Re-measure the final
+versioned candidate before publication.
 
 ## Current controls
 

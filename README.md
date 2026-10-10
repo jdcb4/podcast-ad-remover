@@ -18,13 +18,51 @@ Transcription runs locally with faster-whisper. Your chosen AI model classifies 
 - **Run your own library:** local transcription, retention controls, processing reports, retries and optional notifications. Finished audio can live on a separate disk or NAS.
 - **Manage it your way:** desktop/mobile interface, light/dark mode, shared library access and an optional scoped API with a [portable agent skill](Documentation/Agent_Skill.md).
 
-PAR suits listeners willing to run Docker and provide an analysis model. Transcription needs CPU/RAM; remote analysis and optional speech may incur charges. AI can misclassify content and cut timing is imperfect. The existing transcription chunk merger can omit or repeat words at joins; see the [known limitation](Documentation/CUDA_LONGFORM_2026-09-24.md).
+PAR suits listeners willing to run Docker and provide an analysis model. Transcription needs CPU/RAM; remote analysis and optional speech may incur charges. AI can misclassify content and cut timing is imperfect. Overlapping transcription chunks now preserve uncertain speech together; this can leave coarser cut boundaries and repeated transcript wording. See [timeline boundaries](Documentation/COMPLETE_TIMELINE.md#boundaries-and-processing-order).
+
+## Upgrading to 2.0: what changes and why
+
+**Read this before updating an existing installation.** V2 preserves your library through a database migration, but deliberately removes some features and changes how new episodes are processed. We are treating this as a major release because preserving data does not preserve every configuration or workflow.
+
+PAR has accumulated overlapping ways to process episodes, select models and generate speech. Maintaining those paths adds configuration, testing and support work. V2 focuses that effort on local transcription, reliable timeline classification, audio processing and podcast feeds.
+
+### One model instead of an internal cascade
+
+Sufficiently capable paid models have become inexpensive enough that using one selected model is now a practical option for many installations. Pointing PAR at an affordable model is simpler than maintaining its own multi-model cascade for a benefit that has become more limited. Actual cost still depends on your model, episode volume and provider.
+
+If you want a three-tier cascade, account rotation or more elaborate routing, dedicated tools such as [9Router](https://github.com/decolua/9router), [OmniRoute](https://github.com/diegosouzapw/OmniRoute) and [LiteLLM](https://docs.litellm.ai/docs/proxy/reliability) already address that problem. Maintaining a separate routing system inside PAR duplicates that work. You can configure a compatible gateway as PAR's custom OpenAI-compatible analysis endpoint, with routing managed there. The gateway and every model it selects must support PAR's native structured-output requests; these examples are not a certification of every gateway/model combination.
+
+PAR itself now uses one selected model and credential per task, with no model/key/provider fallback. The upgrade keeps the first configured model and saved credential; environment credentials take precedence. **Review that selection after upgrading**, especially if you previously relied on a free-tier cascade. An exhausted model waits or reports a quota/error state instead of silently selecting another.
+
+### Local speech synthesis is removed; local transcription stays
+
+V2 removes bundled Piper text-to-speech and its dedicated dependencies. Optional spoken titles and audio summaries now use Gemini, OpenAI, OpenRouter or a compatible speech API. This reduces the local speech installation and maintenance paths; it does not remove faster-whisper, FFmpeg or their shared dependencies.
+
+**If you used Piper, new spoken additions will stop until you explicitly configure Voice.** Your requested speech preferences remain saved, core ad removal continues, and existing published audio is preserved. No paid speech service is enabled automatically. You can leave speech off, or use a compatible self-hosted speech endpoint if you want synthesis on your own infrastructure. PAR no longer provides a bundled offline TTS engine.
+
+### Other changes that can affect your setup
+
+| Change | Why and what to review |
+| --- | --- |
+| Complete Timeline replaces Legacy whitelist/blacklist processing | One classification path separates what the model identifies from what you choose to cut. Queued/retryable Legacy jobs are converted; review removal categories and show-specific guidance. Published episodes are not automatically reprocessed. |
+| Native structured output is required | Invalid classifications must not become apparently successful ad-free episodes. Models/endpoints without schema support are unsupported; valid JSON may be unwrapped, but malformed output is not repaired or retried without a schema. |
+| SponsorBlock is removed | Removes another source of cut decisions alongside the single timeline workflow. Public YouTube channels and playlists remain supported. |
+| Global free-form instructions and direct editorial non-speech removal are retired | Keep classification definitions and removal choices consistent. Category definitions remain editable and nonempty show-specific guidance still applies; review instructions that previously told the model what to cut. |
+| One cut-tone switch replaces three position switches | Simplifies controls. If any old beginning/middle/end switch was on, tones are enabled at all applicable cut positions after migration. |
+| Short retained islands between cuts use a fixed 10-second threshold | Uses one processing policy for new jobs. Old saved thresholds are ignored; existing queued snapshots retain their frozen choices. This may affect edits when you next process or reprocess an episode. |
+| Unified-feed description becomes fixed | Simplifies feed presentation settings. Feed name, episode-title prefix and artwork remain configurable. |
+| Retired API settings are rejected | `/api/v1` remains, but scripts sending removed settings or unknown PATCH fields need updating against the installed OpenAPI schema. |
+| Individual feed titles and YouTube download windows change | The title suffix defaults to `(ad free)` instead of `(Ad-Free)` and is configurable. YouTube follows the same latest-episode window as RSS, replacing its separate five-video initial cap. Review retention/window choices; old queued work is not cancelled. |
+
+Users, memberships, existing ownership, feed identities and published media are preserved by the migration. Old Piper voice files are retained. Normal retention and subsequent processing still change media. Before upgrading, drain running jobs and keep a matching database, media and previous-image recovery point; **an image-only downgrade to 1.x is unsupported after V2 writes**.
+
+Read the [upgrade checklist](Documentation/V2_UPGRADE.md) and [draft release notes](Documentation/V2_RELEASE_NOTES.md) before switching images. Separate audio storage remains optional. Mandatory podcast ownership and a transcription-engine replacement are deferred.
 
 ## Install
 
-Start with the **[web setup wizard](https://jdcb4.github.io/podcast-ad-remover/)**. It generates Docker Compose or Docker run files for Linux/macOS or PowerShell, entirely in your browser. Credentials are not uploaded or saved in browser storage.
+During the preview, use the **local setup wizard below**, or follow [Docker deployment](Documentation/Deployment.md). The wizard generates Docker Compose or Docker run files for Linux/macOS or PowerShell, entirely in your browser. Credentials are not uploaded or saved in browser storage.
 
-**Preview availability:** on 4 October 2026, the Pages homepage still shows an old LLM evaluation report and the Dev wizard returns 404 because deployment is blocked. Until it is published, use the local wizard below. The [installer guide](Documentation/INSTALL_WIZARD.md) covers both options and publication requirements.
+**Hosted wizard availability, checked 11 October 2026:** the [Pages homepage](https://jdcb4.github.io/podcast-ad-remover/) still shows an old LLM evaluation report and the Dev wizard returns 404 because deployment is blocked. The [installer guide](Documentation/INSTALL_WIZARD.md) covers local use and publication requirements.
 
 1. Install Docker; generated Compose files require Compose 2.30 or newer.
 2. Choose your storage, port and an application URL reachable by your podcast player.
@@ -51,16 +89,6 @@ Visit `http://127.0.0.1:8778`. The source preview selects the rolling `:dev` ima
 
 See [Docker deployment](Documentation/Deployment.md), [Unraid](Documentation/Unraid_Deployment.md), [configuration](Documentation/Environment_Variables.md) and [separate audio storage](Documentation/STORAGE.md). Fresh installs use three Whisper CPU threads; Docker CPU/memory limits are separate controls.
 
-## Why 2.0 makes breaking changes
-
-PAR has accumulated overlapping options. We are retiring features whose usefulness no longer justifies their configuration, testing and maintenance cost, and focusing on one clear processing path. More affordable remote inference has also changed the value of some local-generation and fallback features for us.
-
-V2 removes local Piper speech, model/key cascades, Legacy whitelist/blacklist processing, schema-free analysis and SponsorBlock. It simplifies prompt, feed-description and cut-tone settings, and fixes short retained gaps between cuts at 10 seconds for new jobs. These are deliberate behavior changes, even though the migration is designed to preserve podcasts, feed identities and published media.
-
-**Local transcription stays.** A self-hosted analysis endpoint remains supported when it accepts native structured outputs. Speech is optional; upgrading from Piper never silently selects a paid replacement. Mandatory podcast ownership and a transcription-engine replacement are deferred.
-
-Read the [draft 2.0 release notes](Documentation/V2_RELEASE_NOTES.md) for the full change list and rationale, and the [migration checklist](Documentation/V2_UPGRADE.md) for required actions. The maintainer's expanded explanation is still pending review before publication.
-
 ## Models, access and privacy
 
 | Task | Options |
@@ -79,7 +107,7 @@ Admin pause controls preserve subscriptions and audio while queued processing wa
 
 ## Documentation and development
 
-- [Documentation index](Documentation/PROJECT_INDEX.md) · [2.0 readiness review](Documentation/V2_LAUNCH_REVIEW.md)
+- [Documentation index](Documentation/PROJECT_INDEX.md) · [2.0 promotion review](Documentation/V2_PROMOTION_REVIEW.md)
 - [Complete Timeline](Documentation/COMPLETE_TIMELINE.md) · [Podcast/archive operations](Documentation/PODCAST_OPERATIONS.md)
 - [API](Documentation/API.md) · [Architecture](Documentation/Architecture.md) · [Recovery](Documentation/RECOVERY.md)
 - [Changelog](Documentation/CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Verification](Documentation/VERIFICATION.md)

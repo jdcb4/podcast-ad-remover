@@ -1,5 +1,10 @@
 # Dev review and 2.0 launch readiness — 4 October 2026
 
+**Historical review.** Use the [11 October promotion review](V2_PROMOTION_REVIEW.md)
+for current release gates. The October 8 seam fix supersedes the merger finding
+below; Joe's expanded cascade rationale is now incorporated and awaits copy review.
+The Pages blocker was rechecked and remains unresolved.
+
 Reviewed `dev` at `d1b42cf1bf063b5066d33097de0162b23663b9eb`, matching `origin/dev` after fetch. Scope: legacy processing/configuration, V2 migration and onboarding, static install generation, Pages publication, and current launch documentation. This is a targeted readiness review, not an exhaustive security audit or production upgrade qualification.
 
 **Outcome:** launch documentation is prepared for review and the local installer works. The hosted installer is blocked. The known transcription chunk-join defect remains. Joe's expanded breaking-change explanation is still required before final release copy/publication.

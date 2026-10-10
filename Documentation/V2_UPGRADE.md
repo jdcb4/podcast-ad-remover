@@ -2,6 +2,8 @@
 
 This guide describes the implemented V2 code on `dev`, not an announcement that 2.0 or a matching `latest` image has been published. Check the exact image revision you intend to install. The [release notes](V2_RELEASE_NOTES.md) explain why this is deliberately a breaking-change boundary.
 
+**Most significant functional changes:** bundled local Piper speech is gone, model/key cascades are gone, and Complete Timeline replaces Legacy processing. Former Piper users get no new spoken additions until Voice is explicitly configured; ad removal and existing published audio continue. A data-preserving upgrade still requires a settings review. The [README](../README.md#upgrading-to-20-what-changes-and-why) explains the rationale and other behavior changes.
+
 ## Before upgrading
 
 1. Record the previous immutable image tag/digest, installation environment, persistent `/data` location and session secret. Keep credentials private.
@@ -42,6 +44,7 @@ Local transcription remains faster-whisper. FFmpeg, CTranslate2 and shared depen
 
 - Read the **System** upgrade report, then confirm the application URL and client feed links.
 - Check **Text analysis** provider/model/key precedence and native structured-output support. There is no schema-free or different-model fallback.
+- If you relied on a cascade, review the retained first model/key. Select one affordable capable model, or configure a compatible external router as the custom OpenAI-compatible analysis endpoint. Its routed models must all support native structured output. PAR's quota handling can wait on the selected model; it does not rotate models or accounts.
 - Configure **Voice** only if wanted. Refresh metadata or enter supported IDs; an explicit speech preview can incur charges. Unconfigured spoken controls are disabled without losing saved intent.
 - Review **Podcast defaults**, per-podcast overrides, prompt rules and the single cut-tone switch. Compare a representative report and listen at edits before broad reprocessing.
 - Verify **Users & access** login, feed tokens and API tokens. API stays at `/api/v1`, but retired PATCH values are rejected; review [API.md](API.md).
