@@ -2,6 +2,8 @@
 
 ## Unreleased — V2 development
 
+- Simplify Stats into preloaded My Pods/Library and Week/Month/Year/All time selectors, compact metric components, dated history/resource sections and collection-scoped admin resource totals.
+
 - Add admin-only Pause feed controls in Manage and bulk Content Removal, plus Pause all processing in System. Paused queues wait, running episodes finish and automatic episode cleanup stops; UI indicators leave published RSS titles unchanged.
 - Split Unified Feed subscription actions into My Pods collection feeds and the existing global Library feed. Personal feeds use collection membership and enforce user-bound credentials when feed authentication is enabled.
 - Add Stats navigation with current holdings and durable unique-episode history, UTC week/month/year filters and admin transcription/provider usage. Personal history records collection membership at processing time. See [pause, feeds and statistics](PROCESSING_CONTROLS.md) for migration and historical-data limits.

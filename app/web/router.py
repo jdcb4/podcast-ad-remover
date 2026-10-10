@@ -3153,15 +3153,20 @@ async def pause_subscription(subscription_id: int, processing_paused: bool = For
 
 @router.get("/stats", response_class=HTMLResponse)
 async def statistics_page(request: Request, period: str = "all", user=Depends(require_auth)):
-    from app.core.statistics import get_statistics
+    from app.core.statistics import get_statistics, statistics_periods
     if period not in {"all", "week", "month", "year"}:
         raise HTTPException(422, "Unknown statistics period")
     user_id = _real_user_id(user)
-    personal = get_statistics(user_id=user_id) if user_id else get_statistics()
-    history = get_statistics(user_id=user_id, period=period, historical=True) if user_id else get_statistics(period=period, historical=True)
-    library = get_statistics() if user.is_admin else None
-    library_history = get_statistics(period=period, historical=True) if user.is_admin else None
+    scopes = {"mine": user_id}
+    if user.is_admin:
+        scopes["library"] = None
+    periods = statistics_periods()
+    statistics = {scope: {
+        "current": get_statistics(user_id=scope_user),
+        "history": {key: get_statistics(user_id=scope_user, period=key, historical=True,
+                                        include_usage=user.is_admin) for key in periods},
+    } for scope, scope_user in scopes.items()}
     return templates.TemplateResponse(request=request, name="stats.html", context={
         "request": request, "user": user, "csp_nonce": get_csp_nonce(request), "period": period,
-        "personal": personal, "history": history, "library": library, "library_history": library_history,
+        "statistics": statistics, "periods": periods,
     })

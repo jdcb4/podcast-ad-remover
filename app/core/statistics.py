@@ -1,5 +1,22 @@
 """Durable, unique-episode processing totals and current library holdings."""
+from calendar import monthrange
+from datetime import datetime, timezone, timedelta
+
 from app.infra.database import get_db_connection
+
+
+def statistics_periods():
+    today = datetime.now(timezone.utc).date()
+    monday = today - timedelta(days=today.weekday())
+    bounds = {
+        "week": (monday, monday + timedelta(days=6)),
+        "month": (today.replace(day=1), today.replace(day=monthrange(today.year, today.month)[1])),
+        "year": (today.replace(month=1, day=1), today.replace(month=12, day=31)),
+    }
+    labels = {"all": "All time"}
+    for key, (start, end) in bounds.items():
+        labels[key] = f"{start.day} {start:%b %Y} – {end.day} {end:%b %Y}"
+    return labels
 
 
 def record_completion(conn, episode_id, transcription_seconds=None):
@@ -19,7 +36,7 @@ def record_completion(conn, episode_id, transcription_seconds=None):
         """, (episode_id, episode_id, episode_id))
 
 
-def get_statistics(*, user_id=None, period="all", historical=False):
+def get_statistics(*, user_id=None, period="all", historical=False, include_usage=False):
     periods = {"all": "1=1", "week": "datetime({date})>=datetime('now','weekday 0','-6 days','start of day')",
                "month": "datetime({date})>=datetime('now','start of month')",
                "year": "datetime({date})>=datetime('now','start of year')"}
@@ -47,11 +64,20 @@ def get_statistics(*, user_id=None, period="all", historical=False):
                 WHERE s.deletion_status IS NULL {membership}""", params).fetchone()
             result = dict(row)
             result['podcasts'] = conn.execute(f"SELECT COUNT(*) FROM subscriptions s WHERE s.deletion_status IS NULL {membership}", params).fetchone()[0]
-        if historical and user_id is None:
+        if historical and (user_id is None or include_usage):
+            usage_membership = "" if user_id is None else """AND EXISTS (
+                SELECT 1 FROM jobs j WHERE j.id=pc.job_id AND (
+                    EXISTS (SELECT 1 FROM processing_history_users hu
+                        WHERE hu.episode_id=j.episode_id AND hu.user_id=?)
+                    OR EXISTS (SELECT 1 FROM episodes e JOIN user_subscriptions u
+                        ON u.subscription_id=e.subscription_id WHERE e.id=j.episode_id
+                        AND u.user_id=? AND datetime(u.added_at)<=datetime(pc.started_at))
+                ))"""
             usage = conn.execute(f"""SELECT COUNT(*) calls, COUNT(input_tokens) known_input,
                 COUNT(output_tokens) known_output, COALESCE(SUM(input_tokens),0) input_tokens,
-                COALESCE(SUM(output_tokens),0) output_tokens FROM provider_calls
-                WHERE {date_filter.format(date='started_at')}""").fetchone()
+                COALESCE(SUM(output_tokens),0) output_tokens FROM provider_calls pc
+                WHERE {date_filter.format(date='pc.started_at')} {usage_membership}""",
+                () if user_id is None else (user_id, user_id)).fetchone()
             result['usage'] = dict(usage)
         result['hours'] = round(result['seconds']/3600, 1)
         result['saved_hours'] = round(result['saved']/3600, 1)

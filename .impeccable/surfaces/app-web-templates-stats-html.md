@@ -11,16 +11,16 @@ Mode: Operate. Audience: listeners checking their collection and administrators 
 
 ## Direction contract
 
-THESIS: Make available audio and durable processing history distinguishable in a compact, readable page. Pause controls must be visible beside the work they govern.
+THESIS: Make current holdings, processing history and measured resources scannable through two preloaded selections and compact metric components.
 
-OWN-WORLD: Retain the existing violet navigation, Inter typography, semantic theme surfaces, warning color and setting switches. Use the established navigation hierarchy and mobile bottom bar.
+OWN-WORLD: Retain existing violet active buttons, neutral inactive buttons, Inter typography and semantic theme surfaces. The user explicitly requests a separate component around each stat.
 
-STORY: Listeners scan four measurements for their collection and choose a calendar period. Administrators also inspect global holdings and measured provider/transcription usage. Missing history is explained rather than estimated.
+STORY: Start at My Pods / All time. Collection selection governs holdings; both selections govern history and admin resource totals. All available labels remain visible and changing selections sends no request.
 
-FIRST VIEWPORT: Stats title and concise introduction, then current collection and global totals in four-column definition rows, two columns on phones. Calendar-period controls introduce historical totals. Admin pause state sits beneath Settings; library headings carry the contrasting paused suffix.
+FIRST VIEWPORT: Stats title, two matching selector groups, Current holdings, Historical processing with date range, then admin-only Resources used with date range. Four-column metric rows become two columns on phones.
 
-FORM: Brief-pinned simple widgets inside the existing Operate world, with grouped definition lists instead of a new dashboard shell. No free visual concept axis or generated comp is needed.
+FORM: Compact bordered metric components on the incumbent elevated surface; no nested cards, icons or explainer prose. Resources contain only LLM / speech calls and input/output tokens.
 
-FINISH: reviewed and documented; reviewer verdict is ship after the required library desktop recapture was accepted. Documenter preservation check complete; DESIGN.md and sidecar remain unchanged for this ordinary extension. No new shipping raster assets.
+FINISH: Desktop/mobile review covers initial and switched selections, both themes and short/narrow viewports. Preserve DESIGN.md and the sidecar for this scoped extension. No new raster assets.
 
 User confirmed historical personal totals count processing while a podcast was in their collection. Preserve the incumbent DESIGN.md and sidecar; this is an ordinary extension. No new shipping raster assets.

@@ -1,19 +1,53 @@
 {% extends "base.html" %}
-{% macro widgets(values) %}<dl class="stats-widgets">
-<div><dt>Podcasts</dt><dd>{{ values.podcasts }}</dd></div><div><dt>Episodes</dt><dd>{{ values.episodes }}</dd></div>
-<div><dt>Total audio</dt><dd>{{ values.hours }} <small>hours</small></dd></div><div><dt>Time saved</dt><dd>{{ values.saved_hours }} <small>hours</small></dd></div>
-</dl>{% if values.unknown_savings %}<p class="settings-help">Time saved excludes {{ values.unknown_savings }} episode(s) without both source and output durations.</p>{% endif %}{% endmacro %}
-{% block content %}<div class="stats-page"><h1 class="text-2xl font-semibold">Stats</h1>
-<p class="settings-intro">Your available audio and recorded processing over time.</p>
-<h2>My Pods · Current holdings</h2>{{ widgets(personal) }}
-{% if library %}<h2>Library · Current holdings</h2>{{ widgets(library) }}{% endif %}
-<section class="stats-history"><h2>Processing history</h2>
-<form action="/stats" method="get" class="stats-period"><label for="stats-period">Period</label><select id="stats-period" name="period" class="select">
-{% for value,label in [('all','All recorded history'),('week','This week'),('month','This month'),('year','This year')] %}<option value="{{ value }}" {% if period==value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="btn-secondary" type="submit">Apply</button></form>
-<h3>My Pods</h3>{{ widgets(history) }}
-{% if library_history %}<h3>Library</h3>{{ widgets(library_history) }}
-<dl class="stats-widgets"><div><dt>Recorded transcription</dt><dd>{{ library_history.transcription_hours }} <small>hours</small></dd></div><div><dt>LLM / speech calls</dt><dd>{{ library_history.usage.calls }}</dd></div>
-<div><dt>Input tokens</dt><dd>{{ library_history.usage.input_tokens }}</dd></div><div><dt>Output tokens</dt><dd>{{ library_history.usage.output_tokens }}</dd></div></dl>
-<p class="settings-help">Transcription timing covers {{ library_history.transcription_count }} recorded episode(s). Token counts cover {{ library_history.usage.known_input }} input and {{ library_history.usage.known_output }} output records; providers do not always report usage. Calls include failed attempts. Transcription time covers successful published processing attempts; failed or interrupted transcription is not included.</p>{% endif %}
-<p class="settings-help">History counts each episode once, by its first recorded processing date, and survives audio cleanup. Personal history counts processing completed while a podcast was in your collection. Older history is limited to episodes available when statistics were introduced; previously removed episodes cannot be recovered. Periods use UTC calendar boundaries, with weeks starting Monday. Historical timestamps from older installations may reflect their former server timezone.</p>
-</section></div>{% endblock %}
+{% macro widgets(values) %}
+<dl class="stats-widgets">
+  <div><dt>Podcasts</dt><dd>{{ values.podcasts }}</dd></div>
+  <div><dt>Episodes</dt><dd>{{ values.episodes }}</dd></div>
+  <div><dt>Total audio</dt><dd>{{ values.hours }} <small>hours</small></dd></div>
+  <div><dt>Time saved</dt><dd>{{ values.saved_hours }} <small>hours</small></dd></div>
+</dl>
+{% endmacro %}
+{% block content %}
+<div class="stats-page" data-stats-page data-initial-period="{{ period }}">
+  <h1 class="text-2xl font-semibold">Stats</h1>
+  <div class="stats-selectors">
+    <div class="stats-selector" role="group" aria-label="Podcast collection">
+      {% for scope,label in [('mine','My Pods'),('library','Library')] if scope in statistics %}
+      <button type="button" data-stats-scope="{{ scope }}" aria-pressed="{{ 'true' if scope=='mine' else 'false' }}" class="{{ 'btn-primary' if scope=='mine' else 'btn-secondary' }} btn-sm">{{ label }}</button>
+      {% endfor %}
+    </div>
+    <div class="stats-selector" role="group" aria-label="Statistics period">
+      {% for key,label in [('week','Week'),('month','Month'),('year','Year'),('all','All time')] %}
+      <button type="button" data-stats-period="{{ key }}" aria-pressed="{{ 'true' if period==key else 'false' }}" class="{{ 'btn-primary' if period==key else 'btn-secondary' }} btn-sm">{{ label }}</button>
+      {% endfor %}
+    </div>
+  </div>
+  {% for scope,values in statistics.items() %}
+  <div data-stats-collection="{{ scope }}" {% if scope!='mine' %}hidden{% endif %}>
+    <section aria-labelledby="current-{{ scope }}">
+      <h2 id="current-{{ scope }}">Current holdings</h2>
+      {{ widgets(values.current) }}
+    </section>
+    {% for key,history in values.history.items() %}
+    <div data-stats-history="{{ key }}" {% if key!=period %}hidden{% endif %}>
+      <section aria-labelledby="history-{{ scope }}-{{ key }}">
+        <h2 id="history-{{ scope }}-{{ key }}">Historical processing <span class="stats-date">· {{ periods[key] }}</span></h2>
+        {{ widgets(history) }}
+      </section>
+      {% if user.is_admin %}
+      <section aria-labelledby="resources-{{ scope }}-{{ key }}">
+        <h2 id="resources-{{ scope }}-{{ key }}">Resources used <span class="stats-date">· {{ periods[key] }}</span></h2>
+        <dl class="stats-widgets stats-resources">
+          <div><dt>LLM / speech calls</dt><dd>{{ history.usage.calls }}</dd></div>
+          <div><dt>Input tokens</dt><dd>{{ history.usage.input_tokens }}</dd></div>
+          <div><dt>Output tokens</dt><dd>{{ history.usage.output_tokens }}</dd></div>
+        </dl>
+      </section>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+<script src="/static/js/stats.js?v={{ static_asset_version('js/stats.js') }}" defer></script>
+{% endblock %}
