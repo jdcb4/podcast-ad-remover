@@ -29,9 +29,9 @@
       {% if user %}<a href="/#add" class="btn-primary sidebar-primary" data-add-podcast>{{ icon('add') }}Add podcast</a>{% endif %}
       <nav class="primary-navigation"><a class="sidebar-primary" href="/?view=mine">{{ icon('podcasts') }}My Pods</a><a class="sidebar-primary" href="/?view=library">{{ icon('library') }}Library</a><a class="sidebar-primary" href="/stats">{{ icon('stats') }}Stats</a>
       {% if user and user.is_admin %}<a class="sidebar-primary" href="/admin/queue">{{ icon('tasks') }}Tasks</a><a class="sidebar-primary" href="/admin/ai/transcription">{{ icon('settings') }}Settings</a>
-      {% if processing_is_paused() %}<a href="/admin/system" class="sidebar-primary pause-notice">{{ icon('pause') }}Processing paused</a>{% endif %}
       <div class="settings-links {% if not request.url.path.startswith('/admin') or request.url.path.startswith('/admin/queue') %}desktop-collapsed{% endif %}">{% include 'admin/_navigation.html' %}</div>{% endif %}</nav>
-      <div class="account"><button type="button" data-theme-toggle hidden aria-label="Switch color mode" aria-pressed="false">{{ icon('theme') }}<span data-theme-label>Color mode</span></button>
+      <div class="account">{% if user and user.is_admin and processing_is_paused() %}<a href="/admin/system" class="sidebar-primary pause-notice">{{ icon('pause') }}Processing paused</a>{% endif %}
+      <button type="button" data-theme-toggle hidden aria-label="Switch color mode" aria-pressed="false">{{ icon('theme') }}<span data-theme-label>Color mode</span></button>
       {% if user %}<a href="/change-password">{{ icon('key') }}Change password<span class="sr-only"> for {{ user.username }}</span></a><a href="/logout">{{ icon('logout') }}Log out</a>{% else %}<a href="/login">{{ icon('key') }}Log in</a>{% endif %}</div>
     </aside>
     {% if user %}<nav class="mobile-bottom" aria-label="Mobile navigation"><a href="/?view=mine">{{ icon('podcasts') }}My Pods</a><a href="/?view=library">{{ icon('library') }}Library</a><a href="/stats">{{ icon('stats') }}Stats</a><a href="/#add" data-add-podcast>{{ icon('add') }}Add</a>{% if user.is_admin %}<a href="/admin/queue">{{ icon('tasks') }}Tasks</a><a href="/admin/ai/transcription">{{ icon('settings') }}Settings</a>{% endif %}</nav>{% endif %}

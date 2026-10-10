@@ -17,7 +17,7 @@ OWN-WORLD: Retain existing violet active buttons, neutral inactive buttons, Inte
 
 STORY: Start at My Pods / All time. Collection selection governs holdings; both selections govern history and admin resource totals. All available labels remain visible and changing selections sends no request.
 
-FIRST VIEWPORT: Stats title, two matching bordered selector groups, Current holdings, Historical processing with date range, then admin-only Resources used with date range. Four-column metric rows become two columns on phones.
+FIRST VIEWPORT: Stats title, two matching bordered selector groups, Current holdings, Historical processing with date range, then admin-only Resources used with date range. Four-column metric rows become two columns on phones. Admin pause state sits in the account footer above the color-mode control; library headings carry the contrasting paused suffix.
 
 FORM: Compact bordered metric components on the incumbent elevated surface; no nested cards, icons or explainer prose. Resources contain only LLM / speech calls and input/output tokens.
 

@@ -3,6 +3,7 @@
 ## Unreleased — V2 development
 
 - Simplify Stats into preloaded My Pods/Library and Week/Month/Year/All time selectors, compact metric components, dated history/resource sections and collection-scoped admin resource totals.
+- Move the processing-paused sidebar notice above the color-mode control so expanded Settings navigation stays together.
 
 - Add admin-only Pause feed controls in Manage and bulk Content Removal, plus Pause all processing in System. Paused queues wait, running episodes finish and automatic episode cleanup stops; UI indicators leave published RSS titles unchanged.
 - Split Unified Feed subscription actions into My Pods collection feeds and the existing global Library feed. Personal feeds use collection membership and enforce user-bound credentials when feed authentication is enabled.
