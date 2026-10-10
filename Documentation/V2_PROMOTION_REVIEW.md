@@ -61,8 +61,11 @@ not every provider, operating system, podcast player or GPU host.
    `dev`; do not advertise the hosted wizard as available. Local generation works.
    Repository-policy changes and Pages publication remain separate actions.
 4. **Image reduction measured.** Compared with1.16.0, the tested V2 image is
-   73.1MB smaller unpacked (3.9%) and25.3MB smaller in compressed registry layers
-   (5.3%). This is the net release difference, not an isolated Piper saving.
+   47.8MB smaller in uncompressed layers (3.4%) and25.3MB smaller in compressed
+   registry layers (5.3%). Docker Desktop reports73.1MB less combined stored content
+   (3.9%), which includes both representations. This is the net release difference,
+   not an isolated Piper saving. Piper/phonemizer package files account for46.2MB;
+   shared ONNX Runtime remains required by faster-whisper.
    Downloaded models, CUDA libraries and user data are outside the image.
 
 ## Remaining promotion steps
