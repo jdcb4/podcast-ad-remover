@@ -20,7 +20,7 @@ exact Dev image, approval, fast-forward promotion to `main`, versioning and Dock
 Repository-maintenance changes to `main` also require explicit authorization; a branch rename is
 not an application release.
 
-Before V2 publication, complete the maintainer reasoning reminder in [VERSIONING.md](VERSIONING.md#v2-pre-publication-reminder). Draft release/commit copy is in [V2_RELEASE_NOTES.md](V2_RELEASE_NOTES.md); it does not authorize promotion or rewriting existing commit history.
+Joe accepted the V2 rationale and authorized the 2.0 release on 11 October 2026; see [VERSIONING.md](VERSIONING.md#v2-release-approval). Future releases require their own approval. Release authorization does not permit rewriting existing commit history.
 
 ## Normal work
 

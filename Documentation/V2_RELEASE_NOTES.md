@@ -1,18 +1,8 @@
-# Version 2 release notes — review draft
+# Version 2.0.0 release notes
 
-**Status:** prepared for review, not published release copy. V2 is implemented on `dev`; `package.json` still carries 1.16.0. No 2.0 tag, production promotion or publication is authorized by preparing these notes.
+Released 11 October 2026. Reviewed and approved by Joe, including the rationale for removing local speech and internal model routing.
 
-## Maintainer reminder before publication
-
-**Expanded rationale recorded on 11 October 2026; final wording awaits Joe's review.** Joe explained that sufficiently capable paid models have become affordable enough for many users to select one directly, and that dedicated routers make maintaining PAR's own cascade less useful. He confirmed the examples as 9Router, OmniRoute and LiteLLM. This explanation is incorporated below and in the README. The requested reminder has been raised; do not ask him to repeat it. Record his acceptance of the wording before resolving the final-copy review and publishing.
-
-This reminder also appears in AGENTS.md and the release checklist so it is encountered when publication is being prepared, rather than on an arbitrary date.
-
-## Proposed GitHub release title
-
-Podcast Ad Remover 2.0 — a simpler tool, with deliberate breaking changes
-
-## Proposed release body
+## Release overview
 
 Podcast Ad Remover prepares podcast feeds with fewer interruptions, ready for your usual player. Add or import subscriptions, choose which content to remove, and let PAR download, transcribe and process new episodes. Optional summaries, spoken titles, a Unified Feed and separate audio storage help you manage a growing library.
 
@@ -90,7 +80,7 @@ Docker installation by generating Docker run or Compose files for your chosen
 storage, URL and GPU options. It runs privately in your browser. Generated Compose
 files require Compose 2.30 or newer.
 
-Alternatively, [download the single HTML wizard](https://github.com/jdcb4/podcast-ad-remover/raw/refs/heads/dev/configurator/install.html)
+Alternatively, [download the single HTML wizard](https://github.com/jdcb4/podcast-ad-remover/raw/refs/heads/gh-pages/stable/install.html)
 and open it in your browser, including offline; no local server or build tools are
 needed. Check the displayed image/channel, save the generated install file and
 `install.env` together, then run its command.
@@ -132,33 +122,8 @@ Mandatory-owner changes and a whisper.cpp evaluation are deferred. faster-whispe
 
 ### Validation and remaining release work
 
-See the [11 October promotion review](V2_PROMOTION_REVIEW.md) for current evidence, measured image sizes and remaining gates. The [4 October launch review](V2_LAUNCH_REVIEW.md) is historical. The web installer is implemented but its Pages deployment is still blocked by stale environment branch rules; the [single-HTML download](INSTALL_WIZARD.md#download-one-html-file) is available from the repository. Do not announce the hosted wizard as live until that gate succeeds.
+See the [11 October promotion record](V2_PROMOTION_REVIEW.md) for qualification evidence and measured image sizes. The [4 October launch review](V2_LAUNCH_REVIEW.md) is historical. Hosted and single-file installer metadata are verified during publication.
 
 The October 8 seam fix supersedes the old segment-start-only merger described in the [September benchmark](CUDA_LONGFORM_2026-09-24.md). It preserves ambiguous alternatives in combined items, which may include repeated wording and coarser cut boundaries. GPU support remains experimental; the old benchmark does not qualify the revised merger's real-audio performance. No word-perfect cutting claim is made.
 
-Re-run release verification for the exact approved candidate, rehearse the target installation and complete the maintainer's wording review before publication. Automated checks do not certify every provider/account, production-data upgrade or GPU host.
-
-## Suggested release commit message
-
-```text
-feat!: simplify Podcast Ad Remover for V2
-
-Redesign podcast management and settings, add onboarding and install
-configuration, expand API speech, and add reviewed OPML/text imports
-and a portable agent skill.
-
-Deliberately retire legacy paths that no longer justify their long-term
-complexity, including options made less valuable to us by increasingly
-affordable remote inference. Preserve user data through documented
-migration and make configuration changes explicit.
-
-BREAKING CHANGE: remove local Piper speech, model/key cascades,
-Legacy whitelist/blacklist processing, schema-free analysis,
-SponsorBlock and retired global settings. Convert queued jobs to
-Complete Timeline. Former Piper users must configure API speech if
-they want spoken features; no paid service is selected automatically.
-An enabled old tone position enables all applicable cut positions.
-Rollback requires the pre-upgrade database and matching image/media.
-```
-
-Use this as release/squash copy only if that workflow is explicitly chosen. Do not squash or rewrite the repository's normal fast-forward production promotion. The approved revision and release authorization are separate from this draft message.
+Release verification covers the exact approved candidate. Automated checks do not certify every provider/account, production-data upgrade or GPU host.
