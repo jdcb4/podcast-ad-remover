@@ -4,12 +4,14 @@ from pathlib import Path
 import yaml
 
 
-def generate(format='compose', key="key'with$dollar", gpu=False, shell='posix', media=''):
+def generate(format='compose', key="key'with$dollar", gpu=False, shell='posix', media='', html=None):
     script = r'''
 const {JSDOM}=require('jsdom'),fs=require('fs');
 (async()=>{
-const dom=new JSDOM(fs.readFileSync('configurator/index.html','utf8'),{runScripts:'outside-only',url:'file:///offline/index.html'});
-const w=dom.window;w.eval(fs.readFileSync('configurator/release.js','utf8'));w.eval(fs.readFileSync('configurator/configurator.js','utf8'));
+const dom=new JSDOM(fs.readFileSync(__HTML__,'utf8'),{runScripts:'outside-only',url:'file:///offline/index.html'});
+const w=dom.window;
+if(__STANDALONE__){for(const script of w.document.scripts)w.eval(script.textContent);}
+else{w.eval(fs.readFileSync('configurator/release.js','utf8'));w.eval(fs.readFileSync('configurator/configurator.js','utf8'));}
 let blob;w.URL.createObjectURL=b=>{blob=b;return 'blob:test';};w.URL.revokeObjectURL=()=>{};w.HTMLAnchorElement.prototype.click=()=>{};
 const f=w.document.getElementById('config');
 if(!f.elements.provider.closest('details')||f.elements.provider.closest('details').open)throw Error('Credentials must start collapsed');
@@ -24,7 +26,7 @@ console.log(JSON.stringify({output:w.document.getElementById('output').textConte
 w.document.getElementById('clear').click();if(f.elements.key.value||w.document.getElementById('output').textContent)throw Error('Clear failed');
 dom.window.close();
 })().catch(e=>{console.error(e);process.exit(1)});
-'''.replace('__FORMAT__', json.dumps(format)).replace('__SHELL__',json.dumps(shell)).replace('__KEY__', json.dumps(key)).replace('__GPU__', json.dumps(gpu)).replace('__MEDIA__', json.dumps(media))
+'''.replace('__FORMAT__', json.dumps(format)).replace('__SHELL__',json.dumps(shell)).replace('__KEY__', json.dumps(key)).replace('__GPU__', json.dumps(gpu)).replace('__MEDIA__', json.dumps(media)).replace('__HTML__', json.dumps(str(html or 'configurator/index.html'))).replace('__STANDALONE__', json.dumps(html is not None))
     result = subprocess.run(['node', '-e', script], capture_output=True, text=True, check=True)
     return json.loads(result.stdout)
 
@@ -71,7 +73,35 @@ def test_offline_archive_contains_only_static_assets(tmp_path):
         shutil.copyfile(Path('configurator')/name,tmp_path/name)
     build(tmp_path)
     with ZipFile(tmp_path/'offline.zip') as archive:
-        assert set(archive.namelist()) == {'index.html','style.css','configurator.js','release.js','podcast-ad-remover-skill.zip'}
+        assert set(archive.namelist()) == {'index.html','install.html','style.css','configurator.js','release.js','podcast-ad-remover-skill.zip'}
+
+
+def test_single_file_runs_without_adjacent_assets_and_keeps_strict_csp(tmp_path):
+    import base64
+    import hashlib
+    import re
+    import shutil
+    from scripts.build_configurator import build_standalone
+    for name in ('index.html', 'style.css', 'configurator.js', 'release.js'):
+        shutil.copyfile(Path('configurator') / name, tmp_path / name)
+    build_standalone(tmp_path)
+    html = tmp_path / 'install.html'
+    text = html.read_text(encoding='utf-8')
+    assert text == Path('configurator/install.html').read_text(encoding='utf-8')
+    for asset in ('index.html', 'style.css', 'configurator.js', 'release.js'):
+        (tmp_path / asset).unlink()
+    assert '<script src=' not in text and 'rel="stylesheet"' not in text
+    assert "connect-src 'none'" in text and "'unsafe-inline'" not in text
+    for asset in re.findall(r'<(?:script|style)>(.*?)</(?:script|style)>', text, re.S):
+        digest = base64.b64encode(hashlib.sha256(asset.encode()).digest()).decode()
+        assert "'sha256-" + digest + "'" in text
+    # Exercise the shipped single-file copy, with no other files beside it.
+    result = generate(gpu=True, html=html)
+    service = yaml.safe_load(result['output'])['services']['podcast-ad-remover']
+    assert service['image'] == 'jdcb4/podcast-ad-remover:dev'
+    assert service['deploy']['resources']['reservations']['devices'][0]['capabilities'] == ['gpu']
+    assert "OPENAI_API_KEY=key'with$dollar" in result['env']
+    assert 'SESSION_SECRET_KEY' not in result['output']
 
 
 def test_separate_media_mount_and_environment():

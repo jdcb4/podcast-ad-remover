@@ -2,6 +2,44 @@
 
 ## Unreleased — V2 development
 
+### Compatibility and significant behavior changes
+
+V2 simplifies the app around one classification workflow, one selected analysis
+model and optional API speech. See the separate [V2 release notes](V2_RELEASE_NOTES.md)
+for the reasons and [upgrade guide](V2_UPGRADE.md) for backup and migration steps.
+
+| Previous behavior | V2 behavior and upgrade impact |
+| --- | --- |
+| Bundled local Piper text-to-speech | Removed with its exclusive dependencies and `INSTALL_TTS` build option. Former Piper installations become unconfigured for speech: requested preferences remain saved, but new spoken titles/summaries require explicit Voice configuration. No paid replacement is selected. Existing audio and downloaded voices are retained; local faster-whisper transcription continues. Compatible self-hosted speech APIs are supported. |
+| Text/speech model cascades and credential rotation | One model and credential per task; no model/key/provider fallback. Migration keeps the first configured model and saved Gemini credential; environment credentials take precedence. Review the retained selection. Quota exhaustion waits or reports an actionable state rather than selecting another model. Compatible external routers can manage routing outside PAR. |
+| Legacy blacklist/whitelist processing | Complete Timeline is the sole workflow. Models classify content and category preferences select cuts. Queued/retryable Legacy jobs are converted; drain running jobs before upgrading. Published audio is not automatically reprocessed. |
+| Schema-free analysis and compatibility retries | Native structured outputs are required. Valid complete JSON may be unwrapped; malformed output is not repaired and no schema-free retry occurs. Unsupported models/endpoints must be replaced. Invalid classification is never published as a successful no-ads result. |
+| SponsorBlock | Removed, including `SPONSORBLOCK_ENABLED`. Public YouTube channels/playlists remain supported. |
+| Global free-form instructions and instruction inclusion toggle | Retired. Category definitions remain editable; nonempty podcast-specific guidance is retained and always applied. Review old guidance for conflicts with the new classification system. |
+| Direct removal of editorial non-speech | Disabled. Editorial material stays unless an independent qualifying short-island cut applies. |
+| Configurable short retained-island threshold | Fixed at 10 seconds for new jobs: retained islands between cuts are removed when strictly shorter than 10 seconds. Old saved overrides are ignored; existing queued snapshots retain their frozen policy. |
+| Three cut-tone position switches | One switch, enabled if any old beginning/middle/end switch was on. Mixed old choices now enable tones at all applicable cut positions. |
+| Legacy summary umbrella | Converted into description/audio-summary preferences; requested intent is preserved. Review inherited feature settings and configure Voice if spoken output is wanted. |
+| Editable Unified Feed description | Replaced by a fixed description. Name, episode-title prefix and external/uploaded artwork remain configurable. |
+| Hard-coded individual feed suffix | Global title prefix/suffix settings replace it. Prefix defaults off; suffix defaults on with `(ad free)` instead of `(Ad-Free)`. Saving regenerates feeds without changing their identities. |
+| YouTube's five-video initial cap | Replaced by the same effective latest-episode window used by RSS, including zero and later catch-up checks. Previously queued jobs are not cancelled. |
+| Retired API settings | `/api/v1` remains, but removed settings/values and unknown PATCH fields are rejected. Update integrations against the installed OpenAPI schema. |
+| Fresh-install defaults | Artwork badges and cut tones start on; other enhancements start off. Existing saved preferences are preserved except the documented conversions. Fresh installs use three Whisper CPU threads; existing thread counts are preserved. |
+
+The migration preserves users, memberships, ownership, tokens, feed identities and
+published media; subsequent processing and retention still change media. Keep a
+matching prior-image/database/media recovery point: an image-only downgrade to 1.x
+after V2 database writes is unsupported. Optional separate audio storage does not
+move existing audio until explicitly requested.
+
+### Additions and fixes
+
+- Put normal Docker installation and source-build instructions before the
+  optional installation wizard in the README and V2 release notes.
+
+- Provide a self-contained HTML setup wizard with embedded scripts/styles and hash-based CSP, available from the repository and generated channel downloads; no local server or build tools are needed by users. Keep offline ZIP/agent packages available.
+- Refocus the README on current features, NVIDIA CUDA transcription and a concise explanation of the three principal V2 changes. Detailed conversion behavior is recorded above and in the separate release/upgrade guides.
+- Expand the README and V2 release/upgrade notes with the maintainer's cascade-removal rationale, explicit local speech impacts and other significant configuration/behavior changes. Record measured 1.16.0 versus V2 Docker image sizes and refresh promotion readiness, including the October 8 seam fix and remaining installer publication gate.
 - Fix generated podcast artwork in the dashboard, public Subscribe page and podcast details when the browser address differs from the configured public URL, using same-origin UI paths while preserving absolute RSS URLs and the existing CSP.
 - Document stale NVIDIA CDI specifications after host driver/library updates, including automatic refresh and manual regeneration.
 
@@ -33,7 +71,7 @@
 - Reject cross-origin management writes even when dashboard login is disabled, protecting local/trusted-network installs from cross-site form submissions.
 - Address the Antigravity review: reject opaque browser origins, mark audio revisions published only after commit, defer deletion during storage migration, share duplicate feed identity across add/import paths, and fix light-theme settings contrast. See [review disposition](V2_ADVERSARIAL_REVIEW.md) for accepted findings and deferred proposals.
 
-V2 intentionally makes breaking changes to remove legacy features with limited long-term value, reduce configuration/maintenance complexity and reflect the changed tradeoff as remote inference becomes more affordable. We hope disruption is minimal, but affected installations need to review [V2_UPGRADE.md](V2_UPGRADE.md). Local transcription remains; former Piper installs are not silently moved to paid speech. [Draft release notes](V2_RELEASE_NOTES.md) await Joe’s expanded reasoning before publication. The package version is still 1.16.0; these notes do not declare 2.0 published.
+V2 intentionally makes breaking changes to remove legacy features with limited long-term value and reduce configuration/maintenance complexity. Affordable capable models and dedicated external routers reduce the value of maintaining PAR's own cascade. Affected installations need to review [V2_UPGRADE.md](V2_UPGRADE.md). Local transcription remains; former Piper installs are not silently moved to paid speech. [Draft release notes](V2_RELEASE_NOTES.md) include Joe's expanded reasoning recorded on 11 October and await his review of the wording. The package version is still 1.16.0; these notes do not declare 2.0 published.
 
 - Add optional separate processed-audio storage, identity-checked mounts, stable playback URLs and a resumable admin migration with verified-copy cleanup and recovery CLI.
 

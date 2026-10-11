@@ -19,6 +19,13 @@ pip install -r requirements-dev.txt
 
 ## Standard Check
 
+`tests/test_configurator.py` also runs the shipped single-file HTML wizard with no
+adjacent assets, verifies generated GPU Compose/environment output and secret
+lifecycle, checks embedded CSP hashes, and detects stale committed `install.html`
+after source changes. Rebuild that file with `python scripts/build_configurator.py`
+when changing configurator assets. The same builder generates channel-specific
+single-file downloads during Pages publication.
+
 `tests/test_artwork_watermark.py` renders dashboard, public Subscribe and podcast detail
 pages with HTTP/HTTPS browser origins differing from the configured public URL. It checks
 same-origin generated JPEG/legacy PNG paths, successful image retrieval, unchanged CSP,

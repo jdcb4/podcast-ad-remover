@@ -63,7 +63,7 @@ Commit after each significant coherent change, once verification appropriate to 
 
 ## V2 publication reminder
 
-Before publishing V2 or finalizing its release announcement, remind Joe to explain his reasoning for the deliberate breaking changes in more detail. He explicitly requested this on 2026-09-27. The current wording in `Documentation/V2_RELEASE_NOTES.md` is a draft, not his final explanation. Record the discussion and update that draft before publication; preparing documentation does not authorize a version bump, image push or production promotion.
+Joe's requested 2026-09-27 reminder has been raised. On 2026-10-11 he expanded the cascade rationale (affordable capable paid models and dedicated external routers) and confirmed the names 9Router, OmniRoute and LiteLLM. This is recorded in `Documentation/V2_RELEASE_NOTES.md` and the README. Final wording awaits his review; record acceptance before resolving the reminder or finalizing the announcement. Do not ask him to repeat the explanation. Preparing documentation does not authorize a version bump, image push or production promotion.
 
 ## Hard Rules
 

@@ -35,7 +35,7 @@ Please ensure your code is clean and, where possible, documented.
 
 V2 development intentionally removes legacy processing, local Piper speech, model/key cascades and SponsorBlock. Read [V2_UPGRADE.md](Documentation/V2_UPGRADE.md), [DECISIONS.md](Documentation/DECISIONS.md) and the [draft release rationale](Documentation/V2_RELEASE_NOTES.md). A breaking feature decision does not permit deleting user data or bypassing the migration/backup path. Keep API references and the portable agent skill aligned with runtime changes. Label historical evidence rather than silently treating old behavior as current.
 
-Before V2 publication, remind Joe to expand his explanation as recorded in the release checklist.
+Before V2 publication, complete Joe's review of the expanded explanation recorded on 11 October 2026, as described in the release checklist.
 
 ## Development Setup
 
