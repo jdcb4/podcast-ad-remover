@@ -61,9 +61,9 @@ Commit after each significant coherent change, once verification appropriate to 
 - Dev Docker images use the rolling `jdcb4/podcast-ad-remover:dev` tag plus the immutable `jdcb4/podcast-ad-remover:dev-<git-sha>` tag. They must never update `latest` or a SemVer tag.
 - A production promotion begins only after the Dev image has been tested and Joe gives explicit approval. Follow `Documentation/VERSIONING.md` for the promotion checklist.
 
-## V2 publication reminder
+## V2 release approval
 
-Joe's requested 2026-09-27 reminder has been raised. On 2026-10-11 he expanded the cascade rationale (affordable capable paid models and dedicated external routers) and confirmed the names 9Router, OmniRoute and LiteLLM. This is recorded in `Documentation/V2_RELEASE_NOTES.md` and the README. Final wording awaits his review; record acceptance before resolving the reminder or finalizing the announcement. Do not ask him to repeat the explanation. Preparing documentation does not authorize a version bump, image push or production promotion.
+On 2026-10-11 Joe accepted the reviewed V2 documentation and explicitly instructed “Go ahead with the 2.0 release.” The rationale reminder is resolved, including the confirmed 9Router, OmniRoute and LiteLLM examples. This authorizes the 2.0.0 candidate, verification, production promotion, image/tag/release and installer publication. Keep normal verification and data-preservation gates; future releases require their own authorization.
 
 ## Hard Rules
 

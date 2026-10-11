@@ -47,11 +47,9 @@ Retain the new UTC representation and document the parser impact in the release 
 See the 2026-09-10 decision in [DECISIONS.md](DECISIONS.md). This does not change the
 versioning rules for other incompatible changes or authorize production promotion.
 
-## V2 pre-publication reminder
+## V2 release approval
 
-Before publishing V2, complete Joe's requested rationale review. **The reminder has been raised and his expanded cascade explanation was recorded on 11 October 2026**, including the confirmed 9Router, OmniRoute and LiteLLM examples. It is incorporated in the [README](../README.md#why-v2-simplifies-things) and [release notes](V2_RELEASE_NOTES.md). Await his review of that wording, then record acceptance and resolve the final-copy reminder; do not ask him to repeat the explanation. A documentation update is not authorization to bump versions or promote production.
-
-V2 deliberately retires supported configuration paths, so **2.0.0 is the proposed next release**, even though the database has a migration path. The current package version is still 1.16.0 pending review and authorization to cut the versioned candidate. See [the promotion review](V2_PROMOTION_REVIEW.md) for qualification evidence and remaining gates.
+Joe accepted the reviewed rationale and authorized the 2.0 release on 11 October 2026. The final-copy reminder is resolved. Version 2.0.0 reflects the deliberate retirement of local Piper speech, internal model/key cascades and Legacy classification, with a documented migration path. See [the promotion record](V2_PROMOTION_REVIEW.md) and [release notes](V2_RELEASE_NOTES.md).
 
 ## Release Checklist
 
@@ -63,7 +61,7 @@ npm run docker:dev:publish
 
 When Joe asks to prepare a release candidate:
 
-1. Complete the V2 explanation reminder above when applicable, review [V2_UPGRADE.md](V2_UPGRADE.md), and decide the next SemVer number.
+1. Confirm release authorization, review [V2_UPGRADE.md](V2_UPGRADE.md), and decide the next SemVer number.
 2. Update `package.json`, `package-lock.json`, and `Documentation/CHANGELOG.md` on `dev`.
 3. Run local verification on `dev`:
 

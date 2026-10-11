@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — V2 development
+## Unreleased
+
+## 2.0.0 - 2026-10-11
 
 ### Compatibility and significant behavior changes
 
@@ -86,7 +88,7 @@ move existing audio until explicitly requested.
 - Reject cross-origin management writes even when dashboard login is disabled, protecting local/trusted-network installs from cross-site form submissions.
 - Address the Antigravity review: reject opaque browser origins, mark audio revisions published only after commit, defer deletion during storage migration, share duplicate feed identity across add/import paths, and fix light-theme settings contrast. See [review disposition](V2_ADVERSARIAL_REVIEW.md) for accepted findings and deferred proposals.
 
-V2 intentionally makes breaking changes to remove legacy features with limited long-term value and reduce configuration/maintenance complexity. Affordable capable models and dedicated external routers reduce the value of maintaining PAR's own cascade. Affected installations need to review [V2_UPGRADE.md](V2_UPGRADE.md). Local transcription remains; former Piper installs are not silently moved to paid speech. [Draft release notes](V2_RELEASE_NOTES.md) include Joe's expanded reasoning recorded on 11 October and await his review of the wording. The package version is still 1.16.0; these notes do not declare 2.0 published.
+V2 intentionally makes breaking changes to remove legacy features with limited long-term value and reduce configuration/maintenance complexity. Affordable capable models and dedicated external routers reduce the value of maintaining PAR's own cascade. Affected installations need to review [V2_UPGRADE.md](V2_UPGRADE.md). Local transcription remains; former Piper installs are not silently moved to paid speech. [Draft release notes](V2_RELEASE_NOTES.md) include Joe's expanded reasoning recorded on 11 October and were accepted with his 2.0 release authorization on 11 October 2026.
 
 - Add optional separate processed-audio storage, identity-checked mounts, stable playback URLs and a resumable admin migration with verified-copy cleanup and recovery CLI.
 
@@ -104,7 +106,7 @@ V2 intentionally makes breaking changes to remove legacy features with limited l
 - Add OpenAI, OpenRouter and custom API speech alongside Gemini. Former local-speech installs continue core processing and show configuration guidance.
 - Compact desktop/sidebar and mobile podcast rows, consistent settings controls, consolidated Users & access, one cut tone switch, and uploaded unified-feed artwork.
 - Add an optional rerunnable setup wizard and browser-only Docker/Compose configurator with stable/dev Pages publication hooks after successful authorized Docker pushes.
-- Backed-up v2 migration preserves published media, ownership, tokens and requested speech features; reports queued-job and configuration conversions. Ownership changes and whisper.cpp are deferred. Production version remains unchanged until release promotion.
+- Backed-up v2 migration preserves published media, ownership, tokens and requested speech features; reports queued-job and configuration conversions. Ownership changes and whisper.cpp are deferred. Released as 2.0.0 after verification and approved promotion.
 
 The entries below record their version/date at the time. They do not establish the currently deployed production version; older feature descriptions are superseded by V2 where noted above.
 
