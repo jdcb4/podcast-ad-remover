@@ -5,12 +5,15 @@ real application at revision `35c0e13` with a disposable demo library:
 
 | File | Feature |
 | --- | --- |
-| `v2-library.webp` | My Pods, cover artwork and RSS subscription actions. |
-| `v2-playback.webp` | Episode summaries, active playback, seeking and separate downloads. |
-| `v2-content-removal.jpg` | Podcast defaults and removal categories. |
+| `v2-library-mobile.jpg` | My Pods and podcast artwork. |
+| `v2-playback-mobile.jpg` | Episode summary, active playback, seeking and separate download. |
+| `v2-report-mobile.jpg` | Timestamped classifications and Keep/Remove decisions, with an ad expanded to show its reason and transcript. |
 
-Compressed WebP/JPEG keeps download sizes modest; the README displays linked 280-pixel thumbnails.
-Names, artwork, summaries and silent audio are synthetic. No live library, account,
+All three are JPEG captures from a 390 × 844 phone-sized viewport, displayed as
+linked 200-pixel thumbnails in the README. Names, artwork, summaries, report
+evidence and silent audio are synthetic. The report uses the app's real renderer,
+timestamp normalization and cut-preference logic; no model was called.
+No live library, account,
 credential or protected feed URL is included.
 
 ## Refreshing the captures
@@ -21,9 +24,12 @@ The helper uses its own temporary data directory and demo session, binds only to
 loopback, rejects write requests and starts no processor or model calls. Stop it
 normally to remove the demo data. Do not use this helper as a deployed server.
 
-Capture the library in grid view, a podcast's episode cards during playback, and
-**Settings → Podcast defaults**. The current captures use desktop viewports around
-1200 pixels wide. Review images for readable controls and private information
+Use a 390 × 844 viewport. Capture My Pods, then the first episode card during
+playback with its seek bar visible. Open **More → View Report**, expand
+**38.00–55.00s · Ad · Remove**, and frame the report from **Cut preferences** /
+**Transcript timestamp normalization** through the classification rows. Leave the
+other rows collapsed so Keep and Remove decisions remain visible together.
+Review images for readable controls and private information
 before committing; retain descriptive alt text in the README.
 
 ## Historical images

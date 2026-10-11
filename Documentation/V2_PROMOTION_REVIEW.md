@@ -18,7 +18,7 @@ external routing for those who need it. The README emphasizes the current app,
 optional CUDA acceleration and the principles behind the three main V2 changes.
 Detailed compatibility conversions remain in the changelog, release notes and
 upgrade guide. Installation starts with Docker/source, followed by the optional
-hosted or single-HTML wizard. Current screenshots use disposable demonstration
+hosted or single-HTML wizard. Current phone-sized screenshots use disposable demonstration
 data rather than a private library.
 
 Joe expressed satisfaction and requested this final tidy-up on 11 October.
@@ -101,6 +101,8 @@ dependencies are unchanged. `npm run verify:docker` passed: 785 tests, 8 skips,
 syntax, CSS, dependency audits with the documented build-only exception, and a
 local Docker build. All 67 checked local documentation/image links resolve;
 `git diff --check` passed. Demo pages/artwork returned HTTP 200 and writes were
-rejected with HTTP 405. The three reviewed screenshots total 161442 bytes.
+rejected with HTTP 405. Three JPEGs captured at a 390 × 844 viewport total 91297
+bytes, displayed as linked 200-pixel thumbnails. The report shows timestamped
+Keep/Remove classifications with one ad expanded to reveal its reason and text.
 The final versioned candidate still requires release qualification.
 No paid inference, live migration, image push or deployment is part of this refresh.

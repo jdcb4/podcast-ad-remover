@@ -4,11 +4,13 @@ Run from the repository root: python scripts/preview_readme.py
 This creates its own temporary data directory, binds only to loopback and never
 starts processing or calls a model. Close the server to delete the demo data.
 """
+import json
 import os
 from pathlib import Path
 import secrets
 import sys
 import tempfile
+from types import SimpleNamespace
 import wave
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -27,6 +29,8 @@ def main():
         from app.infra.database import init_db, get_db_connection
         from app.web import router as web
         from app.api.audio_routes import router as audio_router
+        from app.core.reports import render_ad_report
+        from app.core import timeline
 
         for folder in (Path(settings.DB_PATH).parent, Path(settings.PODCASTS_DIR),
                        Path(settings.FEEDS_DIR), Path(settings.MODELS_DIR)):
@@ -76,6 +80,39 @@ def main():
                         episode_title, "https://example.com/episode.wav", f"2026-10-{10-index:02d}T08:00:00",
                         120, str(path), "A new episode with stories, interviews and ideas to explore.",
                         summary, path.stat().st_size, 12-index*3))
+            conn.commit()
+
+        # Synthetic classification evidence rendered by the production report code.
+        examples = [
+            (0, 12, "Intro", "Welcome to Field Notes. Today we explore urban forests.", "Show identification and opening housekeeping."),
+            (12, 38, "Content", "Trees cool our streets and create habitats for wildlife.", "Substantive discussion of urban biodiversity."),
+            (38, 55, "Ad", "This episode is sponsored by Example Coffee. Use code FOREST for 20% off your first order.", "Sponsor endorsement with a discount code and a call to purchase."),
+            (55, 91, "Content", "Planting a mix of native species helps a woodland withstand disease.", "The interview returns to the episode's subject."),
+            (91, 104, "Promo", "Join the Field Notes membership for bonus episodes each month.", "A distinct pitch for the podcast's paid membership."),
+            (104, 120, "Outro", "Thanks for listening. We will see you next week.", "Routine closing sign-off."),
+        ]
+        transcript = {"segments": [{"start": start, "end": end, "text": text}
+                                  for start, end, label, text, reason in examples]}
+        transcript["segments"][0]["end"] = 12.2
+        transcript["segments"][1]["start"] = 11.8
+        units, notes = timeline.prepare_timeline(transcript, 120)
+        rows = [{"first_id": i, "last_id": i, "start": start, "end": end,
+                 "label": label, "text": text, "reason": reason}
+                for i, (start, end, label, text, reason) in enumerate(examples, 1)]
+        policy = timeline.apply_preferences(rows, {"remove_ads": True, "remove_promos": True})
+        analysis = {"timeline": units, "segments": rows, "summary":
+                    "This episode includes urban biodiversity and the benefits of native trees.",
+                    "normalization_notes": notes,
+                    "provider": "custom", "model": "demo-model", "output_mode": "strict",
+                    "prompt_version": timeline.PROMPT_VERSION}
+        report = Path(directory) / "demo-report.html"
+        report.write_text(render_ad_report(SimpleNamespace(id=1, title=titles[0], guid="demo-1-0"),
+                          policy["segments"], analysis=analysis, edit_policy=policy), encoding="utf-8")
+        transcript_path = Path(directory) / "demo-transcript.json"
+        transcript_path.write_text(json.dumps(transcript), encoding="utf-8")
+        with get_db_connection() as conn:
+            conn.execute("UPDATE episodes SET report_path=?, transcript_path=? WHERE id=1",
+                         (str(report), str(transcript_path)))
             conn.commit()
 
         app = FastAPI()
