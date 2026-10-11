@@ -40,6 +40,15 @@ move existing audio until explicitly requested.
 - Provide a self-contained HTML setup wizard with embedded scripts/styles and hash-based CSP, available from the repository and generated channel downloads; no local server or build tools are needed by users. Keep offline ZIP/agent packages available.
 - Refocus the README on current features, NVIDIA CUDA transcription and a concise explanation of the three principal V2 changes. Detailed conversion behavior is recorded above and in the separate release/upgrade guides.
 - Expand the README and V2 release/upgrade notes with the maintainer's cascade-removal rationale, explicit local speech impacts and other significant configuration/behavior changes. Record measured 1.16.0 versus V2 Docker image sizes and refresh promotion readiness, including the October 8 seam fix and remaining installer publication gate.
+
+- Add in-page episode Play/Pause controls with a seekable progress bar and elapsed/
+  total time. Only one episode plays at a time; published episodes also have a
+  separate Download audio action that requests an immediate file download.
+
+- Fix the episode Play button opening a download on desktop browsers. Audio is
+  served with an inline disposition for in-page playback;
+  filenames, RSS audio URLs and byte-range seeking remain supported.
+
 - Fix generated podcast artwork in the dashboard, public Subscribe page and podcast details when the browser address differs from the configured public URL, using same-origin UI paths while preserving absolute RSS URLs and the existing CSP.
 - Document stale NVIDIA CDI specifications after host driver/library updates, including automatic refresh and manual regeneration.
 

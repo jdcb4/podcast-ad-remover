@@ -26,6 +26,12 @@ after source changes. Rebuild that file with `python scripts/build_configurator.
 when changing configurator assets. The same builder generates channel-specific
 single-file downloads during Pages publication.
 
+`tests/test_management_http.py` follows rendered episode Play links through the
+audio redirect and checks inline MP3/M4A/OGG/WAV responses, encoded filenames and
+byte-range seeking against isolated media files. It also checks attachment
+downloads and runs the shipped player script in jsdom for Play/Pause, progress,
+seeking, switching episodes, completion, errors and replacement cards.
+
 `tests/test_artwork_watermark.py` renders dashboard, public Subscribe and podcast detail
 pages with HTTP/HTTPS browser origins differing from the configured public URL. It checks
 same-origin generated JPEG/legacy PNG paths, successful image retrieval, unchanged CSP,

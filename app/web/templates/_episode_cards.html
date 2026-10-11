@@ -161,12 +161,28 @@
             <!-- Quick Actions -->
             <div class="flex items-center gap-2 list-actions">
                 {% if ep.local_filename and ep.status != 'ignored' %}
-                <a href="/episodes/{{ ep.id }}/audio"
-                    target="_blank"
-                    class="p-2 bg-primary-500 rounded-full text-on-brand hover:bg-primary-400 hover:scale-105 transition-all shadow-lg"
-                    title="Play">
-                    <svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <button type="button" data-episode-play="{{ ep.id }}" data-audio-url="/episodes/{{ ep.id }}/audio"
+                    class="episode-play p-2 bg-primary-500 rounded-full text-on-brand hover:bg-primary-400 transition-colors"
+                    title="Play" aria-label="Play episode" aria-pressed="false">
+                    <svg data-play-icon class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M8 5v14l11-7z" />
+                    </svg>
+                    <svg data-pause-icon class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" hidden>
+                        <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                    </svg>
+                </button>
+                <div class="episode-playback" data-episode-progress="{{ ep.id }}" hidden>
+                    <input type="range" min="0" max="100" step="0.1" value="0" disabled
+                        data-episode-seek="{{ ep.id }}" aria-label="Seek in episode">
+                    <span data-episode-time="{{ ep.id }}">0:00 / 0:00</span>
+                    <span data-episode-error role="status"></span>
+                </div>
+                <a href="/episodes/{{ ep.id }}/audio?download=true" download
+                    class="episode-download p-2 text-text-muted hover:text-text-primary rounded-full hover:bg-ink/10"
+                    title="Download audio" aria-label="Download episode audio">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                 </a>
                 {% elif can_manage_subscription and (ep.status == 'unprocessed' or ep.status == 'ignored') %}

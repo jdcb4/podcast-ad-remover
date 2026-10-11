@@ -180,6 +180,56 @@ def test_audio_tracking_uses_complete_path_and_invalid_range_is_client_error(pop
         assert [r[0] for r in conn.execute('SELECT listen_count FROM episodes WHERE id IN (90,91) ORDER BY id')] == [0, 1]
 
 
+@pytest.mark.parametrize('extension,media_type', [
+    ('mp3', 'audio/mpeg'), ('m4a', 'audio/mp4'),
+    ('ogg', 'audio/ogg'), ('wav', 'audio/wav'),
+])
+def test_play_link_serves_inline_audio_and_supports_seeking(populated_client, extension, media_type):
+    from pathlib import Path
+    from urllib.parse import quote
+
+    filename = f'episode café.{extension}'
+    path = Path(settings.PODCASTS_DIR) / 'show' / 'one' / filename
+    path.parent.mkdir(parents=True)
+    payload = b'0123456789 audio fixture'
+    path.write_bytes(payload)
+    with get_db_connection() as conn:
+        conn.execute('UPDATE episodes SET local_filename=? WHERE id=90', (str(path),))
+        conn.commit()
+
+    page = populated_client.get('/subscriptions/90')
+    assert 'data-audio-url="/episodes/90/audio"' in page.text
+    assert 'href="/episodes/90/audio?download=true" download' in page.text
+    if extension == 'mp3':
+        import subprocess
+        import shutil
+        result = subprocess.run([shutil.which('node'), 'tests/episode_player_dom.cjs'],
+                                input=page.text, text=True, encoding='utf-8',
+                                capture_output=True, timeout=30)
+        assert result.returncode == 0, result.stderr
+    redirect = populated_client.get('/episodes/90/audio', follow_redirects=False)
+    assert redirect.status_code == 307
+    assert redirect.headers['location'] == '/audio/show/one/' + quote(filename)
+
+    response = populated_client.get('/episodes/90/audio')
+    assert response.status_code == 200
+    assert response.content == payload
+    assert response.headers['content-type'] == media_type
+    assert response.headers['content-disposition'] == "inline; filename*=utf-8''" + quote(filename)
+    assert response.headers['accept-ranges'] == 'bytes'
+
+    partial = populated_client.get('/episodes/90/audio', headers={'Range': 'bytes=3-7'})
+    assert partial.status_code == 206
+    assert partial.content == payload[3:8]
+    assert partial.headers['content-range'] == f'bytes 3-7/{len(payload)}'
+    assert partial.headers['content-disposition'] == response.headers['content-disposition']
+
+    download = populated_client.get('/episodes/90/audio?download=true')
+    assert download.status_code == 200
+    assert download.content == payload
+    assert download.headers['content-disposition'] == response.headers['content-disposition'].replace('inline;', 'attachment;')
+
+
 def test_ip_denial_crosses_real_middleware_stack_as_403(isolated_data_dir):
     init_db()
     with get_db_connection() as conn:
