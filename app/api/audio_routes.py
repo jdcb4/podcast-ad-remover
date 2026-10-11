@@ -139,5 +139,6 @@ async def serve_audio(path: str, request: Request):
     return FileResponse(
         path=file_path,
         media_type=media_type,
-        filename=file_path.name
+        filename=file_path.name,
+        content_disposition_type="inline",
     )

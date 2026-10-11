@@ -2,6 +2,10 @@
 
 ## Unreleased — V2 development
 
+- Fix the episode Play button opening a download on desktop browsers. Audio is
+  served with an inline disposition so the browser can use its native player;
+  filenames, RSS audio URLs and byte-range seeking remain supported.
+
 - Fix generated podcast artwork in the dashboard, public Subscribe page and podcast details when the browser address differs from the configured public URL, using same-origin UI paths while preserving absolute RSS URLs and the existing CSP.
 - Document stale NVIDIA CDI specifications after host driver/library updates, including automatic refresh and manual regeneration.
 

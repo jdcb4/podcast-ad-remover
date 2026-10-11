@@ -19,6 +19,10 @@ pip install -r requirements-dev.txt
 
 ## Standard Check
 
+`tests/test_management_http.py` follows rendered episode Play links through the
+audio redirect and checks inline MP3/M4A/OGG/WAV responses, encoded filenames and
+byte-range seeking against isolated media files.
+
 `tests/test_artwork_watermark.py` renders dashboard, public Subscribe and podcast detail
 pages with HTTP/HTTPS browser origins differing from the configured public URL. It checks
 same-origin generated JPEG/legacy PNG paths, successful image retrieval, unchanged CSP,
