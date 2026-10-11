@@ -34,6 +34,9 @@ move existing audio until explicitly requested.
 
 ### Additions and fixes
 
+- Put normal Docker installation and source-build instructions before the
+  optional installation wizard in the README and V2 release notes.
+
 - Provide a self-contained HTML setup wizard with embedded scripts/styles and hash-based CSP, available from the repository and generated channel downloads; no local server or build tools are needed by users. Keep offline ZIP/agent packages available.
 - Refocus the README on current features, NVIDIA CUDA transcription and a concise explanation of the three principal V2 changes. Detailed conversion behavior is recorded above and in the separate release/upgrade guides.
 - Expand the README and V2 release/upgrade notes with the maintainer's cascade-removal rationale, explicit local speech impacts and other significant configuration/behavior changes. Record measured 1.16.0 versus V2 Docker image sizes and refresh promotion readiness, including the October 8 seam fix and remaining installer publication gate.

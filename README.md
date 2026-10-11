@@ -22,18 +22,35 @@ PAR needs Docker, storage for your library, and a suitable analysis model. Remot
 
 ## Install
 
-Open the **[setup wizard](https://jdcb4.github.io/podcast-ad-remover/)** to generate a Docker Compose or Docker run configuration. It runs entirely in your browser: credentials are not uploaded or saved in browser storage.
+### Docker
 
-Prefer a downloaded copy? **[Download the single HTML wizard](https://github.com/jdcb4/podcast-ad-remover/raw/refs/heads/dev/configurator/install.html)**, save it and open it in your browser. It includes its own scripts and styling, works offline, and needs no local server or build tools. Check the image/channel displayed in the wizard before installing.
+Docker is the recommended installation method. Download [docker-compose.prod.yml](docker-compose.prod.yml) and [env.example](env.example) into the same folder, save `env.example` as `.env`, then set a persistent random `SESSION_SECRET_KEY` and a `BASE_URL` reachable by your podcast player.
 
-1. Install Docker; generated Compose files require Compose 2.30 or newer.
-2. Choose your storage, port and an application URL reachable by your podcast player. Enable NVIDIA GPU access if wanted.
-3. Download the install file and `install.env` into the same folder, then run the command shown.
-4. Open PAR and complete or dismiss its optional in-app setup wizard. Add or import podcasts, then subscribe to their replacement feeds.
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
 
-The wizard prepares a fresh installation. **For upgrades, preserve your existing data volume, configuration and session secret** and follow the [upgrade guide](Documentation/V2_UPGRADE.md).
+This uses the published image and stores application data in `./data`. See [Docker deployment](Documentation/Deployment.md) for Docker run, configuration and reverse-proxy options, or the [Unraid guide](Documentation/Unraid_Deployment.md).
 
-See [Docker deployment](Documentation/Deployment.md), [Unraid](Documentation/Unraid_Deployment.md), [configuration](Documentation/Environment_Variables.md) and [separate audio storage](Documentation/STORAGE.md).
+### Build from source
+
+Clone the repository, copy `env.example` to `.env` and set the same session secret and application URL. Build and start the checkout with Docker:
+
+```bash
+git clone https://github.com/jdcb4/podcast-ad-remover.git
+cd podcast-ad-remover
+docker compose up -d --build
+```
+
+The source Compose file mounts the checkout into the container for development. The repository's default `dev` branch contains development code; choose a release tag for released source. See [contributor guidance](CONTRIBUTING.md).
+
+### Optional setup wizard
+
+The **[setup wizard](https://jdcb4.github.io/podcast-ad-remover/)** simplifies the Docker installation by generating Compose or Docker run files for your storage, URL and optional NVIDIA GPU. It runs entirely in your browser: credentials are not uploaded or saved in browser storage. Generated Compose files require Compose 2.30 or newer.
+
+You can also **[download the single HTML wizard](https://github.com/jdcb4/podcast-ad-remover/raw/refs/heads/dev/configurator/install.html)** and open it in your browser, including offline. No local server or build tools are needed. Check the image/channel displayed, save the generated install file and `install.env` together, then run the command shown.
+
+After installation, open PAR at your configured URL, complete or dismiss the optional in-app setup, add podcasts and subscribe to their replacement feeds. **For upgrades, preserve your data volume, configuration and session secret** and follow the [upgrade guide](Documentation/V2_UPGRADE.md). See also [configuration](Documentation/Environment_Variables.md) and [separate audio storage](Documentation/STORAGE.md).
 
 ## Why V2 simplifies things
 

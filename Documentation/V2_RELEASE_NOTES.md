@@ -48,6 +48,57 @@ Local transcription is staying. You can still use a self-hosted custom analysis 
 - Unified-feed artwork upload, a single RSS subscription action and consistent light/dark navigation.
 - An updated API reference, enforced-scope metadata in OpenAPI, a dry-run import endpoint and a portable PAR agent skill bundled with the configurator.
 
+### Install
+
+#### Docker
+
+Use the published Docker image for a normal installation. Save
+[docker-compose.prod.yml](../docker-compose.prod.yml) and [env.example](../env.example)
+in the same folder, rename `env.example` to `.env`, and set a persistent random
+`SESSION_SECRET_KEY` and an application `BASE_URL` reachable by your podcast player.
+Then start the app:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Application data is stored in `./data`. See [Docker deployment](Deployment.md)
+for Docker run and reverse-proxy configuration, or [Unraid installation](Unraid_Deployment.md).
+Optional [NVIDIA CUDA acceleration](CUDA.md) can significantly speed up local transcription.
+
+#### Build from source
+
+Clone the repository and choose the release tag you want to build. Copy
+`env.example` to `.env` and configure the same session secret and application URL.
+The source installation builds with Docker:
+
+```bash
+git clone https://github.com/jdcb4/podcast-ad-remover.git
+cd podcast-ad-remover
+docker compose up -d --build
+```
+
+The default `dev` branch contains development code; select a published release
+tag for released source. The source Compose file mounts the checkout into the
+container for development. See [contributor guidance](../CONTRIBUTING.md).
+
+#### Optional setup wizard
+
+The [browser setup wizard](https://jdcb4.github.io/podcast-ad-remover/) simplifies
+Docker installation by generating Docker run or Compose files for your chosen
+storage, URL and GPU options. It runs privately in your browser. Generated Compose
+files require Compose 2.30 or newer.
+
+Alternatively, [download the single HTML wizard](https://github.com/jdcb4/podcast-ad-remover/raw/refs/heads/dev/configurator/install.html)
+and open it in your browser, including offline; no local server or build tools are
+needed. Check the displayed image/channel, save the generated install file and
+`install.env` together, then run its command.
+
+Open PAR at the configured URL after installation. Its separate optional in-app
+setup helps configure processing preferences. Existing installations should
+follow the upgrade instructions below rather than replace their configuration
+with fresh-install wizard output.
+
 ### Deliberate breaking changes
 
 | Previous feature | V2 behavior / action |
