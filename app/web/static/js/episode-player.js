@@ -20,8 +20,8 @@
             button.setAttribute('aria-label', playing ? 'Pause episode' : 'Play episode');
             button.setAttribute('aria-pressed', String(playing));
             button.title = playing ? 'Pause' : 'Play';
-            button.querySelector('[data-play-icon]').hidden = playing;
-            button.querySelector('[data-pause-icon]').hidden = !playing;
+            button.querySelector('[data-play-icon]').toggleAttribute('hidden', playing);
+            button.querySelector('[data-pause-icon]').toggleAttribute('hidden', !playing);
             const controls = button.parentElement.querySelector('[data-episode-progress]');
             controls.hidden = !active;
             if (!active) return;
