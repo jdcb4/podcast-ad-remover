@@ -87,7 +87,7 @@ def _resolve_audio_file_path(path: str) -> Path:
 
 
 @router.get("/audio/{path:path}")
-async def serve_audio(path: str, request: Request):
+async def serve_audio(path: str, request: Request, download: bool = False):
     """
     Serve audio files dynamically with listen tracking.
     
@@ -139,5 +139,6 @@ async def serve_audio(path: str, request: Request):
     return FileResponse(
         path=file_path,
         media_type=media_type,
-        filename=file_path.name
+        filename=file_path.name,
+        content_disposition_type="attachment" if download else "inline",
     )
