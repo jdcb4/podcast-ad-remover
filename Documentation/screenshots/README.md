@@ -12,7 +12,8 @@ real application at revision `35c0e13` with a disposable demo library:
 
 The three source JPEGs were captured from a 390 × 844 phone-sized viewport.
 The README uses one linked 680-pixel-wide composite, keeping the views in a single
-row even on narrow screens. The 1202 × 844 composite is about 94 KB; click to enlarge.
+row even on narrow screens. The 1274 × 948 composite is about 120 KB; click to enlarge.
+Each screen has a contrasting border and a heading describing its feature.
 Names, artwork, summaries, report
 evidence and silent audio are synthetic. The report uses the app's real renderer,
 timestamp normalization and cut-preference logic; no model was called.
@@ -35,9 +36,12 @@ other rows collapsed so Keep and Remove decisions remain visible together.
 Review images for readable controls and private information
 before committing; retain descriptive alt text in the README.
 
-To rebuild the composite, size each source to 390 × 844 pixels,
-place them in library/playback/report order with 16-pixel dark gutters (`#0a0a0f`),
-and save as `v2-app-overview.jpg` at JPEG quality 88. Keep the source captures for
+To rebuild the composite, size each source to 390 × 844 pixels and add a 4-pixel
+border (`#9080ae`). Place them in library/playback/report order with 24-pixel
+gutters, 16-pixel outer margins and a dark background (`#0a0a0f`). Reserve a
+64-pixel heading band above the screens, using 26-pixel bold white text:
+**Your podcast library**, **Play, pause & download**, **See what was removed**.
+Save as `v2-app-overview.jpg` at JPEG quality 88. Keep the source captures for
 individual inspection; the README loads only the composite.
 
 ## Historical images

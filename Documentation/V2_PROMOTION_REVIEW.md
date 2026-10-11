@@ -103,7 +103,8 @@ local Docker build. All 63 checked local documentation/image links resolve;
 `git diff --check` passed. Demo pages/artwork returned HTTP 200 and writes were
 rejected with HTTP 405. Three JPEGs captured at a 390 × 844 viewport total 91297
 bytes. The README displays one linked 680-pixel-wide side-by-side composite
-(93992 bytes), so the phone views cannot wrap into a tall stack. The report shows timestamped
+(119594 bytes), with clear borders and feature headings, so the phone views cannot
+wrap into a tall stack. The report shows timestamped
 Keep/Remove classifications with one ad expanded to reveal its reason and text.
 The final versioned candidate still requires release qualification.
 No paid inference, live migration, image push or deployment is part of this refresh.
