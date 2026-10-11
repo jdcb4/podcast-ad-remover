@@ -2,6 +2,14 @@
 
 ## Unreleased — V2 development
 
+- Add in-page episode Play/Pause controls with a seekable progress bar and elapsed/
+  total time. Only one episode plays at a time; published episodes also have a
+  separate Download audio action that requests an immediate file download.
+
+- Fix the episode Play button opening a download on desktop browsers. Audio is
+  served with an inline disposition so the browser can use its native player;
+  filenames, RSS audio URLs and byte-range seeking remain supported.
+
 - Fix generated podcast artwork in the dashboard, public Subscribe page and podcast details when the browser address differs from the configured public URL, using same-origin UI paths while preserving absolute RSS URLs and the existing CSP.
 - Document stale NVIDIA CDI specifications after host driver/library updates, including automatic refresh and manual regeneration.
 

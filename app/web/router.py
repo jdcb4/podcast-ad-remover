@@ -2598,7 +2598,7 @@ async def bulk_delete_subscriptions(
 
 
 @router.get("/episodes/{episode_id}/audio")
-async def play_episode(episode_id: int):
+async def play_episode(episode_id: int, download: bool = False):
     from pathlib import Path
     from app.core.config import settings as app_settings
     episode = ep_repo.get_by_id(episode_id)
@@ -2612,7 +2612,8 @@ async def play_episode(episode_id: int):
             raise HTTPException(404, 'Published audio not found')
     except (OSError, StorageUnavailable):
         raise HTTPException(503, 'Media storage unavailable')
-    return RedirectResponse('/audio/' + quote(path.relative_to(root).as_posix(), safe='/'), status_code=307)
+    url = '/audio/' + quote(path.relative_to(root).as_posix(), safe='/')
+    return RedirectResponse(url + ('?download=true' if download else ''), status_code=307)
 
 
 @router.get("/subscriptions/{id}", response_class=HTMLResponse)
