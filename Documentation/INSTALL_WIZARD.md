@@ -4,7 +4,7 @@ The [web setup wizard](https://jdcb4.github.io/podcast-ad-remover/) prepares a n
 
 ## Availability during the 2.0 preview
 
-Maintainer evidence, rechecked on 11 October 2026: the Pages homepage still shows the old Local LLM Ad Detection Evaluation report, and the Dev wizard path returns 404. Publication is rejected because its environment still permits `master` and an old experimental branch, not `dev`. The launch README assumes working hosting at Joe's request; resolve this before publishing that copy. The single-HTML repository download is independent of Pages once merged. See the [promotion review](V2_PROMOTION_REVIEW.md) for remaining launch work.
+Maintainer evidence, rechecked on 11 October 2026: the Pages homepage still shows the old Local LLM Ad Detection Evaluation report, and the Dev wizard path returns 404. Publication is rejected because its environment still permits `master` and an old experimental branch, not `dev`. The launch README assumes working hosting at Joe's request; resolve this before publishing that copy. The single-HTML repository download is available independently of Pages. See the [promotion review](V2_PROMOTION_REVIEW.md) for remaining launch work.
 
 Once published, the landing page links to available channels:
 

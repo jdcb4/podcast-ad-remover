@@ -35,6 +35,7 @@ Local transcription is staying. You can still use a self-hosted custom analysis 
 - Admin feed/global pause controls, separate My Pods and Library unified feeds, and durable collection-aware processing statistics.
 - Configurable individual podcast-title prefix/suffix and consistent RSS/YouTube latest-episode windows.
 - Same-origin generated artwork in the web UI across public/local hostnames, while RSS keeps absolute public URLs and CSP stays unchanged.
+- In-page episode playback with standard Play/Pause icons, a seekable progress bar and elapsed/total time, plus a separate immediate-download action. One episode plays at a time without opening another tab.
 - Optional separate processed-audio storage with a resumable System → Storage migration, stable playback URLs and explicit verified-original cleanup.
 
 - A compact desktop and mobile interface, clearer settings and consolidated Users & access.
@@ -131,7 +132,7 @@ Mandatory-owner changes and a whisper.cpp evaluation are deferred. faster-whispe
 
 ### Validation and remaining release work
 
-See the [11 October promotion review](V2_PROMOTION_REVIEW.md) for current evidence, measured image sizes and remaining gates. The [4 October launch review](V2_LAUNCH_REVIEW.md) is historical. The web installer is implemented but its Pages deployment is still blocked by stale environment branch rules; the [single-HTML download](INSTALL_WIZARD.md#download-one-html-file) is available once merged. Do not announce the hosted wizard as live until that gate succeeds.
+See the [11 October promotion review](V2_PROMOTION_REVIEW.md) for current evidence, measured image sizes and remaining gates. The [4 October launch review](V2_LAUNCH_REVIEW.md) is historical. The web installer is implemented but its Pages deployment is still blocked by stale environment branch rules; the [single-HTML download](INSTALL_WIZARD.md#download-one-html-file) is available from the repository. Do not announce the hosted wizard as live until that gate succeeds.
 
 The October 8 seam fix supersedes the old segment-start-only merger described in the [September benchmark](CUDA_LONGFORM_2026-09-24.md). It preserves ambiguous alternatives in combined items, which may include repeated wording and coarser cut boundaries. GPU support remains experimental; the old benchmark does not qualify the revised merger's real-audio performance. No word-perfect cutting claim is made.
 

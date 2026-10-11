@@ -34,6 +34,8 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/core/permissions.py`, `http_downloads.py`: shared ownership policy and redirect validation.
 - `app/infra/backup.py`: WAL-safe, integrity-checked snapshots.
 - `app/web/templates/_episode_cards.html`, `static/js/episodes.js`: one card renderer plus incremental interactions.
+- `app/web/static/js/episode-player.js`: shared in-page audio playback, pause and seeking; downloads use a separate attachment request.
+- `Documentation/screenshots/`, `scripts/preview_readme.py`: current README captures and a disposable, loopback-only demo library for refreshing them.
 - `constraints.txt`: reviewed Python 3.11 dependency versions and platform markers.
 - `app/core/artwork.py`: validates source artwork and caches optional ad-free derived images.
 - `app/core/time_utils.py` and `app/web/static/js/local-time.js`: UTC serialization, preservation
