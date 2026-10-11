@@ -99,10 +99,11 @@ The refresh updates release evidence and adds current README captures plus a
 disposable, loopback-only screenshot helper. Application runtime code and
 dependencies are unchanged. `npm run verify:docker` passed: 785 tests, 8 skips,
 syntax, CSS, dependency audits with the documented build-only exception, and a
-local Docker build. All 67 checked local documentation/image links resolve;
+local Docker build. All 63 checked local documentation/image links resolve;
 `git diff --check` passed. Demo pages/artwork returned HTTP 200 and writes were
 rejected with HTTP 405. Three JPEGs captured at a 390 × 844 viewport total 91297
-bytes, displayed as linked 200-pixel thumbnails. The report shows timestamped
+bytes. The README displays one linked 680-pixel-wide side-by-side composite
+(93992 bytes), so the phone views cannot wrap into a tall stack. The report shows timestamped
 Keep/Remove classifications with one ad expanded to reveal its reason and text.
 The final versioned candidate still requires release qualification.
 No paid inference, live migration, image push or deployment is part of this refresh.

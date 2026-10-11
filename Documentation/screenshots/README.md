@@ -5,12 +5,15 @@ real application at revision `35c0e13` with a disposable demo library:
 
 | File | Feature |
 | --- | --- |
+| `v2-app-overview.jpg` | README composite: library, playback and report side by side. |
 | `v2-library-mobile.jpg` | My Pods and podcast artwork. |
 | `v2-playback-mobile.jpg` | Episode summary, active playback, seeking and separate download. |
 | `v2-report-mobile.jpg` | Timestamped classifications and Keep/Remove decisions, with an ad expanded to show its reason and transcript. |
 
-All three are JPEG captures from a 390 × 844 phone-sized viewport, displayed as
-linked 200-pixel thumbnails in the README. Names, artwork, summaries, report
+The three source JPEGs were captured from a 390 × 844 phone-sized viewport.
+The README uses one linked 680-pixel-wide composite, keeping the views in a single
+row even on narrow screens. The 1202 × 844 composite is about 94 KB; click to enlarge.
+Names, artwork, summaries, report
 evidence and silent audio are synthetic. The report uses the app's real renderer,
 timestamp normalization and cut-preference logic; no model was called.
 No live library, account,
@@ -31,6 +34,11 @@ playback with its seek bar visible. Open **More → View Report**, expand
 other rows collapsed so Keep and Remove decisions remain visible together.
 Review images for readable controls and private information
 before committing; retain descriptive alt text in the README.
+
+To rebuild the composite, size each source to 390 × 844 pixels,
+place them in library/playback/report order with 16-pixel dark gutters (`#0a0a0f`),
+and save as `v2-app-overview.jpg` at JPEG quality 88. Keep the source captures for
+individual inspection; the README loads only the composite.
 
 ## Historical images
 

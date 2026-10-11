@@ -37,7 +37,8 @@ move existing audio until explicitly requested.
 - Refresh the README with compact, linked phone-sized screenshots of the current
   library, inline playback/summaries and timestamped classification report, with
   a removed ad expanded to show its reason and transcript. Use disposable demo
-  data and the real report renderer. Reconcile V2 release notes and promotion
+  data and the real report renderer. Present them in one compact horizontal image
+  so the README does not stack the phone views. Reconcile V2 release notes and promotion
   evidence with the tested player build.
 - Put normal Docker installation and source-build instructions before the
   optional installation wizard in the README and V2 release notes.

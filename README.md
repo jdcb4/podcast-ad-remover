@@ -23,9 +23,7 @@ PAR needs Docker, storage for your library, and a suitable analysis model. Remot
 
 ## A look inside
 
-<a href="Documentation/screenshots/v2-library-mobile.jpg"><img src="Documentation/screenshots/v2-library-mobile.jpg" width="200" alt="Phone-sized My Pods library with podcast covers"></a>
-<a href="Documentation/screenshots/v2-playback-mobile.jpg"><img src="Documentation/screenshots/v2-playback-mobile.jpg" width="200" alt="Phone-sized episode summary with pause, seek and download controls"></a>
-<a href="Documentation/screenshots/v2-report-mobile.jpg"><img src="Documentation/screenshots/v2-report-mobile.jpg" width="200" alt="Phone-sized processing report showing timestamped Keep and Remove classifications, with an ad expanded to show its reason and transcript"></a>
+<a href="Documentation/screenshots/v2-app-overview.jpg"><img src="Documentation/screenshots/v2-app-overview.jpg" width="680" alt="Three phone views side by side: My Pods library; episode summary with pause, seek and download controls; timestamped Keep/Remove report with an ad expanded to show its reason and transcript"></a>
 
 Library browsing · Playback and summaries · Timestamped removal report. Phone-sized screenshots use demo data; click to enlarge. The report shows what was kept or removed, with an ad expanded to reveal the reason and transcript.
 
