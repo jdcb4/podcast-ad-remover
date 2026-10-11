@@ -1,0 +1,116 @@
+<!doctype html>
+
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-yNHliIJH3zzICp2berSNRvS6uu5zEcbIkc8gwGwwWRw=' 'sha256-sQXYBrrRP74hOqr4xI3PaosK5kfwc8dKcoDb/03EtYo='; style-src 'sha256-yFo9S0wKtEigAqPGMld3GHCJHXlN28vjlpYn4i8YKXc='; img-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'"><title>Install · Podcast Ad Remover</title><style>:root{font-family:system-ui,sans-serif;color:#e9e9f1;background:#15151b;color-scheme:dark;accent-color:#a98df6}*{box-sizing:border-box}body{margin:0}main{max-width:780px;margin:auto;padding:48px 24px}header{margin-bottom:40px}header>p:first-child{color:#baa4f4;font-weight:600}h1{font-size:clamp(2rem,5vw,2.9rem);line-height:1.15;letter-spacing:-.04em;margin:20px 0}p{line-height:1.6;color:#bbbcc9}fieldset{border:0;border-top:1px solid #3a3a47;margin:28px 0;padding:24px 0 0}legend{font-size:1.2rem;font-weight:650;padding-right:16px}label{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:18px 0;font-size:.95rem}input,select,button{font:inherit;border:1px solid #535362;border-radius:6px;padding:11px 12px;background:#22222d;color:inherit}input,select{width:55%;min-width:0}input:disabled{opacity:.4}.check{justify-content:flex-start}.check input{width:20px;height:20px}.hint{font-size:.85rem;margin-top:0}summary{cursor:pointer;padding:12px 0}.actions{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}button{cursor:pointer;min-height:44px}button[type=submit],#copy{background:#8060c5;border-color:#8060c5;color:white}button:hover{filter:brightness(1.15)}:focus-visible{outline:3px solid #b599ef;outline-offset:3px}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:20px;background:#09090e;border:1px solid #3a3a47;border-radius:8px;line-height:1.6;font-size:.85rem}footer{border-top:1px solid #3a3a47;padding-top:24px;color:#a8a8b8;line-height:1.7;font-size:.85rem}[hidden]{display:none!important}@media(max-width:520px){main{padding:24px 18px}label:not(.check){display:block}input,select{display:block;width:100%;margin-top:8px}.actions button{flex:1}}
+</style></head>
+
+<body><main><header><h1>Install Podcast Ad Remover</h1><p>Build a Docker configuration in your browser. Your inputs stay here: no uploads, analytics or saved credentials.</p><p id="release"></p><p>This wizard prepares a new installation. Upgrading? Keep your existing configuration, data volume and session secret, and follow the <a href="https://github.com/jdcb4/podcast-ad-remover/blob/dev/Documentation/V2_UPGRADE.md">V2 upgrade guide</a> first.</p></header>
+
+<form id="config" autocomplete="off">
+
+<fieldset><legend>1 · Where will it run?</legend>
+
+<label>Format<select name="format"><option value="compose">Docker Compose</option><option value="docker">Docker run</option></select></label>
+
+<label>Command shell<select name="shell"><option value="posix">POSIX (Linux / macOS)</option><option value="powershell">PowerShell (Windows)</option></select></label>
+
+<label>Host port<input name="port" type="number" value="8000" min="1" max="65535" required></label>
+
+<label>Data storage<select name="storage"><option value="volume">Named Docker volume (recommended)</option><option value="bind">Existing host directory</option></select></label>
+
+<label>Directory on Docker host<input name="path" placeholder="/srv/podcast-ad-remover" disabled></label><p class="hint">Keep this storage across upgrades. Compose names volumes per project: changing folders or switching to Docker run can select a different volume.</p>
+
+<label class="check"><input name="separate_media" type="checkbox">Store processed audio on a separate disk or NAS</label>
+<label>Media directory on Docker host<input name="media_path" placeholder="/mnt/nas/par-audio" disabled></label>
+<p class="hint">Use an empty dedicated directory on an already mounted disk. After starting PAR, enable it in System → Storage. Existing audio can be migrated there; transcripts and temporary processing stay in appdata.</p>
+
+<label>Application URL<input name="url" type="url" value="http://localhost:8000" required></label><p class="hint">Use your server's LAN address or HTTPS domain for podcast apps. This can be changed later.</p>
+
+<label class="check"><input name="https" type="checkbox">Behind an HTTPS reverse proxy</label><p class="hint">Enables secure cookies and trusts forwarded headers. Use only when the container is reachable exclusively through your trusted proxy.</p>
+
+</fieldset>
+
+<details><summary>Analysis credentials (optional)</summary>
+
+<label>Provider<select name="provider"><option value="">Configure in the app later</option><option value="GEMINI_API_KEY">Gemini</option><option value="OPENAI_API_KEY">OpenAI</option><option value="ANTHROPIC_API_KEY">Anthropic</option><option value="OPENROUTER_API_KEY">OpenRouter</option></select></label>
+
+<label>API key<input name="key" type="password" disabled autocomplete="new-password"></label><p class="hint">Choose your provider and model in the app after installation. Environment credentials take precedence over saved keys. Custom endpoints are configured in the app.</p>
+
+</details>
+
+<details><summary>Advanced installation options</summary>
+
+
+
+<label class="check"><input name="gpu" type="checkbox">NVIDIA GPU (Linux host with Container Toolkit)</label>
+
+<p class="hint">The CPU configuration works without GPU setup. CUDA libraries can be installed from Transcription settings; the container still needs GPU access.</p>
+
+
+
+</details>
+
+<div class="actions"><button type="submit">Build configuration</button><button type="button" id="clear">Clear credentials & output</button></div>
+
+</form>
+
+<section id="result" hidden><h2>Ready to install</h2><p>A random session secret is kept for this configuration. Keep the env file private and preserve that secret on upgrades. The optional setup wizard opens from the app.</p><p id="status" role="status"></p><pre><code id="output"></code></pre><div class="actions"><button id="copy">Copy</button><button id="download">Download install file</button><button id="download-env">Download env file</button><button id="regenerate">Regenerate session secret</button></div><p id="command"></p></section>
+
+<footer><p>This wizard is self-contained; no server or additional files are needed. Content removal, retention, accounts, feeds, speech, prompts and notifications can all be configured after installation. No paid speech provider is enabled automatically.</p></footer></main><script>window.INSTALL_RELEASE = Object.freeze({channel:'dev', image:'jdcb4/podcast-ad-remover:dev', revision:'development checkout'});
+</script><script>(() => {
+ 'use strict';
+ const form=document.getElementById('config'), result=document.getElementById('result'), output=document.getElementById('output');
+ const release=window.INSTALL_RELEASE;
+ document.getElementById('release').textContent=`${release.channel} · ${release.image} · ${release.revision}`;
+ let filename='compose.yaml', generated='', environment='', secret='';
+ const shell=value=>"'"+String(value).replaceAll("'","'\"'\"'")+"'";
+ const powershell=value=>"'"+String(value).replaceAll("'","''")+"'";
+ const yaml=value=>"'"+String(value).replaceAll("'","''").replaceAll('$',()=> '$$')+"'";
+ function newSecret(){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');}
+ form.elements.storage.addEventListener('change',()=>{form.elements.path.disabled=form.elements.storage.value!=='bind';form.elements.path.required=!form.elements.path.disabled;});
+ form.elements.separate_media.addEventListener('change',()=>{form.elements.media_path.disabled=!form.elements.separate_media.checked;form.elements.media_path.required=form.elements.separate_media.checked;});
+ form.elements.provider.addEventListener('change',()=>{form.elements.key.disabled=!form.elements.provider.value;});
+ function clear(){form.elements.key.value='';secret='';generated='';environment='';output.textContent='';result.hidden=true;}
+ document.getElementById('clear').addEventListener('click',clear);
+ form.addEventListener('submit',event=>{
+  event.preventDefault();
+  const v=Object.fromEntries(new FormData(form)), errors=[];
+  let url;try{url=new URL(v.url);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)errors.push('Use an HTTP or HTTPS application URL without credentials, query or fragment.');}catch(_){errors.push('Enter a valid application URL.');}
+  if(!Number.isInteger(Number(v.port))||Number(v.port)<1||Number(v.port)>65535)errors.push('Port must be between 1 and 65535.');
+  const windowsPath=/^[A-Za-z]:[\\/]/.test(v.path||'');
+  if(v.storage==='bind'&&(!v.path||/[\r\n,\0]/.test(v.path)||(!v.path.startsWith('/')&&!(v.shell==='powershell'&&windowsPath))))errors.push('Use an absolute host directory without commas or newlines; Windows paths require PowerShell.');
+  if(v.separate_media&&(!v.media_path||/[\r\n,\0]/.test(v.media_path)||(!v.media_path.startsWith('/')&&!(v.shell==='powershell'&&/^[A-Za-z]:[\\/]/.test(v.media_path)))))errors.push('Use an absolute media host directory without commas or newlines; Windows paths require PowerShell.');
+  if(v.separate_media&&v.storage==='bind'&&v.path===v.media_path)errors.push('Appdata and media must use different host directories.');
+  if(v.key&&/[\r\n\0]/.test(v.key))errors.push('API keys cannot contain newlines.');
+  result.hidden=false;
+  if(errors.length){generated='';environment='';output.textContent='';document.getElementById('status').textContent=errors.join(' ');return;}
+  secret ||= newSecret();
+  const env={SESSION_SECRET_KEY:secret,BASE_URL:url.href.replace(/\/$/,'')};
+  if(v.separate_media)env.MEDIA_DIR='/media';
+  if(v.https){env.COOKIE_SECURE='true';env.TRUST_PROXY_HEADERS='true';}
+  if(v.provider&&v.key)env[v.provider]=v.key;
+  environment=Object.entries(env).map(([k,x])=>k+'='+x).join('\n')+'\n';
+  const volume=v.storage==='bind'?v.path:'podcast-data';
+  if(v.format==='compose'){
+   filename='compose.yaml';
+   generated=`services:\n  podcast-ad-remover:\n    image: ${yaml(release.image)}\n    restart: unless-stopped\n    ports:\n      - ${yaml(v.port+':8000')}\n    volumes:\n      - type: ${v.storage==='bind'?'bind':'volume'}\n        source: ${yaml(volume)}\n        target: /data\n    env_file:\n      - path: ./install.env\n        format: raw\n`;
+   if(v.separate_media)generated=generated.replace('    env_file:', `      - type: bind\n        source: ${yaml(v.media_path)}\n        target: /media\n        bind:\n          create_host_path: false\n    env_file:`);
+   if(v.gpu)generated+='    deploy:\n      resources:\n        reservations:\n          devices:\n            - driver: nvidia\n              count: all\n              capabilities: [gpu]\n';
+   if(v.storage!=='bind')generated+='volumes:\n  podcast-data:\n';
+   document.getElementById('command').textContent='Download compose.yaml and install.env into the same folder. Requires Docker Compose 2.30+. Run: docker compose up -d';
+  }else{
+   const ps=v.shell==='powershell', quote=ps?powershell:shell, continuation=ps?' `\n':' \\\n';
+   filename=ps?'install.ps1':'install.sh';
+   generated=(ps?"$ErrorActionPreference = 'Stop'\nSet-Location -LiteralPath $PSScriptRoot\n":"#!/bin/sh\nset -eu\ncd -- \"$(dirname -- \"$0\")\"\n")+['docker run -d --name podcast-ad-remover --restart unless-stopped',`  -p ${quote(v.port+':8000')}`,`  --mount ${quote(`type=${v.storage==='bind'?'bind':'volume'},source=${volume},target=/data`)}`,...(v.separate_media?[`  --mount ${quote(`type=bind,source=${v.media_path},target=/media`)}`]:[]),'  --env-file ./install.env',...(v.gpu?['  --gpus all']:[]),`  ${quote(release.image)}`].join(continuation)+'\n';
+   if(ps)generated+='if ($LASTEXITCODE -ne 0) { throw "Docker failed with exit code $LASTEXITCODE" }\n';
+   document.getElementById('command').textContent=`Download ${filename} and install.env into the same folder, then run: ${ps?'.\\install.ps1':'sh install.sh'}`;
+  }
+  output.textContent=generated;document.getElementById('status').textContent='Generated locally. Review before running. Credentials are only in the separate env file.';
+ });
+ document.getElementById('regenerate').addEventListener('click',()=>{secret=newSecret();form.requestSubmit();});
+ document.getElementById('copy').addEventListener('click',async()=>{try{if(generated)await navigator.clipboard.writeText(generated);document.getElementById('status').textContent='Copied install file; download the env file separately.';}catch(_){document.getElementById('status').textContent='Clipboard unavailable. Select and copy the output, or download it.';}});
+ function download(contents,name){if(!contents)return;const url=URL.createObjectURL(new Blob([contents],{type:'text/plain'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+ document.getElementById('download').addEventListener('click',()=>download(generated,filename));
+ document.getElementById('download-env').addEventListener('click',()=>download(environment,'install.env'));
+ window.addEventListener('pagehide',clear);
+})();
+</script></body></html>

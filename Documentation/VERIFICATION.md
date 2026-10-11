@@ -19,6 +19,13 @@ pip install -r requirements-dev.txt
 
 ## Standard Check
 
+`tests/test_configurator.py` also runs the shipped single-file HTML wizard with no
+adjacent assets, verifies generated GPU Compose/environment output and secret
+lifecycle, checks embedded CSP hashes, and detects stale committed `install.html`
+after source changes. Rebuild that file with `python scripts/build_configurator.py`
+when changing configurator assets. The same builder generates channel-specific
+single-file downloads during Pages publication.
+
 `tests/test_management_http.py` follows rendered episode Play links through the
 audio redirect and checks inline MP3/M4A/OGG/WAV responses, encoded filenames and
 byte-range seeking against isolated media files. It also checks attachment

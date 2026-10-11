@@ -27,6 +27,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/core/speech.py`, `provider_settings.py`: bounded API speech and single credential/model resolution.
 - `app/web/setup.py`: staged optional setup with review/apply and conflict detection.
 - `configurator/`, `scripts/build_configurator.py`: private static installer and offline bundle.
+- `configurator/install.html`: committed self-contained wizard download, regenerated from the installer assets with hash-based CSP.
 - `app/infra/v2_migration.py`: v2 conversion and actionable upgrade report.
 - `app/core/provider_budget.py`, `worker_health.py`: durable request limits and processing readiness.
 - `app/core/gemini_quota.py`: opt-in shared Gemini quotas, token reservations, Pacific resets and provider cooldowns.
@@ -74,8 +75,9 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 
 - `Documentation/V2_UPGRADE.md`: current breaking-change conversion, preflight and rollback guide.
 - `Documentation/INSTALL_WIZARD.md`: hosted/local installer, in-app onboarding, upgrade boundaries and Pages publication checklist.
-- `Documentation/V2_LAUNCH_REVIEW.md`: 4 October Dev review, verified legacy concerns and remaining launch gates.
-- `Documentation/V2_RELEASE_NOTES.md`: draft public explanation/commit copy and the unresolved maintainer reasoning reminder.
+- `Documentation/V2_PROMOTION_REVIEW.md`: 11 October promotion evidence, current gates, rationale review and measured Docker image sizes.
+- `Documentation/V2_LAUNCH_REVIEW.md`: historical 4 October Dev review; its seam finding is superseded by the October 8 fix.
+- `Documentation/V2_RELEASE_NOTES.md`: draft public explanation/commit copy with the maintainer's expanded rationale, awaiting wording review.
 - `Documentation/V2_PROPOSAL.md`: approved design-history record; later user decisions are called out at its top.
 - `Documentation/V2_IMPLEMENTATION.md`: implementation milestones and bounded qualification evidence.
 - `Documentation/V2_DOCUMENTATION_AUDIT.md`: coverage of current guides and preserved historical evidence.

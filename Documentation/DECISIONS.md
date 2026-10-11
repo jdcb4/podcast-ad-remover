@@ -1,5 +1,9 @@
 # Decisions
 
+## 2026-10-11: Release rationale for removing built-in cascades
+
+Joe explained that sufficiently capable paid models are now affordable enough for many installations to use one directly. Dedicated routers such as 9Router, OmniRoute and LiteLLM can manage a three-tier cascade or account routing outside PAR; maintaining another cascade here duplicates that work for limited value. PAR selects one model and credential, with compatible external routing through the custom OpenAI-compatible endpoint. Every routed model must support native structured output. This records the maintainer's rationale, not a price guarantee or gateway compatibility certification. README and release notes explain the functional impacts of local Piper removal and other V2 changes. Final release wording awaits his review; no version bump or publication is authorized by preparation.
+
 ## 2026-10-10: Persistent pause and personal processing history
 
 Keep pause independent of retention and ownership: only admins change feed/global pause, running attempts finish, new claims wait and automatic episode cleanup stops. Keep the existing global RSS identity and add collection-based per-user unified feeds. Personal historical totals belong to memberships present at completion, survive later removal, and do not retroactively credit a newly added podcast. Count unique episodes by first recorded completion; disclose incomplete imported history and measured provider/transcription coverage. See [processing controls](PROCESSING_CONTROLS.md).
@@ -34,7 +38,7 @@ Use Complete Timeline exclusively, with native schemas and minimal valid-object 
 
 Combine cut-position switches by OR during migration; retain requested speech settings; preserve existing ownership semantics, media and identities. Fresh artwork/cut tones default on, other enhancements off. Import previews duplicates without network/writes, reuses memberships without ownership changes, and does not start an immediate episode check. Agent packages embed the canonical API guide at build time. Ownership changes and whisper.cpp remain deferred.
 
-Ask Joe to expand this rationale before V2 publication and finalize [V2_RELEASE_NOTES.md](V2_RELEASE_NOTES.md). Production promotion/version bump/image publication require separate approval.
+The expanded cascade rationale is recorded in the 11 October entry above; finalize [V2_RELEASE_NOTES.md](V2_RELEASE_NOTES.md) after Joe reviews the wording. Production promotion/version bump/image publication require separate approval.
 
 ## How to read earlier decisions
 
