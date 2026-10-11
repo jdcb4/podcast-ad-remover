@@ -1,122 +1,106 @@
 # V2 promotion preparation — 11 October 2026
 
 **Status: ready for maintainer documentation review, not approved for publication.**
-Proposed release: **2.0.0**. Package files still say 1.16.0. This preparation does
-not change `main`, SemVer/`latest`, repository deployment policy or live services.
+Proposed release: **2.0.0**. Package files still say 1.16.0. This documentation
+refresh does not change `main`, SemVer/`latest`, deployment policy or live services.
 
 ## Review first
 
+- [README: current features and screenshots](../README.md).
 - [README: what changes and why](../README.md#why-v2-simplifies-things).
 - [Draft public release body](V2_RELEASE_NOTES.md#proposed-release-body).
 - [Upgrade checklist and conversion table](V2_UPGRADE.md).
 - [Measured image sizes](RESOURCE_AUDIT.md#release-image-comparison--11-october-2026).
 
-Joe's expanded rationale is recorded: affordable capable paid models make one
-model practical for many users, and 9Router, OmniRoute and LiteLLM provide external
-routing for those who need it. The README focuses on current features, CUDA acceleration and the principles behind
-the three main V2 changes. Detailed compatibility conversions live in the changelog,
-separate V2 release notes and upgrade guide. It links the hosted wizard and a
-self-contained HTML download; users do not need to build or serve the wizard.
-The explanation reminder has been raised; final wording still needs Joe's review.
+Joe's expanded rationale is incorporated: capable paid models make one selected
+model practical for many users, while 9Router, OmniRoute and LiteLLM provide
+external routing for those who need it. The README emphasizes the current app,
+optional CUDA acceleration and the principles behind the three main V2 changes.
+Detailed compatibility conversions remain in the changelog, release notes and
+upgrade guide. Installation starts with Docker/source, followed by the optional
+hosted or single-HTML wizard. Current screenshots use disposable demonstration
+data rather than a private library.
+
+Joe expressed satisfaction and requested this final tidy-up on 11 October.
+The explanation reminder has been raised; record acceptance of final release
+wording before publication rather than asking him to repeat the rationale.
 
 ## Application evidence
 
-The tested application revision is `bbced603103a159c35565621eaf3e98dc46bbe79`
-(PR #53), image `dev-bbced60`, immutable digest
-`sha256:b5bc458c9d93c4b3cf84edf91ea4ab6c010c48df50843bdd1b929b5c4972edaa`.
-Required merged-dev CI [38092782179](https://github.com/jdcb4/podcast-ad-remover/actions/runs/38092782179)
-passed. That build passed 780 tests / 8 skips, syntax, CSS and audits, with the
-existing documented build-only frontend exception. Offline container smoke covered
-native imports, database/backup, audio conversion, startup, health and assets.
+The tested application revision is `35c0e13e2f3f7e84ce58ce1857f13373eb67af85`,
+including [PR #54](https://github.com/jdcb4/podcast-ad-remover/pull/54) and
+[PR #55](https://github.com/jdcb4/podcast-ad-remover/pull/55). Its image is
+`dev-35c0e13`, immutable digest
+`sha256:abe063c8b8fc98864e9d643775419c678e138c8e0158781007ba0038bc0fd39b`.
+Required merged-dev CI [38118175834](https://github.com/jdcb4/podcast-ad-remover/actions/runs/38118175834)
+passed. Exact-image qualification passed 785 tests / 8 skips, syntax, CSS and
+dependency audits with the documented build-only frontend exception. Offline
+container smoke covered native imports, database/backup, audio conversion,
+startup, health and assets.
 
-The exact image was deployed to the maintainer's Dev and production instances at
-his request. These instance updates did not publish V2 to `latest`. Production
-qualification included a network-disabled startup on a copied database,
-preservation of existing rows, an integrity-checked cutover snapshot, unchanged
-runtime configuration and sibling containers, healthy worker/media, login/logout,
-dashboard/settings/Stats, reports/transcripts, individual/personal/global RSS,
-two byte-checked HTTP206 audio ranges and artwork across six public/LAN/Tailscale
-addresses. Counts at cutover:4 users,91 subscriptions,27504 episodes,1850 jobs.
-Backup coverage passed; monitoring reported22up and no down/warn/unknown checks.
-Sanitized operational receipts and recovery details are in the private homelab
-reference, not in this public repository. This qualifies those installations,
-not every provider, operating system, podcast player or GPU host.
+That exact image runs in the maintainer's Dev and production instances at his
+request. These installation updates did not publish V2 to `latest` or promote
+source `main`. Cutover checks covered database integrity and row preservation,
+unchanged configuration/mounts and sibling containers, worker/media readiness,
+authenticated pages, reports/transcripts and individual/personal/global RSS.
+Production counts at cutover: 4 users, 91 subscriptions, 27506 episodes, 1853 jobs.
+Backup coverage passed; monitoring reported 22 up with no down/warn/unknown checks.
 
-## Findings from this review
+Player qualification checked rendered controls, inline playback, separate
+attachment downloads and byte-checked HTTP 206 seeking. Dev playback checks
+covered three HTTPS origins; production playback checks covered its public HTTPS
+origin. Artwork was byte-checked across seven Dev and six production addresses,
+with same-origin UI URLs, absolute RSS artwork and unchanged CSP. Sanitized
+operational receipts and recovery details remain in the private homelab reference.
+This qualifies those installations, not every provider, browser, operating system,
+podcast player or GPU host.
 
-1. **Rationale incorporated; copy review pending.** The earlier reminder to obtain
-   Joe's explanation now records what he supplied rather than asking him again.
-2. **Old seam finding superseded.** The October 8 implementation retains segments
-   intersecting ownership windows and groups connected cross-chunk overlaps.
-   Cached nested overlaps are normalized without rewriting source transcripts.
-   README/release notes now explain conservative/coarser boundaries and possible
-   repeated wording, rather than claiming the old segment-start-only algorithm
-   is still running. Synthetic regression coverage does not substitute for a new
+## Release findings
+
+1. **Classification boundaries:** the October 8 seam fix retains crossing speech
+   and connected overlap alternatives, including cached nested overlaps, without
+   rewriting source transcripts. Ambiguous items can have coarser cut boundaries
+   and repeated wording. Synthetic regression tests do not replace a new
    real-audio CPU/GPU benchmark. See [timeline boundaries](COMPLETE_TIMELINE.md#boundaries-and-processing-order).
-3. **Hosted installer still blocked.** Fresh read-only checks on11October found
-   the Pages root serves the old evaluation report (HTTP200), while `/dev/` is404.
-   Allowed environment branches remain `master` and the retired experimental
-   branch. [Run38093480028](https://github.com/jdcb4/podcast-ad-remover/actions/runs/38093480028)
-   failed on that policy. Both stable and Dev installer publication dispatch from
-   `dev`. At Joe's request the launch README assumes working hosting; this dated
-   operational finding remains a publication gate. A single downloadable HTML
-   wizard now works without adjacent assets or a server. Repository-policy changes
-   and Pages publication remain separate actions.
-4. **Image reduction measured.** Compared with1.16.0, the tested V2 image is
-   47.8MB smaller in uncompressed layers (3.4%) and25.3MB smaller in compressed
-   registry layers (5.3%). Docker Desktop reports73.1MB less combined stored content
-   (3.9%), which includes both representations. This is the net release difference,
-   not an isolated Piper saving. Piper/phonemizer package files account for46.2MB;
-   shared ONNX Runtime remains required by faster-whisper.
-   Downloaded models, CUDA libraries and user data are outside the image.
+2. **Hosted installer publication is blocked:** checks on 11 October found the
+   Pages root still serves the old evaluation report and `/dev/` returns 404.
+   Environment rules permit retired branches rather than `dev`; the latest
+   [publication run 38118318989](https://github.com/jdcb4/podcast-ad-remover/actions/runs/38118318989)
+   was rejected by that protection. Both channel workflows dispatch from `dev`.
+   At Joe's request, launch README copy assumes working hosting; resolve and verify
+   this gate before publication. The committed single-HTML download already works
+   independently of Pages.
+3. **Image measurements are an earlier baseline:** the measured V2 image
+   `dev-bbced60` (digest `b5bc458…`) was 47.8 MB smaller in uncompressed layers
+   (3.4%) and 25.3 MB smaller in compressed registry layers (5.3%) than 1.16.0.
+   Docker Desktop reported 73.1 MB less combined stored content (3.9%).
+   These are net differences, not isolated Piper savings. Piper/phonemizer package
+   files accounted for 46.2 MB; ONNX Runtime remains required by faster-whisper.
+   Downloaded models, optional CUDA libraries and user data are outside the image.
+   These measurements predate the current player build and must not be relabeled
+   as its size.
 
 ## Remaining promotion steps
 
-1. Joe reviews the README and release wording; record acceptance. Resolve the
-   installer policy/publication issue before launch. The README is intentionally
-   written for working hosting; verify the hosted and single-HTML downloads before
-   publishing that copy.
-2. Confirm2.0.0 and authorize cutting the versioned candidate. Align package files
-   and dated changelog, commit on `dev`, run the required local/Docker checks,
-   publish the exact Dev candidate and qualify its immutable image. Re-measure
-   that final candidate; this review's image measurements predate docs/version changes.
-3. Obtain explicit approval for that candidate's release. Promote the approved
-   revision to `main` by fast-forward, then verify/publish2.0.0 and `latest` under
+1. Review the updated README and final release wording; record acceptance. Resolve
+   the installer environment/publication issue, then verify hosted channels,
+   single-HTML downloads and displayed immutable image metadata.
+2. Confirm 2.0.0 and authorize cutting the versioned candidate. Align package files
+   and dated changelog on `dev`; run required local/Docker checks, publish and
+   qualify its exact immutable Dev image. Re-measure that final candidate.
+3. Obtain explicit approval for that candidate's release. Fast-forward `main` to
+   the approved revision, then verify/publish 2.0.0 and `latest` under
    [VERSIONING.md](VERSIONING.md). Verify release metadata, installer assets and
-   the chosen installation/recovery point. Keep experimental CUDA limits visible.
+   recovery points; keep experimental CUDA limits visible.
 
-## Verification of this documentation change
+## Verification of this documentation refresh
 
-`npm run verify:docker` passed with Python3.11:780tests,8skips, Python syntax,
-Tailwind rebuild, frontend audit with the existing documented build-only exception,
-Python audit with no known vulnerabilities, and a local Docker build. The suite
-reported the existing AnyIO deprecation warning; Tailwind reported stale Browserslist
-metadata. Local file/heading checks covered83Markdown links without errors;
-`git diff --check` passed. Documentation-only edits made after the application
-checks do not change runtime code or dependencies. The final versioned candidate
-still requires its own release qualification.
-No new model calls, paid inference, live data migration, image push or deployment
-is part of this documentation review.
-
-### README and single-file wizard follow-up
-
-At Joe's request, the README now emphasizes current app features and CUDA speed,
-with a short principles section for Piper removal, cascade removal and Complete
-Timeline. Detailed compatibility conversions are consolidated in the changelog;
-the separate V2 release notes remain linked. Installation copy assumes working
-Pages hosting and offers one downloadable HTML file, without user-facing local
-build/server steps.
-
-The configurator builder embeds CSS, scripts and channel metadata into `install.html`,
-with exact CSP hashes and network connections still blocked. Publication regenerates
-it for the channel's immutable image. The committed source copy clearly selects Dev.
-Automated checks exercise the standalone file after deleting adjacent assets,
-including GPU Compose generation, separate environment download, secret preservation,
-explicit rotation and clearing. Hash checks and committed-output drift checks pass.
-The browser client's URL policy prevented a native `file://` preview; automated
-file-page tests passed, but no native-browser file preview is claimed.
-
-`npm run verify` passed:781 tests,8 skips, syntax, CSS and dependency audits with
-the existing documented frontend exception. Local Markdown links and
-`git diff --check` passed. The application runtime and dependencies are unchanged;
-the final versioned release candidate still needs the normal Docker qualification.
+The refresh updates release evidence and adds current README captures plus a
+disposable, loopback-only screenshot helper. Application runtime code and
+dependencies are unchanged. `npm run verify:docker` passed: 785 tests, 8 skips,
+syntax, CSS, dependency audits with the documented build-only exception, and a
+local Docker build. All 67 checked local documentation/image links resolve;
+`git diff --check` passed. Demo pages/artwork returned HTTP 200 and writes were
+rejected with HTTP 405. The three reviewed screenshots total 161442 bytes.
+The final versioned candidate still requires release qualification.
+No paid inference, live migration, image push or deployment is part of this refresh.

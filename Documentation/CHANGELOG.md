@@ -34,6 +34,9 @@ move existing audio until explicitly requested.
 
 ### Additions and fixes
 
+- Refresh the README with compact, linked screenshots of the current library,
+  inline playback/summaries and content-removal preferences using disposable demo
+  data. Reconcile V2 release notes and promotion evidence with the tested player build.
 - Put normal Docker installation and source-build instructions before the
   optional installation wizard in the README and V2 release notes.
 
@@ -45,8 +48,7 @@ move existing audio until explicitly requested.
   total time. Only one episode plays at a time; published episodes also have a
   separate Download audio action that requests an immediate file download.
 
-- Fix the episode Play button opening a download on desktop browsers. Audio is
-  served with an inline disposition for in-page playback;
+- Serve playback audio with an inline disposition and explicit downloads as attachments;
   filenames, RSS audio URLs and byte-range seeking remain supported.
 
 - Fix generated podcast artwork in the dashboard, public Subscribe page and podcast details when the browser address differs from the configured public URL, using same-origin UI paths while preserving absolute RSS URLs and the existing CSP.
@@ -68,7 +70,7 @@ move existing audio until explicitly requested.
 
 - Fix separate-audio migration and playback for legacy Linux episode folders containing colons (including BBC and SoundCloud GUIDs). Failed batches can resume without renaming files or changing published URLs.
 
-- Prepare a shorter launch README with key features, breaking-change rationale and the web wizard link; document the Pages deployment blocker and local preview, and reconcile stale short-island guidance with the fixed 10-second policy.
+- Prepare a shorter launch README with key features, breaking-change rationale and the web wizard link; document the Pages deployment blocker and reconcile stale short-island guidance with the fixed 10-second policy.
 
 - Keep podcast Save settings visible and disabled when unchanged; clarify show-specific classification guidance and align replacement-feed controls. Verify guidance reaches the model’s system prompt and invalidates classification caches.
 

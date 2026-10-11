@@ -15,10 +15,19 @@ Transcription runs locally with faster-whisper. Your chosen AI model classifies 
 - **Transcribe faster with NVIDIA CUDA.** A compatible NVIDIA GPU can make local transcription significantly faster than CPU processing. Use **Transcription → Set up / retest GPU acceleration** after granting Docker GPU access. CPU remains supported; CUDA is optional and experimental. See [GPU setup and requirements](Documentation/CUDA.md).
 - **Bring your subscriptions.** Search for podcasts, add RSS feeds or public YouTube channels/playlists, and import OPML exports such as Pocket Casts.
 - **Make episodes easier to browse.** Add optional descriptions, spoken titles and summaries, artwork badges and cut tones; customize feed names with a prefix or suffix.
+- **Listen in the browser.** Play or pause episodes, seek through the audio and download a copy with separate controls.
 - **Control your library.** Set retention, pause individual feeds or all processing, retry episodes and process a show's archive. Finished audio can live on a separate disk or NAS.
 - **See what is happening.** Track processing and library statistics, use the desktop/mobile interface and light/dark mode, and optionally enable notifications or the scoped API with a [portable agent skill](Documentation/Agent_Skill.md).
 
 PAR needs Docker, storage for your library, and a suitable analysis model. Remote analysis and optional speech can incur charges. AI classification and cut timing are imperfect; reports and per-show settings help you review the results.
+
+## A look inside
+
+<a href="Documentation/screenshots/v2-library.webp"><img src="Documentation/screenshots/v2-library.webp" width="280" alt="My Pods library with podcast covers and RSS subscription actions"></a>
+<a href="Documentation/screenshots/v2-playback.webp"><img src="Documentation/screenshots/v2-playback.webp" width="280" alt="Episode summaries with inline pause, seek and download controls"></a>
+<a href="Documentation/screenshots/v2-content-removal.jpg"><img src="Documentation/screenshots/v2-content-removal.jpg" width="280" alt="Podcast defaults with content-removal category controls"></a>
+
+Library browsing · Playback and summaries · Content-removal preferences. Screenshots use demo data; click to enlarge.
 
 ## Install
 
