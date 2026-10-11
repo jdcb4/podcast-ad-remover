@@ -21,7 +21,9 @@ pip install -r requirements-dev.txt
 
 `tests/test_management_http.py` follows rendered episode Play links through the
 audio redirect and checks inline MP3/M4A/OGG/WAV responses, encoded filenames and
-byte-range seeking against isolated media files.
+byte-range seeking against isolated media files. It also checks attachment
+downloads and runs the shipped player script in jsdom for Play/Pause, progress,
+seeking, switching episodes, completion, errors and replacement cards.
 
 `tests/test_artwork_watermark.py` renders dashboard, public Subscribe and podcast detail
 pages with HTTP/HTTPS browser origins differing from the configured public URL. It checks

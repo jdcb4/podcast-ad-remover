@@ -557,6 +557,7 @@
 </dialog>
 
 <script type="application/json" id="episode-page-data">{{ {'offset': episodes|length, 'pageSize': page_size|default(20), 'subscriptionId': subscription.id, 'total': total_episodes|default(0), 'hasProcessing': has_processing.value, 'canManage': can_manage_subscription}|tojson }}</script>
+<script src="/static/js/episode-player.js?v={{ static_asset_version('js/episode-player.js') }}" defer></script>
 <script src="/static/js/episodes.js?v={{ static_asset_version('js/episodes.js') }}" defer></script>
 <!-- Batch Actions Toolbar -->
 <div id="batch-actions"

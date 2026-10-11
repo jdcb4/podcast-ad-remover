@@ -198,7 +198,15 @@ def test_play_link_serves_inline_audio_and_supports_seeking(populated_client, ex
         conn.commit()
 
     page = populated_client.get('/subscriptions/90')
-    assert 'href="/episodes/90/audio"' in page.text
+    assert 'data-audio-url="/episodes/90/audio"' in page.text
+    assert 'href="/episodes/90/audio?download=true" download' in page.text
+    if extension == 'mp3':
+        import subprocess
+        import shutil
+        result = subprocess.run([shutil.which('node'), 'tests/episode_player_dom.cjs'],
+                                input=page.text, text=True, encoding='utf-8',
+                                capture_output=True, timeout=30)
+        assert result.returncode == 0, result.stderr
     redirect = populated_client.get('/episodes/90/audio', follow_redirects=False)
     assert redirect.status_code == 307
     assert redirect.headers['location'] == '/audio/show/one/' + quote(filename)
@@ -215,6 +223,11 @@ def test_play_link_serves_inline_audio_and_supports_seeking(populated_client, ex
     assert partial.content == payload[3:8]
     assert partial.headers['content-range'] == f'bytes 3-7/{len(payload)}'
     assert partial.headers['content-disposition'] == response.headers['content-disposition']
+
+    download = populated_client.get('/episodes/90/audio?download=true')
+    assert download.status_code == 200
+    assert download.content == payload
+    assert download.headers['content-disposition'] == response.headers['content-disposition'].replace('inline;', 'attachment;')
 
 
 def test_ip_denial_crosses_real_middleware_stack_as_403(isolated_data_dir):
