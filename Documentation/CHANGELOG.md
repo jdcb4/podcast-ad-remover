@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Open the stable installer directly, retire the Dev wizard, and restrict Pages
+  publication to `main`. Dev Docker publishing no longer dispatches Pages.
+
 ## 2.0.0 - 2026-10-11
 
 ### Compatibility and significant behavior changes
