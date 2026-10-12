@@ -2,10 +2,6 @@ name: Publish install configurator
 on:
   workflow_dispatch:
     inputs:
-      channel:
-        type: choice
-        options: [dev, stable]
-        required: true
       revision:
         description: Exact published commit SHA
         required: true
@@ -21,6 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -28,30 +25,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.revision }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - name: Validate published revision and image
         env:
-          CHANNEL: ${{ inputs.channel }}
+          CHANNEL: stable
           REVISION: ${{ inputs.revision }}
           IMAGE: ${{ inputs.image }}
         run: |
           python - <<'PY'
           import json, os, pathlib, re, subprocess
           channel, rev, image = [os.environ[k] for k in ('CHANNEL','REVISION','IMAGE')]
-          assert channel in ('dev','stable')
+          assert channel == 'stable'
           assert re.fullmatch(r'[a-f0-9]{40}', rev)
-          branch = 'dev' if channel == 'dev' else 'main'
+          branch = 'main'
           subprocess.run(['git','merge-base','--is-ancestor',rev,'origin/'+branch],check=True)
-          pattern = r'dev-[a-f0-9]{7,40}' if channel == 'dev' else r'\d+\.\d+\.\d+'
+          pattern = r'\d+\.\d+\.\d+'
           assert re.fullmatch('jdcb4/podcast-ad-remover:'+pattern,image)
-          if channel == 'dev': assert rev.startswith(image.split(':dev-')[1])
-          else: assert image.rsplit(':',1)[1] == json.loads(pathlib.Path('package.json').read_text())['version']
+          assert image.rsplit(':',1)[1] == json.loads(subprocess.check_output(['git','show',rev+':package.json']))['version']
           subprocess.run(['docker','manifest','inspect',image],check=True,stdout=subprocess.DEVNULL)
           PY
-      - name: Preserve other channel and build static site
+      - name: Build stable-only static site
         env:
-          CHANNEL: ${{ inputs.channel }}
+          CHANNEL: stable
           REVISION: ${{ inputs.revision }}
           IMAGE: ${{ inputs.image }}
         run: |
@@ -76,8 +72,13 @@ jobs:
           (target/'release.js').write_text('window.INSTALL_RELEASE = Object.freeze('+json.dumps(meta)+');\n')
           subprocess.run(['python','scripts/build_configurator.py',str(target)],check=True)
           (site/'.nojekyll').touch()
-          links = ''.join(f'<li><a href="{c}/">{c.title()} install configurator</a></li>' for c in ('stable','dev') if (site/c/'index.html').exists())
-          (site/'index.html').write_text('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Podcast Ad Remover installation</title><h1>Install Podcast Ad Remover</h1><ul>'+links+'</ul></html>')
+          # The root opens the wizard directly; retain /stable/ download URLs.
+          for asset in target.iterdir():
+              if asset.is_file(): shutil.copy2(asset, site / asset.name)
+          # Retire previously published Dev installers, including their downloads.
+          if (site/'dev').exists(): shutil.rmtree(site/'dev')
+          (site/'dev').mkdir()
+          (site/'dev'/'index.html').write_text('<!doctype html><html lang="en"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=../"><title>Stable installer</title><a href="../">Open stable installer</a></html>')
           for args in [('config','user.name','github-actions[bot]'),('config','user.email','41898282+github-actions[bot]@users.noreply.github.com'),('add','.'),('commit','--allow-empty','-m',f'Publish {channel} configurator for {meta["revision"]}')]:
               subprocess.run(['git','-C',str(site),*args],check=True)
           subprocess.run(['git','-C',str(site),'push',str(pathlib.Path.cwd()),'HEAD:refs/heads/configurator-pages-build'],check=True)

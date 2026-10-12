@@ -78,9 +78,6 @@ def main() -> int:
         run([sys.executable, "scripts/verify.py"], "Pre-build verification")
 
     build_image(args.platform, tags, [], args.push, labels=[f"org.opencontainers.image.revision={git_output('rev-parse', 'HEAD')}"])
-    if args.push and args.repository == DEFAULT_REPOSITORY:
-        from publish_configurator import dispatch
-        dispatch('dev', git_output('rev-parse', 'HEAD'), tags[1])
     print("\nBuilt tags: " + ", ".join(tags))
     return 0
 

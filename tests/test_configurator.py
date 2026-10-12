@@ -98,7 +98,7 @@ def test_single_file_runs_without_adjacent_assets_and_keeps_strict_csp(tmp_path)
     # Exercise the shipped single-file copy, with no other files beside it.
     result = generate(gpu=True, html=html)
     service = yaml.safe_load(result['output'])['services']['podcast-ad-remover']
-    assert service['image'] == 'jdcb4/podcast-ad-remover:dev'
+    assert service['image'] == 'jdcb4/podcast-ad-remover:latest'
     assert service['deploy']['resources']['reservations']['devices'][0]['capabilities'] == ['gpu']
     assert "OPENAI_API_KEY=key'with$dollar" in result['env']
     assert 'SESSION_SECRET_KEY' not in result['output']
@@ -112,3 +112,38 @@ def test_separate_media_mount_and_environment():
     result = generate('docker', shell='powershell', media='D:\\Media Store')
     assert 'target=/media' in result['output']
     assert 'MEDIA_DIR=/media' in result['env']
+
+
+def test_pages_build_opens_stable_wizard_and_retires_dev(tmp_path, monkeypatch):
+    import shutil
+    from types import SimpleNamespace
+    from scripts.build_configurator import build
+    workflow = yaml.load(Path('.github/workflows/publish-configurator.yml').read_text(), Loader=yaml.BaseLoader)
+    job = workflow['jobs']['publish']
+    assert job['if'] == "github.ref == 'refs/heads/main'"
+    assert 'channel' not in workflow['on']['workflow_dispatch']['inputs']
+    step = next(step for step in job['steps'] if step.get('name') == 'Build stable-only static site')
+    code = step['run'].split("python - <<'PY'\n", 1)[1].rsplit('\nPY', 1)[0]
+    shutil.copytree('configurator', tmp_path / 'configurator')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('CHANNEL', 'stable')
+    monkeypatch.setenv('REVISION', 'a' * 40)
+    monkeypatch.setenv('IMAGE', 'jdcb4/podcast-ad-remover:2.0.0')
+    def run(command, **kwargs):
+        if command[:2] == ['git', 'worktree']:
+            site = tmp_path / '_site'
+            (site / 'dev').mkdir(parents=True)
+            (site / 'dev' / 'install.html').write_text('old dev installer')
+        elif command[:2] == ['python', 'scripts/build_configurator.py']:
+            build(command[2])
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(subprocess, 'run', run)
+    exec(compile(code, '<Pages build>', 'exec'), {})
+    site = tmp_path / '_site'
+    assert (site / 'index.html').read_bytes() == (site / 'stable' / 'index.html').read_bytes()
+    assert '<form' in (site / 'index.html').read_text()
+    assert list((site / 'dev').iterdir()) == [site / 'dev' / 'index.html']
+    assert 'url=../' in (site / 'dev' / 'index.html').read_text()
+    assert '2.0.0' in (site / 'release.js').read_text()
+    assert (site / 'offline.zip').is_file()
+    assert (site / 'install.html').read_bytes() == (site / 'stable' / 'install.html').read_bytes()

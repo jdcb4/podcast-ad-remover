@@ -133,3 +133,30 @@ def test_fallback_push_failure_is_propagated(monkeypatch):
     command=next(c for c in calls if c[1]=='build')
     assert command[command.index('--label')+1]=='revision=test'
     assert calls[-1][1:] == ['push','repo:a']
+
+
+def test_installer_dispatch_uses_main_and_rejects_dev(monkeypatch):
+    from scripts import publish_configurator as publish
+    calls = []
+    monkeypatch.setattr(publish.shutil, 'which', lambda _: 'gh')
+    monkeypatch.setattr(publish.subprocess, 'run', lambda command, **kwargs: calls.append(command))
+    publish.dispatch('stable', 'a' * 40, 'jdcb4/podcast-ad-remover:2.0.0')
+    assert calls[0][calls[0].index('--ref') + 1] == 'main'
+    assert 'channel=stable' not in calls[0]
+    with pytest.raises(ValueError, match='Only stable'):
+        publish.dispatch('dev', 'a' * 40, 'jdcb4/podcast-ad-remover:dev-aaaaaaa')
+    assert len(calls) == 1
+
+
+def test_dev_publish_does_not_dispatch_installer(monkeypatch):
+    from scripts import publish_dev_docker as publish
+    from scripts import publish_configurator
+    monkeypatch.setattr(publish.sys, 'argv', ['publish_dev_docker.py', '--push', '--skip-verify'])
+    monkeypatch.setattr(publish, 'git_output', lambda *args: 'dev' if args[0] == 'branch' else '' if args[0] == 'status' else 'a' * 40)
+    builds = []
+    monkeypatch.setattr(publish, 'build_image', lambda *args, **kwargs: builds.append(args))
+    def unexpected(*args):
+        pytest.fail('Dev image publication must not dispatch Pages')
+    monkeypatch.setattr(publish_configurator, 'dispatch', unexpected)
+    assert publish.main() == 0
+    assert builds[0][3] is True

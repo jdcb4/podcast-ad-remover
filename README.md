@@ -55,7 +55,7 @@ The source Compose file mounts the checkout into the container for development. 
 
 The **[setup wizard](https://jdcb4.github.io/podcast-ad-remover/)** simplifies the Docker installation by generating Compose or Docker run files for your storage, URL and optional NVIDIA GPU. It runs entirely in your browser: credentials are not uploaded or saved in browser storage. Generated Compose files require Compose 2.30 or newer.
 
-You can also **[download the single HTML wizard](https://github.com/jdcb4/podcast-ad-remover/raw/refs/heads/gh-pages/stable/install.html)** and open it in your browser, including offline. No local server or build tools are needed. Check the image/channel displayed, save the generated install file and `install.env` together, then run the command shown.
+You can also **[download the single HTML wizard](https://github.com/jdcb4/podcast-ad-remover/raw/refs/heads/gh-pages/stable/install.html)** and open it in your browser, including offline. No local server or build tools are needed. Check the stable image displayed, save the generated install file and `install.env` together, then run the command shown.
 
 After installation, open PAR at your configured URL, complete or dismiss the optional in-app setup, add podcasts and subscribe to their replacement feeds. **For upgrades, preserve your data volume, configuration and session secret** and follow the [upgrade guide](Documentation/V2_UPGRADE.md). See also [configuration](Documentation/Environment_Variables.md) and [separate audio storage](Documentation/STORAGE.md).
 
