@@ -23,8 +23,10 @@ pip install -r requirements-dev.txt
 adjacent assets, verifies generated GPU Compose/environment output and secret
 lifecycle, checks embedded CSP hashes, and detects stale committed `install.html`
 after source changes. Rebuild that file with `python scripts/build_configurator.py`
-when changing configurator assets. The same builder generates channel-specific
-single-file downloads during Pages publication.
+when changing configurator assets. The same builder generates stable
+single-file downloads during Pages publication. Installer tests also cover
+main-only dispatch, Dev publishing without Pages, and direct stable homepage
+output with retired Dev downloads.
 
 `tests/test_management_http.py` follows rendered episode Play links through the
 audio redirect and checks inline MP3/M4A/OGG/WAV responses, encoded filenames and

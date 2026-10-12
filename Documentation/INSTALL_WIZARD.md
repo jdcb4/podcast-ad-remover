@@ -2,19 +2,12 @@
 
 The [web setup wizard](https://jdcb4.github.io/podcast-ad-remover/) prepares a new Docker installation without requiring you to write a Compose file. It runs entirely in your browser, including from an offline ZIP. Inputs are not uploaded, tracked or persisted in browser storage.
 
-## Published installer channels
+## Stable installer
 
-The Pages environment now permits the intended `dev` workflow branch while retaining
-channel/revision/image validation. The homepage and Dev channel were verified on
-11 October 2026 after successful run 38127114250. Stable publication accompanies
-the 2.0 release and is verified against its immutable image metadata.
-
-The landing page links to available channels:
-
-- [Stable installer](https://jdcb4.github.io/podcast-ad-remover/stable/): an explicitly published production version.
-- [Dev installer](https://jdcb4.github.io/podcast-ad-remover/dev/): an immutable published Dev revision.
-
-Check the image and revision displayed on the page. Neither channel means that every source commit has been published. The source preview uses the rolling `:dev` tag, not an exact build of your checkout.
+The homepage opens the stable wizard directly, with no channel selector. Existing
+`/stable/` links continue to work; `/dev/` redirects to the stable homepage and its
+old Dev downloads are removed on publication. Published assets display the exact
+production image and revision. The source checkout defaults to `:latest`.
 
 ## Prepare a new installation
 
@@ -39,8 +32,8 @@ Drain jobs and rehearse against backups before upgrading. Do not attach two runn
 The hosted wizard offers **Download single HTML wizard**. You can also
 [download the stable repository copy](https://github.com/jdcb4/podcast-ad-remover/raw/refs/heads/gh-pages/stable/install.html),
 save it as an HTML file and open it in your browser. No Python, local server or
-other files are needed. Published channel copies display their exact release
-image/revision; the source checkout's copy displays the Dev channel. Always check
+other files are needed. Published copies display their exact release
+image/revision; the source checkout's copy uses the stable `:latest` image. Always check
 that metadata before installing. The file generates configuration offline; Docker
 still needs access to the image registry when you install the application.
 
@@ -62,7 +55,7 @@ Generate the install files, then replace the output image with `podcast-ad-remov
 
 ## Maintainer publication checklist
 
-1. Review the GitHub `github-pages` environment branch rules. The dispatch helper runs the workflow from `dev` for both channels; allow that intended branch explicitly. Retain the workflow's checks that stable revisions belong to `main`, Dev revisions belong to `dev`, and immutable images exist. Do not disable environment protection wholesale.
-2. After authorized image publication, dispatch `publish-configurator.yml` with its full commit SHA, channel and immutable image tag. A workflow retry must retain the intended revision/image; do not substitute a rolling tag. Preparing docs does not authorize publication or permission changes.
-3. Check the landing page, channel page, `release.js`, single-file `install.html`, offline ZIP and agent ZIP. Verify the other channel was preserved. Generate and parse install output from the hosted page and downloaded HTML, and verify displayed metadata against the published image. `scripts/build_configurator.py` generates these assets; commit its repository `install.html` output whenever source assets change.
-4. Confirm live success and immutable image metadata before release announcement. Joe accepted the rationale and authorized 2.0 on 11 October 2026; follow the [release checklist](VERSIONING.md).
+1. Restrict the `github-pages` environment to `main`. The dispatch helper uses `main`, and the workflow skips other refs. Stable revisions must belong to `main`, match the package version and have an existing immutable Docker image.
+2. After authorized stable image publication, dispatch `publish-configurator.yml` from `main` with its full commit SHA and immutable image tag. Dev Docker publication does not dispatch Pages. Retries retain the intended revision/image.
+3. Check the homepage, `/stable/`, retired `/dev/` redirect, `release.js`, single-file `install.html`, offline ZIP and agent ZIP. Verify generated install output and displayed metadata against the image. Rebuild and commit repository `install.html` whenever source assets change.
+4. Confirm live success before announcement. Installer-only maintenance does not publish a new Docker image.
