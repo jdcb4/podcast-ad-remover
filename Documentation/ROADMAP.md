@@ -10,7 +10,7 @@ This roadmap lists improvement candidates. It is not a release commitment.
 
 ## Reliability
 
-- Fix Buzzsprout RSS client denial and masked podcast-management preview errors (reported by Joe, 2026-10-16; homelab follow-ups HL-0066 and HL-0083). Subscription 80, If Books Could Kill, is affected. See [investigation and acceptance criteria](BUG_BUZZSPROUT_PREVIEW.md); investigation only so far, with application changes and deployment still outstanding.
+- Qualify deployment of the Buzzsprout RSS client and podcast-management preview error fixes, then plan safe placeholder-metadata recovery (reported by Joe, 2026-10-16; homelab follow-ups HL-0066 and HL-0083). See [investigation and acceptance criteria](BUG_BUZZSPROUT_PREVIEW.md). Ordinary polling does not refresh subscription metadata.
 - Expand Python coverage around full processor lifecycle transitions and service boundaries.
 - Expand migration tests so they run against a copied realistic `podcasts.db`.
 - Measure long-episode performance and exercise paid-provider/unattended processing with a representative dev workload before production promotion.

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Identify RSS requests as `PAR/2.0 (+RSS reader)` to support publishers that reject
+  default HTTP clients, preserving existing download and network protections.
+- Show actual podcast source-feed/archive rejection messages and readable session or
+  non-JSON response errors instead of JSON parsing failures.
+
 - Open the stable installer directly, retire the Dev wizard, and restrict Pages
   publication to `main`. Dev Docker publishing no longer dispatches Pages.
 

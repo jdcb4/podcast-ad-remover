@@ -1,4 +1,6 @@
 import pytest
+import httpx
+import socket
 
 from app.core.config import settings
 from app.core.feed import FeedManager
@@ -40,6 +42,61 @@ class FakeHttpClient:
 
     def stream(self, method, url, **kwargs):
         return self.response
+
+
+@pytest.mark.parametrize("host", ["rss.buzzsprout.com", "feeds.buzzsprout.com"])
+def test_rss_reader_header_survives_validated_redirects(monkeypatch, isolated_data_dir, host):
+    from app.infra.database import init_db
+
+    init_db()
+    monkeypatch.setattr(settings, "ALLOW_PRIVATE_FEEDS", False)
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *args, **kwargs: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443))
+    ])
+    requests = []
+    xml = b'<rss version="2.0"><channel><title>Example</title></channel></rss>'
+
+    def handler(request):
+        requests.append(request)
+        if request.headers.get("User-Agent") != "PAR/2.0 (+RSS reader)":
+            return httpx.Response(403, text="<html>Forbidden</html>")
+        if request.headers["Host"] == "feeds.buzzsprout.com":
+            return httpx.Response(302, headers={"Location": "https://rss.buzzsprout.com/2040953.rss"})
+        return httpx.Response(200, content=xml)
+
+    client_class = httpx.Client
+    monkeypatch.setattr("app.core.feed.httpx.Client", lambda **kwargs: client_class(
+        transport=httpx.MockTransport(handler), **kwargs
+    ))
+    assert FeedManager._fetch_feed(f"https://{host}/2040953.rss") == xml
+    assert len(requests) == (2 if host == "feeds.buzzsprout.com" else 1)
+    for request in requests:
+        assert request.url.host == "8.8.8.8"
+        assert request.extensions["sni_hostname"] == request.headers["Host"]
+        assert request.extensions["timeout"]["read"] == 30.0
+
+
+def test_feed_client_blocks_private_redirect_with_reader_header(monkeypatch, isolated_data_dir):
+    from app.infra.database import init_db
+
+    init_db()
+    monkeypatch.setattr(settings, "ALLOW_PRIVATE_FEEDS", False)
+    monkeypatch.setattr(socket, "getaddrinfo", lambda host, *args, **kwargs: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1" if host == "private.test" else "8.8.8.8", 443))
+    ])
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(302, headers={"Location": "https://private.test/feed"})
+
+    client_class = httpx.Client
+    monkeypatch.setattr("app.core.feed.httpx.Client", lambda **kwargs: client_class(
+        transport=httpx.MockTransport(handler), **kwargs
+    ))
+    with pytest.raises(ValueError, match="non-public"):
+        FeedManager._fetch_feed("https://public.test/feed")
+    assert len(requests) == 1
 
 
 def test_fetch_feed_rejects_oversized_content_length(monkeypatch):

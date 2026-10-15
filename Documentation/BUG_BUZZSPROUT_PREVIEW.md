@@ -1,6 +1,7 @@
 # Buzzsprout feed denial and masked preview errors
 
-Recorded and investigated: 2026-10-16. Status: open; investigation only.
+Recorded and investigated: 2026-10-16. Status: fixes implemented locally; deployment
+and placeholder-metadata recovery outstanding.
 Homelab follow-ups: HL-0066 (feed client), HL-0083 (preview errors).
 
 ## Reported production evidence
@@ -77,5 +78,33 @@ Inspected local dev revision `25f1a93` without running application operations:
 - Stale Loading... metadata has an explicit recovery plan; successful polling alone
   must not be assumed to repair it.
 
-No application code, production configuration, subscriptions or jobs changed in this
-investigation. No provider calls, production preview requests or polling were run.
+The initial investigation changed no application code or production state.
+
+## Implementation, 16 October 2026
+
+Joe subsequently authorized both fixes, requesting a neutral RSS client identity.
+The shared feed client now uses `PAR/2.0 (+RSS reader)`; no expanded product name
+or repository URL is included in that header. Applied the JavaScript, regression
+tests and operations documentation from commit `32d58f6` onto the current branch.
+URL validation, redirect/DNS protections, size limits and timeouts remain intact.
+
+Anonymous GET probes from the workstation using the actual changed FeedManager
+and a disposable data directory retrieved both official URLs successfully. Each
+returned valid XML titled If Books Could Kill with 80 entries, ending at the saved
+rss URL. This qualifies the exact neutral header from the workstation; the changed
+client has not been deployed or re-probed inside production.
+
+Regression coverage exercises header-dependent rejection/success, both URL forms,
+restricted-mode DNS pinning and blocked private redirects, same-URL/denied-feed
+HTTP 409 JSON responses, and JavaScript message/session/non-JSON handling. Database
+checks use temporary fixtures and assert rejected previews leave feeds/jobs intact.
+Production configuration, subscriptions, jobs and metadata remain unchanged. No
+production preview/polling or provider calls were run. Loading... recovery remains
+separate work.
+
+Verification passed with the existing project Python 3.11 environment on PATH:
+`npm run verify` (795 tests passed, 8 skipped; syntax, CSS and dependency audits
+passed with the documented frontend build-only exception). The 31 focused feed,
+redirect and operation regressions passed. An initial run using default system
+Python 3.13 failed because that environment lacks Anthropic and has older serving
+dependencies; no application workaround or dependency migration was introduced.

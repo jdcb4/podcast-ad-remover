@@ -33,6 +33,98 @@ def test_archive_order_pause_cancel_keep_retention(show):
         assert conn.execute('SELECT keep_whole_show FROM subscriptions').fetchone()[0] == 1
 
 
+def test_no_eligible_confirmation_with_real_error_handler(show):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.web.error_handlers import configure_error_handlers
+    from app.web.podcast_operations import router
+    sid, entries = show
+    with get_db_connection() as conn:
+        for item in entries:
+            conn.execute("INSERT INTO episodes(subscription_id,guid,title,original_url,status) VALUES(?,?,?,?,'ignored')",
+                         (sid, item['guid'], item['title'], item['original_url']))
+        conn.commit()
+    app = FastAPI()
+    app.include_router(router)
+    configure_error_handlers(app)
+    client = TestClient(app)
+    headers = {'Accept': 'application/json'}
+    preview = client.post(f'/subscriptions/{sid}/operations/preview', json={'kind': 'archive'}, headers=headers).json()
+    assert preview['counts']['eligible'] == 0
+    response = client.post(f'/subscriptions/{sid}/operations/confirm', json={'preview_id': preview['preview_id']}, headers=headers)
+    assert response.status_code == 409
+    assert response.json()['message'] == 'There are no eligible episodes to process.'
+    with get_db_connection() as conn:
+        assert conn.execute('SELECT count(*) FROM archive_batches').fetchone()[0] == 0
+        assert conn.execute('SELECT count(*) FROM jobs').fetchone()[0] == 0
+
+
+@pytest.mark.parametrize('same_url', [True, False])
+def test_feed_preview_rejections_with_real_error_handler(show, monkeypatch, same_url):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from app.web.error_handlers import configure_error_handlers
+    from app.web.podcast_operations import router
+
+    sid, _ = show
+    def denied(url):
+        raise RuntimeError('Upstream HTTP 403')
+    monkeypatch.setattr(ops, 'discover_history', denied)
+    with get_db_connection() as conn:
+        url = conn.execute('SELECT feed_url FROM subscriptions WHERE id=?', (sid,)).fetchone()[0]
+    app = FastAPI()
+    app.include_router(router)
+    configure_error_handlers(app)
+    response = TestClient(app).post(
+        f'/subscriptions/{sid}/operations/preview',
+        json={'kind': 'feed', 'url': url if same_url else 'https://new.org/feed'},
+        headers={'Accept': 'application/json'},
+    )
+    assert response.status_code == 409
+    message = response.json()['message']
+    if same_url:
+        assert message == 'Choose a different feed URL.'
+    else:
+        assert message.startswith('Could not discover complete available RSS history.')
+    with get_db_connection() as conn:
+        assert conn.execute('SELECT feed_url FROM subscriptions WHERE id=?', (sid,)).fetchone()[0] == url
+        for table in ('jobs', 'episodes', 'archive_batches', 'podcast_previews'):
+            assert conn.execute(f'SELECT count(*) FROM {table}').fetchone()[0] == 0
+
+
+def test_operation_javascript_error_responses():
+    import shutil
+    import subprocess
+    script = r"""
+const {JSDOM}=require('jsdom'),fs=require('node:fs'),assert=require('node:assert/strict');
+const source=fs.readFileSync('app/web/static/js/podcast-operations.js','utf8');
+async function check(response, expected){
+ const dom=new JSDOM(`<div id="podcast-operations" data-subscription-id="78"><button data-preview-operation="archive"></button></div><div id="podcast-operation-status"></div><dialog id="podcast-operation-dialog"></dialog><button id="confirm-podcast-operation"></button>`,{runScripts:'outside-only'});
+ const w=dom.window,calls=[];
+ w.setInterval=()=>0;
+ w.fetch=async(url,options)=>{calls.push({url,options});return response;};
+ w.eval(source);
+ const button=w.document.querySelector('[data-preview-operation]');button.click();
+ await new Promise(resolve=>setTimeout(resolve,10));
+ assert.equal(w.document.getElementById('podcast-operation-status').textContent,expected);
+ assert.equal(button.disabled,false);
+ assert.equal(calls.length,2);
+ for(const call of calls)assert.equal(call.options.headers.Accept,'application/json');
+ assert.equal(calls[1].options.headers['Content-Type'],'application/json');
+ assert.equal(JSON.parse(calls[1].options.body).kind,'archive');
+ dom.window.close();
+}
+(async()=>{
+ for(const field of ['detail','message','error'])await check({ok:false,status:409,json:async()=>({[field]:'There are no eligible episodes to process.'})},'There are no eligible episodes to process.');
+ for(const message of ['Choose a different feed URL.','Could not discover complete available RSS history.'])await check({ok:false,status:409,json:async()=>({message})},message);
+ await check({ok:false,status:502,json:async()=>{throw SyntaxError('HTML');}},'Unexpected server response (HTTP 502). Reload the page and try again.');
+ await check({ok:true,status:200,redirected:true,json:async()=>{throw Error('must not parse');}},'Session expired. Reload the page and sign in again.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
+"""
+    result = subprocess.run([shutil.which('node'), '-e', script], text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
+
+
 def test_feed_review_alias_and_preserved_identity(show):
     sid, entries = show
     with get_db_connection() as conn:
