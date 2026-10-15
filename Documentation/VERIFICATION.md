@@ -49,6 +49,12 @@ model download or paid inference.
 
 `tests/test_podcast_operations.py` covers reviewed identity mapping, stale/duplicate previews, rollback, archive ordering and normal-work priority, exclusions, inherited-window preservation, pause/retry/restart behavior, cancellation, retention deletion guards and API ownership/scopes. Provider calls use fixtures, not paid inference. `tests/test_v2_interface.py` also checks draft voice preview, temporary cleanup, credential removal, environment precedence and catalog preservation with the actual JavaScript in jsdom. Docker build tests cover Buildx selection, native architecture checks, tag/argument retention and failure propagation.
 
+Podcast operation regressions also check same-URL and denied-feed JSON rejection
+messages, unchanged subscription/job/preview state on rejection, and the shipped
+JavaScript's message fields, HTML responses and session redirects. Feed-manager
+tests exercise the neutral RSS-reader header through redirects, restricted DNS
+pinning, private-target denial and size limits using synthetic responses.
+
 `tests/test_podcast_import.py` covers nested OPML, URL normalization, duplicates, invalid/oversized inputs, entity rejection, membership/ownership preservation, API permissions, partial failures, retries and upload origin checks. `tests/test_api_contract_docs.py` checks the documented endpoint inventory and PATCH fields against the live schema, scope metadata and the distributable skill archive. Import tests use synthetic feeds and isolated databases.
 
 Theme behavior is covered by `tests/test_theme.py`, using the rendered shared header and actual

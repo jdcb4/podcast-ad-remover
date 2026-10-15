@@ -51,11 +51,17 @@ class FeedDocument(bytes):
         return document
 
 class FeedManager:
+    RSS_USER_AGENT = "PAR/2.0 (+RSS reader)"
+
     @staticmethod
     @_private_request
     def _fetch_feed(url: str) -> bytes:
         validate_http_url(url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
-        with httpx.Client(trust_env=settings.ALLOW_PRIVATE_FEEDS, timeout=30.0) as client:
+        with httpx.Client(
+            trust_env=settings.ALLOW_PRIVATE_FEEDS,
+            timeout=30.0,
+            headers={"User-Agent": FeedManager.RSS_USER_AGENT},
+        ) as client:
             with stream_get(client, url) as response:
                 response.raise_for_status()
                 validate_redirect_target(url, str(response.url), allow_private=settings.ALLOW_PRIVATE_FEEDS)
