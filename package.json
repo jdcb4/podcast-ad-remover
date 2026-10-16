@@ -1,6 +1,6 @@
 {
   "name": "podcast-ad-remover",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Self-hosted podcast processing app that downloads episodes, removes ads with local transcription and LLM analysis, and publishes replacement RSS feeds.",
   "private": true,
   "scripts": {
