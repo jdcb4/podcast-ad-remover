@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.1.0 - 2026-10-16
+
 - Publish releases by promoting an explicitly selected qualified Dev image, requiring exact commit/version/CI agreement and unchanged image digests; never rebuild during publication.
 - Show the current ingestion URL in owner/admin podcast management controls.
 - Export selected PAR replacement feeds as OPML from My Podcasts or Library, including current-user feed authentication when enabled. Selection works across cards, mobile rows and tables without granting bulk-management permission.
