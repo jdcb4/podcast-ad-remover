@@ -49,6 +49,7 @@ dialog::backdrop { background:#0008; }
 .podcast-selection { display:flex; align-items:center; gap:8px; min-height:44px; padding:8px 16px; font-size:14px; }
 .podcast-selection-icon { display:grid; place-items:center; width:44px; height:44px; flex-shrink:0; }
 #ingestion-url { width:100%; margin-top:8px; }
+#export-opml:disabled { opacity:.45; cursor:not-allowed; }
 .settings-navigation { display:grid; gap:2px; padding-left:12px; font-size:14px; }
 .settings-navigation a { padding:7px 12px; }
 .settings-navigation a[aria-current=page] { color:var(--link); background:#7c3aed18; }
