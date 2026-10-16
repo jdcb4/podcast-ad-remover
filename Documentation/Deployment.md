@@ -175,16 +175,20 @@ Before publishing:
 npm run verify:docker
 ```
 
-To publish the current version from `package.json`:
+After qualifying the exact versioned Dev image and obtaining production approval,
+promote its commit to `main` and publish its recorded digest without rebuilding:
 
 ```bash
-npm run docker:publish
+npm run docker:publish -- --source-image jdcb4/podcast-ad-remover@sha256:<qualified-digest>
 ```
 
 This pushes both:
 
 - `jdcb4/podcast-ad-remover:<version>`
 - `jdcb4/podcast-ad-remover:latest`
+
+Both tags must retain the qualified digest. See [VERSIONING.md](VERSIONING.md) for
+commit/version/CI guards, version-tag protection and installer dispatch.
 
 ## Worker readiness and supervision
 

@@ -97,7 +97,8 @@ def test_dashboard_view_switch_and_queue_refresh_preserve_page_state():
     assert 'id="dashboard-podcast-results"' in template
     assert 'data-library-view-link="mine"' in template
     assert "{% if subscriptions or (user and user.id and user.id > 0) %}" in template
-    assert '{% if user %}\n<form id="bulk-settings-form"' in template
+    assert '{% if user %}\n<form id="opml-export-form"' in template
+    assert 'id="bulk-settings-form"' in template
     assert 'max-h-[18rem]' in template
     assert "window.location.reload()" not in template
     assert "fetch('/api/dashboard/queue'" in script

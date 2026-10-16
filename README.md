@@ -13,7 +13,7 @@ Transcription runs locally with faster-whisper. Your chosen AI model classifies 
 - **Keep your podcast player.** Subscribe to individual shows, combine My Pods into a personal Unified Feed, or browse the shared Library.
 - **Choose what to remove.** Set global or per-show preferences for ads, promos, intros, outros and non-editorial non-speech. Review transcripts and processing reports when you want to inspect an edit.
 - **Transcribe faster with NVIDIA CUDA.** A compatible NVIDIA GPU can make local transcription significantly faster than CPU processing. Use **Transcription → Set up / retest GPU acceleration** after granting Docker GPU access. CPU remains supported; CUDA is optional and experimental. See [GPU setup and requirements](Documentation/CUDA.md).
-- **Bring your subscriptions.** Search for podcasts, add RSS feeds or public YouTube channels/playlists, and import OPML exports such as Pocket Casts.
+- **Bring your subscriptions.** Search for podcasts, add RSS feeds or public YouTube channels/playlists, and import OPML exports such as Pocket Casts. Select podcasts in My Podcasts or Library to export PAR replacement feeds as OPML for your podcast app.
 - **Make episodes easier to browse.** Add optional descriptions, spoken titles and summaries, artwork badges and cut tones; customize feed names with a prefix or suffix.
 - **Listen in the browser.** Play or pause episodes, seek through the audio and download a copy with separate controls.
 - **Control your library.** Set retention, pause individual feeds or all processing, retry episodes and process a show's archive. Finished audio can live on a separate disk or NAS.

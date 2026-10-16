@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -77,7 +78,11 @@ def main() -> int:
     if not args.skip_verify:
         run([sys.executable, "scripts/verify.py"], "Pre-build verification")
 
-    build_image(args.platform, tags, [], args.push, labels=[f"org.opencontainers.image.revision={git_output('rev-parse', 'HEAD')}"])
+    version = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['version']
+    build_image(args.platform, tags, [], args.push, labels=[
+        f"org.opencontainers.image.revision={git_output('rev-parse', 'HEAD')}",
+        f"org.opencontainers.image.version={version}", 'io.par.channel=dev',
+    ])
     print("\nBuilt tags: " + ", ".join(tags))
     return 0
 

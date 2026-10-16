@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Publish releases by promoting an explicitly selected qualified Dev image, requiring exact commit/version/CI agreement and unchanged image digests; never rebuild during publication.
+- Show the current ingestion URL in owner/admin podcast management controls.
+- Export selected PAR replacement feeds as OPML from My Podcasts or Library, including current-user feed authentication when enabled. Selection works across cards, mobile rows and tables without granting bulk-management permission.
+
 - Identify RSS requests as `PAR/2.0 (+RSS reader)` to support publishers that reject
   default HTTP clients, preserving existing download and network protections.
 - Show actual podcast source-feed/archive rejection messages and readable session or
