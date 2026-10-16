@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and optionally push the release Docker image."""
+"""Build locally or promote an exact qualified Dev image to production tags."""
 
 from __future__ import annotations
 
@@ -35,8 +35,11 @@ def executable(name: str) -> str:
 def package_version() -> str:
     package_json = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
     version = package_json["version"]
-    if not SEMVER_RE.match(version):
+    if not SEMVER_RE.fullmatch(version):
         raise SystemExit(f"package.json version must be SemVer MAJOR.MINOR.PATCH, got {version!r}")
+    lock = json.loads((ROOT / 'package-lock.json').read_text(encoding='utf-8'))
+    if lock.get('version') != version or lock.get('packages', {}).get('', {}).get('version') != version:
+        raise SystemExit('package.json and package-lock.json versions must match.')
     return version
 
 
@@ -67,11 +70,12 @@ def run(command: list[str], label: str) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build or publish the Docker release image.")
+    parser = argparse.ArgumentParser(description="Build locally or promote a qualified immutable Dev image.")
     parser.add_argument("--push", action="store_true", help="Push tags to Docker Hub.")
     parser.add_argument("--skip-verify", action="store_true", help="Skip the local verification checks.")
     parser.add_argument("--repository", default=DEFAULT_REPOSITORY, help="Docker image repository.")
     parser.add_argument("--platform", default="linux/amd64", help="Docker build platform.")
+    parser.add_argument('--source-image', help='Qualified immutable Dev image to promote without rebuilding.')
     args = parser.parse_args()
 
     branch = git_output("branch", "--show-current")
@@ -83,14 +87,27 @@ def main() -> int:
     version_tag = f"{repository}:{version}"
     latest_tag = f"{repository}:latest"
 
+    if args.push and not args.source_image:
+        raise SystemExit('Release publication requires --source-image repository@sha256:...; rebuilds cannot publish releases.')
+    if args.source_image and args.platform != 'linux/amd64':
+        raise SystemExit('Release promotion currently requires linux/amd64.')
+
     if not args.skip_verify:
         run([sys.executable, "scripts/verify.py"], "Pre-build verification")
 
-    build_image(args.platform, [version_tag, latest_tag], [], args.push)
+    if args.source_image:
+        try:
+            from .promote_release import promote
+        except ImportError:
+            from promote_release import promote
+        promote(args.source_image, repository, version, git_output('rev-parse', 'HEAD'),
+                docker=executable('docker'), git=executable('git'), gh=executable('gh'), push=args.push)
+    else:
+        build_image(args.platform, [version_tag, latest_tag], [], False)
     if args.push and args.repository == DEFAULT_REPOSITORY:
         from publish_configurator import dispatch
         dispatch('stable', git_output('rev-parse', 'HEAD'), version_tag)
-    print(f"\nBuilt tags: {version_tag}, {latest_tag}")
+    print(f"\n{'Promoted' if args.push else 'Validated promotion for' if args.source_image else 'Built locally'}: {version_tag}, {latest_tag}")
     return 0
 
 

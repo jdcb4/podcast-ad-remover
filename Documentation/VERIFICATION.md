@@ -222,19 +222,22 @@ The rolling tag is convenient for the Dev environment; the SHA tag records the e
 
 ## Release Publish Check
 
-Only run the production release path after the tested Dev revision has received explicit promotion approval and has been merged into `main`. The release helper requires a clean `main` checkout, reads the version from `package.json`, validates that it is `MAJOR.MINOR.PATCH`, runs verification, and builds two tags:
+Only run production publication after the exact tested Dev commit has explicit promotion approval and has been fast-forwarded and pushed to `main`. Version changes must precede qualification. Validate the recorded immutable digest from a clean `main` checkout:
 
 ```bash
-npm run docker:build
+npm run docker:build -- --source-image jdcb4/podcast-ad-remover@sha256:<qualified-digest>
 ```
 
 To push to Docker Hub:
 
 ```bash
-npm run docker:publish
+npm run docker:publish -- --source-image jdcb4/podcast-ad-remover@sha256:<qualified-digest>
 ```
 
-The pushed tags are:
+Publication copies the tested image without building. Both resulting digests must match
+before installer dispatch; commit, Dev ancestry, version, platform and successful CI
+checks are mandatory. An existing version naming another image blocks publication.
+See [VERSIONING.md](VERSIONING.md). The pushed tags are:
 
 - `jdcb4/podcast-ad-remover:<version>`
 - `jdcb4/podcast-ad-remover:latest`

@@ -67,6 +67,9 @@ docker compose up -d --build
 
 `npm run verify` is the normal pre-change completion check. `npm run verify:docker` adds a local Docker image build and should be used before release tagging or publishing.
 
+Production publication additionally requires `-- --source-image repository@sha256:<qualified-digest>`;
+it promotes the exact tested Dev artifact rather than rebuilding. See [VERSIONING.md](VERSIONING.md).
+
 Normal work integrates into `dev`, the GitHub default branch. Dev images publish as `:dev` and `:dev-<git-sha>`; production promotion to `main`, SemVer, and `latest` requires explicit approval. Keep only these two long-lived branches plus active, unmerged feature work.
 
 ## Documentation Map

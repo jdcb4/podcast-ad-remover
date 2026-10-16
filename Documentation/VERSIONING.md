@@ -75,16 +75,25 @@ npm run verify
 npm run verify:docker
 ```
 
-5. Commit the release candidate, publish its Dev image, and test that exact `dev-<git-sha>` build.
+5. Commit the release candidate, publish its Dev image, and test that exact `dev-<git-sha>` build. Record its immutable `repository@sha256:...` digest and full source commit. The version bump and lockfile/changelog updates must already be in this tested commit; do not change them after qualification. Dev images carry the source revision, package version and `io.par.channel=dev` labels.
 
 Do not continue until Joe explicitly approves production promotion of the tested candidate.
 
 6. Confirm the approved `dev` revision has a successful GitHub Actions `verify` check. Fast-forward `main` to that exact revision without adding unrelated changes; do not squash or rebase a production promotion. If `dev` has advanced since qualification, use the recorded approved commit, not its newer tip. Stop and reconcile any divergence before publishing.
-7. From a clean `main` checkout, repeat required release verification and publish:
+7. Push that exact `main` commit and wait for its required `verify` check. From a clean `main` checkout, validate the qualified digest without publishing:
 
 ```bash
-npm run docker:publish
+npm run docker:build -- --source-image jdcb4/podcast-ad-remover@sha256:<qualified-digest>
 ```
 
-This builds and pushes `jdcb4/podcast-ad-remover:<version>` and `jdcb4/podcast-ad-remover:latest`.
-The release helper refuses to run outside a clean `main` checkout. Return the primary working checkout to `dev` after completing the release.
+8. Publish the same artifact, without rebuilding:
+
+```bash
+npm run docker:publish -- --source-image jdcb4/podcast-ad-remover@sha256:<qualified-digest>
+```
+
+The helper fetches branch refs, requires local/remote `main` at the exact image revision reachable from `origin/dev`, successful GitHub `verify` checks for that full SHA, matching package/lockfile and image versions, and a Dev-labelled Linux AMD64 image. GitHub CLI and Docker Buildx with `imagetools` are required. `--skip-verify` skips only the local source checks; it never skips provenance, CI, version or digest guards.
+
+Publication copies the qualified manifest to `<version>` and `latest` with `--prefer-index=false`, preserving its digest. An existing version pointing to a different image blocks publication: bump and qualify a new version instead. Both resulting registry digests must match before stable installer dispatch. Registry tag updates are not atomic; if copying or verification fails, inspect the tags and reconcile to the qualified digest before retrying. Installer dispatch is blocked on failure. No build occurs in the publication path; `--push` without `--source-image` is rejected. `docker:build` without a source remains a local-only build.
+
+Source equality is enforced by the full commit SHA and image labels; the operator must still select the digest actually qualified on Dev and obtain Joe's explicit release approval. Older images lacking provenance labels need a newly built and qualified candidate. Return the primary checkout to `dev` after completing the release. This workflow does not authorize any particular production promotion.
