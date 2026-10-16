@@ -1,7 +1,8 @@
 # Buzzsprout feed denial and masked preview errors
 
-Recorded and investigated: 2026-10-16. Status: fixes implemented locally; deployment
-and placeholder-metadata recovery outstanding.
+Recorded and investigated: 2026-10-16. Status: fixes deployed to Dev; production
+deployment outstanding. Joe will correct stale metadata manually; recovery is removed
+from project work and acceptance criteria at his request.
 Homelab follow-ups: HL-0066 (feed client), HL-0083 (preview errors).
 
 ## Reported production evidence
@@ -63,9 +64,7 @@ Inspected local dev revision `25f1a93` without running application operations:
    timeouts, size limits, URL validation, DNS/network protections and redirect limits.
 2. Review and integrate the existing 6 October fix with its tests, rather than
    recreating it without accounting for the unmerged branch.
-3. Define a separate safe metadata-recovery path for placeholder titles, preserving
-   stable slugs, feed links, episode identity and intentional display overrides.
-4. Verify using isolated databases and mocked responses; bounded anonymous feed GETs
+3. Verify using isolated databases and mocked responses; bounded anonymous feed GETs
    may additionally qualify both official URLs without running discovery/polling jobs.
 
 ## Acceptance criteria
@@ -75,8 +74,6 @@ Inspected local dev revision `25f1a93` without running application operations:
   parsing failures; detail/message/error, HTML and session responses are handled safely.
 - Redirect/network protections, timeouts and feed size limits remain intact.
 - Verification does not queue episodes or change production subscriptions/jobs.
-- Stale Loading... metadata has an explicit recovery plan; successful polling alone
-  must not be assumed to repair it.
 
 The initial investigation changed no application code or production state.
 
@@ -99,8 +96,8 @@ restricted-mode DNS pinning and blocked private redirects, same-URL/denied-feed
 HTTP 409 JSON responses, and JavaScript message/session/non-JSON handling. Database
 checks use temporary fixtures and assert rejected previews leave feeds/jobs intact.
 Production configuration, subscriptions, jobs and metadata remain unchanged. No
-production preview/polling or provider calls were run. Loading... recovery remains
-separate work.
+production preview/polling or provider calls were run. Joe will correct Loading...
+metadata manually; no recovery implementation or agent action remains planned.
 
 Verification passed with the existing project Python 3.11 environment on PATH:
 `npm run verify` (795 tests passed, 8 skipped; syntax, CSS and dependency audits
