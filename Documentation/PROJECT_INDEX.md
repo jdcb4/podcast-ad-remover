@@ -92,6 +92,7 @@ Normal work integrates into `dev`, the GitHub default branch. Dev images publish
 
 - `Documentation/Architecture.md`: current application structure and data layout.
 - `Documentation/COMPLETE_TIMELINE.md`: the sole V2 processing workflow, categories, summaries, structured output and migration.
+- `Documentation/EPISODE_REMOVAL_DRAFT.md`: proposed whole-episode taxonomy, settings and metadata/transcript/hybrid backend options; not implemented.
 - `Documentation/API.md`: optional AI-facing REST API, auth, scopes, and rate limits.
 - `app/core/podcast_import.py`, `app/web/podcast_import.py`: bounded OPML/text import, duplicate preview and shared-library reuse.
 - `skills/podcast-ad-remover/`, `Documentation/Agent_Skill.md`: portable agent instructions; `scripts/package_agent_skill.py` bundles them with the API guide for Pages.
