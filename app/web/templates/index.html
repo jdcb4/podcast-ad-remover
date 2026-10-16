@@ -223,13 +223,20 @@
 {% endif %}
 
 {% if user %}
+<form id="opml-export-form" action="/subscriptions/export-opml" method="post" class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div><p class="text-sm"><span id="bulk-selection-count">0</span> podcasts selected</p>
+        <p class="text-xs text-text-muted">Export PAR replacement feeds for your podcast app.</p>
+        <p id="bulk-export-only" class="text-xs text-text-muted" hidden>Some selected podcasts can only be exported. Select podcasts you manage to change settings.</p></div>
+    <div id="opml-selected-podcasts" hidden></div>
+    <button type="submit" id="export-opml" class="btn-secondary btn-sm" disabled>Export OPML</button>
+</form>
+<details id="bulk-settings-details" class="hidden mb-6"><summary class="text-sm font-semibold cursor-pointer py-3">Bulk settings</summary>
 <form id="bulk-settings-form" action="/subscriptions/bulk-settings" method="post"
     class="hidden mb-6 rounded-xl border border-primary-500/25 bg-surface-elevated p-4 space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
             <h3 class="font-semibold">Bulk settings</h3>
-            <p class="text-xs text-text-muted"><span id="bulk-selection-count">0</span> podcasts selected.
-                Unchanged groups retain their current values.</p>
+            <p class="text-xs text-text-muted">Unchanged groups retain their current values.</p>
             {% if user.is_admin %}
             <p class="mt-1 text-xs text-danger">Bulk deletion permanently removes the selected podcasts and
                 their local files.</p>
@@ -346,11 +353,12 @@
             {% endif %}
         </fieldset>
     </div>
-</form>
+</form></details>
 
 <div id="dashboard-podcast-results" data-library-view="{{ library_view }}">
 <div class="mobile-podcasts">
 {% for item in subscriptions %}<article class="mobile-podcast" data-subscription-id="{{ item.sub.id }}" data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}" data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}" data-recent="{{ item.latest_episode_date|default('') }}">
+{% if user %}<label class="podcast-selection-icon"><input type="checkbox" class="podcast-bulk-checkbox" value="{{ item.sub.id }}" data-can-manage="{{ 'true' if item.can_manage else 'false' }}" aria-label="Select {{ item.sub.title }}"></label>{% endif %}
 {% if item.artwork_url %}<img src="{{ item.artwork_url }}" alt="" loading="lazy">{% endif %}
 <a class="podcast-title" href="/subscriptions/{{ item.sub.id }}">{{ item.sub.title }}{% if item.sub.processing_paused %}<span class="pause-notice podcast-pause" title="Feed paused" role="img" aria-label="Feed paused"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></span>{% endif %}</a>
 <a class="manage" href="/subscriptions/{{ item.sub.id }}{% if item.can_manage %}#processing-settings{% endif %}" aria-label="{{ 'Manage' if item.can_manage else 'View' }} {{ item.sub.title }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 5 5-12 12H4v-5L16 3Z"/></svg></a></article>{% endfor %}
@@ -360,7 +368,7 @@
         <thead class="bg-surface-base text-left text-xs uppercase tracking-wide text-text-muted">
             <tr>
                 <th class="p-3 w-10">
-                    <input type="checkbox" id="select-all-podcasts" aria-label="Select all manageable podcasts">
+                    <input type="checkbox" id="select-all-podcasts" aria-label="Select all visible podcasts">
                 </th>
                 <th class="p-3">Podcast</th>
                 <th class="p-3">Owner</th>
@@ -377,9 +385,10 @@
                 data-episodes="{{ item.episode_count }}" data-processing="{{ item.processing_count|default(0) }}"
                 data-listens="{{ item.total_listens|default(0) }}" data-recent="{{ item.latest_episode_date|default('') }}">
                 <td class="p-3">
-                    {% if item.can_manage %}
+                    {% if user %}
                     <input type="checkbox" name="subscription_ids" value="{{ item.sub.id }}"
                         form="bulk-settings-form" class="podcast-bulk-checkbox"
+                        data-can-manage="{{ 'true' if item.can_manage else 'false' }}"
                         aria-label="Select {{ item.sub.title }}">
                     {% else %}
                     <span class="text-text-muted" title="You cannot manage this podcast">—</span>
@@ -437,6 +446,7 @@
         data-title="{{ item.sub.title|lower }}" data-episodes="{{ item.episode_count }}"
         data-processing="{{ item.processing_count|default(0) }}" data-listens="{{ item.total_listens|default(0) }}"
         data-recent="{{ item.latest_episode_date|default('') }}">
+        {% if user %}<label class="podcast-selection"><input type="checkbox" class="podcast-bulk-checkbox" value="{{ item.sub.id }}" data-can-manage="{{ 'true' if item.can_manage else 'false' }}" aria-label="Select {{ item.sub.title }}">Select</label>{% endif %}
         <!-- Artwork -->
         <div class="podcast-artwork">{% if item.sub.processing_paused %}<span class="artwork-pause pause-notice" role="img" aria-label="Feed paused" title="Feed paused">{{ icon('pause') }}</span>{% endif %}<button type="button" class="btn-secondary icon-button artwork-subscribe" data-subscription-help data-feed-url="{{ item.links.rss }}" aria-label="Subscribe to {{ item.sub.title }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="1"/><path d="M5 5a14 14 0 0 1 14 14M5 11a8 8 0 0 1 8 8"/></svg></button>
             <img src="{{ item.artwork_url or '/static/unified_feed_cover.png' }}" alt="{{ item.sub.title }}" loading="lazy">

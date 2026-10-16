@@ -42,7 +42,8 @@ def validate_ci(gh, revision):
         if checks.returncode:
             raise ValueError('Cannot read checks')
         runs = [r for r in json.loads(checks.stdout)['check_runs']
-                if r.get('name') == 'verify' and r.get('app', {}).get('slug') == 'github-actions']
+                if isinstance(r, dict) and r.get('name') == 'verify'
+                and isinstance(r.get('app'), dict) and r['app'].get('slug') == 'github-actions']
         if not runs or any(r.get('head_sha') != revision or r.get('status') != 'completed'
                            or r.get('conclusion') != 'success' for r in runs):
             raise ValueError('Verification incomplete or failed')
@@ -74,6 +75,8 @@ def promote(source, repository, version, revision, *, docker, git, gh, push=Fals
             raise ValueError('Inspection failed')
         image = json.loads(inspected.stdout)[0]
         labels = image['Config']['Labels'] or {}
+        if not isinstance(labels, dict):
+            raise ValueError('Invalid image labels')
         if (source not in image['RepoDigests'] or image['Os'] != 'linux'
                 or image['Architecture'] != 'amd64'
                 or labels.get('org.opencontainers.image.revision') != revision

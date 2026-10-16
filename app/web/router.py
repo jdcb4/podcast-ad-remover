@@ -5,7 +5,7 @@ from app.web.permissions import require_episode_management
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status, UploadFile, File
 from typing import Annotated
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from app.infra.repository import ApiTokenRepository, SubscriptionRepository, EpisodeRepository, FeedTokenRepository
 from app.core.feed import FeedManager
 from app.core.models import SubscriptionCreate
@@ -2379,6 +2379,36 @@ async def update_subscription_owner(
 
     message = "Podcast owner updated" if new_owner_id else "Podcast owner cleared"
     return RedirectResponse(url=f"/subscriptions/{id}?success={quote(message)}", status_code=303)
+
+
+@router.post('/subscriptions/export-opml')
+async def export_selected_podcasts(request: Request, subscription_ids: list[int] = Form(...),
+                                   user=Depends(require_auth)):
+    from xml.etree import ElementTree as ET
+    from app.web.podcast_import import require_import_origin
+
+    require_import_origin(request)
+    ids = list(dict.fromkeys(subscription_ids))
+    if not ids or len(subscription_ids) > 1500 or len(ids) > 500:
+        raise HTTPException(400, 'Select between 1 and 500 podcasts to export.')
+    subscriptions = [sub_repo.get_by_id(identifier) for identifier in ids]
+    if any(sub is None or sub.deletion_status is not None for sub in subscriptions):
+        raise HTTPException(404, 'One or more selected podcasts are no longer available.')
+    # Shared Library podcasts are subscribable even when this user cannot manage
+    # their processing settings. Export never changes membership or processing.
+    global_settings = get_global_settings()
+    root = ET.Element('opml', version='2.0')
+    ET.SubElement(ET.SubElement(root, 'head'), 'title').text = 'PAR subscriptions'
+    body = ET.SubElement(root, 'body')
+    for sub in subscriptions:
+        ET.SubElement(body, 'outline', text=sub.title, title=sub.title, type='rss',
+                      xmlUrl=generate_rss_links(request, sub, global_settings, user)['rss'])
+    return Response(ET.tostring(root, encoding='utf-8', xml_declaration=True),
+                    media_type='text/x-opml', headers={
+                        'Content-Disposition': 'attachment; filename="par-subscriptions.opml"',
+                        'Cache-Control': 'private, no-store',
+                        'X-Content-Type-Options': 'nosniff',
+                    })
 
 
 @router.post("/subscriptions/bulk-settings")

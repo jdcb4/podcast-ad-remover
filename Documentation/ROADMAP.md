@@ -21,20 +21,18 @@ This roadmap lists improvement candidates. It is not a release commitment.
 
 ## Resource Usage
 
-- After the planned v2 changes are complete, investigate whisper.cpp against the current faster-whisper engine (requested by Joe, 2026-09-27). Compare transcription and timestamp quality, processing speed, CPU/GPU compatibility, memory use and Docker integration on representative podcast episodes. This is an evaluation, not an approved engine replacement; keep faster-whisper during the v2 work.
+- Investigate whisper.cpp against the current faster-whisper engine (requested by Joe, 2026-09-27; deferred at Joe's request, 2026-10-16). Compare transcription and timestamp quality, processing speed, CPU/GPU compatibility, memory use and Docker integration on representative podcast episodes. This is an evaluation, not an approved engine replacement.
 - Add documented concurrency and CPU guidance for small homelab machines.
 - Make Whisper model choice, worker limits, cleanup policy, and retry settings easier to reason about from the UI.
 
 ## User Experience
 
-- Show the current podcast ingestion URL under podcast management (requested by Joe, 2026-10-16).
-- Add optional whole-episode classification and filtering (requested by Joe, 2026-10-05; expanded 2026-10-16). Add Episode Removal in podcast defaults and a per-podcast settings tab, with a master toggle and category choices. The supplied twelve-category taxonomy initially excludes cross-promotions, trailers, paywall teasers and reruns, while keeping substantive crossovers, bonus episodes and announcements. See [the draft specification and backend options](EPISODE_REMOVAL_DRAFT.md). Backend choice remains open; this is not implemented.
-- Add OPML export for a selected podcast list (requested by Joe, 2026-10-05). Proposed flow: select one or more podcasts in either **My Podcasts** or **Library**, then use an **Export OPML** button in the bulk settings area to download the selected list. Disable the action when nothing is selected. This is a roadmap item, not an implemented feature.
+- Add optional whole-episode classification and filtering (requested by Joe, 2026-10-05; expanded and deferred 2026-10-16). Add Episode Removal in podcast defaults and a per-podcast settings tab, with a master toggle and category choices. The supplied twelve-category taxonomy initially excludes cross-promotions, trailers, paywall teasers and reruns, while keeping substantive crossovers, bonus episodes and announcements. See [the draft specification and backend options](EPISODE_REMOVAL_DRAFT.md). Backend choice remains open; this is not implemented.
 - Refine the implemented optional setup wizard based on real first-install feedback; keep it limited to essential choices.
 - Add clearer queue state explanations for failed, rate-limited, ignored, and unprocessed episodes.
 - Add optional token-attributed feed/audio access logging if admins need true per-user download analytics. Current stats show per-podcast user-library counts and aggregate plays.
-- Add dynamic per-user file serving so each user can keep podcast-specific preferences and receive a personalized episode file generated when their podcast client downloads it.
-- Add optional podcast classifications that can drive differentiated defaults for retention, queue order, and feed handling: **finite** shows keep a complete start-to-finish catalogue; **current affairs** keep a recent rolling window; **narrative** shows default to chronological processing from the beginning; and **seasonal** shows support season-aware retention and, where useful, separate RSS feeds per season. Classifications must remain optional, preserve existing settings on upgrade, and allow per-podcast overrides.
+- Add dynamic per-user file serving so each user can keep podcast-specific preferences and receive a personalized episode file generated when their podcast client downloads it. Deferred at Joe's request, 2026-10-16.
+- Add optional podcast classifications that can drive differentiated defaults for retention, queue order, and feed handling: **finite** shows keep a complete start-to-finish catalogue; **current affairs** keep a recent rolling window; **narrative** shows default to chronological processing from the beginning; and **seasonal** shows support season-aware retention and, where useful, separate RSS feeds per season. Classifications must remain optional, preserve existing settings on upgrade, and allow per-podcast overrides. Deferred at Joe's request, 2026-10-16.
 - Continue extracting independently tested route/processor responsibilities when a concrete feature needs them; episode cards/JavaScript and shared policy/artifact modules are already separated.
 
 ## Implemented V2 features (not a publication claim)
@@ -47,6 +45,9 @@ This roadmap lists improvement candidates. It is not a release commitment.
 - One cut-tone switch, uploaded unified artwork, and explicit upgrade conversions/recovery guidance.
 
 ## Recently Completed
+
+- Show the current ingestion URL in owner/admin podcast management and export selected PAR replacement feeds as OPML from My Podcasts or Library (2026-10-16).
+- Promote qualified Dev images to production tags without rebuilding, enforcing exact commit/version/CI and digest agreement; production release approval remains mandatory (2026-10-16).
 
 The approved September assessment is tracked in [ASSESSMENT_IMPLEMENTATION.md](ASSESSMENT_IMPLEMENTATION.md).
 It adds fenced attempts and capacity claims, last-good publication, atomic feeds, WAL-safe backups,

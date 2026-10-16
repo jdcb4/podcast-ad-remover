@@ -4,6 +4,10 @@ Open **Podcast settings** on an individual show. Only its owner or an administra
 
 ## Change source feed
 
+The Manage tab shows the current ingestion URL as a read-only field for the owner
+or an administrator, including RSS and YouTube sources. This is separate from the
+replacement feed URL used by podcast clients.
+
 Preview uses the normal bounded download and redirect/network policies. It follows explicit `rel="next"` feed pagination, not publisher websites. It matches exact GUIDs (including reviewed aliases), then unique unchanged enclosure URLs. Suggested title/date matches require review. Choose an existing episode or explicitly accept a new episode for every unmatched entry. Two incoming entries cannot share an episode.
 
 RSS requests identify as `PAR/2.0 (+RSS reader)`, including redirected requests.
@@ -11,6 +15,22 @@ Successful ordinary polling updates episodes and feed-check status, but does not
 refresh subscription title/image/description; a stale placeholder title needs separate recovery.
 
 Confirmation atomically updates the source URL and records incoming GUID aliases while preserving episode IDs, published GUIDs, slug, media, settings and memberships. It creates no processing jobs. New entries subsequently follow the normal discovery/download window. Queued/running work or an unfinished archive batch blocks replacement. Duplicate URLs, stale previews and conflicts leave the old source untouched.
+
+## Export selected replacement feeds
+
+Select podcasts in My Podcasts or Library using the table, card or mobile row
+checkboxes, then choose **Export OPML**. The download contains only the selected
+PAR replacement RSS URLs, including PAR feeds for YouTube sources. It does not
+export ingestion URLs, add podcasts to My Podcasts, queue processing or change
+settings. The button is disabled when nothing is selected; exports support up to
+500 distinct podcasts. Selection is synchronized across layouts and resets when
+switching My Podcasts/Library. Bulk settings stay collapsed until opened and are
+available only when the entire selection can be managed by the current user.
+
+When feed authentication is enabled, the file includes the current user's feed
+token, following normal subscription links. Keep that download private. Export
+requires dashboard authentication; it never requires ownership of a subscribable
+shared Library podcast. The download is marked private and not cacheable.
 
 ## Process whole show
 

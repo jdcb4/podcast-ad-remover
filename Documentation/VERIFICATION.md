@@ -222,6 +222,11 @@ The rolling tag is convenient for the Dev environment; the SHA tag records the e
 
 ## Release Publish Check
 
+`tests/test_release_promotion.py` exercises exact image/commit/version provenance,
+remote main/Dev alignment, CI failure, unavailable registry data, immutable version
+tags, non-publishing plans, tagging failure and post-copy digest checks with mocked
+commands. These tests never publish images or dispatch the installer.
+
 Only run production publication after the exact tested Dev commit has explicit promotion approval and has been fast-forwarded and pushed to `main`. Version changes must precede qualification. Validate the recorded immutable digest from a clean `main` checkout:
 
 ```bash
