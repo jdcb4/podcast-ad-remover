@@ -195,7 +195,7 @@ initial proposal; backend alternatives above remain options for future selection
 
 ### Podcast Episode Classification & Filtering Taxonomy
 
-Use the following categories, descriptions, and text/duration signals to classify podcast episodes based solely on their title, description/show notes, and duration. 
+Use the following categories, descriptions, and text/duration signals to classify podcast episodes based solely on their title, description/show notes, and duration.
 
 #### 1. INCLUDE (Keep in Feed)
 
