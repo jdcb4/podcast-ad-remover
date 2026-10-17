@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Increase the default provider request timeout from two to five minutes. Keep existing explicit timeout overrides.
+- Add one final automatic processing retry three hours after the existing 5/10/20/40/80-minute retries. Send the final failure notification only after that attempt also fails; permanent provider errors and request-budget limits still stop immediately.
+
 ## 2.1.0 - 2026-10-16
 
 - Publish releases by promoting an explicitly selected qualified Dev image, requiring exact commit/version/CI agreement and unchanged image digests; never rebuild during publication.

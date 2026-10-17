@@ -1064,13 +1064,14 @@ class Processor:
             
             # Regular Retry Logic
             retry_count = ep_dict.get('retry_count', 0) + 1
-            if retry_count <= 5:
-                # Exponential backoff: 5, 10, 20, 40, 80 minutes
-                delay_minutes = 5 * (2 ** (retry_count - 1))
+            retry_delays_minutes = (5, 10, 20, 40, 80, 180)
+            if retry_count <= len(retry_delays_minutes):
+                # Preserve the existing backoff, then allow one final retry three hours later.
+                delay_minutes = retry_delays_minutes[retry_count - 1]
                 from datetime import timedelta
                 next_retry = now_utc() + timedelta(minutes=delay_minutes)
                 
-                logger.info(f"Scheduling retry {retry_count}/5 for {ep.title} in {delay_minutes} minutes")
+                logger.info(f"Scheduling retry {retry_count}/{len(retry_delays_minutes)} for {ep.title} in {delay_minutes} minutes")
                 self.ep_repo.update_retry(ep.id, retry_count, next_retry, str(e))
             else:
                 logger.error(f"Max retries reached for {ep.title}")

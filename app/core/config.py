@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     FFMPEG_TIMEOUT_SECONDS: int = 7200  # 2 hours per FFmpeg operation
     ALLOW_PRIVATE_FEEDS: bool = True
     MAX_PROVIDER_CALLS_PER_JOB: int = Field(12, ge=1, le=100)
-    PROVIDER_TIMEOUT_SECONDS: int = Field(120, ge=5, le=600)
+    PROVIDER_TIMEOUT_SECONDS: int = Field(300, ge=5, le=600)
     
     @property
     def DB_PATH(self) -> str:
