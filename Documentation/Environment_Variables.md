@@ -40,8 +40,8 @@ If an old Gemini environment variable contains comma-separated keys, only its fi
 | `FFMPEG_TIMEOUT_SECONDS` | Maximum time allowed for one FFmpeg or FFprobe operation before the episode fails/retries instead of holding the queue indefinitely. | `7200` |
 | `ALLOW_PRIVATE_FEEDS` | Allow feeds/enclosures resolving to private or loopback IP ranges. Keep `true` for LAN/self-hosted feeds; set `false` for hardened public deployments. | `true` |
 | `CUDA_SETUP` | Request first-start optional NVIDIA runtime setup. Host drivers and container GPU access must already work. | `false` |
-| `MAX_PROVIDER_CALLS_PER_JOB` | Shared analysis/speech request budget per processing attempt | `12` |
-| `PROVIDER_TIMEOUT_SECONDS` | Per-provider request timeout, seconds | `120` |
+| `MAX_PROVIDER_CALLS_PER_JOB` | Shared analysis/speech request budget per processing job, retained across retries | `12` |
+| `PROVIDER_TIMEOUT_SECONDS` | Per-provider request timeout for LLM analysis, summary repair and remote speech, seconds (5–600) | `300` |
 | `LOG_MAX_BYTES` | Rotating log size | `10485760` |
 | `LOG_BACKUP_COUNT` | Rotating log backups | `5` |
 | `ENVIRONMENT` | Runtime environment label | `production` |
