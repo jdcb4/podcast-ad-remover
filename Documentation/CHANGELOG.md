@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.1.1 - 2026-10-17
+
 - Increase the default provider request timeout from two to five minutes. Keep existing explicit timeout overrides.
 - Add one final automatic processing retry three hours after the existing 5/10/20/40/80-minute retries. Send the final failure notification only after that attempt also fails; permanent provider errors and request-budget limits still stop immediately.
 
