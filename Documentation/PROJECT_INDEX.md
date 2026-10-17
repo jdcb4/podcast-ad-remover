@@ -6,7 +6,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 
 - Python 3.11, FastAPI, Jinja templates, SQLite.
 - FFmpeg for audio cutting and concatenation.
-- faster-whisper/CTranslate2 for local transcription; whisper.cpp evaluation is deferred.
+- faster-whisper/CTranslate2 for local transcription; standalone whisper.cpp benchmarking is complete, with engine and AMD GPU decisions deferred. See [ROADMAP.md](ROADMAP.md).
 - Gemini, OpenAI, Anthropic, OpenRouter or a custom OpenAI-compatible endpoint for segment detection.
 - Gemini, OpenAI, OpenRouter or custom API speech for optional spoken title intros and audio summaries.
 - Apprise for optional admin notifications.
