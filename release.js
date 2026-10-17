@@ -1,1 +1,1 @@
-window.INSTALL_RELEASE = Object.freeze({"channel": "stable", "revision": "3743940edd9b803242f2aa9d2c0e93b9fb761dea", "image": "jdcb4/podcast-ad-remover:2.1.0"});
+window.INSTALL_RELEASE = Object.freeze({"channel": "stable", "revision": "c90a97c26feb06bd6bd4afdfbd39db4f0ac59886", "image": "jdcb4/podcast-ad-remover:2.1.1"});
