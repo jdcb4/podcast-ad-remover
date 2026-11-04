@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A previous published revision whose folder is missing no longer fails the episode at the last step of publishing.
 - Reprocess (Keep Transcript) finds the episode's saved transcript when its recorded path points at an attempt that was cleaned up, instead of transcribing again.
 - Queued and retrying jobs use the current provider, models and keys instead of the ones saved when they were queued.
 - Reuse an episode's saved audio and transcript across restarts and replacement jobs, including the Retry button. Only Reprocess with transcription transcribes again. Saved audio that fails verification is now downloaded again rather than used.

@@ -609,6 +609,16 @@ class Processor:
                       and path.is_relative_to(episode_root) and path.is_dir()]
         return sorted(candidates, key=lambda path: not (path / 'transcript.json').is_file())
 
+    def _mark_previous_revision(self, ep: Episode) -> None:
+        """Protect the replaced revision from cleanup; a missing one has nothing to protect."""
+        previous_dir = Path(ep.local_filename).parent
+        if not previous_dir.name.startswith('attempt-') or not previous_dir.is_relative_to(Path(settings.PODCASTS_DIR)):
+            return
+        if not previous_dir.is_dir():
+            logger.warning('Previous published revision is missing and cannot be preserved: %s', previous_dir)
+            return
+        (previous_dir / 'published.json').write_text(json.dumps({'episode_id': ep.id}), encoding='utf-8')
+
     def _saved_transcript(self, ep: Episode, sub, episode_root: Path) -> str | None:
         """Find the transcript for a keep-transcript request.
 
@@ -1016,9 +1026,7 @@ class Processor:
             # Preserve the previous committed revision before replacing its DB pointer.
             # This also repairs a marker missed by a crash just after the prior commit.
             if ep.local_filename:
-                previous_dir = Path(ep.local_filename).parent
-                if previous_dir.name.startswith('attempt-') and previous_dir.is_relative_to(Path(settings.PODCASTS_DIR)):
-                    (previous_dir / 'published.json').write_text(json.dumps({'episode_id': ep.id}), encoding='utf-8')
+                self._mark_previous_revision(ep)
             self.ep_repo.update_status(ep.id, 'completed', filename=output_path, file_size=file_size)
             # The DB pointer protects a newly committed attempt if marker writing fails.
             try:
