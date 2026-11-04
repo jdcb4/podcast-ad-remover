@@ -72,6 +72,16 @@ class SubscriptionRepository:
                     )
                 )
                 sub_id = cursor.lastrowid
+                # Same frozen-window transition as turning Keep whole show on for one podcast.
+                cursor.execute(
+                    '''UPDATE subscriptions SET
+                    retention_limit=CASE WHEN inherit_retention THEN (SELECT default_retention_limit FROM app_settings WHERE id=1) ELSE retention_limit END,
+                    retention_days=CASE WHEN inherit_retention THEN (SELECT default_retention_days FROM app_settings WHERE id=1) ELSE retention_days END,
+                    manual_retention_days=CASE WHEN inherit_retention THEN (SELECT default_manual_retention_days FROM app_settings WHERE id=1) ELSE manual_retention_days END,
+                    keep_whole_show=1, inherit_retention=0
+                    WHERE id=? AND (SELECT default_keep_whole_show FROM app_settings WHERE id=1)=1''',
+                    (sub_id,),
+                )
                 if owner_user_id and owner_user_id > 0:
                     cursor.execute(
                         "INSERT OR IGNORE INTO user_subscriptions (user_id, subscription_id) VALUES (?, ?)",

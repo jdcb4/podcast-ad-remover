@@ -2136,6 +2136,7 @@ async def update_global_subscription_settings(
     default_ai_audio_summary: bool = Form(False),
     default_append_title_intro: bool = Form(False),
     default_watermark_artwork: bool = Form(False),
+    default_keep_whole_show: bool = Form(False),
     default_retention_limit: int = Form(1),
     default_retention_days: int = Form(30),
     default_manual_retention_days: int = Form(14),
@@ -2209,6 +2210,7 @@ async def update_global_subscription_settings(
             default_remove_non_editorial_non_speech, default_minimum_retained_seconds
         ))
         conn.execute("UPDATE app_settings SET cut_tone_enabled=?, default_processing_workflow='complete_timeline', default_remove_editorial_non_speech=0, whitelist_mode=0, default_custom_instructions=NULL WHERE id=1", (cut_tone_enabled,))
+        conn.execute("UPDATE app_settings SET default_keep_whole_show=? WHERE id=1", (int(default_keep_whole_show),))
         if title_updates:
             conn.execute('UPDATE app_settings SET ' + ', '.join(f'{key}=?' for key in title_updates) + ' WHERE id=1', tuple(title_updates.values()))
         conn.commit()
