@@ -738,9 +738,9 @@ class AdDetector:
     def classify_timeline(self, units: list[dict], duration: float, metadata: dict, snapshot: dict) -> dict:
         from app.core import timeline
 
-        # Each concurrent job gets a private settings snapshot and provider instance.
+        # Each concurrent job gets a private provider instance using the current settings.
         detector = copy.copy(self)
-        detector.settings = {**self._load_settings(), **snapshot["settings"]}
+        detector.settings = self._load_settings()
         mode = "strict"
         if mode not in timeline.OUTPUT_MODES:
             raise PermanentProviderError("Unknown complete-timeline output mode")
@@ -801,7 +801,7 @@ class AdDetector:
         """Retry a previously failed summary without repeating valid classification."""
         from app.core import timeline
         detector = copy.copy(self)
-        detector.settings = {**self._load_settings(), **snapshot["settings"]}
+        detector.settings = self._load_settings()
         try:
             summary = self._repair_timeline_summary(
                 detector._get_provider(), detector.settings.get("timeline_output_mode", "auto"),

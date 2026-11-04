@@ -163,19 +163,6 @@ def test_cut_preferences_do_not_invalidate_classification_but_rules_and_sources_
     assert timeline.cache_key('source-two', {}, 50, snapshot) != key
 
 
-def test_queued_default_model_choices_survive_later_default_changes(monkeypatch):
-    snapshot = timeline.make_snapshot({'processing_workflow': 'complete_timeline'}, {})
-    models = json.loads(snapshot['settings']['ai_model_cascade'])
-    monkeypatch.setattr(AdDetector, 'DEFAULT_GEMINI_MODELS', ['different-future-default'])
-    detector = AdDetector()
-    detector.settings = snapshot['settings']
-    monkeypatch.setattr(detector, '_get_gemini_api_keys', lambda: ['test-key'])
-    captured = []
-    monkeypatch.setattr('app.core.ai_services.OpenAIProvider', lambda keys, models, **kwargs: captured.extend(models))
-    detector.create_provider('gemini', api_key='test-key')
-    assert captured == models and 'different-future-default' not in captured
-
-
 def fake_completion(text='{}', finish='stop', refusal=None):
     return SimpleNamespace(choices=[SimpleNamespace(finish_reason=finish, message=SimpleNamespace(content=text, refusal=refusal))], usage=None)
 

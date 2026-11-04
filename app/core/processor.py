@@ -597,6 +597,18 @@ class Processor:
             row['text'] = self._extract_text(row['start'], row['end'], transcript['segments'])
         return analysis
 
+    def _resume_candidates(self, episode_root: Path, resume: Path | None, retranscribe: bool) -> list[Path]:
+        """Saved attempts to reuse, most useful first.
+
+        Any attempt for this episode qualifies, so a replacement job keeps its
+        transcript. A manual requeue asking to transcribe again only trusts its own job.
+        """
+        others = () if retranscribe else sorted(episode_root.glob('attempt-*'), key=lambda path: path.stat().st_mtime, reverse=True)
+        candidates = [path for path in dict.fromkeys(([resume] if resume else []) + list(others))
+                      if path != self._attempt_dir and path.resolve() == path
+                      and path.is_relative_to(episode_root) and path.is_dir()]
+        return sorted(candidates, key=lambda path: not (path / 'transcript.json').is_file())
+
     async def _process_episode_inner(self, ep: Episode, sub, ep_dict: dict):
         """Core multi-step processing logic for a single episode."""
         logger.info(f"Processing {ep.title}...")
@@ -623,11 +635,13 @@ class Processor:
             
             # Check for skip flags
             skip_transcription = False
+            retranscribe = False
             if ep.processing_flags:
                 try:
                     logger.info(f"Checking processing flags for {ep.title}: {ep.processing_flags}")
                     flags = json.loads(ep.processing_flags)
                     skip_transcription = flags.get('skip_transcription', False)
+                    retranscribe = flags.get('skip_transcription') is False
                     if skip_transcription:
                         logger.info(f"Targeting skip_transcription for {ep.title}")
                 except Exception as e:
@@ -644,30 +658,29 @@ class Processor:
             input_path = os.path.join(episode_dir, "original.mp3")
             transcript_path = None
             resume = Path(ep_dict['resume_directory']) if ep_dict.get('resume_directory') else None
-            if resume and resume.resolve() == resume and resume.is_relative_to(episode_root) and resume.is_dir():
+            for candidate in self._resume_candidates(episode_root, resume, retranscribe):
                 # Copy only finalized reusable inputs into the new owned stage. A stale
                 # worker can never mutate the files used by its successor.
-                manifest_path = resume / 'cache.json'
                 try:
-                    cache = json.loads(manifest_path.read_text(encoding='utf-8'))
-                    cached_source = resume / cache['source_file']
-                    if cached_source.parent == resume and cached_source.is_file():
-                        input_path = str(self._attempt_dir / cached_source.name)
-                        await asyncio.to_thread(shutil.copyfile, cached_source, input_path)
-                        if await asyncio.to_thread(source_fingerprint, input_path) == cache['sha256']:
-                            for name in ('transcript.json', 'analysis-cache.json'):
-                                if (resume / name).is_file():
-                                    await asyncio.to_thread(shutil.copyfile, resume / name, self._attempt_dir / name)
-                            if (self._attempt_dir / 'transcript.json').is_file():
-                                ep.transcript_path = str(self._attempt_dir / 'transcript.json')
-                                skip_transcription = True
-                except (OSError, ValueError, KeyError):
-                    logger.info('No reusable verified source cache for this retry')
-            if self.ep_repo.attempt:
-                from app.infra.database import get_db_connection
-                with self.ep_repo._write_connection(ep.id) as conn:
-                    conn.execute('UPDATE jobs SET work_directory=? WHERE id=? AND locked_by=?', (episode_dir, *self.ep_repo.attempt))
-                    conn.commit()
+                    cache = json.loads((candidate / 'cache.json').read_text(encoding='utf-8'))
+                    cached_source = candidate / cache['source_file']
+                    if cached_source.parent != candidate or not cached_source.is_file():
+                        continue
+                    copied_source = self._attempt_dir / cached_source.name
+                    await asyncio.to_thread(shutil.copyfile, cached_source, copied_source)
+                    if await asyncio.to_thread(source_fingerprint, str(copied_source)) != cache['sha256']:
+                        copied_source.unlink()
+                        continue
+                    input_path = str(copied_source)
+                    for name in ('transcript.json', 'analysis-cache.json'):
+                        if (candidate / name).is_file():
+                            await asyncio.to_thread(shutil.copyfile, candidate / name, self._attempt_dir / name)
+                    if (self._attempt_dir / 'transcript.json').is_file():
+                        ep.transcript_path = str(self._attempt_dir / 'transcript.json')
+                        skip_transcription = True
+                    break
+                except (OSError, ValueError, KeyError, TypeError):
+                    logger.info('Saved attempt %s is not reusable', candidate.name)
             
             if skip_transcription and ep.transcript_path and os.path.exists(ep.transcript_path):
                  logger.info(f"Attempting to skip transcription, using existing: {ep.transcript_path}")
@@ -723,6 +736,11 @@ class Processor:
                     transcript = None
             self.ep_repo.update_source_media_path(ep.id, input_path)
             (self._attempt_dir / 'cache.json').write_text(json.dumps({'source_file': Path(input_path).name, 'sha256': fingerprint}), encoding='utf-8')
+            # Only now can this attempt replace the one the job would resume from.
+            if self.ep_repo.attempt:
+                with self.ep_repo._write_connection(ep.id) as conn:
+                    conn.execute('UPDATE jobs SET work_directory=? WHERE id=? AND locked_by=?', (episode_dir, *self.ep_repo.attempt))
+                    conn.commit()
 
             await asyncio.to_thread(require_scratch, ep.duration, os.path.getsize(input_path))
             # 2. Transcribe (If needed)
