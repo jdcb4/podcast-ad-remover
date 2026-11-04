@@ -18,6 +18,9 @@ templates = Jinja2Templates(directory=TEMPLATE_DIR)
 configure_static_asset_versioning(templates)
 
 
+from app.core.utils import access_requests_enabled
+
+
 async def generic_error_handler(request: Request, exc: Exception) -> HTMLResponse:
     """
     Generic error handler that prevents information disclosure.
@@ -142,7 +145,8 @@ async def unauthorized_handler(request: Request, exc: Exception) -> HTMLResponse
         context={
             "status_code": 401,
             "title": "Authentication Required",
-            "message": "Please log in to access this resource."
+            "message": "Please log in to access this resource.",
+            "access_requests_enabled": access_requests_enabled(),
         },
         status_code=status.HTTP_401_UNAUTHORIZED
     )

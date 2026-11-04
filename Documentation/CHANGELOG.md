@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add an Allow access requests setting under Users & access. Turning it off removes the Request Access links and makes `/request-access` and `/submit-access-request` return 404; existing users and pending requests are kept. It defaults on, matching earlier behaviour. Additive migration `20261104_0029_access_requests_enabled` takes the usual pre-migration backup; earlier 2.x code ignores the column and always allows requests.
+- Non-admin accounts can no longer reach private, loopback or link-local addresses through the server. This covers adding or replacing a feed and every later feed, episode download and artwork fetch for a podcast they own, including redirects. Admins keep `ALLOW_PRIVATE_FEEDS` behaviour. A LAN feed owned by a non-admin stops updating until an admin takes ownership; no schema change.
+- Deleting a user now revokes their feed tokens. Tokens left behind by users deleted earlier stop working immediately, with no schema change.
+- Serve only `.mp3` files from `/audio`. Transcripts, reports and other files in episode folders now return 404 there; `/artifacts` and the transcript page are unchanged.
+- Stop publishing source URLs in generated RSS. The channel link is now this app's public URL and items no longer link to the upstream media file, because either can contain a private feed token. Feeds are regenerated at startup so XML already on disk is corrected. Rollback: earlier code restores the links the next time it regenerates a feed.
 - A previous published revision whose folder is missing no longer fails the episode at the last step of publishing.
 - Reprocess (Keep Transcript) finds the episode's saved transcript when its recorded path points at an attempt that was cleaned up, instead of transcribing again.
 - Queued and retrying jobs use the current provider, models and keys instead of the ones saved when they were queued.

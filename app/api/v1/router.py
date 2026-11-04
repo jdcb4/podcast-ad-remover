@@ -1,3 +1,4 @@
+from app.core.network_policy import user_network_scope
 from app.core.artifacts import artifact_path as _artifact_path
 import json
 import os
@@ -279,7 +280,8 @@ async def create_subscription(
     principal: ApiPrincipal = Depends(require_scopes(["write"])),
 ):
     try:
-        source = await asyncio.to_thread(resolve_source, request_body.feed_url)
+        with user_network_scope(principal.user_id):
+            source = await asyncio.to_thread(resolve_source, request_body.feed_url)
         existing = (
             sub_repo.get_by_source_identity(source.source_type, source.external_id)
             or sub_repo.get_by_url(source.canonical_url)

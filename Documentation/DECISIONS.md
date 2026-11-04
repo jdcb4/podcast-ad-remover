@@ -282,6 +282,10 @@ legacy on-disk artifacts continue to resolve through constrained compatibility r
 ## 2026-09-27 — V2 simplification
 
 Implement the approved V2_PROPOSAL on dev. Use Complete Timeline exclusively and native schema requests with only valid-object unwrapping. Use one provider model and one credential (environment first). Optional speech is API-only and never silently chooses a paid service after Piper migration. Remove SponsorBlock, preserve YouTube. Consolidate account/token administration, keep setup optional, generate install configuration solely in the browser. Ownership semantics and whisper.cpp remain deferred. No production promotion or Docker publication is implied.
+## 2026-11-04 — Private network access follows the podcast owner
+
+Checking only when a podcast is added would not stop a public feed that later redirects inward or lists an internal enclosure, because the worker refetches it with no user present. Fetches therefore run under the owner's policy through a context variable that the shared download helpers read. Setting `ALLOW_PRIVATE_FEEDS=false` for everyone was rejected because admins use LAN feeds. Unowned podcasts keep the global policy for compatibility; only accounts can own new podcasts when login is on.
+
 ## 2026-10-03 — Reviewed RSS operations
 
 Source replacement requires reviewed identities and atomic confirmation. Whole-show processing is an RSS-only snapshot batch, lower priority than ordinary work; pause/cancel allows running work to finish. Keep-whole-show retention is explicit and independent of the unchanged discovery window. Ownership rules remain unchanged. See PODCAST_OPERATIONS.md.

@@ -25,6 +25,7 @@ from app.core.youtube import (
     video_id_from_url,
 )
 from app.core.sources import get_source_adapter
+from app.core.network_policy import user_network_scope
 from app.core.notifications import (
     EVENT_BREAKING_ERROR,
     EVENT_EPISODE_DOWNLOAD,
@@ -198,7 +199,8 @@ class Processor:
                 logger.info(f"Checking {sub.title} (Sub Limit: {sub.retention_limit}, Ref Limit: {limit}, Final Limit: {actual_limit})...")
 
                 # Fetch ALL episodes
-                discovery = await source_adapter.discover(source_type, sub.feed_url)
+                with user_network_scope(sub.owner_user_id):
+                    discovery = await source_adapter.discover(source_type, sub.feed_url)
                 episodes = discovery.entries
                 
                 for i, ep_data in enumerate(episodes):
@@ -735,14 +737,15 @@ class Processor:
                 logger.info(f"Downloading {ep.title}...")
                 source_adapter = get_source_adapter(sub.source_type)
                 try:
-                    input_path = await source_adapter.download(
-                        ep.original_url,
-                        episode_dir,
-                        progress_callback=lambda percent: self.ep_repo.update_progress(
-                            ep.id, "downloading", percent
-                        ),
-                        cancellation_callback=lambda: not self._check_cancellation(ep),
-                    )
+                    with user_network_scope(sub.owner_user_id):
+                        input_path = await source_adapter.download(
+                            ep.original_url,
+                            episode_dir,
+                            progress_callback=lambda percent: self.ep_repo.update_progress(
+                                ep.id, "downloading", percent
+                            ),
+                            cancellation_callback=lambda: not self._check_cancellation(ep),
+                        )
                 except YouTubeDownloadCancelled:
                     self._acknowledge_cancellation(ep)
                     return

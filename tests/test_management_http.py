@@ -181,8 +181,7 @@ def test_audio_tracking_uses_complete_path_and_invalid_range_is_client_error(pop
 
 
 @pytest.mark.parametrize('extension,media_type', [
-    ('mp3', 'audio/mpeg'), ('m4a', 'audio/mp4'),
-    ('ogg', 'audio/ogg'), ('wav', 'audio/wav'),
+    ('mp3', 'audio/mpeg'),
 ])
 def test_play_link_serves_inline_audio_and_supports_seeking(populated_client, extension, media_type):
     from pathlib import Path

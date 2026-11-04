@@ -9,6 +9,7 @@ import feedparser
 
 from app.core.feed import FeedManager
 from app.core.feed_urls import feed_key
+from app.core.network_policy import user_network_scope
 from app.infra.database import get_db_connection
 
 DISCOVERY_SECONDS = 120
@@ -96,7 +97,8 @@ def preview(sub_id, kind, url=None):
     if kind == 'feed' and url == sub['feed_url']:
         raise ValueError('Choose a different feed URL.')
     try:
-        entries = discover_history(url)
+        with user_network_scope(sub['owner_user_id']):
+            entries = discover_history(url)
     except Exception as exc:
         # Network exceptions can include credential-bearing source URLs.
         raise ValueError('Could not discover complete available RSS history. Check the URL, feed validity and discovery limits (50 pages / 10,000 episodes / 50 MiB / 120 seconds).') from exc

@@ -286,7 +286,7 @@ Admin notifications are optional and disabled by default. Settings are stored in
 
 The app currently emits notification events for:
 
-- access requests submitted from `/request-access`;
+- access requests submitted from `/request-access`, unless Allow access requests is turned off in Users & access;
 - new global podcasts after feed metadata is resolved;
 - completed episodes after processing succeeds and feeds are regenerated;
 - breaking processing errors such as max-retry episode failures, missing subscription rows during processing, and top-level background worker loop errors.

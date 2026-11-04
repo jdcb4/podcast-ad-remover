@@ -76,6 +76,10 @@ def _resolve_audio_file_path(path: str) -> Path:
     except (OSError, StorageUnavailable):
         raise HTTPException(status_code=503, detail="Media storage unavailable; check the configured mount")
 
+    # Episode folders also hold transcripts and reports; those have their own routes.
+    if file_path.suffix.lower() != ".mp3":
+        raise HTTPException(status_code=404, detail="Audio file not found")
+
     if not file_path.exists():
         logger.warning(f"Audio file not found: {file_path}")
         raise HTTPException(status_code=404, detail="Audio file not found")
@@ -126,19 +130,10 @@ async def serve_audio(path: str, request: Request, download: bool = False):
             logger.error(f"Error tracking listen: {e}")
             # Don't fail the request if tracking fails
     
-    # Determine media type
-    media_type = "audio/mpeg"
-    if file_path.suffix.lower() == ".m4a":
-        media_type = "audio/mp4"
-    elif file_path.suffix.lower() == ".ogg":
-        media_type = "audio/ogg"
-    elif file_path.suffix.lower() == ".wav":
-        media_type = "audio/wav"
-    
     # Use FileResponse which handles Range requests automatically
     return FileResponse(
         path=file_path,
-        media_type=media_type,
+        media_type="audio/mpeg",
         filename=file_path.name,
         content_disposition_type="attachment" if download else "inline",
     )

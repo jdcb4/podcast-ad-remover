@@ -1,4 +1,6 @@
 import os
+import re
+from pathlib import Path
 from app.core.publication import atomic_write, serialized_feed
 import logging
 from datetime import datetime
@@ -93,7 +95,7 @@ class RSSGenerator:
             description += f"\n\nLatest: {latest['title']}"
         
         SubElement(channel, 'description').text = description
-        SubElement(channel, 'link').text = sub.feed_url
+        SubElement(channel, 'link').text = base_url
         
         # Image
         artwork_url = effective_artwork_url(sub, base_url)
@@ -106,7 +108,6 @@ class RSSGenerator:
             item = SubElement(channel, 'item')
             SubElement(item, 'title').text = ep['title']
             SubElement(item, 'guid').text = ep.get('published_guid') or ep['guid']
-            SubElement(item, 'link').text = ep['original_url']
             
             # PubDate
             if ep['pub_date']:
@@ -142,7 +143,7 @@ class RSSGenerator:
             # Prioritize AI summary for description if available
             description = ep['ai_summary'] if ep.get('ai_summary') else ep['description']
             if not description:
-                description = f"Original: {ep['original_url']}\n\nProcessed by Podcast Ad Remover."
+                description = "Processed by Podcast Ad Remover."
             
             desc_element = SubElement(item, 'description')
             desc_element.text = _cdata(description)
@@ -158,6 +159,22 @@ class RSSGenerator:
         atomic_write(output_path, xml_str)
             
         return output_path
+
+    def regenerate_all(self) -> None:
+        """Rewrite every published feed so format changes reach XML already on disk."""
+        user_ids = []
+        for path in Path(settings.FEEDS_DIR).glob("unified-user-*.xml"):
+            match = re.fullmatch(r"unified-user-(\d+)\.xml", path.name)
+            if match:
+                user_ids.append(int(match.group(1)))
+        jobs = [(self.generate_feed, sub.id) for sub in self.sub_repo.get_all()]
+        jobs.append((self.generate_unified_feed, None))
+        jobs.extend((self.generate_unified_feed, user_id) for user_id in user_ids)
+        for generate, argument in jobs:
+            try:
+                generate(argument)
+            except Exception:
+                logger.exception("Could not regenerate feed during startup")
 
     @serialized_feed
     def generate_unified_feed(self, user_id: int | None = None):
@@ -189,7 +206,6 @@ class RSSGenerator:
                 episode_title = f"[{ep['podcast_title']}] {episode_title}"
             SubElement(item, 'title').text = episode_title
             SubElement(item, 'guid').text = ep.get('published_guid') or ep['guid']
-            SubElement(item, 'link').text = ep['original_url']
             
             if ep['pub_date']:
                 dt = datetime.fromisoformat(ep['pub_date']) if isinstance(ep['pub_date'], str) else ep['pub_date']

@@ -57,7 +57,7 @@
             </div>
 
             <!-- Additional help for specific errors -->
-            {% if status_code == 401 %}
+            {% if status_code == 401 and access_requests_enabled %}
             <div class="mt-6 pt-6 border-t border-ink/[0.08]">
                 <p class="text-sm text-text-muted">
                     Need access? <a href="/request-access" class="text-link hover:text-link-hover transition-colors">Request Access →</a>
