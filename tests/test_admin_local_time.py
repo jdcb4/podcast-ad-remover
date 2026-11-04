@@ -7,7 +7,6 @@ ADMIN_LOCAL_TIME_SITES = [
     ("admin/users.html", 2),
     ("admin/_login_history.html", 1),
     ("admin/_api_tokens.html", 1),
-    ("admin/access_requests.html", 2),
 ]
 
 

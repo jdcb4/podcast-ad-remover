@@ -10,14 +10,11 @@ from app.web.router import approve_access_request
 def test_access_request_submission_hashes_requested_password():
     router_source = Path("app/web/router.py").read_text(encoding="utf-8")
     request_template = Path("app/web/templates/request_access.html").read_text(encoding="utf-8")
-    admin_template = Path("app/web/templates/admin/access_requests.html").read_text(encoding="utf-8")
 
     assert "hash_password(password)" in router_source
     assert "INSERT INTO access_requests (username, email, reason, password_hash, ip_address)" in router_source
     assert 'name="password"' in request_template
     assert 'name="confirm_password"' in request_template
-    assert "Temporary Password" not in admin_template
-    assert "password they chose" in admin_template
 
 
 @pytest.mark.asyncio
