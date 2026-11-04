@@ -8,7 +8,7 @@ import json
 import shutil
 from datetime import datetime
 from pathlib import Path
-from app.core.artifacts import episode_directory, legacy_directory, source_fingerprint
+from app.core.artifacts import artifact_path, episode_directory, legacy_directory, source_fingerprint
 from app.core.provider_budget import current_claim, ProviderBudgetExceeded
 from app.core.resource_budget import require_scratch
 from app.core.reports import render_ad_report
@@ -609,6 +609,19 @@ class Processor:
                       and path.is_relative_to(episode_root) and path.is_dir()]
         return sorted(candidates, key=lambda path: not (path / 'transcript.json').is_file())
 
+    def _saved_transcript(self, ep: Episode, sub, episode_root: Path) -> str | None:
+        """Find the transcript for a keep-transcript request.
+
+        The recorded path can name an attempt that was since cleaned up while an
+        older revision still holds a transcript.
+        """
+        if ep.transcript_path and os.path.exists(ep.transcript_path):
+            return ep.transcript_path
+        saved = [path for path in episode_root.glob('attempt-*/transcript.json') if path.parent != self._attempt_dir]
+        if saved:
+            return str(max(saved, key=lambda path: path.stat().st_mtime))
+        return artifact_path({'transcript_path': None, 'slug': sub.slug, 'guid': ep.guid}, 'transcript_path', 'transcript.json')
+
     async def _process_episode_inner(self, ep: Episode, sub, ep_dict: dict):
         """Core multi-step processing logic for a single episode."""
         logger.info(f"Processing {ep.title}...")
@@ -682,6 +695,8 @@ class Processor:
                 except (OSError, ValueError, KeyError, TypeError):
                     logger.info('Saved attempt %s is not reusable', candidate.name)
             
+            if skip_transcription:
+                ep.transcript_path = self._saved_transcript(ep, sub, episode_root) or ep.transcript_path
             if skip_transcription and ep.transcript_path and os.path.exists(ep.transcript_path):
                  logger.info(f"Attempting to skip transcription, using existing: {ep.transcript_path}")
                  transcript_path = ep.transcript_path

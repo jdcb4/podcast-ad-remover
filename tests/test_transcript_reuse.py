@@ -1,5 +1,6 @@
 """A transcribed episode is not transcribed again unless it is manually requeued."""
 import json
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -165,6 +166,88 @@ async def test_saved_audio_without_transcript_avoids_a_second_download(harness):
     (Path(work) / 'transcript.json').unlink()
     await harness.run()
     assert (harness.calls.transcribe, harness.calls.download) == (2, 1)
+
+
+def publish_attempt(harness, claim):
+    """The state a finished episode is left in: its attempt keeps the transcript, not the source."""
+    with get_db_connection() as conn:
+        work = Path(conn.execute('SELECT work_directory FROM jobs WHERE id=?', (claim['job_id'],)).fetchone()[0])
+        (work / 'original.mp3').unlink()
+        (work / 'published.json').write_text('{}', encoding='utf-8')
+        conn.execute("UPDATE jobs SET status='completed', locked_by=NULL WHERE id=?", (claim['job_id'],))
+        conn.execute("UPDATE episodes SET status='completed', local_filename=?, transcript_path=? WHERE id=?",
+                     (str(work / 'processed.mp3'), str(work / 'transcript.json'), claim['id']))
+        conn.commit()
+    return work
+
+
+def keep_transcript(harness, claim):
+    harness.repo.reset_status(claim['id'], processing_flags=json.dumps({'skip_transcription': True}))
+    harness.repo.update_status(claim['id'], 'pending')
+    harness.repo.update_status(claim['id'], 'pending')  # Process Now on the queue page
+
+
+@pytest.mark.asyncio
+async def test_keep_transcript_then_process_now_reuses_published_transcript(harness):
+    claim = await harness.run()
+    publish_attempt(harness, claim)
+    keep_transcript(harness, claim)
+    await harness.run()
+    assert harness.calls.transcribe == 1
+
+
+@pytest.mark.asyncio
+async def test_keep_transcript_finds_published_transcript_when_recorded_path_is_gone(harness):
+    claim = await harness.run()
+    publish_attempt(harness, claim)
+    with get_db_connection() as conn:
+        conn.execute('UPDATE episodes SET transcript_path=? WHERE id=?', (str(Path(harness.repo.get_by_id(claim['id']).local_filename).parent.parent / 'attempt-removed' / 'transcript.json'), claim['id']))
+        conn.commit()
+    keep_transcript(harness, claim)
+    await harness.run()
+    assert harness.calls.transcribe == 1
+
+
+@pytest.mark.asyncio
+async def test_keep_transcript_prefers_transcript_over_newer_audio_only_attempt(harness):
+    claim = await harness.run()
+    work = publish_attempt(harness, claim)
+    newer = work.parent / 'attempt-audio-only'
+    newer.mkdir()
+    (newer / 'original.mp3').write_bytes(b'fixture-source')
+    (newer / 'cache.json').write_text(json.dumps({'source_file': 'original.mp3', 'sha256': artifacts.source_fingerprint(str(newer / 'original.mp3'))}), encoding='utf-8')
+    with get_db_connection() as conn:
+        conn.execute("UPDATE episodes SET transcript_path=NULL WHERE id=?", (claim['id'],))
+        conn.commit()
+    keep_transcript(harness, claim)
+    await harness.run()
+    assert (harness.calls.transcribe, harness.calls.download) == (1, 1)
+
+
+@pytest.mark.asyncio
+async def test_keep_transcript_uses_pre_attempt_layout_transcript(harness):
+    claim = await harness.run()
+    publish_attempt(harness, claim)
+    shutil.rmtree(Path(harness.repo.get_by_id(claim['id']).local_filename).parent)
+    with get_db_connection() as conn:
+        conn.execute("UPDATE episodes SET guid='legacy-guid', transcript_path='/gone/transcript.json' WHERE id=?", (claim['id'],))
+        conn.commit()
+    legacy = artifacts.legacy_directory('show', 'legacy-guid')
+    legacy.mkdir(parents=True)
+    (legacy / 'transcript.json').write_text(json.dumps({'segments': [{'start': 0, 'end': 4, 'text': 'hello'}]}), encoding='utf-8')
+    keep_transcript(harness, claim)
+    await harness.run()
+    assert harness.calls.transcribe == 1
+
+
+@pytest.mark.asyncio
+async def test_retry_without_keep_request_does_not_pair_old_transcript_with_new_download(harness):
+    claim = await harness.run()
+    publish_attempt(harness, claim)
+    harness.repo.reset_status(claim['id'])
+    harness.repo.update_status(claim['id'], 'pending')
+    await harness.run()
+    assert (harness.calls.transcribe, harness.calls.download) == (2, 2)
 
 
 def test_current_model_settings_replace_those_saved_with_the_job(monkeypatch):
