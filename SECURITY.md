@@ -14,6 +14,7 @@ on a network you intend to trust. One Uvicorn worker per data directory is the s
   and interactive API docs; it does **not** automatically enable secure cookies or login.
 - SameSite=Lax cookies protect dashboard sessions. Same-origin checks protect management mutations even when dashboard login is disabled.
   Configure the public application URL to match the browser-facing origin.
+- Anyone who can reach the app can ask for an account unless Allow access requests is turned off. Requests never grant access until an admin approves them.
 - Owners/admins manage podcast settings and episode processing/removal. Other members have
   read/library/discovery access; deleting the global podcast is admin-only. Pure ownership
   rules live in `app/core/permissions.py` and are exercised through real HTTP routes.

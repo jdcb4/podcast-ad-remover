@@ -25,6 +25,7 @@
 {{ toggle('auth_enabled','Require dashboard login',settings.auth_enabled) }}
 {{ text('ip_allowlist','IP allowlist',settings.ip_allowlist) }}
 {{ toggle('public_subscribe_page_enabled','Public subscription page',settings.public_subscribe_page_enabled) }}
+{{ toggle('access_requests_enabled','Allow access requests',settings.access_requests_enabled) }}
 {{ toggle('enable_feed_auth','Protect feeds and audio',settings.enable_feed_auth) }}
 <details><summary>Standalone feed credentials</summary><p class="text-sm text-text-muted">Only needed for protected feeds when dashboard login is off. Blank password keeps the saved value.</p>
 {{ text('feed_auth_username','Username',settings.feed_auth_username) }}{{ text('feed_auth_password','Password',type='password') }}</details>

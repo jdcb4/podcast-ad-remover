@@ -90,6 +90,10 @@ def get_app_base_url(global_settings: dict, request=None) -> str:
     
     return settings.BASE_URL.rstrip("/")
 
+def access_requests_enabled() -> bool:
+    return bool(get_global_settings().get("access_requests_enabled", 1))
+
+
 def get_global_settings():
     from app.infra.database import get_db_connection
     with get_db_connection() as conn:

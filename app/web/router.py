@@ -118,7 +118,12 @@ def _safe_local_redirect(target: str | None, fallback: str) -> str:
     return target
 
 # Helper to get settings
-from app.core.utils import get_global_settings
+from app.core.utils import access_requests_enabled, get_global_settings
+
+
+def require_access_requests_enabled():
+    if not access_requests_enabled():
+        raise HTTPException(status_code=404, detail="Access requests are disabled")
 
 
 def _real_user_id(user) -> int | None:
@@ -246,6 +251,7 @@ async def login_page(request: Request):
             "initial_password": settings['initial_password'] if settings else None,
             "auth_enabled": settings['auth_enabled'] if settings else False,
             "public_subscribe_page_enabled": settings['public_subscribe_page_enabled'] if settings else True,
+            "access_requests_enabled": access_requests_enabled(),
         }
     )
 
@@ -277,6 +283,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
                 "auth_enabled": True,
                 "rate_limited": True,
                 "public_subscribe_page_enabled": public_subscribe_page_enabled,
+                "access_requests_enabled": access_requests_enabled(),
             },
             status_code=e.status_code
         )
@@ -303,6 +310,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
                 "auth_enabled": True,
                 "rate_limited": is_locked,
                 "public_subscribe_page_enabled": public_subscribe_page_enabled,
+                "access_requests_enabled": access_requests_enabled(),
             }
         )
     
@@ -389,7 +397,7 @@ async def change_password(
     
     return RedirectResponse(url="/admin/system?password_changed=1", status_code=status.HTTP_302_FOUND)
 
-@router.get("/request-access", response_class=HTMLResponse)
+@router.get("/request-access", response_class=HTMLResponse, dependencies=[Depends(require_access_requests_enabled)])
 async def request_access_page(request: Request):
     """Display access request form."""
     return templates.TemplateResponse(
@@ -398,7 +406,7 @@ async def request_access_page(request: Request):
         context={"csp_nonce": get_csp_nonce(request)}
     )
 
-@router.post("/submit-access-request")
+@router.post("/submit-access-request", dependencies=[Depends(require_access_requests_enabled)])
 async def submit_access_request(
     request: Request,
     username: str = Form(...),
@@ -558,6 +566,7 @@ async def update_system_settings(
     feed_auth_username: str = Form(None),
     feed_auth_password: str = Form(None),
     public_subscribe_page_enabled: bool = Form(False),
+    access_requests_enabled: bool = Form(False),
     section: Annotated[str | None, Form()] = None,
     redirect_to: str = Form(None),
     admin_user = Depends(require_admin)
@@ -581,6 +590,8 @@ async def update_system_settings(
         enable_feed_auth = current.get("enable_feed_auth")
         feed_auth_username = current.get("feed_auth_username")
         public_subscribe_page_enabled = current.get("public_subscribe_page_enabled")
+    if section != "access":
+        access_requests_enabled = current.get("access_requests_enabled", 1)
     if section is not None and section != "api":
         ai_api_enabled = current.get("ai_api_enabled")
         ai_api_default_requests_per_minute = current.get("ai_api_default_requests_per_minute")
@@ -677,6 +688,7 @@ async def update_system_settings(
                 feed_auth_username = ?,
                 feed_auth_password = COALESCE(?, feed_auth_password),
                 public_subscribe_page_enabled = ?,
+                access_requests_enabled = ?,
                 whitelist_mode = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
@@ -692,6 +704,7 @@ async def update_system_settings(
               effective_feed_username if enable_feed_auth else (feed_auth_username if feed_auth_username else None),
               hashed_feed_password if hashed_feed_password else None,
               1 if public_subscribe_page_enabled else 0,
+              1 if access_requests_enabled else 0,
               next_whitelist_mode))
         conn.commit()
     
