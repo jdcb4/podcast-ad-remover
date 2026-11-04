@@ -1630,6 +1630,10 @@ async def delete_user(user_id: int, request: Request, user: dict = Depends(requi
 
     from app.infra.database import get_db_connection
     with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE feed_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL",
+            (user_id,),
+        )
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         conn.commit()
     

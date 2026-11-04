@@ -18,7 +18,7 @@ on a network you intend to trust. One Uvicorn worker per data directory is the s
   read/library/discovery access; deleting the global podcast is admin-only. Pure ownership
   rules live in `app/core/permissions.py` and are exercised through real HTTP routes.
 - Feed and optional v1 API tokens are stored as hashes. Feed links are bearer secrets;
-  revoke compromised tokens in Settings → Users & access. Session-key rotation does not revoke those tokens.
+  revoke compromised tokens in Settings → Users & access. Deleting a user revokes their feed tokens. Session-key rotation does not revoke those tokens.
 - The v1 API is disabled by default and uses separate scoped credentials and SQLite request
   counters. Login throttling is process-local (5 failed attempts per IP over 15 minutes).
 

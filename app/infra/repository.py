@@ -1632,6 +1632,7 @@ class FeedTokenRepository:
                 FROM feed_tokens ft
                 LEFT JOIN users u ON u.id = ft.user_id
                 WHERE ft.revoked_at IS NULL
+                  AND (ft.user_id IS NULL OR u.id IS NOT NULL)
                 ORDER BY ft.created_at DESC
             """).fetchall()
             return [dict(row) for row in rows]
@@ -1643,9 +1644,11 @@ class FeedTokenRepository:
         token_hash = self.hash_token(token)
         with get_db_connection() as conn:
             row = conn.execute("""
-                SELECT id FROM feed_tokens
-                WHERE token_hash = ?
-                  AND revoked_at IS NULL
+                SELECT ft.id FROM feed_tokens ft
+                LEFT JOIN users u ON u.id = ft.user_id
+                WHERE ft.token_hash = ?
+                  AND ft.revoked_at IS NULL
+                  AND (ft.user_id IS NULL OR u.id IS NOT NULL)
             """, (token_hash,)).fetchone()
             if not row:
                 return False
