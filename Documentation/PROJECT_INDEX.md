@@ -24,7 +24,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/core/prompt_defaults.py`, `app/web/timeline_rules.py`: historical prompt constants and Complete Timeline rule editing/preview.
 - `app/core/unified_feed.py`: validates and resolves backward-compatible unified-feed presentation settings.
 - `app/core/artifacts.py`, `publication.py`, `reports.py`: artifact identity, atomic RSS writes and escaped reports.
-- `app/core/speech.py`, `provider_settings.py`: bounded API speech and single credential/model resolution.
+- `app/core/speech.py`, `provider_settings.py`: bounded API speech and ordered credential/model resolution.
 - `app/web/setup.py`: staged optional setup with review/apply and conflict detection.
 - `configurator/`, `scripts/build_configurator.py`: private static installer and offline bundle.
 - `configurator/install.html`: committed self-contained wizard download, regenerated from the installer assets with hash-based CSP.

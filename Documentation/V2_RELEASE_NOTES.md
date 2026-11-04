@@ -2,6 +2,8 @@
 
 Released 11 October 2026. Reviewed and approved by Joe, including the rationale for removing local speech and internal model routing.
 
+These notes describe 2.0.0. Model and API key fallback for text analysis was restored afterwards; see [the decision log](DECISIONS.md).
+
 ## Release overview
 
 Podcast Ad Remover prepares podcast feeds with fewer interruptions, ready for your usual player. Add or import subscriptions, choose which content to remove, and let PAR download, transcribe and process new episodes. Optional summaries, spoken titles, a Unified Feed and separate audio storage help you manage a growing library.

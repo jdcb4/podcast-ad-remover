@@ -1,5 +1,9 @@
 # Decisions
 
+## 2026-11-04: Restore model and API key fallback for text analysis
+
+Reverses the single-model part of the 2026-10-11 and V2 decisions below, at the request of this fork's operator: a provider outage on the one selected model delayed every episode, and running a separate router is more than a home install should need. Each provider again takes an ordered list of models and keys in the existing TEXT columns, so there is no schema change and earlier 2.x code still reads the first value. Native structured output stays mandatory, because schema-free fallback was the riskier part of the old cascade. Stay within one provider and leave speech on a single model. Defaults remain one model, so no install starts spending on extra models unasked. A rejected request that falls back is refunded from the job budget, since that budget is retained across retries and three failing models would otherwise end a job permanently after a few retries. Gemini free-tier accounting stays one pool per model and does not rotate keys. See [fallback behavior](COMPLETE_TIMELINE.md).
+
 ## 2026-10-11: Release rationale for removing built-in cascades
 
 Joe explained that sufficiently capable paid models are now affordable enough for many installations to use one directly. Dedicated routers such as 9Router, OmniRoute and LiteLLM can manage a three-tier cascade or account routing outside PAR; maintaining another cascade here duplicates that work for limited value. PAR selects one model and credential, with compatible external routing through the custom OpenAI-compatible endpoint. Every routed model must support native structured output. This records the maintainer's rationale, not a price guarantee or gateway compatibility certification. README and release notes explain the functional impacts of local Piper removal and other V2 changes. Final release wording awaits his review; no version bump or publication is authorized by preparation.

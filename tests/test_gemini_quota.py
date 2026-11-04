@@ -193,7 +193,7 @@ def provider(monkeypatch, outcomes, models=None, enabled=True, name='gemini'):
 
 
 def test_single_model_cooldown_prevents_further_requests(clock, monkeypatch):
-    instance,calls=provider(monkeypatch,[error(message='daily quota exceeded')])
+    instance,calls=provider(monkeypatch,[error(message='daily quota exceeded')],models=[MODEL])
     for _ in range(2):
         with pytest.raises(RateLimitError): instance.generate('test')
     assert calls==[MODEL] and instance.models==[MODEL] and instance.current_key_idx==0
@@ -201,7 +201,7 @@ def test_single_model_cooldown_prevents_further_requests(clock, monkeypatch):
 
 
 def test_single_model_schedules_its_daily_reset(clock, monkeypatch):
-    instance,calls=provider(monkeypatch,[error(message='daily quota exceeded')],models=[MODEL,LITE])
+    instance,calls=provider(monkeypatch,[error(message='daily quota exceeded')],models=[MODEL])
     with pytest.raises(RateLimitError) as caught: instance.generate('test')
     assert caught.value.get_next_retry_time()==datetime.fromtimestamp(quota.day_window(clock[0])[1],timezone.utc).replace(tzinfo=None)
     assert calls==[MODEL]
@@ -237,16 +237,16 @@ def test_job_budget_rejection_rolls_back_quota_reservation(episodes, monkeypatch
 
 
 @pytest.mark.parametrize('enabled,name',[(False,'gemini'),(True,'openai'),(True,'openrouter'),(True,'custom')])
-def test_other_providers_never_rotate_credentials(clock,monkeypatch,enabled,name):
-    instance,calls=provider(monkeypatch,[error(message='429 rate limit')],models=[MODEL],enabled=enabled,name=name)
+def test_other_providers_rotate_credentials_without_quota_accounting(clock,monkeypatch,enabled,name):
+    instance,calls=provider(monkeypatch,[error(message='429 rate limit'),error(message='429 rate limit')],models=[MODEL],enabled=enabled,name=name)
     with pytest.raises(RateLimitError): instance.generate('test')
-    assert len(calls)==1 and instance.current_key_idx==0
+    assert len(calls)==2 and instance.current_key_idx==1
     assert quota.usage([MODEL])[0]['day_requests']==0
 
 
 
 def test_authentication_stays_actionable(clock, monkeypatch):
-    instance, _ = provider(monkeypatch, [error(401, 'unauthorized')])
+    instance, _ = provider(monkeypatch, [error(401, 'unauthorized'), error(401, 'unauthorized')])
     with pytest.raises(PermanentProviderError):
         instance.generate('test')
 

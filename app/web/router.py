@@ -63,7 +63,15 @@ from app.web.podcast_operations import router as podcast_operations_router
 router.include_router(podcast_operations_router)
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
-from app.core.provider_settings import credential as provider_credential
+from app.core.provider_settings import (
+    MAX_CONFIGURED_VALUES,
+    MODEL_FIELDS,
+    all_values,
+    credential as provider_credential,
+    first_value,
+    saved_credentials,
+    store_values,
+)
 from app.core.speech import speech_ready
 templates.env.globals["speech_ready"] = speech_ready
 templates.env.globals["processing_is_paused"] = lambda: bool(get_global_settings().get("processing_paused"))
@@ -79,6 +87,7 @@ templates.env.filters['clean_description'] = safe_clean_description
 templates.env.filters['compact_datetime'] = compact_datetime
 templates.env.filters['local_time'] = local_time
 templates.env.filters['utc_isoformat'] = utc_isoformat
+templates.env.filters['join_values'] = lambda value, separator='\n': separator.join(all_values(value))
 configure_static_asset_versioning(templates)
 
 sub_repo = SubscriptionRepository()
@@ -784,7 +793,9 @@ def _render_admin_ai(request: Request, ai_section: str):
             "model_defaults": MODEL_DEFAULTS,
             "speech_voices": __import__("app.core.speech", fromlist=["VOICES"]).VOICES,
             "env_keys": env_keys,
-            "speech_credentials": {p: bool(provider_credential(p, saved_settings)) for p in ("gemini", "openai", "openrouter")}
+            "speech_credentials": {p: bool(provider_credential(p, saved_settings)) for p in ("gemini", "openai", "openrouter")},
+            "credential_counts": {p: len(saved_credentials(p, saved_settings)) for p in MODEL_FIELDS},
+            "env_credential_counts": {p: len(all_values(getattr(settings, p.upper() + "_API_KEY", None))) for p in MODEL_FIELDS if p != "custom"},
         }
     )
 
@@ -864,17 +875,22 @@ async def update_ai_settings(
     from app.core.ai_services import AdDetector, normalize_openai_base_url
     import json
 
+    def limited_values(value, label):
+        values = all_values(value)
+        if len(values) > MAX_CONFIGURED_VALUES:
+            raise HTTPException(400, f'Configure at most {MAX_CONFIGURED_VALUES} {label}.')
+        return values
+
     def normalized_models(value, current, default):
-        from app.core.provider_settings import first_value
         if value is None:
-            return first_value(current, first_value(default))
-        try:
-            parsed = json.loads(value)
-        except ValueError:
-            parsed = value
-        if isinstance(parsed, list) and len(parsed) > 1:
-            raise HTTPException(400, 'Choose one model; cascades are no longer supported.')
-        return first_value(parsed)
+            return store_values(all_values(current)) or first_value(default)
+        return store_values(limited_values(value, 'models'))
+
+    def updated_credentials(submitted: str | None, clear: bool, current: str | None) -> str | None:
+        if clear:
+            return None
+        keys = limited_values(submitted, 'API keys') if submitted else []
+        return store_values(keys) if keys else current
 
     def updated_secret(submitted: str | None, clear: bool, current: str | None) -> str | None:
         if clear:
@@ -920,12 +936,19 @@ async def update_ai_settings(
             if tts_provider not in (*PROVIDERS, 'unconfigured'):
                 raise HTTPException(400, 'Choose an API speech provider.')
             if speech_credential and tts_provider in PROVIDERS:
+                # Speech uses the first key; a new one replaces it and keeps any text-analysis fallbacks.
                 field = 'tts_api_key' if tts_provider == 'custom' else tts_provider + '_api_key'
-                current[field] = speech_credential.strip()
-                conn.execute(f'UPDATE app_settings SET {field}=? WHERE id=1', (current[field],))
-                if tts_provider == 'gemini':
+                new_key = speech_credential.strip()
+                others = [] if tts_provider == 'custom' else saved_credentials(tts_provider, current)[1:]
+                stored = store_values(list(dict.fromkeys([new_key, *others])))
+                if tts_provider == 'gemini' and others:
+                    field, current['gemini_api_key'] = 'gemini_api_keys', None
+                    conn.execute('UPDATE app_settings SET gemini_api_key=NULL WHERE id=1')
+                elif tts_provider == 'gemini':
                     current['gemini_api_keys'] = None
                     conn.execute('UPDATE app_settings SET gemini_api_keys=NULL WHERE id=1')
+                current[field] = stored
+                conn.execute(f'UPDATE app_settings SET {field}=? WHERE id=1', (stored,))
             proposed = {**current, 'tts_provider': tts_provider,
                 'tts_model': tts_model or current.get('tts_model'),
                 'tts_voice': tts_voice or current.get('tts_voice'),
@@ -971,16 +994,7 @@ async def update_ai_settings(
             if clear_gemini_api_keys:
                 selected_gemini_keys = "[]"
             elif gemini_api_keys:
-                try:
-                    parsed_keys = json.loads(gemini_api_keys)
-                except json.JSONDecodeError:
-                    parsed_keys = [gemini_api_keys]
-                parsed_keys = [
-                    str(key).strip() for key in parsed_keys
-                    if isinstance(key, str) and key.strip()
-                ]
-                if len(parsed_keys) > 1:
-                    raise HTTPException(400, "Configure one Gemini credential.")
+                parsed_keys = limited_values(gemini_api_keys, 'API keys')
                 if parsed_keys:
                     selected_gemini_keys = json.dumps(parsed_keys)
 
@@ -1020,16 +1034,16 @@ async def update_ai_settings(
                 (
                     selected_provider,
                     selected_gemini_models,
-                    updated_secret(openai_api_key, clear_openai_api_key, current.get("openai_api_key")),
-                    updated_secret(anthropic_api_key, clear_anthropic_api_key, current.get("anthropic_api_key")),
-                    updated_secret(openrouter_api_key, clear_openrouter_api_key, current.get("openrouter_api_key")),
+                    updated_credentials(openai_api_key, clear_openai_api_key, current.get("openai_api_key")),
+                    updated_credentials(anthropic_api_key, clear_anthropic_api_key, current.get("anthropic_api_key")),
+                    updated_credentials(openrouter_api_key, clear_openrouter_api_key, current.get("openrouter_api_key")),
                     selected_gemini_keys,
                     int(gemini_free_tier_enabled) if gemini_free_tier_present else current.get('gemini_free_tier_enabled', 0),
                     selected_openai_models,
                     selected_anthropic_models,
                     selected_openrouter_models,
                     selected_base_url,
-                    updated_secret(custom_llm_api_key, clear_custom_llm_api_key, current.get("custom_llm_api_key")),
+                    updated_credentials(custom_llm_api_key, clear_custom_llm_api_key, current.get("custom_llm_api_key")),
                     selected_custom_models,
                 ),
             )

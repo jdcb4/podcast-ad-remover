@@ -15,7 +15,7 @@ from urllib.parse import urlsplit, urlunsplit
 from app.core.config import settings
 from app.core.prompt_defaults import LEGACY_DEFAULTS
 from app.core.model_defaults import MODEL_DEFAULTS
-from app.core.provider_budget import provider_request, ProviderBudgetExceeded
+from app.core.provider_budget import provider_request, refund_provider_call, ProviderBudgetExceeded
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -89,6 +89,31 @@ def raise_permanent_provider_error(error):
     status = getattr(error, 'status_code', None) or getattr(getattr(error, 'response', None), 'status_code', None)
     if status in (401, 403) or any(code in str(error).lower() for code in ('insufficient_quota', 'billing_hard_limit')):
         raise PermanentProviderError('Provider authentication or billing failed; review provider settings') from error
+
+
+RATE_LIMIT_PATTERNS = (
+    'resource_exhausted',
+    'quota exceeded',
+    'rate limit',
+    '429',
+    'too many requests',
+    'resourceexhausted',
+)
+REVOKED_KEY_PATTERNS = ('insufficient_quota', 'billing_hard_limit', 'api_key_invalid', 'api key not valid', 'invalid api key')
+# Providers reject these before doing billable work, unlike a timeout or truncated reply.
+UNBILLED_STATUSES = {401, 403, 429, 500, 502, 503, 504, 529}
+
+
+def provider_status(error):
+    return getattr(error, 'status_code', None) or getattr(getattr(error, 'response', None), 'status_code', None)
+
+
+def is_rate_limit(error):
+    status = provider_status(error)
+    if status is not None:
+        return status == 429
+    text = str(error).lower()
+    return any(pattern in text for pattern in RATE_LIMIT_PATTERNS)
 
 
 def record_usage(metrics, response):
@@ -412,6 +437,13 @@ class Transcriber:
 
 
 class LLMProvider:
+    models: List[str] = []
+    api_keys: List[str] = ['']
+    current_key_idx = 0
+    provider_name = 'AI provider'
+    rate_limit_provider = 'unknown'
+    gemini_free_tier = False
+
     def generate(self, prompt: str) -> str:
         raise NotImplementedError
 
@@ -421,25 +453,106 @@ class LLMProvider:
     def list_models(self) -> List[str]:
         raise NotImplementedError
 
+    def _init_client(self):
+        raise NotImplementedError
+
+    def _send(self, model, messages, schema=None) -> str:
+        raise NotImplementedError
+
+    def _use_key(self, index):
+        if index != self.current_key_idx:
+            self.current_key_idx = index
+            self._init_client()
+
+    def skip_model(self, model) -> bool:
+        """Stop using a model for this job; report whether another one remains."""
+        self.models = [candidate for candidate in self.models if candidate != model]
+        return bool(self.models)
+
+    def _generate(self, messages, schema=None) -> str:
+        """Try every key for a rate-limited model, then the next model for anything else.
+
+        The working key is kept for this job's later requests. Credential failures
+        are permanent only when they are the sole outcome across the whole chain.
+        """
+        if not self.models:
+            raise PermanentProviderError(f"Choose a model for {self.provider_name}")
+        failures, cooldowns, revoked = [], [], set()
+        owes_refund = False
+        for model in list(self.models):
+            start = self.current_key_idx
+            for offset in range(len(self.api_keys)):
+                index = (start + offset) % len(self.api_keys)
+                if index in revoked:
+                    continue
+                if owes_refund:
+                    refund_provider_call()
+                    owes_refund = False
+                self._use_key(index)
+                try:
+                    return self._send(model, messages, schema)
+                except (ProviderBudgetExceeded, PermanentProviderError):
+                    raise
+                except Exception as error:
+                    logger.warning("%s: model %s with key #%d failed: %s", self.provider_name, model, index + 1, error)
+                    status = provider_status(error)
+                    revoked_key = status == 401 or any(pattern in str(error).lower() for pattern in REVOKED_KEY_PATTERNS)
+                    owes_refund = status in UNBILLED_STATUSES
+                    if revoked_key or status == 403:
+                        # A 403 can mean only this model is off limits, so the key stays in play for the next one.
+                        if revoked_key:
+                            revoked.add(index)
+                        failures.append(('credential', error))
+                        continue
+                    if self.gemini_free_tier:
+                        # Free-tier quota is one pool per model; another key grants no allowance.
+                        from app.core.gemini_quota import GeminiCooldown, record_error
+                        cooldown = error if isinstance(error, GeminiCooldown) else record_error(model, error)
+                        if cooldown:
+                            cooldowns.append(cooldown)
+                            failures.append(('rate_limit', error))
+                            break
+                    if is_rate_limit(error):
+                        failures.append(('rate_limit', error))
+                        continue
+                    failures.append(('model', error))
+                    break
+        self._raise_chain_failure(failures, cooldowns)
+
+    def _raise_chain_failure(self, failures, cooldowns):
+        kinds = {kind for kind, _ in failures}
+        if kinds == {'credential'}:
+            raise PermanentProviderError('Provider authentication or billing failed; review provider settings') from failures[-1][1]
+        if cooldowns:
+            from datetime import datetime, timezone
+            earliest = min(cooldowns, key=lambda cooldown: cooldown.until)
+            raise RateLimitError('; '.join(str(cooldown) for cooldown in cooldowns), provider='gemini',
+                                 retry_at=datetime.fromtimestamp(earliest.until, timezone.utc).replace(tzinfo=None)) from failures[-1][1]
+        usable = [error for kind, error in failures if kind != 'credential']
+        if 'model' not in kinds:
+            raise rate_limit_error(usable[-1], self.rate_limit_provider) from usable[-1]
+        raise usable[-1]
+
     def test_connection(self) -> Dict:
-        try:
-            # Simple hello world test
-            response = self.generate("Say hello")
-            return {"status": "ok", "response": response[:100]}
-        except Exception as e:
-            return {"status": "error", "error": str(e)}
+        """Check each model once and each extra key once, so fallback cannot hide a bad entry."""
+        if not self.models:
+            return {"status": "error", "error": f"Choose a model for {self.provider_name}"}
+        checks = [(model, 0) for model in self.models]
+        checks += [(self.models[0], index) for index in range(1, len(self.api_keys))]
+        messages = [{"role": "user", "content": "Say hello"}]
+        problems, response = [], ""
+        for model, index in checks:
+            try:
+                self._use_key(index)
+                response = self._send(model, messages) or response
+            except Exception as e:
+                problems.append(f"{model} with key #{index + 1}: {e}")
+        if problems:
+            return {"status": "error", "error": "; ".join(problems)}
+        return {"status": "ok", "response": response[:100], "checked": len(checks)}
 
 class OpenAIProvider(LLMProvider):
     # Successful real requests also serve as capability checks. No extra paid probe.
-    RATE_LIMIT_PATTERNS = (
-        'resource_exhausted',
-        'quota exceeded',
-        'rate limit',
-        '429',
-        'too many requests',
-        'resourceexhausted',
-    )
-
     def __init__(
         self,
         api_key: str | List[str],
@@ -452,9 +565,9 @@ class OpenAIProvider(LLMProvider):
     ):
         import openai
         self.openai = openai
-        self.api_keys = (api_key if isinstance(api_key, list) else [api_key])[:1]
+        self.api_keys = api_key if isinstance(api_key, list) else [api_key]
         self.current_key_idx = 0
-        self.models = models[:1]
+        self.models = list(models)
         self.base_url = base_url
         self.provider_name = provider_name
         self.model_prefixes = model_prefixes
@@ -469,51 +582,31 @@ class OpenAIProvider(LLMProvider):
         logger.info(f"{self.provider_name}: Initializing client with credential #{self.current_key_idx + 1}")
         self.client = self.openai.OpenAI(api_key=key, base_url=self.base_url, max_retries=0, timeout=settings.PROVIDER_TIMEOUT_SECONDS)
 
-    def _is_rate_limit(self, error: Exception) -> bool:
-        error_str = str(error).lower()
-        return any(pattern in error_str for pattern in self.RATE_LIMIT_PATTERNS)
-
     def generate(self, prompt: str) -> str:
         return self._generate([{"role": "user", "content": prompt}])
 
     def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "strict") -> str:
-        return self._generate(messages, schema, output_mode)
+        return self._generate(messages, schema)
 
-    def _generate(self, messages, schema=None, output_mode="strict") -> str:
-        if not self.models:
-            raise PermanentProviderError(f"Choose a model for {self.provider_name}")
-        model = self.models[0]
+    def _send(self, model, messages, schema=None) -> str:
         kwargs = {"model": model, "messages": messages}
         if schema is not None:
             kwargs["response_format"] = {"type": "json_schema", "json_schema": {
                 "name": "podcast_classification", "strict": True, "schema": schema}}
             if self.is_openrouter:
                 kwargs["extra_body"] = {"provider": {"require_parameters": True}}
-        try:
-            from app.core.gemini_quota import estimate_input_tokens
-            with provider_request(self.rate_limit_provider, model,
-                                  gemini_free_tier=self.gemini_free_tier,
-                                  input_tokens=estimate_input_tokens(kwargs) if self.gemini_free_tier else 0) as metrics:
-                response = self.client.chat.completions.create(**kwargs)
-                record_usage(metrics, response)
-                choice = response.choices[0]
-                if getattr(choice, 'finish_reason', 'stop') in ('length', 'content_filter') or getattr(choice.message, 'refusal', None):
-                    raise AnalysisError('Provider returned truncated or refused output')
-                self.last_model = model
-                self.last_output_mode = "json_schema" if schema else "text"
-                return choice.message.content or ""
-        except Exception as error:
-            raise_permanent_provider_error(error)
-            if self.gemini_free_tier:
-                from app.core.gemini_quota import GeminiCooldown, record_error
-                cooldown = error if isinstance(error, GeminiCooldown) else record_error(model, error)
-                if cooldown:
-                    from datetime import datetime, timezone
-                    raise RateLimitError(str(cooldown), provider='gemini',
-                        retry_at=datetime.fromtimestamp(cooldown.until, timezone.utc).replace(tzinfo=None)) from error
-            if self._is_rate_limit(error):
-                raise rate_limit_error(error, self.rate_limit_provider) from error
-            raise
+        from app.core.gemini_quota import estimate_input_tokens
+        with provider_request(self.rate_limit_provider, model,
+                              gemini_free_tier=self.gemini_free_tier,
+                              input_tokens=estimate_input_tokens(kwargs) if self.gemini_free_tier else 0) as metrics:
+            response = self.client.chat.completions.create(**kwargs)
+            record_usage(metrics, response)
+            choice = response.choices[0]
+            if getattr(choice, 'finish_reason', 'stop') in ('length', 'content_filter') or getattr(choice.message, 'refusal', None):
+                raise AnalysisError('Provider returned truncated or refused output')
+            self.last_model = model
+            self.last_output_mode = "json_schema" if schema else "text"
+            return choice.message.content or ""
 
     def list_models(self) -> List[str]:
         try:
@@ -535,21 +628,28 @@ class OpenAIProvider(LLMProvider):
             return []
 
 class AnthropicProvider(LLMProvider):
-    def __init__(self, api_key: str, models: List[str]):
+    provider_name = 'Anthropic'
+    rate_limit_provider = 'anthropic'
+
+    def __init__(self, api_key: str | List[str], models: List[str]):
         import anthropic
-        self.client = anthropic.Anthropic(api_key=api_key, max_retries=0, timeout=settings.PROVIDER_TIMEOUT_SECONDS)
-        self.models = models[:1]
+        self.anthropic = anthropic
+        self.api_keys = api_key if isinstance(api_key, list) else [api_key]
+        self.current_key_idx = 0
+        self.models = list(models)
+        self.last_model = None
+        self._init_client()
+
+    def _init_client(self):
+        self.client = self.anthropic.Anthropic(api_key=self.api_keys[self.current_key_idx], max_retries=0, timeout=settings.PROVIDER_TIMEOUT_SECONDS)
 
     def generate(self, prompt: str) -> str:
         return self._generate([{'role': 'user', 'content': prompt}])
 
     def generate_structured(self, messages: list[dict], schema: dict, output_mode: str = "strict") -> str:
-        return self._generate(messages, schema, output_mode)
+        return self._generate(messages, schema)
 
-    def _generate(self, messages, schema=None, output_mode="strict") -> str:
-        if not self.models:
-            raise PermanentProviderError('Choose an Anthropic model')
-        model = self.models[0]
+    def _send(self, model, messages, schema=None) -> str:
         kwargs = {"model": model, "max_tokens": 8192,
                   "messages": [m for m in messages if m['role'] != 'system']}
         system = "\n\n".join(m['content'] for m in messages if m['role'] == 'system')
@@ -557,20 +657,14 @@ class AnthropicProvider(LLMProvider):
             kwargs['system'] = system
         if schema:
             kwargs['extra_body'] = {"output_config": {"format": {"type": "json_schema", "schema": schema}}}
-        try:
-            with provider_request('anthropic', model) as metrics:
-                response = self.client.messages.create(**kwargs)
-                record_usage(metrics, response)
-                if getattr(response, 'stop_reason', None) in ('max_tokens', 'refusal'):
-                    raise AnalysisError('Provider returned truncated or refused output')
-                self.last_model = model
-                self.last_output_mode = 'json_schema' if schema else 'text'
-                return ''.join(block.text for block in response.content if getattr(block, 'type', 'text') == 'text')
-        except Exception as error:
-            raise_permanent_provider_error(error)
-            if getattr(error, 'status_code', None) == 429:
-                raise rate_limit_error(error, 'anthropic') from error
-            raise
+        with provider_request('anthropic', model) as metrics:
+            response = self.client.messages.create(**kwargs)
+            record_usage(metrics, response)
+            if getattr(response, 'stop_reason', None) in ('max_tokens', 'refusal'):
+                raise AnalysisError('Provider returned truncated or refused output')
+            self.last_model = model
+            self.last_output_mode = 'json_schema' if schema else 'text'
+            return ''.join(block.text for block in response.content if getattr(block, 'type', 'text') == 'text')
 
     def list_models(self) -> List[str]:
         return [
@@ -605,17 +699,15 @@ class AdDetector:
 
     @staticmethod
     def _parse_model_setting(value, default):
-        from app.core.provider_settings import first_value
-        model = first_value(value, first_value(default))
-        return [model] if model else []
+        from app.core.provider_settings import all_values, first_value
+        return all_values(value) or all_values(first_value(default))
 
     def _get_gemini_api_keys(self):
-        from app.core.provider_settings import credential
-        key = credential('gemini', self.settings)
-        return [key] if key else []
+        from app.core.provider_settings import credentials
+        return credentials('gemini', self.settings)
 
     def create_provider(self, provider_type, api_key=None, model=None, openrouter_key=None, base_url=None):
-        from app.core.provider_settings import MODEL_FIELDS, credential, first_value
+        from app.core.provider_settings import MODEL_FIELDS, credentials
         if provider_type not in MODEL_FIELDS:
             raise ValueError('Choose a supported provider')
         values = dict(self.settings)
@@ -623,18 +715,17 @@ class AdDetector:
             values['custom_llm_api_key' if provider_type == 'custom' else provider_type + '_api_key'] = api_key
             if provider_type == 'gemini':
                 values['gemini_api_keys'] = None
-        key = credential(provider_type, values)
-        if not key and provider_type != 'custom':
+        keys = credentials(provider_type, values)
+        if not keys and provider_type != 'custom':
             raise ValueError(f'Configure an API key for {provider_type}')
-        selected = first_value(model or self.settings.get(MODEL_FIELDS[provider_type]),
-                               first_value(MODEL_DEFAULTS.get(provider_type, [])))
-        models = [selected] if selected else []
+        models = self._parse_model_setting(model or self.settings.get(MODEL_FIELDS[provider_type]),
+                                           MODEL_DEFAULTS.get(provider_type, []))
         if provider_type == 'anthropic':
-            return AnthropicProvider(key, models)
+            return AnthropicProvider(keys, models)
         urls = {'gemini': self.GEMINI_OPENAI_BASE_URL, 'openai': None,
                 'openrouter': 'https://openrouter.ai/api/v1'}
         url = normalize_openai_base_url(base_url or self.settings.get('custom_llm_base_url')) if provider_type == 'custom' else urls[provider_type]
-        return OpenAIProvider(key or 'keyless-local-endpoint', models, base_url=url,
+        return OpenAIProvider(keys or ['keyless-local-endpoint'], models, base_url=url,
             provider_name='Custom OpenAI-compatible' if provider_type == 'custom' else {'gemini': 'Gemini', 'openai': 'OpenAI', 'openrouter': 'OpenRouter'}[provider_type],
             model_prefixes=None, rate_limit_provider=provider_type,
             gemini_free_tier=bool(self.settings.get('gemini_free_tier_enabled')))
@@ -656,14 +747,20 @@ class AdDetector:
         provider = detector._get_provider()
         source = timeline.source_message(units, duration, metadata)
         messages = [{"role": "system", "content": snapshot["prompt"]}, {"role": "user", "content": source}]
-        for attempt in range(2):
+        base_messages, repairing = list(messages), False
+        while True:
             text = provider.generate_structured(messages, timeline.SCHEMA, mode)
             try:
                 segments, summary = timeline.parse_response(text, units)
                 break
             except timeline.TimelineError as error:
-                if attempt:
-                    raise AnalysisError(str(error)) from error
+                if repairing:
+                    # This model has failed validation twice; only another model can help.
+                    if not provider.skip_model(provider.last_model):
+                        raise AnalysisError(str(error)) from error
+                    messages, repairing = list(base_messages), False
+                    continue
+                repairing = True
                 messages.append({"role": "user", "content": f"The previous output failed validation: {error}. Return the complete corrected JSON object covering every ID exactly once."})
 
         # A summary-only format repair must not discard or repeat valid classifications.

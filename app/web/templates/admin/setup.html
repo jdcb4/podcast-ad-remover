@@ -14,8 +14,8 @@
 {% elif step == 2 %}
 {% set provider = entered.get('provider',settings.active_ai_provider) %}
 <label class="setting-row"><span>Provider</span><select class="select" name="provider" id="setup-provider">{% for item in ['gemini','openai','anthropic','openrouter','custom'] %}<option value="{{ item }}" {% if provider == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
-{{ text('model','Model ID',entered.get('model',settings.get({'gemini':'ai_model_cascade','openai':'openai_model','anthropic':'anthropic_model','openrouter':'openrouter_model','custom':'custom_llm_model'}.get(provider,'ai_model_cascade'))),required=true) }}
-{{ text('api_key','API key',entered.get('api_key',''),type='password') }}
+{{ text('model','Model IDs (comma-separated, first is preferred)',entered.get('model',settings.get({'gemini':'ai_model_cascade','openai':'openai_model','anthropic':'anthropic_model','openrouter':'openrouter_model','custom':'custom_llm_model'}.get(provider,'ai_model_cascade')))|join_values(', '),required=true) }}
+{{ text('api_key','API keys (comma-separated)',entered.get('api_key',''),type='password') }}
 <p class="text-sm text-text-muted">{{ 'A credential is configured.' if credential_configured else 'A credential is needed for hosted providers.' }} Leave blank to retain a saved or environment key; environment keys take precedence. API use may be billed. No test call is made here.</p>
 <div id="setup-custom">{{ text('base_url','Custom endpoint URL',entered.get('base_url',settings.custom_llm_base_url),'url') }}</div>
 {% elif step == 3 %}

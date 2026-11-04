@@ -64,7 +64,7 @@ After installation, open PAR at your configured URL, complete or dismiss the opt
 We want PAR to focus on preparing better podcast feeds, with fewer overlapping options to configure, test and maintain. V2 makes three substantial changes:
 
 - **Local text-to-speech is removed.** Optional spoken features use a compatible speech API instead of bundled Piper, reducing a separate local synthesis installation and maintenance path. Local transcription stays, and no paid speech service is enabled automatically.
-- **The model cascade is removed.** Capable paid models have become affordable enough for many users to select one directly. If you want tiered routing or fallback, dedicated tools such as [9Router](https://github.com/decolua/9router), [OmniRoute](https://github.com/diegosouzapw/OmniRoute) and [LiteLLM](https://docs.litellm.ai/docs/proxy/reliability) can manage it outside PAR through a compatible endpoint. Maintaining another router inside this app adds limited value.
+- **Text analysis uses an ordered list of models and API keys.** 2.0 removed the built-in cascade; it has since been restored for text analysis. List one model and key for the simplest setup, or several to keep processing through rate limits and provider outages. Dedicated tools such as [9Router](https://github.com/decolua/9router), [OmniRoute](https://github.com/diegosouzapw/OmniRoute) and [LiteLLM](https://docs.litellm.ai/docs/proxy/reliability) remain an option for more involved routing through a compatible endpoint.
 - **Complete Timeline replaces blacklist/whitelist processing.** One classification system identifies the episode's content, while your category preferences determine what gets removed. This separates classification from cutting and gives us one workflow to improve.
 
 These changes can affect existing configurations even though the migration preserves your library and published audio. Read the **[V2 release notes](Documentation/V2_RELEASE_NOTES.md)** for the rationale and upgrade impacts, the [changelog](Documentation/CHANGELOG.md) for the detailed changes, and the [upgrade guide](Documentation/V2_UPGRADE.md) before switching images.
@@ -77,7 +77,7 @@ These changes can affect existing configurations even though the migration prese
 | Analysis | Gemini, OpenAI, Anthropic, OpenRouter or a custom OpenAI-compatible endpoint with native structured outputs. |
 | Optional speech | Gemini, OpenAI, OpenRouter or a custom compatible speech endpoint. |
 
-Choose one model and credential per task. Custom analysis endpoints and external routers must support native structured-output requests throughout the route. Analysis receives transcript/episode context; speech receives the text to synthesize. Compatible self-hosted endpoints can keep those tasks on your own infrastructure.
+Text analysis takes an ordered list of models and API keys per provider; speech uses one model and the first key. Custom analysis endpoints and external routers must support native structured-output requests throughout the route. Analysis receives transcript/episode context; speech receives the text to synthesize. Compatible self-hosted endpoints can keep those tasks on your own infrastructure.
 
 Dashboard login, public subscription browsing, feed/audio protection and API access are separate settings. Protected feed URLs are bearer secrets. Keep them, provider keys and backups private. See [Security](SECURITY.md).
 

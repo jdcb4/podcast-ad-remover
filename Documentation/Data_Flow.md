@@ -30,7 +30,7 @@ For each queued episode:
 
 3.  **Classification (configured LLM)**:
     - Complete Timeline: add explicit gaps through the measured episode duration, send numbered items separately from the rules, and request complete ID ranges plus a summary. Validate exact coverage and known labels, then map IDs to source boundaries. Native schema constraints are required.
-    - Durable request budgets apply. Invalid/refused/truncated classifications fail analysis; no provider or model fallback is attempted.
+    - Durable request budgets apply. Listed models and API keys are tried in order within the selected provider. Invalid/refused/truncated classifications fail analysis once no model remains; there is no fallback to another provider.
 
 4.  **Ad Removal (FFmpeg)**:
     - Complete Timeline first selects categories according to frozen removal preferences. Then it bridges only retained islands strictly shorter than the configured threshold between two selected cuts. Zero disables bridging. Reports preserve model classifications and extra island cuts separately.

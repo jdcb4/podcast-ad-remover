@@ -209,12 +209,13 @@ def test_unsupported_schema_fails_without_downgrade_or_cache(provider, monkeypat
     for _ in range(2):
         with pytest.raises(openai.APIStatusError):
             provider.generate_structured([{'role':'user','content':'Source'}],timeline.SCHEMA)
-    assert len(calls)==2 and all('response_format' in c and c['model']=='first' for c in calls)
+    assert len(calls)==4 and all('response_format' in c for c in calls)
+    assert [c['model'] for c in calls]==['first','second','first','second']
 
 
 
 @pytest.mark.parametrize('status,message', [(503,'Unavailable'),(429,'Rate limit'),(400,'Invalid schema')])
-def test_outages_and_bad_schemas_do_not_try_another_model(provider, monkeypatch, status, message):
+def test_outages_and_bad_schemas_try_each_model_once_keeping_the_schema(provider, monkeypatch, status, message):
     from app.core.ai_services import RateLimitError
     calls=[]
     def create(**kwargs):
@@ -223,7 +224,7 @@ def test_outages_and_bad_schemas_do_not_try_another_model(provider, monkeypatch,
     monkeypatch.setattr(provider.client.chat.completions,'create',create)
     with pytest.raises((openai.APIStatusError,RateLimitError)):
         provider.generate_structured([{'role':'user','content':'Source'}],timeline.SCHEMA)
-    assert len(calls)==1 and calls[0]['model']=='first' and 'response_format' in calls[0]
+    assert [c['model'] for c in calls]==['first','second'] and all('response_format' in c for c in calls)
 
 
 
@@ -235,7 +236,7 @@ def test_strict_mode_never_downgrades_even_after_auto_detected_unsupported(provi
     monkeypatch.setattr(provider.client.chat.completions, 'create', create)
     with pytest.raises(Exception, match='not supported'):
         provider.generate_structured([{'role': 'user', 'content': 'Source'}], timeline.SCHEMA, 'strict')
-    assert len(calls) == 1 and all('response_format' in c for c in calls)
+    assert len(calls) == 2 and all('response_format' in c for c in calls)
 
 
 @pytest.mark.parametrize('finish,refusal', [('length', None), ('content_filter', None), ('stop', 'Cannot comply')])
@@ -244,7 +245,7 @@ def test_truncated_or_refused_output_cannot_become_empty_success(provider, monke
     monkeypatch.setattr(provider.client.chat.completions, 'create', lambda **kwargs: calls.append(kwargs) or fake_completion('{}', finish, refusal))
     with pytest.raises(Exception, match='truncated or refused'):
         provider.generate_structured([{'role': 'user', 'content': 'Source'}], timeline.SCHEMA)
-    assert len(calls) == 1 and all('response_format' in c for c in calls)
+    assert len(calls) == 2 and all('response_format' in c for c in calls)
 
 
 def test_openrouter_missing_schema_endpoint_is_actionable_failure(provider, monkeypatch):
@@ -255,7 +256,7 @@ def test_openrouter_missing_schema_endpoint_is_actionable_failure(provider, monk
     monkeypatch.setattr(provider.client.chat.completions,'create',create)
     with pytest.raises(openai.APIStatusError):
         provider.generate_structured([{'role':'user','content':'Source'}],timeline.SCHEMA)
-    assert len(calls)==1 and calls[0]['extra_body']['provider']['require_parameters']
+    assert len(calls)==2 and all(c['extra_body']['provider']['require_parameters'] for c in calls)
 
 
 
@@ -300,7 +301,8 @@ def test_incomplete_response_gets_one_repair_then_fails_closed(monkeypatch):
     detector = AdDetector()
     monkeypatch.setattr(detector, '_load_settings', lambda: {})
     calls = []
-    fake = SimpleNamespace(generate_structured=lambda *args: calls.append(args) or response([]))
+    fake = SimpleNamespace(generate_structured=lambda *args: calls.append(args) or response([]),
+                           last_model='fixture', skip_model=lambda model: False)
     monkeypatch.setattr(AdDetector, '_get_provider', lambda self: fake)
     snapshot = timeline.make_snapshot({'processing_workflow': 'complete_timeline'}, {})
     units, _ = timeline.prepare_timeline({'segments': []}, 5)

@@ -4,7 +4,7 @@
 
 The image listens on port 8000 and stores its database and media under `/data`. Preserve the volume and session secret across upgrades. `configurator/` provides a browser-only Docker/Compose builder; it sends no inputs to a server. The optional in-app setup wizard covers the application URL, text analysis, transcription and default removal/retention choices, and can be dismissed or rerun from System.
 
-Provider keys are optional at startup. Configure analysis before processing. Environment credentials take precedence over a saved key. Exactly one credential and model are used per provider; no key rotation or model fallback occurs. Custom endpoints never inherit cloud credentials.
+Provider keys are optional at startup. Configure analysis before processing. Environment credentials replace all saved keys for that provider. Each provider takes an ordered list of API keys and models for text analysis; see [fallback behavior](COMPLETE_TIMELINE.md). Custom endpoints never inherit cloud credentials.
 
 | Environment variable | Purpose |
 | --- | --- |
@@ -13,7 +13,7 @@ Provider keys are optional at startup. Configure analysis before processing. Env
 | `ANTHROPIC_API_KEY` | Anthropic text analysis |
 | `OPENROUTER_API_KEY` | OpenRouter text analysis and speech |
 
-If an old Gemini environment variable contains comma-separated keys, only its first nonempty key is used. Remove the unused keys from the installation configuration.
+`GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` and `OPENROUTER_API_KEY` accept comma-separated keys in priority order. Speech uses only the first.
 
 ## Separate audio storage
 
@@ -53,8 +53,8 @@ In Docker, set `BASE_URL` or the System Settings public application URL to a hos
 ## Configure later in Settings
 
 - **Transcription:** faster-whisper model, CPU/GPU device and supported precision; GPU setup/test. CPU/float32 remains the default. See [CUDA.md](CUDA.md).
-- **Text analysis:** provider, one model, credential and optional custom base URL. Model suggestions are choices, never a cascade. Structured schema requests are mandatory. A complete JSON object may be unwrapped from prose or a code fence, but invalid JSON is not repaired.
-- **Voice:** Gemini, OpenAI, OpenRouter or a custom OpenAI-compatible speech endpoint; one model and voice. Cloud providers share their saved/environment credential with text analysis. Custom speech has its own endpoint/key. Speech is optional and may incur API charges. Piper installations need explicit reconfiguration; core processing continues without optional speech.
+- **Text analysis:** provider, ordered models and API keys (up to 20 of each), and optional custom base URL. Entering keys replaces the saved list; leaving the field blank keeps it. **Test connection** checks each model and each key once, which sends a small billable request for each. Structured schema requests are mandatory for every model. A complete JSON object may be unwrapped from prose or a code fence, but invalid JSON is not repaired.
+- **Voice:** Gemini, OpenAI, OpenRouter or a custom OpenAI-compatible speech endpoint; one model and voice. Cloud providers share their first saved/environment credential with text analysis; entering a key here replaces only that first key. Custom speech has its own endpoint/key. Speech is optional and may incur API charges. Piper installations need explicit reconfiguration; core processing continues without optional speech.
 - **Podcast defaults:** ads, promos, intros, outros, non-editorial non-speech, optional summaries/title intros/artwork badge, one cut tone switch and retention. The global-only **Podcast titles** subsection adds optional prefix/suffix text to individual feed names: prefix off (`PAR - `), suffix on (`(ad free)`), 40 plain-text characters each. These database settings have no environment overrides. Short retained islands between selected cuts use a fixed 10-second threshold for new processing; historical stored overrides are ignored, while already queued snapshots retain their frozen policy.
 - **Unified feed:** name, podcast-name prefix, and bundled/external/uploaded artwork. Description is fixed. Raster uploads support PNG/JPEG/WebP up to 5 MB and 4096 pixels, re-encoded as JPEG.
 - **Prompt rules:** category definitions and summary instructions; defaults can be restored per rule. Podcast-specific guidance is always applied when nonempty under advanced podcast settings.
@@ -86,7 +86,7 @@ Automatic episode retention is count-based (`retention_limit`); zero retains no 
 
 ## Gemini quota handling
 
-Settings → Text analysis → Quota handling optionally enables PAR's shared Gemini free-tier accounting. Counters and reservations live in SQLite across jobs, and daily resets follow Pacific time. It applies to the one selected model; an exhausted model waits or produces an actionable quota state instead of moving through a cascade. Model limits are the application's configured estimates, not an authoritative statement about your account's current allowance. Unknown models and provider-reported limits must be handled according to the actual account response. See `app/core/gemini_quota.py` and the queue usage display; provider-call budgets and per-request timeouts still apply independently.
+Settings → Text analysis → Quota handling optionally enables PAR's shared Gemini free-tier accounting. Counters and reservations live in SQLite across jobs, and daily resets follow Pacific time. Quota is tracked per model and shared across keys, so an exhausted model moves to the next model without rotating keys. When every listed model is exhausted, the job waits for the earliest to recover. Model limits are the application's configured estimates, not an authoritative statement about your account's current allowance. Unknown models and provider-reported limits must be handled according to the actual account response. See `app/core/gemini_quota.py` and the queue usage display; provider-call budgets and per-request timeouts still apply independently.
 
 ## Import, installer and agent settings
 

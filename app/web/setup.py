@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse
 from app.web.auth import require_admin
 from app.infra.database import get_db_connection
 from app.core.url_utils import validate_http_url
-from app.core.provider_settings import MODEL_FIELDS, credential
+from app.core.provider_settings import MODEL_FIELDS, all_values, credential, store_values
 
 router = APIRouter()
 _DRAFTS = {}
@@ -100,18 +100,19 @@ async def save_setup(request: Request, step: int = Form(1), action: str = Form('
             provider = str(form.get('provider',''))
             if provider not in MODEL_FIELDS:
                 raise ValueError('Choose a text analysis provider')
-            model = str(form.get('model','')).strip()
-            if not model or model.startswith('['):
-                raise ValueError('Enter one model ID')
+            models = all_values(str(form.get('model','')))
+            if not models:
+                raise ValueError('Enter at least one model ID')
             updates.update(active_ai_provider=provider)
-            updates[MODEL_FIELDS[provider]] = model
+            updates[MODEL_FIELDS[provider]] = store_values(models)
             if provider == 'custom':
                 url = str(form.get('base_url','')).strip()
                 validate_http_url(url, allow_private=True)
                 updates['custom_llm_base_url'] = url
-            key = str(form.get('api_key','')).strip()
-            if key:
-                updates['custom_llm_api_key' if provider == 'custom' else provider+'_api_key'] = key
+            keys = all_values(str(form.get('api_key','')))
+            if keys:
+                field = {'custom': 'custom_llm_api_key', 'gemini': 'gemini_api_keys'}.get(provider, provider+'_api_key')
+                updates[field] = store_values(keys)
             error = provider_configuration_error({**values, **draft['changes'], **updates})
             if error:
                 raise ValueError(error)

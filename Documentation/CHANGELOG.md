@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Restore ordered model lists and multiple API keys for text analysis, for every provider. A rate limit tries the next key and then the next model; an outage, timeout, unsupported schema, truncation or refusal tries the next model; a rejected key is skipped; a model failing validation twice is dropped for that job. Output stays schema-only. Enter models one per line and keys comma-separated in Settings, the setup wizard or the provider environment variables. **Test connection** now checks each model and key. Speech stays on one model and uses the first key.
+- Stored values remain compatible: no schema change, a single value stays plain text, and defaults remain one model. Rollback: earlier 2.x code reads only the first model and key from these settings. Upgrading from 1.x still keeps only the first of each, so re-enter any others.
+- Provider requests rejected before billing no longer use up the per-job request budget when another candidate follows. The setup wizard now saves Gemini keys where they take effect.
+
 ## 2.1.1 - 2026-10-17
 
 - Increase the default provider request timeout from two to five minutes. Keep existing explicit timeout overrides.
