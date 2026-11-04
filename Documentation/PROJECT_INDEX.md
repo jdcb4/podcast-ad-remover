@@ -32,6 +32,7 @@ Podcast Ad Remover downloads podcast episodes, processes them to remove ads or p
 - `app/core/provider_budget.py`, `worker_health.py`: durable request limits and processing readiness.
 - `app/core/gemini_quota.py`: opt-in shared Gemini quotas, token reservations, Pacific resets and provider cooldowns.
 - `app/core/permissions.py`, `http_downloads.py`: shared ownership policy and redirect validation.
+- `app/core/network_policy.py`: decides whether a fetch may reach private addresses, based on the requesting user or podcast owner.
 - `app/infra/backup.py`: WAL-safe, integrity-checked snapshots.
 - `app/web/templates/_episode_cards.html`, `static/js/episodes.js`: one card renderer plus incremental interactions.
 - `app/web/static/js/episode-player.js`: shared in-page audio playback, pause and seeking; downloads use a separate attachment request.

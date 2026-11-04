@@ -12,7 +12,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from app.core.config import settings
+from app.core.network_policy import private_targets_allowed
 from app.core.url_utils import validate_http_url
 
 MAX_REDIRECTS = 8
@@ -34,7 +34,7 @@ def max_download_redirects() -> int:
 def request_target(url: str):
     validate_http_url(url, allow_private=True)
     parsed = httpx.URL(url)
-    if settings.ALLOW_PRIVATE_FEEDS:
+    if private_targets_allowed():
         return url, {}, {}
     if parsed.username or parsed.password:
         raise ValueError('URL credentials are not supported in restricted network mode')

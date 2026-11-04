@@ -16,6 +16,7 @@ import aiofiles
 import httpx
 
 from app.core.config import settings
+from app.core.network_policy import private_targets_allowed
 from app.core.feed import FeedManager
 from app.core.youtube import (
     YouTubeResolvedSource,
@@ -80,7 +81,7 @@ def validate_rss_download_response(
     headers,
     free_space: int,
 ) -> int:
-    validate_redirect_target(original_url, final_url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
+    validate_redirect_target(original_url, final_url, allow_private=private_targets_allowed())
     try:
         total = int(headers.get("Content-Length", 0) or 0)
     except (TypeError, ValueError):
@@ -125,7 +126,7 @@ class RssSourceAdapter:
         progress_callback: Callable[[int], None] | None = None,
         cancellation_callback: Callable[[], bool] | None = None,
     ) -> str:
-        validate_http_url(media_url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
+        validate_http_url(media_url, allow_private=private_targets_allowed())
         free_space = shutil.disk_usage(settings.DATA_DIR).free
         if free_space < settings.MIN_FREE_SPACE_BYTES:
             raise RuntimeError("Not enough free disk space to download episode")
@@ -137,7 +138,7 @@ class RssSourceAdapter:
         partial_path.unlink(missing_ok=True)
         last_cancel_check = datetime.now()
         try:
-            async with httpx.AsyncClient(trust_env=settings.ALLOW_PRIVATE_FEEDS) as client:
+            async with httpx.AsyncClient(trust_env=private_targets_allowed()) as client:
                 async with async_stream_get(client, media_url, timeout=300.0) as response:
                     response.raise_for_status()
                     total = validate_rss_download_response(

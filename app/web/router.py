@@ -1,5 +1,6 @@
 from app.core.model_defaults import MODEL_DEFAULTS
 from app.core.artifacts import artifact_path
+from app.core.network_policy import user_network_scope
 from app.core.permissions import can_manage_subscription as _can_manage_subscription
 from app.web.permissions import require_episode_management
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status, UploadFile, File
@@ -2233,7 +2234,8 @@ async def add_subscription(
     user = Depends(require_auth),
 ):
     try:
-        source = await asyncio.to_thread(resolve_source, feed_url)
+        with user_network_scope(_real_user_id(user)):
+            source = await asyncio.to_thread(resolve_source, feed_url)
         feed_url = source.canonical_url
 
         existing = (

@@ -11,6 +11,7 @@ from app.web.auth import require_auth
 from pydantic import BaseModel
 import asyncio
 from app.core.sources import resolve_source
+from app.core.network_policy import user_network_scope
 
 
 router = APIRouter()
@@ -36,7 +37,8 @@ async def create_subscription(sub: SubscriptionCreate, initial_count: int = 5, u
     try:
         if initial_count < 0:
             raise ValueError("Initial episode count must be non-negative")
-        source = await asyncio.to_thread(resolve_source, sub.feed_url)
+        with user_network_scope(_real_user_id(user)):
+            source = await asyncio.to_thread(resolve_source, sub.feed_url)
         identity_lookup = getattr(repo, "get_by_source_identity", lambda *_args: None)
         existing = identity_lookup(source.source_type, source.external_id) or repo.get_by_url(source.canonical_url)
         if existing:

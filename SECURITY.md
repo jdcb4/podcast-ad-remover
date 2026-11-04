@@ -28,8 +28,9 @@ on a network you intend to trust. One Uvicorn worker per data directory is the s
 client-supplied forwarding headers. The global IP allowlist runs before public-route bypasses;
 include the container loopback address if Docker health checks must pass an allowlist.
 
-`ALLOW_PRIVATE_FEEDS=true` intentionally permits trusted LAN/self-hosted sources. Restricted
-mode validates every feed/artwork/RSS media redirect before connecting, rejects non-public DNS
+`ALLOW_PRIVATE_FEEDS=true` intentionally permits trusted LAN/self-hosted sources for admins and
+for podcasts with no owner. Podcasts owned by non-admins always use restricted mode, whichever
+account triggers the fetch. Restricted mode validates every feed/artwork/RSS media redirect before connecting, rejects non-public DNS
 answers and pins the validated address while preserving TLS hostname verification. Environment
 proxies are disabled in that mode. YouTube extraction and explicitly configured provider endpoints
 are separate integrations; this is not a general network sandbox.

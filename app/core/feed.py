@@ -6,6 +6,7 @@ from calendar import timegm
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 from app.core.config import settings
+from app.core.network_policy import private_targets_allowed
 from app.core.url_utils import validate_http_url, validate_redirect_target
 from contextvars import ContextVar
 from functools import wraps
@@ -56,15 +57,15 @@ class FeedManager:
     @staticmethod
     @_private_request
     def _fetch_feed(url: str) -> bytes:
-        validate_http_url(url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
+        validate_http_url(url, allow_private=private_targets_allowed())
         with httpx.Client(
-            trust_env=settings.ALLOW_PRIVATE_FEEDS,
+            trust_env=private_targets_allowed(),
             timeout=30.0,
             headers={"User-Agent": FeedManager.RSS_USER_AGENT},
         ) as client:
             with stream_get(client, url) as response:
                 response.raise_for_status()
-                validate_redirect_target(url, str(response.url), allow_private=settings.ALLOW_PRIVATE_FEEDS)
+                validate_redirect_target(url, str(response.url), allow_private=private_targets_allowed())
                 content_length = int(response.headers.get("Content-Length") or 0)
                 if content_length and content_length > settings.MAX_FEED_BYTES:
                     raise ValueError("Feed is larger than the configured maximum size")

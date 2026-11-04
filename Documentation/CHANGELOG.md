@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Non-admin accounts can no longer reach private, loopback or link-local addresses through the server. This covers adding or replacing a feed and every later feed, episode download and artwork fetch for a podcast they own, including redirects. Admins keep `ALLOW_PRIVATE_FEEDS` behaviour. A LAN feed owned by a non-admin stops updating until an admin takes ownership; no schema change.
 - Deleting a user now revokes their feed tokens. Tokens left behind by users deleted earlier stop working immediately, with no schema change.
 - Serve only `.mp3` files from `/audio`. Transcripts, reports and other files in episode folders now return 404 there; `/artifacts` and the transcript page are unchanged.
 - Stop publishing source URLs in generated RSS. The channel link is now this app's public URL and items no longer link to the upstream media file, because either can contain a private feed token. Feeds are regenerated at startup so XML already on disk is corrected. Rollback: earlier code restores the links the next time it regenerates a feed.

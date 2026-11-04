@@ -38,7 +38,7 @@ Provider keys are optional at startup. Configure analysis before processing. Env
 | `MAX_DOWNLOAD_BYTES` | Maximum episode download size in bytes. | `1572864000` |
 | `MIN_FREE_SPACE_BYTES` | Minimum free disk space to preserve before/during downloads. | `1073741824` |
 | `FFMPEG_TIMEOUT_SECONDS` | Maximum time allowed for one FFmpeg or FFprobe operation before the episode fails/retries instead of holding the queue indefinitely. | `7200` |
-| `ALLOW_PRIVATE_FEEDS` | Allow feeds/enclosures resolving to private or loopback IP ranges. Keep `true` for LAN/self-hosted feeds; set `false` for hardened public deployments. | `true` |
+| `ALLOW_PRIVATE_FEEDS` | Allow feeds/enclosures resolving to private or loopback IP ranges. Applies to admins and unowned podcasts; podcasts owned by non-admins never reach these ranges. Keep `true` for LAN/self-hosted feeds; set `false` for hardened public deployments. | `true` |
 | `CUDA_SETUP` | Request first-start optional NVIDIA runtime setup. Host drivers and container GPU access must already work. | `false` |
 | `MAX_PROVIDER_CALLS_PER_JOB` | Shared analysis/speech request budget per processing job, retained across retries | `12` |
 | `PROVIDER_TIMEOUT_SECONDS` | Per-provider request timeout for LLM analysis, summary repair and remote speech, seconds (5–600) | `300` |

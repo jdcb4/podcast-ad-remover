@@ -2,6 +2,7 @@
 import re
 import threading
 from app.core.feed_urls import feed_key
+from app.core.network_policy import user_network_scope
 from xml.etree import ElementTree
 
 from app.core.models import SubscriptionCreate
@@ -102,7 +103,8 @@ def import_feed(url: str, user_id: int | None) -> dict:
         return reuse(existing)
     # Network resolution uses the same redirect/private-feed policy as single additions.
     try:
-        source = resolve_source(url)
+        with user_network_scope(user_id):
+            source = resolve_source(url)
     except Exception as exc:
         # Provider exceptions can contain private URLs/credentials. Do not reflect them.
         raise ValueError("Could not read this feed. Check its URL and availability, then retry.") from exc
