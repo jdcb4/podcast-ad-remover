@@ -125,6 +125,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error checking/updating app settings on startup: {e}")
     
+    # Published XML may predate the current format, including removed source URLs.
+    try:
+        from app.core.rss_gen import RSSGenerator
+        await asyncio.to_thread(RSSGenerator().regenerate_all)
+    except Exception as e:
+        logger.error(f"Error regenerating feeds on startup: {e}")
+
     from app.core.cuda_setup import startup as cuda_startup
     cuda_startup()
 

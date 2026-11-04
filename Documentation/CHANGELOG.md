@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Stop publishing source URLs in generated RSS. The channel link is now this app's public URL and items no longer link to the upstream media file, because either can contain a private feed token. Feeds are regenerated at startup so XML already on disk is corrected. Rollback: earlier code restores the links the next time it regenerates a feed.
 - A previous published revision whose folder is missing no longer fails the episode at the last step of publishing.
 - Reprocess (Keep Transcript) finds the episode's saved transcript when its recorded path points at an attempt that was cleaned up, instead of transcribing again.
 - Queued and retrying jobs use the current provider, models and keys instead of the ones saved when they were queued.

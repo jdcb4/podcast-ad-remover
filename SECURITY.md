@@ -42,6 +42,8 @@ HSTS. HSTS is sent for proxy deployments; HTTP clients do not gain TLS merely fr
 
 ## Secrets, data and recovery
 
+Generated RSS does not contain source feed or upstream media URLs, which can carry private tokens. Episode GUIDs and non-watermarked artwork URLs are still copied from the source, because changing a GUID makes podcast apps download episodes again.
+
 Provider settings may be stored in SQLite or supplied through the environment. Custom endpoints
 use only their own optional credential. Protect the database, `.env`, backups, provider settings,
 notification URLs and feed URLs. Logs can contain upstream error details or private source URLs;
