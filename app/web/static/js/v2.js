@@ -112,21 +112,27 @@
    status.textContent=`${catalog.models.length} models · ${catalog.voices.length} voices. ${catalog.note}`;
   }catch(error){if(request===catalogRequest)status.textContent=error.message;}finally{button.disabled=false;}
  }));
- function showProvider() { document.querySelectorAll('[data-provider-panel]').forEach(panel => { panel.hidden=panel.dataset.providerPanel!==provider.value; panel.querySelectorAll('input,select').forEach(input=>input.disabled=panel.hidden); }); }
+ function showProvider() { document.querySelectorAll('[data-provider-panel]').forEach(panel => { panel.hidden=panel.dataset.providerPanel!==provider.value; panel.querySelectorAll('input,select,textarea').forEach(input=>input.disabled=panel.hidden); }); }
  if(provider) { provider.addEventListener('change',showProvider); showProvider(); }
  document.querySelectorAll('[data-refresh-models],[data-test-provider]').forEach(button=>button.addEventListener('click',async()=>{
   const name=button.dataset.refreshModels||button.dataset.testProvider, panel=button.closest('[data-provider-panel]'), status=panel.querySelector('[data-provider-status]');
   const payload=new FormData();payload.set('provider',name);
-  payload.set('model',panel.querySelector('input[list]')?.value||'');
+  payload.set('model',panel.querySelector('[data-model-list]')?.value||'');
   payload.set('api_key',panel.querySelector('input[type=password]')?.value||'');
   payload.set('base_url',panel.querySelector('[name=custom_llm_base_url]')?.value||'');
   button.disabled=true;status.textContent='Connecting…';
   try{const response=await fetch(button.dataset.refreshModels?'/admin/ai/refresh':'/admin/ai/test',{method:'POST',body:payload});const data=await response.json();
    if(!response.ok||data.error)throw Error(data.error||data.detail||'Connection failed');
-   if(data.models){const list=document.getElementById('models-'+name);list.replaceChildren();data.models.forEach(model=>{const option=document.createElement('option');option.value=model;list.append(option);});status.textContent=`${data.models.length} models loaded. Choose one above.`;}
-   else status.textContent='Connected';
+   if(data.models){const list=document.getElementById('models-'+name);list.replaceChildren();data.models.forEach(model=>{const option=document.createElement('option');option.value=model;list.append(option);});status.textContent=`${data.models.length} models loaded. Choose from the list to add them.`;}
+   else status.textContent=data.checked>1?`Connected: ${data.checked} model and key combinations checked.`:'Connected';
   }catch(error){status.textContent=error.message;}finally{button.disabled=false;}
  }));
+ document.querySelectorAll('[data-add-model]').forEach(button=>{
+  const panel=button.closest('[data-provider-panel]'), picker=panel.querySelector('[data-model-add]'), list=panel.querySelector('[data-model-list]');
+  const add=()=>{const model=picker.value.trim();if(!model)return;const models=list.value.split(/[,\n]+/).map(value=>value.trim()).filter(Boolean);if(!models.includes(model))models.push(model);list.value=models.join('\n');picker.value='';picker.focus();};
+  button.addEventListener('click',add);
+  picker.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();add();}});
+ });
  const filterMobile = () => {
   const query=(document.getElementById('podcast-search')?.value||'').toLowerCase();
   const filter=document.getElementById('podcast-filter')?.value || 'all';
@@ -161,7 +167,7 @@
  document.getElementById('aiForm')?.addEventListener('change',previewEnabled);previewEnabled();
  document.querySelectorAll('[data-autosize]').forEach(field=>{const resize=()=>{field.style.height='0px';const style=getComputedStyle(field);field.style.height=(field.scrollHeight+parseFloat(style.borderTopWidth)+parseFloat(style.borderBottomWidth))+'px';};field.addEventListener('input',resize);window.addEventListener('resize',resize);if(document.fonts)document.fonts.ready.then(resize);resize();});
  document.getElementById('copy-prompt')?.addEventListener('click',async()=>{const status=document.getElementById('copy-prompt-status');try{await navigator.clipboard.writeText(document.getElementById('timeline-prompt-preview').textContent);status.textContent='Copied';}catch{status.textContent='Could not copy. Select and copy the text manually.';}});
- document.querySelectorAll('[data-remove-key]').forEach(button=>button.addEventListener('click',async()=>{const status=button.closest('[data-provider-panel]').querySelector('[data-provider-status]');button.disabled=true;try{const response=await fetch('/admin/ai/credentials/'+button.dataset.removeKey,{method:'DELETE'});const data=await response.json();if(!response.ok)throw Error(data.detail);status.textContent=data.message;const keyInput=button.closest('[data-provider-panel]').querySelector('input[type=password]');if(keyInput){keyInput.setAttribute('placeholder','No saved key');keyInput.closest('label').querySelector('span').textContent='API key';}window.appToast?.(data.message,{type:'success'});}catch(error){status.textContent=error.message;}finally{button.disabled=false;}}));
+ document.querySelectorAll('[data-remove-key]').forEach(button=>button.addEventListener('click',async()=>{const status=button.closest('[data-provider-panel]').querySelector('[data-provider-status]');button.disabled=true;try{const response=await fetch('/admin/ai/credentials/'+button.dataset.removeKey,{method:'DELETE'});const data=await response.json();if(!response.ok)throw Error(data.detail);status.textContent=data.message;const keyInput=button.closest('[data-provider-panel]').querySelector('input[type=password]');if(keyInput){keyInput.setAttribute('placeholder','No saved key');keyInput.closest('label').querySelector('span').textContent='API keys';}window.appToast?.(data.message,{type:'success'});}catch(error){status.textContent=error.message;}finally{button.disabled=false;}}));
  const history=document.getElementById('upgrade-history-data');
  if(history){
   try{

@@ -14,6 +14,7 @@ import httpx
 from PIL import Image, UnidentifiedImageError
 
 from app.core.config import settings
+from app.core.network_policy import private_targets_allowed, user_network_scope
 from app.core.url_utils import validate_http_url, validate_redirect_target
 from app.infra.database import get_db_connection
 from app.infra.repository import SubscriptionRepository
@@ -52,14 +53,14 @@ class ArtworkWatermarker:
 
     @staticmethod
     def _download(url: str) -> bytes:
-        validate_http_url(url, allow_private=settings.ALLOW_PRIVATE_FEEDS)
-        with httpx.Client(trust_env=settings.ALLOW_PRIVATE_FEEDS, timeout=30.0) as client:
+        validate_http_url(url, allow_private=private_targets_allowed())
+        with httpx.Client(trust_env=private_targets_allowed(), timeout=30.0) as client:
             with stream_get(client, url) as response:
                 response.raise_for_status()
                 validate_redirect_target(
                     url,
                     str(response.url),
-                    allow_private=settings.ALLOW_PRIVATE_FEEDS,
+                    allow_private=private_targets_allowed(),
                 )
                 content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
                 # Some podcast CDNs serve valid images with a generic binary MIME
@@ -121,7 +122,8 @@ class ArtworkWatermarker:
             self.clear(subscription_id)
             return None
 
-        source = self._download(sub.image_url)
+        with user_network_scope(sub.owner_user_id):
+            source = self._download(sub.image_url)
         badge_bytes = BADGE_PATH.read_bytes()
         digest = hashlib.sha256(source + badge_bytes + ENCODE_SALT).hexdigest()
         output = self._output_path(subscription_id)

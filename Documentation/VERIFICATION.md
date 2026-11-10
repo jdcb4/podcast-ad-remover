@@ -39,6 +39,8 @@ pages with HTTP/HTTPS browser origins differing from the configured public URL. 
 same-origin generated JPEG/legacy PNG paths, successful image retrieval, unchanged CSP,
 absolute RSS artwork URLs and preservation of original artwork when badging is disabled.
 
+`tests/test_model_key_fallback.py` covers model/key fallback order, key reuse, rejected keys, free-tier behavior, validation handover, request-budget refunds, settings and wizard storage without rendering keys, and the shipped model-list controls in jsdom. It uses scripted provider responses with no network calls.
+
 `tests/test_transcript_chunks.py` checks nested seams, speech starting before a seam,
 exact ownership boundaries, chronological ordering, multiple seams, short final chunks
 and temporary-file cleanup on failure with synthetic Whisper outputs. Timeline tests

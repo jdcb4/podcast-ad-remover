@@ -45,3 +45,27 @@ def test_resolve_audio_file_path_rejects_directories(isolated_data_dir):
 
     assert exc.value.status_code == 404
     assert settings.PODCASTS_DIR == str(isolated_data_dir / "podcasts")
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["transcript.json", "report.json", "report.html", "cache.json", "summary.txt", "original.m4a", "original.mp3.part", "noextension"],
+)
+def test_resolve_audio_file_path_rejects_non_mp3_files(isolated_data_dir, name):
+    path = isolated_data_dir / "podcasts" / "show" / "episode" / name
+    path.parent.mkdir(parents=True)
+    path.write_text("private", encoding="utf-8")
+
+    with pytest.raises(HTTPException) as exc:
+        _resolve_audio_file_path(f"show/episode/{name}")
+
+    assert exc.value.status_code == 404
+    assert exc.value.detail == "Audio file not found"
+
+
+def test_resolve_audio_file_path_accepts_uppercase_mp3_extension(isolated_data_dir):
+    path = isolated_data_dir / "podcasts" / "show" / "episode" / "AUDIO.MP3"
+    path.parent.mkdir(parents=True)
+    path.write_text("fake audio", encoding="utf-8")
+
+    assert _resolve_audio_file_path("show/episode/AUDIO.MP3") == path.resolve()

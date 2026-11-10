@@ -468,6 +468,16 @@ FORMAL_MIGRATIONS.append(("20261010_0027_pause_statistics", [
 ]))
 
 
+FORMAL_MIGRATIONS.append(("20261104_0028_default_keep_whole_show", [
+    "ALTER TABLE app_settings ADD COLUMN default_keep_whole_show INTEGER NOT NULL DEFAULT 0",
+]))
+
+
+FORMAL_MIGRATIONS.append(("20261104_0029_access_requests_enabled", [
+    "ALTER TABLE app_settings ADD COLUMN access_requests_enabled INTEGER NOT NULL DEFAULT 1",
+]))
+
+
 def _backup_database_if_needed(migration_ids: list[str]):
     """Create a timestamped DB backup before applying formal migrations."""
     if not migration_ids or not os.path.exists(settings.DB_PATH):

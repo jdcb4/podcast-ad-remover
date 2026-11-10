@@ -14,6 +14,22 @@ class ProviderBudgetExceeded(RuntimeError):
 current_claim = ContextVar('provider_budget_claim', default=None)
 
 
+def refund_provider_call():
+    """Undo the charge for a rejected request that is about to fall back.
+
+    A pass through the configured chain then costs what one model would, so
+    fallback does not exhaust a budget that is retained across retries.
+    """
+    claim = current_claim.get()
+    if not claim:
+        return
+    job_id, token = claim
+    with get_db_connection() as conn:
+        conn.execute("""UPDATE jobs SET provider_call_count=MAX(provider_call_count-1, 0)
+        WHERE id=? AND locked_by=? AND status='running'""", (job_id, token))
+        conn.commit()
+
+
 @contextmanager
 def provider_request(provider: str, model: str, *, gemini_free_tier=False, input_tokens=0):
     gemini_free_tier = gemini_free_tier and provider in {'gemini', 'gemini_tts'}

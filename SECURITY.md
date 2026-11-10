@@ -14,11 +14,12 @@ on a network you intend to trust. One Uvicorn worker per data directory is the s
   and interactive API docs; it does **not** automatically enable secure cookies or login.
 - SameSite=Lax cookies protect dashboard sessions. Same-origin checks protect management mutations even when dashboard login is disabled.
   Configure the public application URL to match the browser-facing origin.
+- Anyone who can reach the app can ask for an account unless Allow access requests is turned off. Requests never grant access until an admin approves them.
 - Owners/admins manage podcast settings and episode processing/removal. Other members have
   read/library/discovery access; deleting the global podcast is admin-only. Pure ownership
   rules live in `app/core/permissions.py` and are exercised through real HTTP routes.
 - Feed and optional v1 API tokens are stored as hashes. Feed links are bearer secrets;
-  revoke compromised tokens in Settings → Users & access. Session-key rotation does not revoke those tokens.
+  revoke compromised tokens in Settings → Users & access. Deleting a user revokes their feed tokens. Session-key rotation does not revoke those tokens.
 - The v1 API is disabled by default and uses separate scoped credentials and SQLite request
   counters. Login throttling is process-local (5 failed attempts per IP over 15 minutes).
 
@@ -28,8 +29,9 @@ on a network you intend to trust. One Uvicorn worker per data directory is the s
 client-supplied forwarding headers. The global IP allowlist runs before public-route bypasses;
 include the container loopback address if Docker health checks must pass an allowlist.
 
-`ALLOW_PRIVATE_FEEDS=true` intentionally permits trusted LAN/self-hosted sources. Restricted
-mode validates every feed/artwork/RSS media redirect before connecting, rejects non-public DNS
+`ALLOW_PRIVATE_FEEDS=true` intentionally permits trusted LAN/self-hosted sources for admins and
+for podcasts with no owner. Podcasts owned by non-admins always use restricted mode, whichever
+account triggers the fetch. Restricted mode validates every feed/artwork/RSS media redirect before connecting, rejects non-public DNS
 answers and pins the validated address while preserving TLS hostname verification. Environment
 proxies are disabled in that mode. YouTube extraction and explicitly configured provider endpoints
 are separate integrations; this is not a general network sandbox.
@@ -41,6 +43,8 @@ Other headers include nosniff, DENY framing, restricted device permissions, refe
 HSTS. HSTS is sent for proxy deployments; HTTP clients do not gain TLS merely from that header.
 
 ## Secrets, data and recovery
+
+Generated RSS does not contain source feed or upstream media URLs, which can carry private tokens. Episode GUIDs and non-watermarked artwork URLs are still copied from the source, because changing a GUID makes podcast apps download episodes again.
 
 Provider settings may be stored in SQLite or supplied through the environment. Custom endpoints
 use only their own optional credential. Protect the database, `.env`, backups, provider settings,

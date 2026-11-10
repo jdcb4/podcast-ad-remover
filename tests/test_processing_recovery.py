@@ -31,6 +31,18 @@ def episodes(isolated_data_dir):
     return EpisodeRepository(), JobRepository()
 
 
+def test_missing_previous_revision_does_not_block_publishing(isolated_data_dir):
+    worker = Processor()
+    root = Path(settings.PODCASTS_DIR) / 'show' / 'episode-90'
+    missing = SimpleNamespace(id=90, local_filename=str(root / 'attempt-gone' / 'processed.mp3'))
+    worker._mark_previous_revision(missing)
+    assert not (root / 'attempt-gone').exists()
+    present = root / 'attempt-present'
+    present.mkdir(parents=True)
+    worker._mark_previous_revision(SimpleNamespace(id=90, local_filename=str(present / 'processed.mp3')))
+    assert (present / 'published.json').is_file()
+
+
 def test_claim_capacity_is_transactional_between_independent_connections(episodes):
     barrier = Barrier(2)
     def claim():

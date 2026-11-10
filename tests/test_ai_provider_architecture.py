@@ -6,23 +6,23 @@ from app.core.speech import speech_configuration
 from app.core import timeline
 
 
-def test_environment_credential_and_one_model(monkeypatch):
+def test_environment_credentials_and_ordered_models(monkeypatch):
     monkeypatch.setattr(settings, 'GEMINI_API_KEY', 'env-first,env-second')
     detector = AdDetector()
     detector.settings = {'gemini_api_keys': '["saved"]'}
     provider = detector.create_provider('gemini', model='["first", "second"]')
-    assert provider.api_keys == ['env-first']
-    assert provider.models == ['first']
+    assert provider.api_keys == ['env-first', 'env-second']
+    assert provider.models == ['first', 'second']
 
 
-def test_schema_failure_never_downgrades_or_changes_model(monkeypatch):
+def test_schema_failure_changes_model_but_never_downgrades_format(monkeypatch):
     provider = OpenAIProvider('fixture', ['one', 'two'])
     create = Mock(side_effect=ValueError('json_schema unsupported'))
     monkeypatch.setattr(provider.client.chat.completions, 'create', create)
     with pytest.raises(ValueError, match='unsupported'):
         provider.generate_structured([], timeline.SCHEMA)
-    assert create.call_count == 1
-    assert create.call_args.kwargs['response_format']['type'] == 'json_schema'
+    assert [call.kwargs['model'] for call in create.call_args_list] == ['one', 'two']
+    assert all(call.kwargs['response_format']['type'] == 'json_schema' for call in create.call_args_list)
 
 
 @pytest.mark.parametrize('text', ['{"a":1}', '```json\n{"a":1}\n```', 'Here: {"a":1} done.'])

@@ -109,7 +109,11 @@ def build_prompt(settings: dict, custom_instructions: str | None = None) -> str:
 
 
 def make_snapshot(subscription: dict, settings: dict) -> dict:
-    """Freeze the single supported classification workflow without credentials."""
+    """Freeze the classification rules without credentials.
+
+    Its settings only identify a cached classification; requests use the current
+    provider, models and keys, so a queued job follows later changes.
+    """
     workflow = "complete_timeline"
     options = {field: bool(subscription.get(field, label in {"Ad", "Promo", "NonEditorialNonSpeech"}))
                for label, field in CUT_FIELDS.items()}

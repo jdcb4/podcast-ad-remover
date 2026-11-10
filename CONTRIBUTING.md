@@ -33,7 +33,7 @@ Please ensure your code is clean and, where possible, documented.
 
 ## V2 compatibility and documentation
 
-V2 intentionally removes legacy processing, local Piper speech, model/key cascades and SponsorBlock. Read [V2_UPGRADE.md](Documentation/V2_UPGRADE.md), [DECISIONS.md](Documentation/DECISIONS.md) and the [release rationale](Documentation/V2_RELEASE_NOTES.md). A breaking feature decision does not permit deleting user data or bypassing the migration/backup path. Keep API references and the portable agent skill aligned with runtime changes. Label historical evidence rather than silently treating old behavior as current.
+V2 intentionally removes legacy processing, local Piper speech and SponsorBlock. Model/key fallback for text analysis was removed in 2.0 and later restored. Read [V2_UPGRADE.md](Documentation/V2_UPGRADE.md), [DECISIONS.md](Documentation/DECISIONS.md) and the [release rationale](Documentation/V2_RELEASE_NOTES.md). A breaking feature decision does not permit deleting user data or bypassing the migration/backup path. Keep API references and the portable agent skill aligned with runtime changes. Label historical evidence rather than silently treating old behavior as current.
 
 Joe accepted the V2 rationale and authorized the 2.0 release on 11 October 2026; the wording reminder is resolved. Follow the release checklist for future promotions.
 

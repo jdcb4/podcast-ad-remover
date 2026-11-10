@@ -80,13 +80,13 @@ configuration with its own base URL, selected model, and optional credential. It
 OpenAI provider credential. Keyless endpoints receive an internal non-secret SDK placeholder because
 the OpenAI client requires a non-empty key value.
 
-[Complete Timeline](COMPLETE_TIMELINE.md) requires native schema-constrained output and validates full coverage. One model and one credential are selected per provider. A small JSON wrapper cleaner accepts otherwise valid objects; it does not repair malformed output. New jobs freeze classification settings without credentials; migration upgrades queued legacy snapshots. Classification caches exclude cut choices so matching analysis can be reused when only editing policy changes.
+[Complete Timeline](COMPLETE_TIMELINE.md) requires native schema-constrained output and validates full coverage. Each provider has an ordered list of models and credentials with [fallback](COMPLETE_TIMELINE.md); schema-free output is never used. A small JSON wrapper cleaner accepts otherwise valid objects; it does not repair malformed output. New jobs freeze classification settings without credentials; migration upgrades queued legacy snapshots. Classification caches exclude cut choices so matching analysis can be reused when only editing policy changes.
 
 ### Text-To-Speech
 
 Optional spoken titles and summaries use `app/core/speech.py`: Gemini, OpenAI, OpenRouter, or a custom OpenAI-compatible endpoint. Each configuration selects one provider, model, and voice. Environment credentials take precedence. Speech requests are bounded and generated audio is validated before publication.
 
-Former Piper installations migrate to unconfigured speech, retain requested speech preferences, and continue core processing with an actionable setup warning. Local speech engines and model cascades are removed.
+Former Piper installations migrate to unconfigured speech, retain requested speech preferences, and continue core processing with an actionable setup warning. Local speech engines are removed, and speech uses one model and the provider's first credential.
 
 ### Infrastructure
 
@@ -286,7 +286,7 @@ Admin notifications are optional and disabled by default. Settings are stored in
 
 The app currently emits notification events for:
 
-- access requests submitted from `/request-access`;
+- access requests submitted from `/request-access`, unless Allow access requests is turned off in Users & access;
 - new global podcasts after feed metadata is resolved;
 - completed episodes after processing succeeds and feeds are regenerated;
 - breaking processing errors such as max-retry episode failures, missing subscription rows during processing, and top-level background worker loop errors.

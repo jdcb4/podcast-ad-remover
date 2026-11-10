@@ -82,8 +82,10 @@
             </form>
 
             <div class="mt-6 space-y-3 text-center">
+                {% if access_requests_enabled %}
                 <a href="/request-access"
                     class="text-sm text-link hover:text-link-hover transition-colors">Request Access →</a>
+                {% endif %}
                 {% if public_subscribe_page_enabled %}
                 <p class="text-sm text-text-secondary">
                     Don't have an account?

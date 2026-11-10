@@ -148,6 +148,7 @@ dialog::backdrop { background:#0008; }
 .credential-control { width:22rem; max-width:58%; }
 .credential-control .input { width:100%; }
 .credential-control .settings-help { margin:8px 0 0; }
+.credential-control .speech-control { width:100%; max-width:none; margin-top:8px; }
 .dialog-heading { flex-wrap:wrap; }
 #podcast-operation-items .setting-row { flex-wrap:wrap; }
 #podcast-operation-items .setting-row>span { flex-basis:100%; overflow-wrap:anywhere; }

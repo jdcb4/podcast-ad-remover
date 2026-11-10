@@ -1,5 +1,6 @@
 from app.core.model_defaults import MODEL_DEFAULTS
 from app.core.artifacts import artifact_path
+from app.core.network_policy import user_network_scope
 from app.core.permissions import can_manage_subscription as _can_manage_subscription
 from app.web.permissions import require_episode_management
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, HTTPException, status, UploadFile, File
@@ -63,7 +64,15 @@ from app.web.podcast_operations import router as podcast_operations_router
 router.include_router(podcast_operations_router)
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
-from app.core.provider_settings import credential as provider_credential
+from app.core.provider_settings import (
+    MAX_CONFIGURED_VALUES,
+    MODEL_FIELDS,
+    all_values,
+    credential as provider_credential,
+    first_value,
+    saved_credentials,
+    store_values,
+)
 from app.core.speech import speech_ready
 templates.env.globals["speech_ready"] = speech_ready
 templates.env.globals["processing_is_paused"] = lambda: bool(get_global_settings().get("processing_paused"))
@@ -79,6 +88,7 @@ templates.env.filters['clean_description'] = safe_clean_description
 templates.env.filters['compact_datetime'] = compact_datetime
 templates.env.filters['local_time'] = local_time
 templates.env.filters['utc_isoformat'] = utc_isoformat
+templates.env.filters['join_values'] = lambda value, separator='\n': separator.join(all_values(value))
 configure_static_asset_versioning(templates)
 
 sub_repo = SubscriptionRepository()
@@ -108,7 +118,12 @@ def _safe_local_redirect(target: str | None, fallback: str) -> str:
     return target
 
 # Helper to get settings
-from app.core.utils import get_global_settings
+from app.core.utils import access_requests_enabled, get_global_settings
+
+
+def require_access_requests_enabled():
+    if not access_requests_enabled():
+        raise HTTPException(status_code=404, detail="Access requests are disabled")
 
 
 def _real_user_id(user) -> int | None:
@@ -236,6 +251,7 @@ async def login_page(request: Request):
             "initial_password": settings['initial_password'] if settings else None,
             "auth_enabled": settings['auth_enabled'] if settings else False,
             "public_subscribe_page_enabled": settings['public_subscribe_page_enabled'] if settings else True,
+            "access_requests_enabled": access_requests_enabled(),
         }
     )
 
@@ -267,6 +283,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
                 "auth_enabled": True,
                 "rate_limited": True,
                 "public_subscribe_page_enabled": public_subscribe_page_enabled,
+                "access_requests_enabled": access_requests_enabled(),
             },
             status_code=e.status_code
         )
@@ -293,6 +310,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
                 "auth_enabled": True,
                 "rate_limited": is_locked,
                 "public_subscribe_page_enabled": public_subscribe_page_enabled,
+                "access_requests_enabled": access_requests_enabled(),
             }
         )
     
@@ -379,7 +397,7 @@ async def change_password(
     
     return RedirectResponse(url="/admin/system?password_changed=1", status_code=status.HTTP_302_FOUND)
 
-@router.get("/request-access", response_class=HTMLResponse)
+@router.get("/request-access", response_class=HTMLResponse, dependencies=[Depends(require_access_requests_enabled)])
 async def request_access_page(request: Request):
     """Display access request form."""
     return templates.TemplateResponse(
@@ -388,7 +406,7 @@ async def request_access_page(request: Request):
         context={"csp_nonce": get_csp_nonce(request)}
     )
 
-@router.post("/submit-access-request")
+@router.post("/submit-access-request", dependencies=[Depends(require_access_requests_enabled)])
 async def submit_access_request(
     request: Request,
     username: str = Form(...),
@@ -548,6 +566,7 @@ async def update_system_settings(
     feed_auth_username: str = Form(None),
     feed_auth_password: str = Form(None),
     public_subscribe_page_enabled: bool = Form(False),
+    access_requests_enabled: bool = Form(False),
     section: Annotated[str | None, Form()] = None,
     redirect_to: str = Form(None),
     admin_user = Depends(require_admin)
@@ -571,6 +590,8 @@ async def update_system_settings(
         enable_feed_auth = current.get("enable_feed_auth")
         feed_auth_username = current.get("feed_auth_username")
         public_subscribe_page_enabled = current.get("public_subscribe_page_enabled")
+    if section != "access":
+        access_requests_enabled = current.get("access_requests_enabled", 1)
     if section is not None and section != "api":
         ai_api_enabled = current.get("ai_api_enabled")
         ai_api_default_requests_per_minute = current.get("ai_api_default_requests_per_minute")
@@ -667,6 +688,7 @@ async def update_system_settings(
                 feed_auth_username = ?,
                 feed_auth_password = COALESCE(?, feed_auth_password),
                 public_subscribe_page_enabled = ?,
+                access_requests_enabled = ?,
                 whitelist_mode = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = 1
@@ -682,6 +704,7 @@ async def update_system_settings(
               effective_feed_username if enable_feed_auth else (feed_auth_username if feed_auth_username else None),
               hashed_feed_password if hashed_feed_password else None,
               1 if public_subscribe_page_enabled else 0,
+              1 if access_requests_enabled else 0,
               next_whitelist_mode))
         conn.commit()
     
@@ -784,7 +807,9 @@ def _render_admin_ai(request: Request, ai_section: str):
             "model_defaults": MODEL_DEFAULTS,
             "speech_voices": __import__("app.core.speech", fromlist=["VOICES"]).VOICES,
             "env_keys": env_keys,
-            "speech_credentials": {p: bool(provider_credential(p, saved_settings)) for p in ("gemini", "openai", "openrouter")}
+            "speech_credentials": {p: bool(provider_credential(p, saved_settings)) for p in ("gemini", "openai", "openrouter")},
+            "credential_counts": {p: len(saved_credentials(p, saved_settings)) for p in MODEL_FIELDS},
+            "env_credential_counts": {p: len(all_values(getattr(settings, p.upper() + "_API_KEY", None))) for p in MODEL_FIELDS if p != "custom"},
         }
     )
 
@@ -864,17 +889,22 @@ async def update_ai_settings(
     from app.core.ai_services import AdDetector, normalize_openai_base_url
     import json
 
+    def limited_values(value, label):
+        values = all_values(value)
+        if len(values) > MAX_CONFIGURED_VALUES:
+            raise HTTPException(400, f'Configure at most {MAX_CONFIGURED_VALUES} {label}.')
+        return values
+
     def normalized_models(value, current, default):
-        from app.core.provider_settings import first_value
         if value is None:
-            return first_value(current, first_value(default))
-        try:
-            parsed = json.loads(value)
-        except ValueError:
-            parsed = value
-        if isinstance(parsed, list) and len(parsed) > 1:
-            raise HTTPException(400, 'Choose one model; cascades are no longer supported.')
-        return first_value(parsed)
+            return store_values(all_values(current)) or first_value(default)
+        return store_values(limited_values(value, 'models'))
+
+    def updated_credentials(submitted: str | None, clear: bool, current: str | None) -> str | None:
+        if clear:
+            return None
+        keys = limited_values(submitted, 'API keys') if submitted else []
+        return store_values(keys) if keys else current
 
     def updated_secret(submitted: str | None, clear: bool, current: str | None) -> str | None:
         if clear:
@@ -920,12 +950,19 @@ async def update_ai_settings(
             if tts_provider not in (*PROVIDERS, 'unconfigured'):
                 raise HTTPException(400, 'Choose an API speech provider.')
             if speech_credential and tts_provider in PROVIDERS:
+                # Speech uses the first key; a new one replaces it and keeps any text-analysis fallbacks.
                 field = 'tts_api_key' if tts_provider == 'custom' else tts_provider + '_api_key'
-                current[field] = speech_credential.strip()
-                conn.execute(f'UPDATE app_settings SET {field}=? WHERE id=1', (current[field],))
-                if tts_provider == 'gemini':
+                new_key = speech_credential.strip()
+                others = [] if tts_provider == 'custom' else saved_credentials(tts_provider, current)[1:]
+                stored = store_values(list(dict.fromkeys([new_key, *others])))
+                if tts_provider == 'gemini' and others:
+                    field, current['gemini_api_key'] = 'gemini_api_keys', None
+                    conn.execute('UPDATE app_settings SET gemini_api_key=NULL WHERE id=1')
+                elif tts_provider == 'gemini':
                     current['gemini_api_keys'] = None
                     conn.execute('UPDATE app_settings SET gemini_api_keys=NULL WHERE id=1')
+                current[field] = stored
+                conn.execute(f'UPDATE app_settings SET {field}=? WHERE id=1', (stored,))
             proposed = {**current, 'tts_provider': tts_provider,
                 'tts_model': tts_model or current.get('tts_model'),
                 'tts_voice': tts_voice or current.get('tts_voice'),
@@ -971,16 +1008,7 @@ async def update_ai_settings(
             if clear_gemini_api_keys:
                 selected_gemini_keys = "[]"
             elif gemini_api_keys:
-                try:
-                    parsed_keys = json.loads(gemini_api_keys)
-                except json.JSONDecodeError:
-                    parsed_keys = [gemini_api_keys]
-                parsed_keys = [
-                    str(key).strip() for key in parsed_keys
-                    if isinstance(key, str) and key.strip()
-                ]
-                if len(parsed_keys) > 1:
-                    raise HTTPException(400, "Configure one Gemini credential.")
+                parsed_keys = limited_values(gemini_api_keys, 'API keys')
                 if parsed_keys:
                     selected_gemini_keys = json.dumps(parsed_keys)
 
@@ -1020,16 +1048,16 @@ async def update_ai_settings(
                 (
                     selected_provider,
                     selected_gemini_models,
-                    updated_secret(openai_api_key, clear_openai_api_key, current.get("openai_api_key")),
-                    updated_secret(anthropic_api_key, clear_anthropic_api_key, current.get("anthropic_api_key")),
-                    updated_secret(openrouter_api_key, clear_openrouter_api_key, current.get("openrouter_api_key")),
+                    updated_credentials(openai_api_key, clear_openai_api_key, current.get("openai_api_key")),
+                    updated_credentials(anthropic_api_key, clear_anthropic_api_key, current.get("anthropic_api_key")),
+                    updated_credentials(openrouter_api_key, clear_openrouter_api_key, current.get("openrouter_api_key")),
                     selected_gemini_keys,
                     int(gemini_free_tier_enabled) if gemini_free_tier_present else current.get('gemini_free_tier_enabled', 0),
                     selected_openai_models,
                     selected_anthropic_models,
                     selected_openrouter_models,
                     selected_base_url,
-                    updated_secret(custom_llm_api_key, clear_custom_llm_api_key, current.get("custom_llm_api_key")),
+                    updated_credentials(custom_llm_api_key, clear_custom_llm_api_key, current.get("custom_llm_api_key")),
                     selected_custom_models,
                 ),
             )
@@ -1616,6 +1644,10 @@ async def delete_user(user_id: int, request: Request, user: dict = Depends(requi
 
     from app.infra.database import get_db_connection
     with get_db_connection() as conn:
+        conn.execute(
+            "UPDATE feed_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = ? AND revoked_at IS NULL",
+            (user_id,),
+        )
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         conn.commit()
     
@@ -2122,6 +2154,7 @@ async def update_global_subscription_settings(
     default_ai_audio_summary: bool = Form(False),
     default_append_title_intro: bool = Form(False),
     default_watermark_artwork: bool = Form(False),
+    default_keep_whole_show: bool = Form(False),
     default_retention_limit: int = Form(1),
     default_retention_days: int = Form(30),
     default_manual_retention_days: int = Form(14),
@@ -2195,6 +2228,7 @@ async def update_global_subscription_settings(
             default_remove_non_editorial_non_speech, default_minimum_retained_seconds
         ))
         conn.execute("UPDATE app_settings SET cut_tone_enabled=?, default_processing_workflow='complete_timeline', default_remove_editorial_non_speech=0, whitelist_mode=0, default_custom_instructions=NULL WHERE id=1", (cut_tone_enabled,))
+        conn.execute("UPDATE app_settings SET default_keep_whole_show=? WHERE id=1", (int(default_keep_whole_show),))
         if title_updates:
             conn.execute('UPDATE app_settings SET ' + ', '.join(f'{key}=?' for key in title_updates) + ' WHERE id=1', tuple(title_updates.values()))
         conn.commit()
@@ -2213,7 +2247,8 @@ async def add_subscription(
     user = Depends(require_auth),
 ):
     try:
-        source = await asyncio.to_thread(resolve_source, feed_url)
+        with user_network_scope(_real_user_id(user)):
+            source = await asyncio.to_thread(resolve_source, feed_url)
         feed_url = source.canonical_url
 
         existing = (

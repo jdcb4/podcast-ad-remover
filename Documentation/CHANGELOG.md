@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Add an Allow access requests setting under Users & access. Turning it off removes the Request Access links and makes `/request-access` and `/submit-access-request` return 404; existing users and pending requests are kept. It defaults on, matching earlier behaviour. Additive migration `20261104_0029_access_requests_enabled` takes the usual pre-migration backup; earlier 2.x code ignores the column and always allows requests.
+- Non-admin accounts can no longer reach private, loopback or link-local addresses through the server. This covers adding or replacing a feed and every later feed, episode download and artwork fetch for a podcast they own, including redirects. Admins keep `ALLOW_PRIVATE_FEEDS` behaviour. A LAN feed owned by a non-admin stops updating until an admin takes ownership; no schema change.
+- Deleting a user now revokes their feed tokens. Tokens left behind by users deleted earlier stop working immediately, with no schema change.
+- Serve only `.mp3` files from `/audio`. Transcripts, reports and other files in episode folders now return 404 there; `/artifacts` and the transcript page are unchanged.
+- Stop publishing source URLs in generated RSS. The channel link is now this app's public URL and items no longer link to the upstream media file, because either can contain a private feed token. Feeds are regenerated at startup so XML already on disk is corrected. Rollback: earlier code restores the links the next time it regenerates a feed.
+- A previous published revision whose folder is missing no longer fails the episode at the last step of publishing.
+- Reprocess (Keep Transcript) finds the episode's saved transcript when its recorded path points at an attempt that was cleaned up, instead of transcribing again.
+- Queued and retrying jobs use the current provider, models and keys instead of the ones saved when they were queued.
+- Reuse an episode's saved audio and transcript across restarts and replacement jobs, including the Retry button. Only Reprocess with transcription transcribes again. Saved audio that fails verification is now downloaded again rather than used.
+- Add a global Retention toggle that turns on Keep whole show for newly added podcasts, however they are added. It defaults off and does not change existing podcasts. Additive migration `20261104_0028_default_keep_whole_show`; rollback by restoring the pre-migration backup, or earlier code simply ignores the column.
+- Restore ordered model lists and multiple API keys for text analysis, for every provider. A rate limit tries the next key and then the next model; an outage, timeout, unsupported schema, truncation or refusal tries the next model; a rejected key is skipped; a model failing validation twice is dropped for that job. Output stays schema-only. Enter models one per line and keys comma-separated in Settings, the setup wizard or the provider environment variables. **Test connection** now checks each model and key. Speech stays on one model and uses the first key.
+- Stored values remain compatible: no schema change, a single value stays plain text, and defaults remain one model. Rollback: earlier 2.x code reads only the first model and key from these settings. Upgrading from 1.x still keeps only the first of each, so re-enter any others.
+- Provider requests rejected before billing no longer use up the per-job request budget when another candidate follows. The setup wizard now saves Gemini keys where they take effect.
+
 ## 2.1.1 - 2026-10-17
 
 - Increase the default provider request timeout from two to five minutes. Keep existing explicit timeout overrides.

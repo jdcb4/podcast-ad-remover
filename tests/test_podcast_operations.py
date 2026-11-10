@@ -312,3 +312,36 @@ def test_exact_guid_and_unique_enclosure_match_without_review(show):
     with get_db_connection() as conn:
         assert conn.execute('SELECT guid FROM episodes WHERE id=?',(second,)).fetchone()[0]=='old-two'
         assert conn.execute('SELECT count(*) FROM jobs').fetchone()[0]==0
+
+
+def test_global_default_keeps_whole_show_for_new_podcasts_only(isolated_data_dir, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from starlette.middleware.sessions import SessionMiddleware
+    from app.core.models import SubscriptionCreate
+    from app.infra.repository import SubscriptionRepository
+    from app.web import router as web
+    init_db()
+    monkeypatch.setattr(web, '_reconcile_artwork_and_feeds', lambda *a: None)
+    app = FastAPI()
+    app.add_middleware(SessionMiddleware, secret_key='fixture-only-secret')
+    app.include_router(web.router)
+    client = TestClient(app, headers={'Origin': 'http://testserver'})
+    repo = SubscriptionRepository()
+    add = lambda name, **kwargs: repo.create(SubscriptionCreate(feed_url=f'https://example.org/{name}'), name, name, **kwargs)
+
+    before = add('before')
+    assert before.keep_whole_show is False and before.inherit_retention is True
+    assert 'name="default_keep_whole_show"' in client.get('/admin/global-subscription-settings').text
+
+    url = '/admin/global-subscription-settings/update'
+    client.post(url, data={'default_keep_whole_show': 'true', 'default_retention_limit': 7, 'default_retention_days': 40, 'default_manual_retention_days': 21})
+    inherited, explicit = add('inherited'), add('explicit', retention_limit=3, inherit_retention=False)
+    assert inherited.keep_whole_show is True and inherited.inherit_retention is False
+    assert (inherited.retention_limit, inherited.retention_days, inherited.manual_retention_days) == (7, 40, 21)
+    assert explicit.keep_whole_show is True and explicit.retention_limit == 3
+    assert repo.get_by_id(before.id).keep_whole_show is False
+
+    client.post(url, data={'default_retention_limit': 7, 'default_retention_days': 40, 'default_manual_retention_days': 21})
+    assert add('after').keep_whole_show is False
+    assert repo.get_by_id(inherited.id).keep_whole_show is True

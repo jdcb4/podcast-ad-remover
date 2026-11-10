@@ -1,5 +1,9 @@
 # Decisions
 
+## 2026-11-04: Restore model and API key fallback for text analysis
+
+Reverses the single-model part of the 2026-10-11 and V2 decisions below, at the request of this fork's operator: a provider outage on the one selected model delayed every episode, and running a separate router is more than a home install should need. Each provider again takes an ordered list of models and keys in the existing TEXT columns, so there is no schema change and earlier 2.x code still reads the first value. Native structured output stays mandatory, because schema-free fallback was the riskier part of the old cascade. Stay within one provider and leave speech on a single model. Defaults remain one model, so no install starts spending on extra models unasked. A rejected request that falls back is refunded from the job budget, since that budget is retained across retries and three failing models would otherwise end a job permanently after a few retries. Gemini free-tier accounting stays one pool per model and does not rotate keys. See [fallback behavior](COMPLETE_TIMELINE.md).
+
 ## 2026-10-11: Release rationale for removing built-in cascades
 
 Joe explained that sufficiently capable paid models are now affordable enough for many installations to use one directly. Dedicated routers such as 9Router, OmniRoute and LiteLLM can manage a three-tier cascade or account routing outside PAR; maintaining another cascade here duplicates that work for limited value. PAR selects one model and credential, with compatible external routing through the custom OpenAI-compatible endpoint. Every routed model must support native structured output. This records the maintainer's rationale, not a price guarantee or gateway compatibility certification. README and release notes explain the functional impacts of local Piper removal and other V2 changes. Final release wording awaits his review; no version bump or publication is authorized by preparation.
@@ -278,6 +282,10 @@ legacy on-disk artifacts continue to resolve through constrained compatibility r
 ## 2026-09-27 — V2 simplification
 
 Implement the approved V2_PROPOSAL on dev. Use Complete Timeline exclusively and native schema requests with only valid-object unwrapping. Use one provider model and one credential (environment first). Optional speech is API-only and never silently chooses a paid service after Piper migration. Remove SponsorBlock, preserve YouTube. Consolidate account/token administration, keep setup optional, generate install configuration solely in the browser. Ownership semantics and whisper.cpp remain deferred. No production promotion or Docker publication is implied.
+## 2026-11-04 — Private network access follows the podcast owner
+
+Checking only when a podcast is added would not stop a public feed that later redirects inward or lists an internal enclosure, because the worker refetches it with no user present. Fetches therefore run under the owner's policy through a context variable that the shared download helpers read. Setting `ALLOW_PRIVATE_FEEDS=false` for everyone was rejected because admins use LAN feeds. Unowned podcasts keep the global policy for compatibility; only accounts can own new podcasts when login is on.
+
 ## 2026-10-03 — Reviewed RSS operations
 
 Source replacement requires reviewed identities and atomic confirmation. Whole-show processing is an RSS-only snapshot batch, lower priority than ordinary work; pause/cancel allows running work to finish. Keep-whole-show retention is explicit and independent of the unchanged discovery window. Ownership rules remain unchanged. See PODCAST_OPERATIONS.md.
